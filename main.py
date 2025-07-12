@@ -3,13 +3,14 @@ import asyncio
 import random
 import aiofiles
 from datetime import datetime
-from typing import Optional, Dict, Any
+import re
+from typing import List, Optional, Dict, Any
 import urllib.parse
 
 import discord
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 from googleapiclient.discovery import build
 import schedule
 import aiohttp
@@ -54,10 +55,15 @@ characters = {
 }
 
 # API 클라이언트 초기화
-anthropic_client = None
+anthropic_client: Optional[AsyncAnthropic] = None
 youtube = None
 ETERNAL_RETURN_CHANNEL_ID = 'UCaktoGSdjMnfQFv5BSyYrvA'
 last_checked_video_id = None
+
+class PlayerStatsError(Exception):
+    """플레이어 전적 조회 관련 예외"""
+    pass
+
 
 async def initialize_claude_api():
     """Claude API 초기화"""
@@ -66,12 +72,455 @@ async def initialize_claude_api():
         api_key = os.getenv('CLAUDE_API_KEY')
         
         if api_key and api_key != 'your_claude_api_key_here':
-            anthropic_client = Anthropic(api_key=api_key)
+            anthropic_client = AsyncAnthropic(api_key=api_key)
             print('🤖 Claude API 연결 완료! (.env 파일에서 로드)')
         else:
             print('⚠️ Claude API 키가 설정되지 않음. 기본 응답 모드로 동작합니다.')
     except Exception as error:
         print(f'⚠️ Claude API 초기화 실패: {error}')
+
+async def fetch_detailed_player_stats(nickname: str) -> Dict[str, Any]:
+    """
+    dak.gg에서 플레이어의 상세 전적 정보를 가져오는 함수
+    
+    Args:
+        nickname: 플레이어 닉네임
+        
+    Returns:
+        Dict containing:
+        - name: 플레이어 이름
+        - level: 레벨 정보
+        - profile: 프로필 정보 (티어, LP 등)
+        - rank_info: 랭크 정보
+        - recent_games: 최근 5게임 정보
+        - url: dak.gg 프로필 URL
+    """
+    try:
+        # URL 인코딩
+        encoded_nickname = urllib.parse.quote(nickname)
+        url = f"https://dak.gg/er/players/{encoded_nickname}"
+        
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+            
+            async with session.get(url, headers=headers, timeout=15) as response:
+                if response.status == 404:
+                    raise PlayerStatsError("player_not_found")
+                elif response.status != 200:
+                    raise PlayerStatsError(f"request_failed_{response.status}")
+                
+                html = await response.text()
+                soup = BeautifulSoup(html, 'html.parser')
+                
+                # 플레이어 정보 추출
+                player_data = {
+                    'name': nickname,
+                    'level': None,
+                    'profile': {},
+                    'rank_info': {},
+                    'recent_games': [],
+                    'url': url
+                }
+                
+                # 1. 기본 플레이어 정보 (이름, 레벨)
+                await _extract_basic_info(soup, player_data)
+                
+                # 2. 프로필 정보 (티어, LP, 승률 등)
+                await _extract_profile_info(soup, player_data)
+                
+                # 3. 랭크 정보
+                await _extract_rank_info(soup, player_data)
+                
+                # 4. 최근 게임 정보
+                await _extract_recent_games(soup, player_data)
+                
+                return player_data
+                
+    except PlayerStatsError:
+        raise
+    except Exception as e:
+        print(f"플레이어 전적 조회 중 예외 발생: {e}")
+        raise PlayerStatsError(f"fetch_failed: {str(e)}")
+
+
+async def _extract_basic_info(soup: BeautifulSoup, player_data: Dict[str, Any]):
+    """기본 플레이어 정보 추출 (이름, 레벨)"""
+    
+    # 플레이어 이름과 레벨 정보
+    name_selectors = [
+        'h1.css-1v8q5mj',  # dak.gg 메인 플레이어 이름
+        'h1[class*="player"]',
+        '.player-name h1',
+        'h1',
+        '.css-389hsa h3',
+        '.content h3',
+        '[class*="nickname"]' # 일반적인 닉네임 클래스
+    ]
+    
+    for selector in name_selectors:
+        elem = soup.select_one(selector)
+        if elem:
+            text = elem.get_text(strip=True)
+            if text and len(text) > 0:
+                # 레벨 정보가 포함된 경우 분리
+                if 'Lv.' in text or 'Level' in text:
+                    level_match = re.search(r'Lv\.?\s*(\d+)', text)
+                    if level_match:
+                        player_data['level'] = f"Lv.{level_match.group(1)}"
+                        player_name = re.sub(r'Lv\.?\s*\d+', '', text).strip()
+                        if player_name:
+                            player_data['name'] = player_name
+                else:
+                    player_data['name'] = text
+                break
+    
+    # 별도 레벨 정보 찾기
+    if not player_data.get('level'):
+        level_selectors = [
+            '.css-1v8q5mj + div',  # 이름 다음 div
+            '.player-level',
+            '.level',
+            '[class*="level"]' # 일반적인 레벨 클래스
+        ]
+        
+        for selector in level_selectors:
+            elem = soup.select_one(selector)
+            if elem:
+                text = elem.get_text(strip=True)
+                level_match = re.search(r'(?:Lv\.?\s*)?(\d+)', text)
+                if level_match and ('lv' in text.lower() or 'level' in text.lower()):
+                    player_data['level'] = f"Lv.{level_match.group(1)}"
+                    break
+
+
+async def _extract_profile_info(soup: BeautifulSoup, player_data: Dict[str, Any]):
+    """프로필 정보 추출 (티어, LP, 승률 등)"""
+    
+    # 티어 정보
+    tier_selectors = [
+        '.css-1qjr4z5',  # dak.gg 티어 클래스
+        '.tier-name',
+        '.rank-tier',
+        '[class*="tier"]',
+        '[class*="rank"]',
+        '[class*="tier-info"]' # 일반적인 티어 정보 클래스
+    ]
+    
+    for selector in tier_selectors:
+        elem = soup.select_one(selector)
+        if elem:
+            tier_text = elem.get_text(strip=True)
+            if tier_text and any(rank in tier_text.lower() for rank in ['iron', 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'titan', 'immortal']):
+                player_data['profile']['tier'] = tier_text
+                break
+    
+    # LP/MMR 정보
+    lp_selectors = [
+        '.css-1ynm8dt',  # LP 표시 클래스
+        '.lp',
+        '.mmr',
+        '.rating-points',
+        '[class*="lp"]',
+        '[class*="rating"]' # 일반적인 점수 클래스
+    ]
+    
+    for selector in lp_selectors:
+        elem = soup.select_one(selector)
+        if elem:
+            lp_text = elem.get_text(strip=True)
+            if lp_text and ('LP' in lp_text or 'MMR' in lp_text or lp_text.isdigit()):
+                player_data['profile']['lp'] = lp_text
+                break
+    
+    # 승률 정보
+    winrate_selectors = [
+        '.css-1h7j4z9',  # 승률 클래스
+        '.winrate',
+        '.win-rate',
+        '[class*="winrate"]',
+        '[class*="win-rate"]',
+        '[class*="wr"]' # 일반적인 승률 클래스
+    ]
+    
+    for selector in winrate_selectors:
+        elem = soup.select_one(selector)
+        if elem:
+            winrate_text = elem.get_text(strip=True)
+            if winrate_text and ('%' in winrate_text or 'win' in winrate_text.lower()):
+                player_data['profile']['winrate'] = winrate_text
+                break
+    
+    # 총 게임 수
+    games_selectors = [
+        '.total-games',
+        '.games-played',
+        '[class*="total"]',
+        '[class*="games"]',
+        '[class*="matches"]' # 일반적인 게임 수 클래스
+    ]
+    
+    for selector in games_selectors:
+        elem = soup.select_one(selector)
+        if elem:
+            games_text = elem.get_text(strip=True)
+            if games_text and ('게임' in games_text or 'games' in games_text.lower() or games_text.isdigit()):
+                player_data['profile']['total_games'] = games_text
+                break
+
+
+async def _extract_rank_info(soup: BeautifulSoup, player_data: Dict[str, Any]):
+    """랭크 정보 추출"""
+    
+    # 랭킹 정보
+    rank_selectors = [
+        '.css-1h0j2z4',  # 순위 표시 클래스
+        '.rank-position',
+        '.ranking',
+        '[class*="rank"]'
+    ]
+    
+    for selector in rank_selectors:
+        elem = soup.select_one(selector)
+        if elem:
+            rank_text = elem.get_text(strip=True)
+            if rank_text and ('#' in rank_text or '위' in rank_text or rank_text.isdigit()):
+                player_data['rank_info']['position'] = rank_text
+                break
+    
+    # 서버/지역 랭킹
+    server_rank_selectors = [
+        '.server-rank',
+        '.region-rank',
+        '[class*="server"]'
+    ]
+    
+    for selector in server_rank_selectors:
+        elem = soup.select_one(selector)
+        if elem:
+            server_rank_text = elem.get_text(strip=True)
+            if server_rank_text:
+                player_data['rank_info']['server_rank'] = server_rank_text
+                break
+
+
+async def _extract_recent_games(soup: BeautifulSoup, player_data: Dict[str, Any]):
+    """최근 게임 정보 추출 (최대 5게임)"""
+    
+    # 게임 리스트 찾기
+    game_selectors = [
+        '.css-1s2u8g9',  # 게임 카드 클래스
+        '.match-item',
+        '.game-item',
+        '.recent-game',
+        '[class*="match"]',
+        '[class*="game"]',
+        'li[class*="match-history__item"]' # 일반적인 최근 게임 아이템 클래스
+    ]
+    
+    games = []
+    
+    for selector in game_selectors:
+        game_elements = soup.select(selector)[:5]  # 최대 5게임
+        
+        if game_elements:
+            for i, game_elem in enumerate(game_elements):
+                try:
+                    game_info = await _parse_game_element(game_elem, i + 1)
+                    if game_info:
+                        games.append(game_info)
+                except Exception as e:
+                    print(f"게임 {i+1} 파싱 중 오류: {e}")
+                    continue
+            
+            if games:  # 게임 정보를 찾았으면 중단
+                break
+    
+    # 게임 정보가 없으면 테이블 형태로 시도
+    if not games:
+        await _extract_games_from_table(soup, games)
+    
+    player_data['recent_games'] = games[:5]  # 최대 5게임만
+
+
+async def _parse_game_element(game_elem, game_number: int) -> Optional[Dict[str, Any]]:
+    """개별 게임 요소 파싱"""
+    
+    game_info = {
+        'game_number': game_number,
+        'result': None,
+        'character': None,
+        'rank': None,
+        'kills': None,
+        'duration': None,
+        'mode': None
+    }
+    
+    # 게임 결과 (승/패)
+    result_indicators = game_elem.select('.win, .victory, .lose, .defeat, [class*="win"], [class*="lose"], [class*="victory"], [class*="defeat"], [class*="result"] span')
+    for indicator in result_indicators:
+        class_list = ' '.join(indicator.get('class', []))
+        text = indicator.get_text(strip=True).lower()
+        
+        if 'win' in class_list.lower() or 'victory' in class_list.lower() or '승리' in text:
+            game_info['result'] = '승리'
+            break
+        elif 'lose' in class_list.lower() or 'defeat' in class_list.lower() or '패배' in text:
+            game_info['result'] = '패배'
+            break
+    
+    # 캐릭터 이름
+    char_selectors = [
+        '.character-name',
+        '.char-name',
+        '[class*="character"]',
+        '.css-character',
+        'img[alt*="character"]',
+        '[class*="character-name"] span' # 일반적인 캐릭터 이름 클래스
+    ]
+    
+    for selector in char_selectors:
+        char_elem = game_elem.select_one(selector)
+        if char_elem:
+            if char_elem.name == 'img':
+                char_name = char_elem.get('alt', '')
+            else:
+                char_name = char_elem.get_text(strip=True)
+            
+            if char_name and len(char_name) > 1:
+                game_info['character'] = char_name
+                break
+    
+    # 순위
+    rank_selectors = [
+        '.rank',
+        '.position',
+        '[class*="rank"]',
+        '.placement',
+        '[class*="ranking"] span' # 일반적인 순위 클래스
+    ]
+    
+    for selector in rank_selectors:
+        rank_elem = game_elem.select_one(selector)
+        if rank_elem:
+            rank_text = rank_elem.get_text(strip=True)
+            if rank_text and (rank_text.isdigit() or '위' in rank_text):
+                game_info['rank'] = rank_text
+                break
+    
+    # 킬 수
+    kill_selectors = [
+        '.kills',
+        '.kill-count',
+        '[class*="kill"]',
+        '[class*="kda"] span' # 일반적인 킬 수 클래스
+    ]
+    
+    for selector in kill_selectors:
+        kill_elem = game_elem.select_one(selector)
+        if kill_elem:
+            kill_text = kill_elem.get_text(strip=True)
+            if kill_text and (kill_text.isdigit() or 'kill' in kill_text.lower()):
+                game_info['kills'] = kill_text
+                break
+    
+    # 게임 시간
+    duration_selectors = [
+        '.duration',
+        '.game-time',
+        '.time',
+        '[class*="duration"]',
+        '[class*="time"]',
+        '[class*="length"] span' # 일반적인 게임 시간 클래스
+    ]
+    
+    for selector in duration_selectors:
+        duration_elem = game_elem.select_one(selector)
+        if duration_elem:
+            duration_text = duration_elem.get_text(strip=True)
+            if duration_text and (':' in duration_text or 'min' in duration_text or 'm' in duration_text):
+                game_info['duration'] = duration_text
+                break
+    
+    # 게임 모드
+    mode_selectors = [
+        '.game-mode',
+        '.mode',
+        '[class*="mode"]',
+        '[class*="queue-type"] span' # 일반적인 게임 모드 클래스
+    ]
+    
+    for selector in mode_selectors:
+        mode_elem = game_elem.select_one(selector)
+        if mode_elem:
+            mode_text = mode_elem.get_text(strip=True)
+            if mode_text and len(mode_text) > 0:
+                game_info['mode'] = mode_text
+                break
+    
+    # 최소한 하나의 의미있는 정보가 있는지 확인
+    meaningful_fields = ['result', 'character', 'rank', 'kills']
+    if any(game_info.get(field) for field in meaningful_fields):
+        return game_info
+    
+    return None
+
+
+async def _extract_games_from_table(soup: BeautifulSoup, games: List[Dict[str, Any]]):
+    """테이블 형태의 게임 기록에서 정보 추출"""
+    
+    table_selectors = [
+        'table',
+        '.match-history-table',
+        '.games-table',
+        '[class*="table"]'
+    ]
+    
+    for selector in table_selectors:
+        table = soup.select_one(selector)
+        if table:
+            rows = table.select('tr')[1:6]  # 헤더 제외, 최대 5행
+            
+            for i, row in enumerate(rows):
+                cells = row.select('td, th')
+                if len(cells) >= 3:  # 최소 3개 컬럼 필요
+                    game_info = {
+                        'game_number': i + 1,
+                        'result': None,
+                        'character': None,
+                        'rank': None,
+                        'kills': None,
+                        'duration': None,
+                        'mode': None
+                    }
+                    
+                    # 각 셀에서 정보 추출
+                    for cell in cells:
+                        cell_text = cell.get_text(strip=True)
+                        cell_class = ' '.join(cell.get('class', []))
+                        
+                        # 결과 판정
+                        if '승리' in cell_text or 'win' in cell_text.lower() or 'victory' in cell_class.lower():
+                            game_info['result'] = '승리'
+                        elif '패배' in cell_text or 'lose' in cell_text.lower() or 'defeat' in cell_class.lower():
+                            game_info['result'] = '패배'
+                        
+                        # 캐릭터명 (일반적으로 특정 길이 이상의 텍스트)
+                        if len(cell_text) > 2 and not cell_text.isdigit() and '위' not in cell_text:
+                            if not game_info['character']:
+                                game_info['character'] = cell_text
+                        
+                        # 순위 (숫자 + 위 또는 단순 숫자)
+                        if cell_text.isdigit() or '위' in cell_text:
+                            if not game_info['rank']:
+                                game_info['rank'] = cell_text
+                    
+                    if any(game_info.get(field) for field in ['result', 'character', 'rank']):
+                        games.append(game_info)
+            
+            if games:  # 테이블에서 게임을 찾았으면 중단
+                break
 
 async def initialize_youtube():
     """YouTube API 초기화"""
@@ -84,136 +533,7 @@ async def initialize_youtube():
     except Exception as error:
         print(f'⚠️ YouTube API 초기화 실패: {error}')
 
-async def fetch_player_stats(nickname: str) -> Dict[str, Any]:
-    """dak.gg에서 플레이어 전적 정보 가져오기"""
-    try:
-        # URL 인코딩
-        encoded_nickname = urllib.parse.quote(nickname)
-        url = f"https://dak.gg/er/players/{encoded_nickname}"
-        
-        async with aiohttp.ClientSession() as session:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-            
-            async with session.get(url, headers=headers) as response:
-                if response.status == 404:
-                    return {"error": "player_not_found", "message": "플레이어를 찾을 수 없습니다."}
-                elif response.status != 200:
-                    return {"error": "request_failed", "message": f"요청 실패: {response.status}"}
-                
-                html = await response.text()
-                soup = BeautifulSoup(html, 'html.parser')
-                
-                # 플레이어 기본 정보 추출
-                player_info = {}
-                
-                # 플레이어 이름과 레벨 정보 (dak.gg의 실제 구조에 맞춰 수정)
-                # 여러 가능한 선택자로 시도
-                name_selectors = [
-                    'h3',  # 기본 h3 태그
-                    '.player-name',
-                    '.css-389hsa h3',
-                    '.content h3'
-                ]
-                
-                player_name = None
-                level_info = None
-                
-                for selector in name_selectors:
-                    elem = soup.select_one(selector)
-                    if elem:
-                        text = elem.get_text(strip=True)
-                        if text and len(text) > 0:
-                            # 레벨 정보가 포함된 경우 분리
-                            if 'Lv.' in text:
-                                parts = text.split('Lv.')
-                                if len(parts) >= 2:
-                                    player_name = parts[0].strip()
-                                    level_info = f"Lv.{parts[1].strip()}"
-                                else:
-                                    player_name = text
-                            else:
-                                player_name = text
-                            break
-                
-                player_info['name'] = player_name or nickname
-                if level_info:
-                    player_info['level'] = level_info
-                
-                # 최근 업데이트 정보
-                update_elem = soup.select_one('.css-1v2jvkd')
-                if update_elem:
-                    update_text = update_elem.get_text(strip=True)
-                    if '최근 업데이트:' in update_text:
-                        player_info['last_update'] = update_text.replace('최근 업데이트:', '').strip()
-                
-                # 기본적인 정보가 없으면 일반적인 선택자들로 시도
-                if not player_info.get('level'):
-                    # 다양한 레벨 선택자 시도
-                    level_selectors = [
-                        '.level', '.player-level', '[class*="level"]',
-                        '.css-389hsa .content .top', '.player-info .level'
-                    ]
-                    for selector in level_selectors:
-                        elem = soup.select_one(selector)
-                        if elem:
-                            text = elem.get_text(strip=True)
-                            if 'Lv.' in text:
-                                player_info['level'] = text
-                                break
-                
-                # 티어, LP, 승률 등의 정보를 찾기 위한 일반적인 선택자들
-                stats_selectors = {
-                    'tier': ['.tier', '.rank', '.rating', '[class*="tier"]', '[class*="rank"]'],
-                    'lp': ['.lp', '.mmr', '.points', '[class*="lp"]', '[class*="mmr"]'],
-                    'winrate': ['.winrate', '.win-rate', '.wr', '[class*="winrate"]', '[class*="win"]'],
-                    'games': ['.games', '.matches', '.total-games', '[class*="games"]', '[class*="match"]']
-                }
-                
-                for stat_name, selectors in stats_selectors.items():
-                    for selector in selectors:
-                        elem = soup.select_one(selector)
-                        if elem:
-                            text = elem.get_text(strip=True)
-                            if text and len(text) > 0:
-                                player_info[stat_name] = text
-                                break
-                
-                # 캐릭터 통계 정보 시도
-                character_stats = []
-                char_selectors = [
-                    '.character-stat', '.character-info', '.char-stat',
-                    '[class*="character"]', '.most-played'
-                ]
-                
-                for selector in char_selectors:
-                    char_elements = soup.select(selector)[:3]  # 상위 3개
-                    if char_elements:
-                        for char_elem in char_elements:
-                            char_text = char_elem.get_text(strip=True)
-                            if char_text and len(char_text) > 5:  # 의미있는 텍스트만
-                                character_stats.append({
-                                    'name': char_text[:20],  # 처음 20자만
-                                    'info': char_text
-                                })
-                        break
-                
-                if character_stats:
-                    player_info['favorite_characters'] = character_stats
-                
-                player_info['url'] = url
-                
-                # 최소한의 정보라도 있는지 확인
-                if not any(key in player_info for key in ['level', 'tier', 'winrate', 'last_update']):
-                    # 페이지는 로드되었지만 통계 정보가 없는 경우
-                    player_info['message'] = "플레이어 페이지를 찾았지만 통계 정보가 없습니다. 게임을 플레이한 기록이 있는지 확인해주세요."
-                
-                return player_info
-                
-    except Exception as error:
-        print(f'플레이어 전적 조회 오류: {error}')
-        return {"error": "fetch_failed", "message": f"전적 조회 중 오류가 발생했습니다: {str(error)}"}
+
 
 @bot.event
 async def on_ready():
@@ -370,11 +690,10 @@ async def stats_slash(interaction: discord.Interaction, 닉네임: str):
         return
     
     # 플레이어 전적 정보 가져오기
-    player_stats = await fetch_player_stats(닉네임)
-    
-    if "error" in player_stats:
-        # 에러 발생 시 데비의 응답
-        if player_stats["error"] == "player_not_found":
+    try:
+        player_stats = await fetch_detailed_player_stats(닉네임)
+    except PlayerStatsError as e:
+        if "player_not_found" in str(e):
             response = await generate_ai_response(
                 characters["debi"], f"{닉네임} 전적 검색 실패", 
                 "플레이어를 찾을 수 없었습니다"
@@ -390,56 +709,56 @@ async def stats_slash(interaction: discord.Interaction, 닉네임: str):
             )
             embed = create_character_embed(
                 characters["debi"], "전적 검색 오류", 
-                f"{response}\n\n⚠️ {player_stats['message']}"
+                f"{response}\n\n⚠️ 전적 조회 중 오류가 발생했습니다: {e}"
             )
-    else:
-        # 성공 시 전적 정보 표시
-        response = await generate_ai_response(
-            characters["debi"], f"{닉네임} 전적 정보", 
-            f"플레이어 {닉네임}의 전적을 성공적으로 찾았습니다"
-        )
-        
-        # 기본 정보 구성
-        stats_info = f"**🎮 플레이어**: {player_stats.get('name', 닉네임)}\n"
-        
-        if player_stats.get('level'):
-            stats_info += f"**📊 레벨**: {player_stats['level']}\n"
-        
-        if player_stats.get('last_update'):
-            stats_info += f"**🕒 최근 업데이트**: {player_stats['last_update']}\n"
-        
-        if player_stats.get('tier'):
-            stats_info += f"**🏆 티어**: {player_stats['tier']}\n"
-        
-        if player_stats.get('lp'):
-            stats_info += f"**💎 LP**: {player_stats['lp']}\n"
-        
-        if player_stats.get('winrate'):
-            stats_info += f"**📈 승률**: {player_stats['winrate']}\n"
-        
-        if player_stats.get('games'):
-            stats_info += f"**🎯 게임 수**: {player_stats['games']}\n"
-        
-        # 선호 캐릭터 정보
-        if player_stats.get('favorite_characters'):
-            stats_info += f"\n**⭐ 캐릭터 정보**:\n"
-            for i, char in enumerate(player_stats['favorite_characters'][:3], 1):
-                if 'winrate' in char and 'games' in char:
-                    stats_info += f"`{i}.` {char['name']} - {char['winrate']} ({char['games']})\n"
-                else:
-                    stats_info += f"`{i}.` {char.get('info', char.get('name', '정보 없음'))}\n"
-        
-        # 추가 메시지가 있는 경우
-        if player_stats.get('message'):
-            stats_info += f"\n📝 {player_stats['message']}\n"
-        
-        stats_info += f"\n🔗 [상세 전적 보기]({player_stats['url']})"
-        
-        embed = create_character_embed(
-            characters["debi"], "전적 검색 결과", 
-            f"{response}\n\n{stats_info}"
-        )
-        embed.set_footer(text="데비가 dak.gg에서 가져온 정보야!")
+        files = []
+        if os.path.exists('./assets/debi.png'):
+            files.append(discord.File('./assets/debi.png'))
+        await interaction.followup.send(embed=embed, files=files)
+        return
+
+    # 성공 시 전적 정보 표시
+    response = await generate_ai_response(
+        characters["debi"], f"{닉네임} 전적 정보", 
+        f"플레이어 {닉네임}의 전적을 성공적으로 찾았습니다"
+    )
+    
+    # 기본 정보 구성
+    stats_info = f"**🎮 플레이어**: {player_stats.get('name', 닉네임)}\n"
+    
+    if player_stats.get('level'):
+        stats_info += f"**📊 레벨**: {player_stats['level']}\n"
+    
+    profile = player_stats.get('profile', {})
+    if profile.get('tier'):
+        stats_info += f"**🏆 티어**: {profile['tier']}\n"
+    
+    if profile.get('lp'):
+        stats_info += f"**💎 LP**: {profile['lp']}\n"
+    
+    if profile.get('winrate'):
+        stats_info += f"**📈 승률**: {profile['winrate']}\n"
+    
+    if profile.get('total_games'):
+        stats_info += f"**🎯 게임 수**: {profile['total_games']}\n"
+    
+    # 최근 게임 정보
+    if player_stats.get('recent_games'):
+        stats_info += f"\n**⭐ 최근 게임**:\n"
+        for game in player_stats['recent_games']:
+            result = game.get('result', '')
+            character = game.get('character', '')
+            rank = game.get('rank', '')
+            kills = game.get('kills', '')
+            stats_info += f"- {result} ({character}): {rank}, {kills}\n"
+    
+    stats_info += f"\n🔗 [상세 전적 보기]({player_stats['url']})"
+    
+    embed = create_character_embed(
+        characters["debi"], "전적 검색 결과", 
+        f"{response}\n\n{stats_info}"
+    )
+    embed.set_footer(text="데비가 dak.gg에서 가져온 정보야!")
     
     files = []
     if os.path.exists('./assets/debi.png'):
@@ -704,28 +1023,7 @@ async def generate_ai_response(character: Dict[str, Any], user_message: str, con
 
 위 캐릭터 성격에 맞게 한국어로 자연스럽게 대답해줘. 너무 길지 않게 1-2문장으로."""
 
-            try:
-                # 동기 함수이므로 await 제거
-                message = anthropic_client.messages.create(
-                    model="claude-3-haiku-20240307",
-                    max_tokens=100,
-                    messages=[{
-                        "role": "user",
-                        "content": prompt
-                    }]
-                )
-                
-                ai_response = message.content[0].text
-                print(f"✅ Claude API 응답 성공: {ai_response[:50]}...")
-                return ai_response
-                
-            except Exception as api_error:
-                print(f"❌ Claude API 호출 실패: {type(api_error).__name__}: {str(api_error)}")
-                print(f"API 키 상태: {'있음' if anthropic_client else '없음'}")
-                
-                # API 호출 실패 시 기본 응답으로 fallback
-                print("🔄 기본 응답 모드로 전환")
-                raise api_error  # 예외를 다시 던져서 아래 except 블록에서 처리
+            
         else:
             print("⚠️ Claude API 키가 설정되지 않음 - 기본 응답 사용")
             

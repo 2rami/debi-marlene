@@ -360,7 +360,14 @@ async def help_slash(interaction: discord.Interaction):
 @bot.tree.command(name="전적", description="데비가 전적을 검색해드려요")
 async def stats_slash(interaction: discord.Interaction, 닉네임: str):
     """전적 검색 슬래시 커맨드"""
-    await interaction.response.defer()
+    try:
+        await interaction.response.defer()
+    except discord.errors.NotFound:
+        print("❌ 인터랙션이 이미 만료됨 - 전적 검색 중단")
+        return
+    except Exception as defer_error:
+        print(f"❌ defer 실패: {defer_error}")
+        return
     
     # 플레이어 전적 정보 가져오기
     player_stats = await fetch_player_stats(닉네임)
@@ -688,6 +695,8 @@ async def generate_ai_response(character: Dict[str, Any], user_message: str, con
     """AI 응답 생성 함수"""
     try:
         if anthropic_client:
+            print(f"🤖 Claude API 호출 시작 - 캐릭터: {character['name']}, 메시지: {user_message[:50]}...")
+            
             prompt = f"""{character['ai_prompt']}
 
 사용자 메시지: "{user_message}"
@@ -695,45 +704,66 @@ async def generate_ai_response(character: Dict[str, Any], user_message: str, con
 
 위 캐릭터 성격에 맞게 한국어로 자연스럽게 대답해줘. 너무 길지 않게 1-2문장으로."""
 
-            # 동기 함수이므로 await 제거
-            message = anthropic_client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=100,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }]
-            )
-
-            return message.content[0].text
+            try:
+                # 동기 함수이므로 await 제거
+                message = anthropic_client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=100,
+                    messages=[{
+                        "role": "user",
+                        "content": prompt
+                    }]
+                )
+                
+                ai_response = message.content[0].text
+                print(f"✅ Claude API 응답 성공: {ai_response[:50]}...")
+                return ai_response
+                
+            except Exception as api_error:
+                print(f"❌ Claude API 호출 실패: {type(api_error).__name__}: {str(api_error)}")
+                print(f"API 키 상태: {'있음' if anthropic_client else '없음'}")
+                
+                # API 호출 실패 시 기본 응답으로 fallback
+                print("🔄 기본 응답 모드로 전환")
+                raise api_error  # 예외를 다시 던져서 아래 except 블록에서 처리
         else:
             print("⚠️ Claude API 키가 설정되지 않음 - 기본 응답 사용")
-            # fallback: 기본 응답 패턴 사용
-            responses = {
-                "debi": [
-                    f"와! {user_message}? 완전 흥미진진한데! 😍",
-                    f"어머! 진짜? {user_message} 얘기하는 거야? 대박! ✨",
-                    f"{user_message}라니! 완전 재밌겠다~ 나도 궁금해! 🤔",
-                    f"오오! {user_message}? 데비도 그거 좋아해! 😊",
-                    f"{user_message}? 우와! 얼른 더 알려줘! 🎉"
-                ],
-                "marlene": [
-                    f"{user_message}에 대해 말씀하시는군요. 차근차근 살펴보겠습니다.",
-                    f"{user_message}라고 하셨는데, 정확히 어떤 부분이 궁금하신가요?",
-                    f"그렇군요. {user_message}에 대해 도움을 드릴 수 있을 것 같습니다.",
-                    f"{user_message}... 흥미로운 주제네요. 자세히 설명해드리겠습니다.",
-                    f"{user_message}에 관해서라면 제가 도움을 드릴 수 있겠네요."
-                ]
-            }
             
-            character_responses = responses["debi" if character["name"] == "데비" else "marlene"]
-            return random.choice(character_responses)
     except Exception as error:
-        print(f'AI 응답 생성 실패: {error}')
-        print(f'Anthropic 클라이언트 타입: {type(anthropic_client)}')
-        print(f'Anthropic 클라이언트 속성: {dir(anthropic_client) if anthropic_client else "None"}')
+        print(f"⚠️ AI 응답 생성 중 예외 발생: {type(error).__name__}: {str(error)}")
+        print(f"Anthropic 클라이언트 상태: {type(anthropic_client) if anthropic_client else 'None'}")
         
-        # 에러 시 기본 응답
+        # fallback: 기본 응답 패턴 사용
+        print("🔄 Fallback 응답 생성 중...")
+        
+    # 기본 응답 로직 (API 실패 시 또는 API 키 없을 시)
+    try:
+        responses = {
+            "debi": [
+                f"와! {user_message}? 완전 흥미진진한데! 😍",
+                f"어머! 진짜? {user_message} 얘기하는 거야? 대박! ✨",
+                f"{user_message}라니! 완전 재밌겠다~ 나도 궁금해! 🤔",
+                f"오오! {user_message}? 데비도 그거 좋아해! 😊",
+                f"{user_message}? 우와! 얼른 더 알려줘! 🎉"
+            ],
+            "marlene": [
+                f"{user_message}에 대해 말씀하시는군요. 차근차근 살펴보겠습니다.",
+                f"{user_message}라고 하셨는데, 정확히 어떤 부분이 궁금하신가요?",
+                f"그렇군요. {user_message}에 대해 도움을 드릴 수 있을 것 같습니다.",
+                f"{user_message}... 흥미로운 주제네요. 자세히 설명해드리겠습니다.",
+                f"{user_message}에 관해서라면 제가 도움을 드릴 수 있겠네요."
+            ]
+        }
+        
+        character_responses = responses["debi" if character["name"] == "데비" else "marlene"]
+        fallback_response = random.choice(character_responses)
+        print(f"📝 Fallback 응답 선택: {fallback_response[:50]}...")
+        return fallback_response
+        
+    except Exception as fallback_error:
+        print(f"❌ Fallback 응답 생성도 실패: {fallback_error}")
+        
+        # 최후 수단: 하드코딩된 에러 응답
         return ("어? 뭔가 문제가 생긴 것 같아! 다시 말해줄래? 😅" 
                 if character["name"] == "데비" 
                 else "죄송합니다. 일시적인 문제가 발생했습니다. 다시 시도해주세요.")

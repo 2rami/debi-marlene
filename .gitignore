@@ -1,0 +1,49 @@
+# 환경 변수 파일
+.env
+.env.local
+.env.production
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 로그 파일
+*.log
+logs/
+
+# 런타임 데이터
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# 임시 파일
+.tmp/
+temp/
+
+# 에디터 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# 봇 관련 데이터
+bot_data/
+*.db
+*.sqlite
+
+# API 키 백업
+api_keys/
+keys/

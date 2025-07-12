@@ -1,0 +1,35 @@
+{
+  "name": "debi-marlene-bot",
+  "version": "1.0.0",
+  "description": "이터널리턴 스파클링 트윈즈 데비&마를렌 테마 Discord 봇",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/debi-marlene-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/debi-marlene-bot/issues"
+  },
+  "homepage": "https://github.com/your-username/debi-marlene-bot#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.56.0",
+    "discord.js": "^14.0.0",
+    "dotenv": "^16.0.0",
+    "googleapis": "^120.0.0",
+    "keychain": "^1.5.0",
+    "node-cron": "^3.0.0"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "eternal-return",
+    "debi",
+    "marlene"
+  ],
+  "author": "your-name",
+  "license": "MIT"
+}

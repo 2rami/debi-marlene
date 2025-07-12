@@ -1,6 +1,6 @@
-# 데비&마를렌 봇 🎮
+# 데비&마를렌 Discord 봇 (Python 버전) 🎮
 
-이터널리턴의 스파클링 트윈즈 데비&마를렌을 테마로 한 Discord 봇입니다.
+이터널리턴 스파클링 트윈즈 데비&마를렌 테마 Discord 봇의 Python 버전입니다.
 
 ## ✨ 주요 기능
 
@@ -19,33 +19,87 @@
 - `!안녕`, `!테스트` - 캐릭터와 대화
 - `![아무거나]` - AI가 이터널리턴 관련으로 응답
 
-## 🚀 설치 및 실행
+## 🐳 Docker로 실행하기 (권장)
 
-### 1. 저장소 클론
+### 방법 1: docker-compose 사용
+
 ```bash
-git clone https://github.com/your-username/debi-marlene-bot.git
-cd debi-marlene-bot
+# 1. 환경 변수 파일 설정
+cp env .env
+# .env 파일을 편집하여 실제 토큰들로 변경
+
+# 2. Docker 컨테이너 빌드 및 실행
+docker-compose up -d
+
+# 3. 로그 확인
+docker-compose logs -f
+
+# 4. 봇 중지
+docker-compose down
 ```
 
-### 2. 의존성 설치
+### 방법 2: Docker 직접 사용
+
 ```bash
-npm install
+# 1. Docker 이미지 빌드
+docker build -t debi-marlene-bot .
+
+# 2. 컨테이너 실행
+docker run -d \
+  --name debi-marlene-bot \
+  --env-file .env \
+  -v $(pwd)/assets:/app/assets:ro \
+  debi-marlene-bot
+
+# 3. 로그 확인
+docker logs -f debi-marlene-bot
+
+# 4. 봇 중지
+docker stop debi-marlene-bot
+docker rm debi-marlene-bot
 ```
 
-### 3. 환경 변수 설정
+
+
+  # 처음 시작할 때
+  make dev
+
+  # 코드 수정 후 업데이트
+  make update
+
+  # 단순히 재시작만 하고 싶을 때
+  make restart
+
+  # 로그만 보고 싶을 때
+  make logs
+
+## 💻 로컬에서 실행하기
+
 ```bash
-cp .env.example .env
+# 1. Python 의존성 설치
+pip install -r requirements.txt
+
+# 2. 환경 변수 설정 (.env 파일 생성)
+cp env .env
+# .env 파일 편집
+
+# 3. 봇 실행
+python main.py
 ```
 
-`.env` 파일을 열어서 다음 정보를 입력하세요:
+## 🔧 환경 변수 설정
 
-- `DISCORD_TOKEN`: Discord 봇 토큰
-- `CLAUDE_API_KEY`: Claude API 키
-- `YOUTUBE_API_KEY`: YouTube Data API v3 키 (선택사항)
+`env` 파일에 다음 내용을 설정하세요:
 
-### 4. 봇 실행
 ```bash
-npm start
+# Discord 봇 토큰 (필수)
+DISCORD_TOKEN=your_discord_bot_token_here
+
+# Claude AI API 키 (선택사항 - AI 응답 기능용)
+CLAUDE_API_KEY=your_claude_api_key_here
+
+# YouTube Data API 키 (선택사항 - YouTube 알림 기능용)
+YOUTUBE_API_KEY=your_youtube_api_key_here
 ```
 
 ## 🔑 API 키 발급 방법
@@ -70,16 +124,72 @@ npm start
 ## 📁 프로젝트 구조
 
 ```
-debi-marlene-bot/
-├── assets/           # 이미지 파일들
-│   ├── debi.png     # 데비 캐릭터 이미지
-│   └── marlen.png   # 마를렌 캐릭터 이미지
-├── index.js          # 메인 봇 파일
-├── package.json      # 프로젝트 설정
-├── .env.example      # 환경 변수 템플릿
-├── .gitignore        # Git 무시 파일
-└── README.md         # 프로젝트 설명
+debi-marlene/
+├── main.py              # 메인 Python 봇 코드
+├── requirements.txt     # Python 의존성
+├── Dockerfile          # Docker 이미지 설정
+├── docker-compose.yml  # Docker Compose 설정
+├── env                 # 환경 변수 템플릿
+├── assets/             # 봇 이미지 파일들
+│   ├── debi.png
+│   ├── marlen.png
+│   ├── background.png
+│   └── ...
+└── README.md           # 이 파일
 ```
+
+## 🎮 슬래시 커맨드
+
+| 명령어 | 설명 | 담당 캐릭터 |
+|--------|------|------------|
+| `/안녕` | 인사하기 | 데비 & 마를렌 |
+| `/도움` | 도움말 표시 | 마를렌 |
+| `/전적 [닉네임]` | 전적 검색 | 데비 |
+| `/랭킹` | 랭킹 정보 | 마를렌 |
+| `/캐릭터 [캐릭터명]` | 캐릭터 정보 | 마를렌 |
+| `/설정 [설정내용]` | 봇 설정 | 마를렌 |
+| `/테스트` | 봇 테스트 | 데비 & 마를렌 |
+| `/유튜브 [검색어]` | 이터널리턴 관련 유튜브 영상 검색 | 데비 |
+| `/대화 [메시지] [캐릭터]` | AI와 자유 대화 | 자동 선택 또는 지정 |
+| 멘션 | 봇 멘션 시 응답 | 데비 |
+
+## 🔧 문제 해결
+
+### 봇이 시작되지 않는 경우
+1. `.env` 파일의 `DISCORD_TOKEN`이 올바른지 확인
+2. Docker 로그 확인: `docker-compose logs`
+3. 봇이 Discord 서버에 초대되었는지 확인
+
+### AI 응답이 작동하지 않는 경우
+- `CLAUDE_API_KEY`가 설정되지 않았거나 잘못된 경우 기본 응답 패턴을 사용합니다
+- Claude API 키가 유효한지 확인하세요
+
+### YouTube 알림이 작동하지 않는 경우
+- `YOUTUBE_API_KEY`가 설정되지 않은 경우 YouTube 기능이 비활성화됩니다
+- YouTube Data API v3가 활성화되었는지 확인하세요
+
+## 🔄 업데이트
+
+봇 코드를 업데이트한 후:
+
+```bash
+# Docker Compose 사용시
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+
+# Docker 직접 사용시
+docker stop debi-marlene-bot
+docker rm debi-marlene-bot
+docker build -t debi-marlene-bot .
+# 그 후 다시 실행
+```
+
+## ⚠️ 주의사항
+
+- API 키들은 절대 공개 저장소에 업로드하지 마세요
+- Docker 컨테이너는 기본적으로 재시작 정책이 `unless-stopped`로 설정되어 있습니다
+- 봇이 정상 작동하려면 Discord 서버에서 적절한 권한을 가져야 합니다
 
 ## 🎭 캐릭터 설정
 

@@ -1,0 +1,29 @@
+services:
+  debi-marlene-bot:
+    build: .
+    container_name: debi-marlene-discord-bot
+    restart: unless-stopped
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+    volumes:
+      - ./assets:/app/assets:ro
+      - ./logs:/app/logs
+    networks:
+      - bot-network
+    # 헬스체크 (선택사항)
+    healthcheck:
+      test: ["CMD", "python", "-c", "import discord; print('Discord bot is running')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  bot-network:
+    driver: bridge
+
+volumes:
+  logs:
+    driver: local

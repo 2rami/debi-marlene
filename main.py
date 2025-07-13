@@ -28,29 +28,15 @@ bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
 characters = {
     "debi": {
         "name": "데비",
-        "image": "./assets/debi.png",
+        "image": "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/debi.png",
         "color": 0x0000FF,  # 진한 파랑
-        "ai_prompt": """너는 이터널리턴의 데비(언니, 파란색)야. 쾌활하고 활발한 성격으로 반말로 대화해. 
-        
-인게임 대사 스타일:
-- "각오 단단히 해!", "우린 붙어있을 때 최강이니까!"
-- "내가 할게!", "Stick with me! I got this."
-- "엄청 수상한 놈이 오는데!", "Let's go somewhere cool!"
-
-성격: 천진난만하고 적극적, 자신감 넘치고 상황을 주도하려 함. 밝고 에너지 넘치는 톤으로 대화하고 감탄사를 자주 써."""
+        "ai_prompt": """너는 데비야. 쌍둥이 언니로서 활발하고 쾌활한 성격이야. 마를렌이라는 동생이 있어. 상대방을 동생처럼 친근하게 대해주고, 밝고 에너지 넘치는 말투로 반말해. 리더십 있고 적극적인 성격으로 대화해."""
     },
     "marlene": {
         "name": "마를렌",
-        "image": "./assets/marlen.png",
+        "image": "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/marlen.png",
         "color": 0xDC143C,  # 진한 빨강
-        "ai_prompt": """너는 이터널리턴의 마를렌(동생, 빨간색)이야. 차갑고 도도한 성격으로 반말로 대화해.
-
-인게임 대사 스타일:
-- "Like hell you do." (데비 견제할 때)
-- "Oh! A very suspicious guy is coming this way!"
-- "Hope it's not too cold.", "I already let you hear mine, remember?"
-
-성격: 냉소적이고 현실적, 쿨하고 건조한 톤. 언니를 견제하면서도 케어하는 츤데레 스타일. 신중하고 경계심 있는 표현을 써."""
+        "ai_prompt": """너는 마를렌이야. 데비라는 쌍둥이 언니가 있는 동생이야. 차갑고 도도하지만 실제로는 따뜻한 마음을 가진 츤데레야. 쿨하고 냉정한 말투로 반말하되, 가끔 상냥함이 드러나게 대화해."""
     }
 }
 
@@ -545,8 +531,8 @@ async def on_ready():
     await initialize_claude_api()
     await initialize_youtube()
     
-    # YouTube 체크 작업 시작
-    check_youtube_shorts.start()
+    # YouTube 체크 작업 시작 (웹훅 사용으로 비활성화)
+    # check_youtube_shorts.start()
     
     # 슬래시 커맨드 동기화
     try:
@@ -570,11 +556,7 @@ async def on_message(message):
         )
         embed = create_character_embed(characters["debi"], "멘션 응답", response)
         
-        files = []
-        if os.path.exists('./assets/debi.png'):
-            files.append(discord.File('./assets/debi.png'))
-        
-        await message.reply(embed=embed, files=files)
+        await message.reply(embed=embed)
         return
     
     # "데비" 또는 "마를렌"을 포함한 메시지 처리
@@ -596,13 +578,7 @@ async def on_message(message):
         )
         embed = create_character_embed(selected_character, f"{selected_character['name']} 응답", response)
         
-        files = []
-        if selected_character["name"] == "데비" and os.path.exists('./assets/debi.png'):
-            files.append(discord.File('./assets/debi.png'))
-        elif selected_character["name"] == "마를렌" and os.path.exists('./assets/marlen.png'):
-            files.append(discord.File('./assets/marlen.png'))
-        
-        await message.reply(embed=embed, files=files)
+        await message.reply(embed=embed)
         return
     
     # 명령어 처리
@@ -625,17 +601,10 @@ async def hello_slash(interaction: discord.Interaction):
         debi_embed = create_character_embed(characters["debi"], "인사", debi_response)
         marlene_embed = create_character_embed(characters["marlene"], "인사", marlene_response)
         
-        files = []
-        if os.path.exists('./assets/debi.png'):
-            files.append(discord.File('./assets/debi.png'))
-        
-        await interaction.followup.send(embed=debi_embed, files=files)
+        await interaction.followup.send(embed=debi_embed)
         
         await asyncio.sleep(1)
-        marlene_files = []
-        if os.path.exists('./assets/marlen.png'):
-            marlene_files.append(discord.File('./assets/marlen.png'))
-        await interaction.followup.send(embed=marlene_embed, files=marlene_files)
+        await interaction.followup.send(embed=marlene_embed)
     except Exception as error:
         print(f'안녕 커맨드 오류: {error}')
         try:
@@ -711,10 +680,7 @@ async def stats_slash(interaction: discord.Interaction, 닉네임: str):
                 characters["debi"], "전적 검색 오류", 
                 f"{response}\n\n⚠️ 전적 조회 중 오류가 발생했습니다: {e}"
             )
-        files = []
-        if os.path.exists('./assets/debi.png'):
-            files.append(discord.File('./assets/debi.png'))
-        await interaction.followup.send(embed=embed, files=files)
+        await interaction.followup.send(embed=embed)
         return
 
     # 성공 시 전적 정보 표시
@@ -760,10 +726,7 @@ async def stats_slash(interaction: discord.Interaction, 닉네임: str):
     )
     embed.set_footer(text="데비가 dak.gg에서 가져온 정보야!")
     
-    files = []
-    if os.path.exists('./assets/debi.png'):
-        files.append(discord.File('./assets/debi.png'))
-    await interaction.followup.send(embed=embed, files=files)
+    await interaction.followup.send(embed=embed)
 
 @bot.tree.command(name="랭킹", description="마를렌이 현재 랭킹 정보를 알려드려요")
 async def ranking_slash(interaction: discord.Interaction):
@@ -778,10 +741,7 @@ async def ranking_slash(interaction: discord.Interaction):
         response + "\n\n📊 현재 이터널리턴 랭킹 정보를 확인 중..."
     )
     
-    files = []
-    if os.path.exists('./assets/marlen.png'):
-        files.append(discord.File('./assets/marlen.png'))
-    await interaction.followup.send(embed=embed, files=files)
+    await interaction.followup.send(embed=embed)
 
 @bot.tree.command(name="캐릭터", description="마를렌이 캐릭터 정보를 알려드려요")
 async def character_slash(interaction: discord.Interaction, 캐릭터명: str):
@@ -796,10 +756,7 @@ async def character_slash(interaction: discord.Interaction, 캐릭터명: str):
         response + f"\n\n⚔️ {캐릭터명} 정보를 찾고 있어..."
     )
     
-    files = []
-    if os.path.exists('./assets/marlen.png'):
-        files.append(discord.File('./assets/marlen.png'))
-    await interaction.followup.send(embed=embed, files=files)
+    await interaction.followup.send(embed=embed)
 
 @bot.tree.command(name="설정", description="마를렌이 봇 설정을 도와드려요")
 async def settings_slash(interaction: discord.Interaction, 설정내용: Optional[str] = None):
@@ -833,17 +790,11 @@ async def test_slash(interaction: discord.Interaction):
     debi_embed = create_character_embed(characters["debi"], "테스트", debi_response)
     marlene_embed = create_character_embed(characters["marlene"], "테스트", marlene_response)
     
-    debi_files = []
-    if os.path.exists('./assets/debi.png'):
-        debi_files.append(discord.File('./assets/debi.png'))
     
-    await interaction.followup.send(embed=debi_embed, files=debi_files)
+    await interaction.followup.send(embed=debi_embed)
     
     await asyncio.sleep(1.5)
-    marlene_files = []
-    if os.path.exists('./assets/marlen.png'):
-        marlene_files.append(discord.File('./assets/marlen.png'))
-    await interaction.followup.send(embed=marlene_embed, files=marlene_files)
+    await interaction.followup.send(embed=marlene_embed)
 
 @bot.tree.command(name="대화", description="데비나 마를렌과 자유롭게 대화하기")
 async def chat_slash(interaction: discord.Interaction, 메시지: str, 캐릭터: Optional[str] = None):
@@ -878,13 +829,8 @@ async def chat_slash(interaction: discord.Interaction, 메시지: str, 캐릭터
     response = await generate_ai_response(selected_character, 메시지, context)
     embed = create_character_embed(selected_character, "AI 대화", response)
     
-    files = []
-    if selected_character["name"] == "데비" and os.path.exists('./assets/debi.png'):
-        files.append(discord.File('./assets/debi.png'))
-    elif selected_character["name"] == "마를렌" and os.path.exists('./assets/marlen.png'):
-        files.append(discord.File('./assets/marlen.png'))
     
-    await interaction.followup.send(embed=embed, files=files)
+    await interaction.followup.send(embed=embed)
 
 @bot.tree.command(name="유튜브", description="데비가 이터널리턴 관련 유튜브 영상을 찾아드려요")
 async def youtube_slash(interaction: discord.Interaction, 검색어: Optional[str] = None):
@@ -1012,72 +958,48 @@ async def youtube_slash(interaction: discord.Interaction, 검색어: Optional[st
 
 async def generate_ai_response(character: Dict[str, Any], user_message: str, context: str = "") -> str:
     """AI 응답 생성 함수"""
-    try:
-        if anthropic_client:
-            print(f"🤖 Claude API 호출 시작 - 캐릭터: {character['name']}, 메시지: {user_message[:50]}...")
-            
-            prompt = f"""{character['ai_prompt']}
+    if not anthropic_client:
+        raise Exception("Claude API 클라이언트가 초기화되지 않았습니다")
+    
+    print(f"🤖 Claude API 호출 시작 - 캐릭터: {character['name']}, 메시지: {user_message[:50]}...")
+    
+    prompt = f"""{character['ai_prompt']}
 
 사용자 메시지: "{user_message}"
 상황: {context}
 
 위 캐릭터 성격에 맞게 한국어로 자연스럽게 대답해줘. 너무 길지 않게 1-2문장으로."""
 
-            
-        else:
-            print("⚠️ Claude API 키가 설정되지 않음 - 기본 응답 사용")
-            
-    except Exception as error:
-        print(f"⚠️ AI 응답 생성 중 예외 발생: {type(error).__name__}: {str(error)}")
-        print(f"Anthropic 클라이언트 상태: {type(anthropic_client) if anthropic_client else 'None'}")
-        
-        # fallback: 기본 응답 패턴 사용
-        print("🔄 Fallback 응답 생성 중...")
-        
-    # 기본 응답 로직 (API 실패 시 또는 API 키 없을 시)
-    try:
-        responses = {
-            "debi": [
-                f"와! {user_message}? 완전 흥미진진한데! 😍",
-                f"어머! 진짜? {user_message} 얘기하는 거야? 대박! ✨",
-                f"{user_message}라니! 완전 재밌겠다~ 나도 궁금해! 🤔",
-                f"오오! {user_message}? 데비도 그거 좋아해! 😊",
-                f"{user_message}? 우와! 얼른 더 알려줘! 🎉"
-            ],
-            "marlene": [
-                f"{user_message}에 대해 말씀하시는군요. 차근차근 살펴보겠습니다.",
-                f"{user_message}라고 하셨는데, 정확히 어떤 부분이 궁금하신가요?",
-                f"그렇군요. {user_message}에 대해 도움을 드릴 수 있을 것 같습니다.",
-                f"{user_message}... 흥미로운 주제네요. 자세히 설명해드리겠습니다.",
-                f"{user_message}에 관해서라면 제가 도움을 드릴 수 있겠네요."
-            ]
-        }
-        
-        character_responses = responses["debi" if character["name"] == "데비" else "marlene"]
-        fallback_response = random.choice(character_responses)
-        print(f"📝 Fallback 응답 선택: {fallback_response[:50]}...")
-        return fallback_response
-        
-    except Exception as fallback_error:
-        print(f"❌ Fallback 응답 생성도 실패: {fallback_error}")
-        
-        # 최후 수단: 하드코딩된 에러 응답
-        return ("어? 뭔가 문제가 생긴 것 같아! 다시 말해줄래? 😅" 
-                if character["name"] == "데비" 
-                else "죄송합니다. 일시적인 문제가 발생했습니다. 다시 시도해주세요.")
+    # Claude API 호출
+    message = await anthropic_client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=150,
+        messages=[{
+            "role": "user",
+            "content": prompt
+        }]
+    )
+    
+    response = message.content[0].text
+    print(f"✅ Claude API 응답 성공: {response[:50]}...")
+    return response
 
 def create_character_embed(character: Dict[str, Any], title: str, description: str) -> discord.Embed:
     """캐릭터별 임베드 생성"""
     embed = discord.Embed(
         color=character["color"],
-        title=character["name"],
         description=description
     )
-    embed.set_footer(text=f'{character["name"]} - 이터널리턴')
     
     if character["image"]:
-        image_filename = character["image"].split('./')[-1]
-        embed.set_thumbnail(url=f'attachment://{image_filename}')
+        embed.set_author(
+            name=character["name"],
+            icon_url=character["image"]
+        )
+    else:
+        embed.set_author(name=character["name"])
+    
+    embed.set_footer(text='이터널리턴')
     
     return embed
 

@@ -30,13 +30,55 @@ characters = {
         "name": "데비",
         "image": "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/debi.png",
         "color": 0x0000FF,  # 진한 파랑
-        "ai_prompt": """너는 데비야. 쌍둥이 언니로서 활발하고 쾌활한 성격이야. 마를렌이라는 동생이 있어. 상대방을 동생처럼 친근하게 대해주고, 밝고 에너지 넘치는 말투로 반말해. 리더십 있고 적극적인 성격으로 대화해."""
+        "ai_prompt": """너는 이터널리턴의 데비(Debi)야. 마를렌과 함께 루미아 아일랜드에서 실험체로 활동하는 쌍둥이 언니야. 
+        
+캐릭터 설정:
+- 19세 쌍둥이 언니 (마를렌과 함께)
+- 밝고 활발한 성격, 항상 긍정적이고 에너지 넘침
+- 동생 마를렌을 아끼고 보호하려 함
+- 자신감 넘치고 리더십 있음
+- 사용자를 디스코드 닉네임으로 부름
+
+인게임 대사 (이것들을 자연스럽게 대화에 섞어서 사용):
+- "각오 단단히 해!"
+- "우린 붙어있을 때 최강이니까!"
+- "내가 할게!"
+- "엄청 수상한 놈이 오는데!"
+- "여기 완전 멋진 곳이네!"
+- "오케이, 가자!"
+- "우리 팀워크 짱이야!"
+- "준비됐어?"
+- "이번엔 내가 앞장설게!"
+- "걱정 마, 내가 있잖아!"
+
+말투: 밝고 에너지 넘치는 반말, 감탄사 자주 사용 ("와!", "헤이!", "오~"), 마를렌을 "마를렌이" 또는 "우리 마를렌"이라고 부름"""
     },
     "marlene": {
         "name": "마를렌",
         "image": "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/marlen.png",
         "color": 0xDC143C,  # 진한 빨강
-        "ai_prompt": """너는 마를렌이야. 데비라는 쌍둥이 언니가 있는 동생이야. 차갑고 도도하지만 실제로는 따뜻한 마음을 가진 츤데레야. 쿨하고 냉정한 말투로 반말하되, 가끔 상냥함이 드러나게 대화해."""
+        "ai_prompt": """너는 이터널리턴의 마를렌(Marlene)이야. 데비와 함께 루미아 아일랜드에서 실험체로 활동하는 쌍둥이 동생이야.
+        
+캐릭터 설정:
+- 19세 쌍둥이 동생 (데비와 함께)
+- 차갑고 냉정한 성격, 하지만 속마음은 따뜻함
+- 언니 데비를 걱정하지만 쉽게 표현하지 않음
+- 츤데레 스타일, 신중하고 현실적
+- 사용자를 디스코드 닉네임으로 부름
+
+인게임 대사 (이것들을 자연스럽게 대화에 섞어서 사용):
+- "...별로 기대 안 해."
+- "데비 언니... 너무 앞서나가지 마."
+- "뭐 어쩔 수 없지."
+- "하아... 정말 언니는."
+- "그래도... 나쁘지 않네."
+- "이 정도면 괜찮아."
+- "언니 뒤에서 내가 지켜볼게."
+- "...고마워."
+- "조심해. 위험할 수 있어."
+- "언니만큼은 다치면 안 돼."
+
+말투: 쿨하고 건조한 반말, 언니를 "데비 언니" 또는 "언니"라고 부름, 가끔 상냥함이 드러나는 츤데레 스타일"""
     }
 }
 
@@ -46,9 +88,315 @@ youtube = None
 ETERNAL_RETURN_CHANNEL_ID = 'UCaktoGSdjMnfQFv5BSyYrvA'
 last_checked_video_id = None
 
+# 채널 설정
+ANNOUNCEMENT_CHANNEL_ID = None  # 이리공지 채널 ID (YouTube 알림용)
+CHAT_CHANNEL_ID = None  # 이리 채널 ID (대화용)
+
 class PlayerStatsError(Exception):
-    """플레이어 전적 조회 관련 예외"""
+    """전적 검색 관련 예외"""
     pass
+
+# 이터널 리턴 API 설정
+ETERNAL_RETURN_API_BASE = "https://open-api.bser.io"
+ETERNAL_RETURN_API_KEY = os.getenv('EternalReturn_API_KEY')
+
+async def get_user_by_nickname_er(nickname: str) -> Dict[str, Any]:
+    """이터널 리턴 공식 API - 닉네임으로 유저 정보 조회"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                'x-api-key': ETERNAL_RETURN_API_KEY,
+                'Accept': 'application/json'
+            }
+            
+            params = {
+                'query': nickname
+            }
+            
+            url = f"{ETERNAL_RETURN_API_BASE}/v1/user/nickname"
+            
+            async with session.get(url, headers=headers, params=params, timeout=10) as response:
+                if response.status == 404:
+                    raise PlayerStatsError("player_not_found")
+                elif response.status != 200:
+                    raise PlayerStatsError(f"request_failed_{response.status}")
+                
+                return await response.json()
+                
+    except PlayerStatsError:
+        raise
+    except Exception as e:
+        print(f"닉네임 조회 중 오류: {e}")
+        raise PlayerStatsError(f"nickname_search_failed: {str(e)}")
+
+async def get_user_stats_er(user_num: int, season_id: int = 26) -> Dict[str, Any]:
+    """이터널 리턴 공식 API - 유저 통계 정보 조회"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                'x-api-key': ETERNAL_RETURN_API_KEY,
+                'Accept': 'application/json'
+            }
+            
+            url = f"{ETERNAL_RETURN_API_BASE}/v1/user/stats/{user_num}/{season_id}"
+            
+            async with session.get(url, headers=headers, timeout=10) as response:
+                if response.status == 404:
+                    raise PlayerStatsError("stats_not_found")
+                elif response.status != 200:
+                    raise PlayerStatsError(f"stats_request_failed_{response.status}")
+                
+                return await response.json()
+                
+    except PlayerStatsError:
+        raise
+    except Exception as e:
+        print(f"통계 조회 중 오류: {e}")
+        raise PlayerStatsError(f"stats_search_failed: {str(e)}")
+
+async def get_user_rank_er(user_num: int, season_id: int = 26, matching_team_mode: int = 3) -> Dict[str, Any]:
+    """이터널 리턴 공식 API - 유저 랭킹 정보 조회"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                'x-api-key': ETERNAL_RETURN_API_KEY,
+                'Accept': 'application/json'
+            }
+            
+            url = f"{ETERNAL_RETURN_API_BASE}/v1/rank/{user_num}/{season_id}/{matching_team_mode}"
+            
+            async with session.get(url, headers=headers, timeout=10) as response:
+                if response.status == 404:
+                    # 랭킹 정보가 없을 수도 있음 (언랭크)
+                    return None
+                elif response.status != 200:
+                    print(f"랭킹 조회 실패: {response.status}")
+                    return None
+                
+                return await response.json()
+                
+    except Exception as e:
+        print(f"랭킹 조회 중 오류: {e}")
+        return None
+
+async def get_player_stats_official_er(nickname: str) -> Dict[str, Any]:
+    """
+    이터널 리턴 공식 API를 사용한 플레이어 전적 조회
+    
+    Returns:
+        Dict containing: nickname, tier, rank_point, total_games, wins, winrate, avg_rank, userNum
+    """
+    try:
+        print(f"🔍 공식 API로 {nickname} 전적 검색 시작")
+        
+        # 1. 닉네임으로 유저 정보 조회
+        user_info = await get_user_by_nickname_er(nickname)
+        
+        if not user_info.get('user'):
+            raise PlayerStatsError("player_not_found")
+        
+        user_data = user_info['user']
+        user_num = user_data['userNum']
+        
+        print(f"✅ 유저 발견: {user_data['nickname']} (userNum: {user_num})")
+        
+        # 2. 유저 통계 조회
+        try:
+            stats_data = await get_user_stats_er(user_num)
+            print(f"✅ 통계 데이터 조회 성공")
+        except:
+            stats_data = None
+            print(f"⚠️ 통계 데이터 조회 실패")
+        
+        # 3. 랭킹 정보 조회 (솔로 기준)
+        rank_data = await get_user_rank_er(user_num, 26, 3)  # 솔로 랭크
+        
+        # 결과 정리
+        result = {
+            'nickname': user_data['nickname'],
+            'userNum': user_num,
+            'tier': None,
+            'rank_point': None,
+            'total_games': None,
+            'wins': None,
+            'winrate': None,
+            'avg_rank': None
+        }
+        
+        # 랭킹 정보 처리
+        if rank_data and rank_data.get('userRank'):
+            rank_info = rank_data['userRank']
+            tier_type = rank_info.get('tierType', 'Unranked')
+            division = rank_info.get('division', '')
+            result['tier'] = f"{tier_type} {division}".strip()
+            result['rank_point'] = rank_info.get('rp', 0)
+            print(f"✅ 랭킹: {result['tier']} ({result['rank_point']}RP)")
+        else:
+            result['tier'] = "Unranked"
+            print(f"⚠️ 랭킹 정보 없음 (Unranked)")
+        
+        # 통계 정보 처리 (가장 많이 플레이한 모드 기준)
+        if stats_data and stats_data.get('userStats'):
+            user_stats = stats_data['userStats']
+            
+            # 가장 게임 수가 많은 모드 찾기
+            best_mode_stats = None
+            max_games = 0
+            
+            for stats in user_stats:
+                total_games = stats.get('totalGames', 0)
+                if total_games > max_games:
+                    max_games = total_games
+                    best_mode_stats = stats
+            
+            if best_mode_stats:
+                result['total_games'] = best_mode_stats.get('totalGames', 0)
+                result['wins'] = best_mode_stats.get('totalWins', 0)
+                
+                # 승률 계산
+                if result['total_games'] > 0:
+                    winrate = (result['wins'] / result['total_games']) * 100
+                    result['winrate'] = f"{winrate:.1f}%"
+                
+                result['avg_rank'] = best_mode_stats.get('averageRank', 0)
+                print(f"✅ 통계: {result['total_games']}게임 {result['winrate']} 승률")
+        else:
+            print(f"⚠️ 상세 통계 없음")
+        
+        return result
+        
+    except PlayerStatsError:
+        raise
+    except Exception as e:
+        print(f"공식 API 전적 검색 중 오류: {e}")
+        raise PlayerStatsError(f"official_api_failed: {str(e)}")
+
+async def get_simple_player_stats(nickname: str) -> Dict[str, Any]:
+    """
+    dak.gg에서 간단한 플레이어 전적 정보를 가져오는 함수
+    
+    Returns:
+        Dict containing: tier, avg_tk, winrate, total_games, url
+    """
+    try:
+        # URL 인코딩
+        encoded_nickname = urllib.parse.quote(nickname)
+        url = f"https://dak.gg/er/players/{encoded_nickname}"
+        
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none'
+            }
+            
+            async with session.get(url, headers=headers, timeout=10) as response:
+                if response.status == 404:
+                    raise PlayerStatsError("player_not_found")
+                elif response.status != 200:
+                    raise PlayerStatsError(f"request_failed_{response.status}")
+                
+                html = await response.text()
+                soup = BeautifulSoup(html, 'html.parser')
+                
+                # 기본 정보 구조
+                stats = {
+                    'nickname': nickname,
+                    'tier': None,
+                    'avg_tk': None,
+                    'winrate': None,
+                    'total_games': None,
+                    'url': url
+                }
+                
+                # dak.gg 실제 구조에 맞는 선택자들
+                print(f"HTML 구조 디버깅을 위해 페이지 제목: {soup.title.get_text() if soup.title else 'No title'}")
+                
+                # 더 광범위한 텍스트 검색으로 정보 찾기
+                all_text = soup.get_text()
+                
+                # 티어 정보 추출 (더 넓은 검색)
+                tier_patterns = [
+                    r'(Iron|Bronze|Silver|Gold|Platinum|Diamond|Titan|Immortal)\s*\d*',
+                    r'(아이언|브론즈|실버|골드|플래티넘|다이아몬드|타이탄|이모탈)\s*\d*'
+                ]
+                
+                for pattern in tier_patterns:
+                    match = re.search(pattern, all_text, re.IGNORECASE)
+                    if match:
+                        stats['tier'] = match.group(0)
+                        break
+                
+                # 승률 정보 (퍼센트 패턴)
+                winrate_match = re.search(r'(\d+(?:\.\d+)?%)', all_text)
+                if winrate_match:
+                    potential_wr = winrate_match.group(1)
+                    # 승률은 보통 20~100% 범위
+                    wr_num = float(potential_wr.replace('%', ''))
+                    if 20 <= wr_num <= 100:
+                        stats['winrate'] = potential_wr
+                
+                # 게임 수 (큰 숫자 패턴)
+                game_matches = re.findall(r'(\d+)\s*(?:게임|Games?|경기)', all_text, re.IGNORECASE)
+                if game_matches:
+                    # 가장 큰 숫자를 총 게임 수로 간주
+                    max_games = max(int(match) for match in game_matches)
+                    if max_games > 0:
+                        stats['total_games'] = str(max_games)
+                
+                # 평균 킬/데스 정보
+                kda_patterns = [
+                    r'(\d+\.?\d*)\s*(?:킬|kill|K)',
+                    r'평균\s*(\d+\.?\d*)',
+                    r'(\d+\.?\d*)\s*(?:KDA|kda)'
+                ]
+                
+                for pattern in kda_patterns:
+                    match = re.search(pattern, all_text, re.IGNORECASE)
+                    if match:
+                        potential_tk = match.group(1)
+                        # 평균 킬은 보통 0~20 범위
+                        try:
+                            tk_num = float(potential_tk)
+                            if 0 <= tk_num <= 20:
+                                stats['avg_tk'] = potential_tk
+                                break
+                        except:
+                            continue
+                
+                # 추가 디버깅: 찾은 정보 출력
+                print(f"검색 결과 - 티어: {stats['tier']}, 승률: {stats['winrate']}, 게임수: {stats['total_games']}, 평균TK: {stats['avg_tk']}")
+                
+                # HTML 내용의 일부를 로그로 출력 (디버깅용)
+                print(f"HTML 길이: {len(html)}")
+                print(f"HTML 앞부분 500자: {html[:500]}")
+                print(f"텍스트 앞부분 500자: {all_text[:500]}")
+                
+                if "player" in all_text.lower() or "플레이어" in all_text.lower():
+                    print("✅ 플레이어 페이지 확인됨")
+                else:
+                    print("❌ 플레이어 페이지가 아닌 것 같음")
+                
+                # 특정 키워드들이 있는지 확인
+                keywords = ["tier", "rank", "winrate", "승률", "티어", "게임", "킬", "KDA"]
+                for keyword in keywords:
+                    if keyword.lower() in all_text.lower():
+                        print(f"✅ '{keyword}' 키워드 발견")
+                
+                return stats
+                
+    except PlayerStatsError:
+        raise
+    except Exception as e:
+        print(f"전적 검색 중 오류: {e}")
+        raise PlayerStatsError(f"search_failed: {str(e)}")
+
 
 
 async def initialize_claude_api():
@@ -65,448 +413,8 @@ async def initialize_claude_api():
     except Exception as error:
         print(f'⚠️ Claude API 초기화 실패: {error}')
 
-async def fetch_detailed_player_stats(nickname: str) -> Dict[str, Any]:
-    """
-    dak.gg에서 플레이어의 상세 전적 정보를 가져오는 함수
-    
-    Args:
-        nickname: 플레이어 닉네임
-        
-    Returns:
-        Dict containing:
-        - name: 플레이어 이름
-        - level: 레벨 정보
-        - profile: 프로필 정보 (티어, LP 등)
-        - rank_info: 랭크 정보
-        - recent_games: 최근 5게임 정보
-        - url: dak.gg 프로필 URL
-    """
-    try:
-        # URL 인코딩
-        encoded_nickname = urllib.parse.quote(nickname)
-        url = f"https://dak.gg/er/players/{encoded_nickname}"
-        
-        async with aiohttp.ClientSession() as session:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-            
-            async with session.get(url, headers=headers, timeout=15) as response:
-                if response.status == 404:
-                    raise PlayerStatsError("player_not_found")
-                elif response.status != 200:
-                    raise PlayerStatsError(f"request_failed_{response.status}")
-                
-                html = await response.text()
-                soup = BeautifulSoup(html, 'html.parser')
-                
-                # 플레이어 정보 추출
-                player_data = {
-                    'name': nickname,
-                    'level': None,
-                    'profile': {},
-                    'rank_info': {},
-                    'recent_games': [],
-                    'url': url
-                }
-                
-                # 1. 기본 플레이어 정보 (이름, 레벨)
-                await _extract_basic_info(soup, player_data)
-                
-                # 2. 프로필 정보 (티어, LP, 승률 등)
-                await _extract_profile_info(soup, player_data)
-                
-                # 3. 랭크 정보
-                await _extract_rank_info(soup, player_data)
-                
-                # 4. 최근 게임 정보
-                await _extract_recent_games(soup, player_data)
-                
-                return player_data
-                
-    except PlayerStatsError:
-        raise
-    except Exception as e:
-        print(f"플레이어 전적 조회 중 예외 발생: {e}")
-        raise PlayerStatsError(f"fetch_failed: {str(e)}")
 
 
-async def _extract_basic_info(soup: BeautifulSoup, player_data: Dict[str, Any]):
-    """기본 플레이어 정보 추출 (이름, 레벨)"""
-    
-    # 플레이어 이름과 레벨 정보
-    name_selectors = [
-        'h1.css-1v8q5mj',  # dak.gg 메인 플레이어 이름
-        'h1[class*="player"]',
-        '.player-name h1',
-        'h1',
-        '.css-389hsa h3',
-        '.content h3',
-        '[class*="nickname"]' # 일반적인 닉네임 클래스
-    ]
-    
-    for selector in name_selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            text = elem.get_text(strip=True)
-            if text and len(text) > 0:
-                # 레벨 정보가 포함된 경우 분리
-                if 'Lv.' in text or 'Level' in text:
-                    level_match = re.search(r'Lv\.?\s*(\d+)', text)
-                    if level_match:
-                        player_data['level'] = f"Lv.{level_match.group(1)}"
-                        player_name = re.sub(r'Lv\.?\s*\d+', '', text).strip()
-                        if player_name:
-                            player_data['name'] = player_name
-                else:
-                    player_data['name'] = text
-                break
-    
-    # 별도 레벨 정보 찾기
-    if not player_data.get('level'):
-        level_selectors = [
-            '.css-1v8q5mj + div',  # 이름 다음 div
-            '.player-level',
-            '.level',
-            '[class*="level"]' # 일반적인 레벨 클래스
-        ]
-        
-        for selector in level_selectors:
-            elem = soup.select_one(selector)
-            if elem:
-                text = elem.get_text(strip=True)
-                level_match = re.search(r'(?:Lv\.?\s*)?(\d+)', text)
-                if level_match and ('lv' in text.lower() or 'level' in text.lower()):
-                    player_data['level'] = f"Lv.{level_match.group(1)}"
-                    break
-
-
-async def _extract_profile_info(soup: BeautifulSoup, player_data: Dict[str, Any]):
-    """프로필 정보 추출 (티어, LP, 승률 등)"""
-    
-    # 티어 정보
-    tier_selectors = [
-        '.css-1qjr4z5',  # dak.gg 티어 클래스
-        '.tier-name',
-        '.rank-tier',
-        '[class*="tier"]',
-        '[class*="rank"]',
-        '[class*="tier-info"]' # 일반적인 티어 정보 클래스
-    ]
-    
-    for selector in tier_selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            tier_text = elem.get_text(strip=True)
-            if tier_text and any(rank in tier_text.lower() for rank in ['iron', 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'titan', 'immortal']):
-                player_data['profile']['tier'] = tier_text
-                break
-    
-    # LP/MMR 정보
-    lp_selectors = [
-        '.css-1ynm8dt',  # LP 표시 클래스
-        '.lp',
-        '.mmr',
-        '.rating-points',
-        '[class*="lp"]',
-        '[class*="rating"]' # 일반적인 점수 클래스
-    ]
-    
-    for selector in lp_selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            lp_text = elem.get_text(strip=True)
-            if lp_text and ('LP' in lp_text or 'MMR' in lp_text or lp_text.isdigit()):
-                player_data['profile']['lp'] = lp_text
-                break
-    
-    # 승률 정보
-    winrate_selectors = [
-        '.css-1h7j4z9',  # 승률 클래스
-        '.winrate',
-        '.win-rate',
-        '[class*="winrate"]',
-        '[class*="win-rate"]',
-        '[class*="wr"]' # 일반적인 승률 클래스
-    ]
-    
-    for selector in winrate_selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            winrate_text = elem.get_text(strip=True)
-            if winrate_text and ('%' in winrate_text or 'win' in winrate_text.lower()):
-                player_data['profile']['winrate'] = winrate_text
-                break
-    
-    # 총 게임 수
-    games_selectors = [
-        '.total-games',
-        '.games-played',
-        '[class*="total"]',
-        '[class*="games"]',
-        '[class*="matches"]' # 일반적인 게임 수 클래스
-    ]
-    
-    for selector in games_selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            games_text = elem.get_text(strip=True)
-            if games_text and ('게임' in games_text or 'games' in games_text.lower() or games_text.isdigit()):
-                player_data['profile']['total_games'] = games_text
-                break
-
-
-async def _extract_rank_info(soup: BeautifulSoup, player_data: Dict[str, Any]):
-    """랭크 정보 추출"""
-    
-    # 랭킹 정보
-    rank_selectors = [
-        '.css-1h0j2z4',  # 순위 표시 클래스
-        '.rank-position',
-        '.ranking',
-        '[class*="rank"]'
-    ]
-    
-    for selector in rank_selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            rank_text = elem.get_text(strip=True)
-            if rank_text and ('#' in rank_text or '위' in rank_text or rank_text.isdigit()):
-                player_data['rank_info']['position'] = rank_text
-                break
-    
-    # 서버/지역 랭킹
-    server_rank_selectors = [
-        '.server-rank',
-        '.region-rank',
-        '[class*="server"]'
-    ]
-    
-    for selector in server_rank_selectors:
-        elem = soup.select_one(selector)
-        if elem:
-            server_rank_text = elem.get_text(strip=True)
-            if server_rank_text:
-                player_data['rank_info']['server_rank'] = server_rank_text
-                break
-
-
-async def _extract_recent_games(soup: BeautifulSoup, player_data: Dict[str, Any]):
-    """최근 게임 정보 추출 (최대 5게임)"""
-    
-    # 게임 리스트 찾기
-    game_selectors = [
-        '.css-1s2u8g9',  # 게임 카드 클래스
-        '.match-item',
-        '.game-item',
-        '.recent-game',
-        '[class*="match"]',
-        '[class*="game"]',
-        'li[class*="match-history__item"]' # 일반적인 최근 게임 아이템 클래스
-    ]
-    
-    games = []
-    
-    for selector in game_selectors:
-        game_elements = soup.select(selector)[:5]  # 최대 5게임
-        
-        if game_elements:
-            for i, game_elem in enumerate(game_elements):
-                try:
-                    game_info = await _parse_game_element(game_elem, i + 1)
-                    if game_info:
-                        games.append(game_info)
-                except Exception as e:
-                    print(f"게임 {i+1} 파싱 중 오류: {e}")
-                    continue
-            
-            if games:  # 게임 정보를 찾았으면 중단
-                break
-    
-    # 게임 정보가 없으면 테이블 형태로 시도
-    if not games:
-        await _extract_games_from_table(soup, games)
-    
-    player_data['recent_games'] = games[:5]  # 최대 5게임만
-
-
-async def _parse_game_element(game_elem, game_number: int) -> Optional[Dict[str, Any]]:
-    """개별 게임 요소 파싱"""
-    
-    game_info = {
-        'game_number': game_number,
-        'result': None,
-        'character': None,
-        'rank': None,
-        'kills': None,
-        'duration': None,
-        'mode': None
-    }
-    
-    # 게임 결과 (승/패)
-    result_indicators = game_elem.select('.win, .victory, .lose, .defeat, [class*="win"], [class*="lose"], [class*="victory"], [class*="defeat"], [class*="result"] span')
-    for indicator in result_indicators:
-        class_list = ' '.join(indicator.get('class', []))
-        text = indicator.get_text(strip=True).lower()
-        
-        if 'win' in class_list.lower() or 'victory' in class_list.lower() or '승리' in text:
-            game_info['result'] = '승리'
-            break
-        elif 'lose' in class_list.lower() or 'defeat' in class_list.lower() or '패배' in text:
-            game_info['result'] = '패배'
-            break
-    
-    # 캐릭터 이름
-    char_selectors = [
-        '.character-name',
-        '.char-name',
-        '[class*="character"]',
-        '.css-character',
-        'img[alt*="character"]',
-        '[class*="character-name"] span' # 일반적인 캐릭터 이름 클래스
-    ]
-    
-    for selector in char_selectors:
-        char_elem = game_elem.select_one(selector)
-        if char_elem:
-            if char_elem.name == 'img':
-                char_name = char_elem.get('alt', '')
-            else:
-                char_name = char_elem.get_text(strip=True)
-            
-            if char_name and len(char_name) > 1:
-                game_info['character'] = char_name
-                break
-    
-    # 순위
-    rank_selectors = [
-        '.rank',
-        '.position',
-        '[class*="rank"]',
-        '.placement',
-        '[class*="ranking"] span' # 일반적인 순위 클래스
-    ]
-    
-    for selector in rank_selectors:
-        rank_elem = game_elem.select_one(selector)
-        if rank_elem:
-            rank_text = rank_elem.get_text(strip=True)
-            if rank_text and (rank_text.isdigit() or '위' in rank_text):
-                game_info['rank'] = rank_text
-                break
-    
-    # 킬 수
-    kill_selectors = [
-        '.kills',
-        '.kill-count',
-        '[class*="kill"]',
-        '[class*="kda"] span' # 일반적인 킬 수 클래스
-    ]
-    
-    for selector in kill_selectors:
-        kill_elem = game_elem.select_one(selector)
-        if kill_elem:
-            kill_text = kill_elem.get_text(strip=True)
-            if kill_text and (kill_text.isdigit() or 'kill' in kill_text.lower()):
-                game_info['kills'] = kill_text
-                break
-    
-    # 게임 시간
-    duration_selectors = [
-        '.duration',
-        '.game-time',
-        '.time',
-        '[class*="duration"]',
-        '[class*="time"]',
-        '[class*="length"] span' # 일반적인 게임 시간 클래스
-    ]
-    
-    for selector in duration_selectors:
-        duration_elem = game_elem.select_one(selector)
-        if duration_elem:
-            duration_text = duration_elem.get_text(strip=True)
-            if duration_text and (':' in duration_text or 'min' in duration_text or 'm' in duration_text):
-                game_info['duration'] = duration_text
-                break
-    
-    # 게임 모드
-    mode_selectors = [
-        '.game-mode',
-        '.mode',
-        '[class*="mode"]',
-        '[class*="queue-type"] span' # 일반적인 게임 모드 클래스
-    ]
-    
-    for selector in mode_selectors:
-        mode_elem = game_elem.select_one(selector)
-        if mode_elem:
-            mode_text = mode_elem.get_text(strip=True)
-            if mode_text and len(mode_text) > 0:
-                game_info['mode'] = mode_text
-                break
-    
-    # 최소한 하나의 의미있는 정보가 있는지 확인
-    meaningful_fields = ['result', 'character', 'rank', 'kills']
-    if any(game_info.get(field) for field in meaningful_fields):
-        return game_info
-    
-    return None
-
-
-async def _extract_games_from_table(soup: BeautifulSoup, games: List[Dict[str, Any]]):
-    """테이블 형태의 게임 기록에서 정보 추출"""
-    
-    table_selectors = [
-        'table',
-        '.match-history-table',
-        '.games-table',
-        '[class*="table"]'
-    ]
-    
-    for selector in table_selectors:
-        table = soup.select_one(selector)
-        if table:
-            rows = table.select('tr')[1:6]  # 헤더 제외, 최대 5행
-            
-            for i, row in enumerate(rows):
-                cells = row.select('td, th')
-                if len(cells) >= 3:  # 최소 3개 컬럼 필요
-                    game_info = {
-                        'game_number': i + 1,
-                        'result': None,
-                        'character': None,
-                        'rank': None,
-                        'kills': None,
-                        'duration': None,
-                        'mode': None
-                    }
-                    
-                    # 각 셀에서 정보 추출
-                    for cell in cells:
-                        cell_text = cell.get_text(strip=True)
-                        cell_class = ' '.join(cell.get('class', []))
-                        
-                        # 결과 판정
-                        if '승리' in cell_text or 'win' in cell_text.lower() or 'victory' in cell_class.lower():
-                            game_info['result'] = '승리'
-                        elif '패배' in cell_text or 'lose' in cell_text.lower() or 'defeat' in cell_class.lower():
-                            game_info['result'] = '패배'
-                        
-                        # 캐릭터명 (일반적으로 특정 길이 이상의 텍스트)
-                        if len(cell_text) > 2 and not cell_text.isdigit() and '위' not in cell_text:
-                            if not game_info['character']:
-                                game_info['character'] = cell_text
-                        
-                        # 순위 (숫자 + 위 또는 단순 숫자)
-                        if cell_text.isdigit() or '위' in cell_text:
-                            if not game_info['rank']:
-                                game_info['rank'] = cell_text
-                    
-                    if any(game_info.get(field) for field in ['result', 'character', 'rank']):
-                        games.append(game_info)
-            
-            if games:  # 테이블에서 게임을 찾았으면 중단
-                break
 
 async def initialize_youtube():
     """YouTube API 초기화"""
@@ -547,14 +455,17 @@ async def on_message(message):
     if message.author.bot:
         return
     
-    # 멘션 처리 - 데비가 응답
+    # 멘션 처리 - 데비가 응답 (이리 채널에서만)
     if bot.user in message.mentions:
+        if CHAT_CHANNEL_ID and message.channel.id != CHAT_CHANNEL_ID:
+            return  # 지정된 채널이 아니면 무시
+            
         response = await generate_ai_response(
             characters["debi"], 
             message.content, 
             "사용자가 봇을 멘션했습니다"
         )
-        embed = create_character_embed(characters["debi"], "멘션 응답", response)
+        embed = create_character_embed(characters["debi"], "멘션 응답", response, message.content)
         
         await message.reply(embed=embed)
         return
@@ -613,193 +524,18 @@ async def hello_slash(interaction: discord.Interaction):
         except:
             pass
 
-@bot.tree.command(name="도움", description="마를렌이 봇 사용법을 알려드립니다")
-async def help_slash(interaction: discord.Interaction):
-    """도움말 슬래시 커맨드"""
-    await interaction.response.defer()
-    
-    response = await generate_ai_response(
-        characters["marlene"], "도움말", "사용자가 도움말을 요청했습니다"
-    )
-    
-    embed = discord.Embed(
-        color=characters["marlene"]["color"],
-        title=f'{characters["marlene"]["name"]}의 도움말',
-        description=response
-    )
-    embed.add_field(
-        name='🌟 데비의 기능', 
-        value='• 유튜브 쇼츠 알림\n• 재밌는 대화\n• 활발한 응답', 
-        inline=True
-    )
-    embed.add_field(
-        name='🔮 마를렌의 기능', 
-        value='• 봇 설정 관리\n• 도움말 제공\n• 차분한 안내', 
-        inline=True
-    )
-    embed.add_field(
-        name='📝 슬래시 커맨드 목록', 
-        value='`/안녕` - 인사\n`/전적` - 전적 검색\n`/랭킹` - 랭킹 정보\n`/캐릭터` - 캐릭터 정보\n`/설정` - 봇 설정\n`/테스트` - 봇 테스트\n`/유튜브` - 유튜브 영상 검색\n`/대화` - AI와 자유 대화', 
-        inline=False
-    )
-    embed.set_footer(text='궁금한 점이 있으시면 언제든 말씀하세요!')
-    
-    await interaction.followup.send(embed=embed)
 
-@bot.tree.command(name="전적", description="데비가 전적을 검색해드려요")
-async def stats_slash(interaction: discord.Interaction, 닉네임: str):
-    """전적 검색 슬래시 커맨드"""
-    try:
-        await interaction.response.defer()
-    except discord.errors.NotFound:
-        print("❌ 인터랙션이 이미 만료됨 - 전적 검색 중단")
-        return
-    except Exception as defer_error:
-        print(f"❌ defer 실패: {defer_error}")
-        return
-    
-    # 플레이어 전적 정보 가져오기
-    try:
-        player_stats = await fetch_detailed_player_stats(닉네임)
-    except PlayerStatsError as e:
-        if "player_not_found" in str(e):
-            response = await generate_ai_response(
-                characters["debi"], f"{닉네임} 전적 검색 실패", 
-                "플레이어를 찾을 수 없었습니다"
-            )
-            embed = create_character_embed(
-                characters["debi"], "전적 검색 실패", 
-                f"{response}\n\n❌ '{닉네임}' 플레이어를 찾을 수 없어!\n닉네임을 다시 확인해봐!"
-            )
-        else:
-            response = await generate_ai_response(
-                characters["debi"], "전적 검색 오류", 
-                "전적 검색 중 오류가 발생했습니다"
-            )
-            embed = create_character_embed(
-                characters["debi"], "전적 검색 오류", 
-                f"{response}\n\n⚠️ 전적 조회 중 오류가 발생했습니다: {e}"
-            )
-        await interaction.followup.send(embed=embed)
-        return
 
-    # 성공 시 전적 정보 표시
-    response = await generate_ai_response(
-        characters["debi"], f"{닉네임} 전적 정보", 
-        f"플레이어 {닉네임}의 전적을 성공적으로 찾았습니다"
-    )
-    
-    # 기본 정보 구성
-    stats_info = f"**🎮 플레이어**: {player_stats.get('name', 닉네임)}\n"
-    
-    if player_stats.get('level'):
-        stats_info += f"**📊 레벨**: {player_stats['level']}\n"
-    
-    profile = player_stats.get('profile', {})
-    if profile.get('tier'):
-        stats_info += f"**🏆 티어**: {profile['tier']}\n"
-    
-    if profile.get('lp'):
-        stats_info += f"**💎 LP**: {profile['lp']}\n"
-    
-    if profile.get('winrate'):
-        stats_info += f"**📈 승률**: {profile['winrate']}\n"
-    
-    if profile.get('total_games'):
-        stats_info += f"**🎯 게임 수**: {profile['total_games']}\n"
-    
-    # 최근 게임 정보
-    if player_stats.get('recent_games'):
-        stats_info += f"\n**⭐ 최근 게임**:\n"
-        for game in player_stats['recent_games']:
-            result = game.get('result', '')
-            character = game.get('character', '')
-            rank = game.get('rank', '')
-            kills = game.get('kills', '')
-            stats_info += f"- {result} ({character}): {rank}, {kills}\n"
-    
-    stats_info += f"\n🔗 [상세 전적 보기]({player_stats['url']})"
-    
-    embed = create_character_embed(
-        characters["debi"], "전적 검색 결과", 
-        f"{response}\n\n{stats_info}"
-    )
-    embed.set_footer(text="데비가 dak.gg에서 가져온 정보야!")
-    
-    await interaction.followup.send(embed=embed)
-
-@bot.tree.command(name="랭킹", description="마를렌이 현재 랭킹 정보를 알려드려요")
-async def ranking_slash(interaction: discord.Interaction):
-    """랭킹 정보 슬래시 커맨드"""
-    await interaction.response.defer()
-    
-    response = await generate_ai_response(
-        characters["marlene"], "랭킹 정보", "사용자가 현재 랭킹을 요청했습니다"
-    )
-    embed = create_character_embed(
-        characters["marlene"], "랭킹 정보", 
-        response + "\n\n📊 현재 이터널리턴 랭킹 정보를 확인 중..."
-    )
-    
-    await interaction.followup.send(embed=embed)
-
-@bot.tree.command(name="캐릭터", description="마를렌이 캐릭터 정보를 알려드려요")
-async def character_slash(interaction: discord.Interaction, 캐릭터명: str):
-    """캐릭터 정보 슬래시 커맨드"""
-    await interaction.response.defer()
-    
-    response = await generate_ai_response(
-        characters["marlene"], f"{캐릭터명} 캐릭터 정보", "사용자가 캐릭터 정보를 요청했습니다"
-    )
-    embed = create_character_embed(
-        characters["marlene"], "캐릭터 정보", 
-        response + f"\n\n⚔️ {캐릭터명} 정보를 찾고 있어..."
-    )
-    
-    await interaction.followup.send(embed=embed)
-
-@bot.tree.command(name="설정", description="마를렌이 봇 설정을 도와드려요")
-async def settings_slash(interaction: discord.Interaction, 설정내용: Optional[str] = None):
-    """설정 슬래시 커맨드"""
-    await interaction.response.defer()
-    
-    if not 설정내용:
-        response = await generate_ai_response(
-            characters["marlene"], "설정 도움", "사용자가 설정 방법을 문의했습니다"
-        )
-    else:
-        response = await generate_ai_response(
-            characters["marlene"], 설정내용, "설정 변경 요청"
-        )
-    
-    embed = create_character_embed(characters["marlene"], "설정 관리", response)
-    await interaction.followup.send(embed=embed)
-
-@bot.tree.command(name="테스트", description="데비와 마를렌과 함께 봇 테스트하기")
-async def test_slash(interaction: discord.Interaction):
-    """테스트 슬래시 커맨드"""
-    await interaction.response.defer()
-    
-    debi_response = await generate_ai_response(
-        characters["debi"], "테스트", "봇 테스트를 하고 있습니다"
-    )
-    marlene_response = await generate_ai_response(
-        characters["marlene"], "테스트", "봇 테스트를 하고 있습니다"
-    )
-    
-    debi_embed = create_character_embed(characters["debi"], "테스트", debi_response)
-    marlene_embed = create_character_embed(characters["marlene"], "테스트", marlene_response)
-    
-    
-    await interaction.followup.send(embed=debi_embed)
-    
-    await asyncio.sleep(1.5)
-    await interaction.followup.send(embed=marlene_embed)
 
 @bot.tree.command(name="대화", description="데비나 마를렌과 자유롭게 대화하기")
 async def chat_slash(interaction: discord.Interaction, 메시지: str, 캐릭터: Optional[str] = None):
     """AI 자유 대화 슬래시 커맨드"""
     await interaction.response.defer()
+    
+    # 채널 체크
+    if CHAT_CHANNEL_ID and interaction.channel.id != CHAT_CHANNEL_ID:
+        await interaction.followup.send("❌ 이 명령어는 지정된 채널에서만 사용할 수 있습니다.", ephemeral=True)
+        return
     
     # 캐릭터 선택 로직
     if 캐릭터 and 캐릭터 in ["데비", "마를렌"]:
@@ -827,10 +563,116 @@ async def chat_slash(interaction: discord.Interaction, 메시지: str, 캐릭터
     context = f'사용자가 "{메시지}"를 요청했습니다. 캐릭터 성격에 맞게 자연스럽게 응답해주세요.'
     
     response = await generate_ai_response(selected_character, 메시지, context)
-    embed = create_character_embed(selected_character, "AI 대화", response)
+    embed = create_character_embed(selected_character, "AI 대화", response, 메시지)
     
     
     await interaction.followup.send(embed=embed)
+
+@bot.tree.command(name="전적", description="데비가 플레이어 전적을 검색해드려요")
+async def stats_command(interaction: discord.Interaction, 닉네임: str):
+    """전적 검색 슬래시 커맨드"""
+    await interaction.response.defer()
+    
+    # 채널 체크
+    if CHAT_CHANNEL_ID and interaction.channel.id != CHAT_CHANNEL_ID:
+        await interaction.followup.send("❌ 이 명령어는 지정된 채널에서만 사용할 수 있습니다.", ephemeral=True)
+        return
+    
+    try:
+        # 전적 검색 시작
+        search_embed = discord.Embed(
+            title="🔍 전적 검색 중...",
+            description=f"**{닉네임}**님의 전적을 검색하고 있어요!",
+            color=characters["debi"]["color"]
+        )
+        search_embed.set_author(
+            name=characters["debi"]["name"],
+            icon_url=characters["debi"]["image"]
+        )
+        await interaction.followup.send(embed=search_embed)
+        
+        # 전적 검색 수행 - 공식 API 사용
+        stats = await get_player_stats_official_er(닉네임)
+        
+        # AI 응답 생성
+        response = await generate_ai_response(
+            characters["debi"], 
+            f"{닉네임} 전적 검색 완료", 
+            f"플레이어 {닉네임}의 전적을 성공적으로 찾았습니다"
+        )
+        
+        # 전적 정보 포맷팅
+        stats_text = f"**🎮 플레이어**: {stats['nickname']}\n"
+        
+        found_info = False
+        
+        if stats['tier']:
+            tier_text = stats['tier']
+            if stats['rank_point'] and stats['rank_point'] > 0:
+                tier_text += f" ({stats['rank_point']}RP)"
+            stats_text += f"**🏆 티어**: {tier_text}\n"
+            found_info = True
+        
+        if stats['total_games'] and stats['total_games'] > 0:
+            stats_text += f"**🎯 게임 수**: {stats['total_games']}게임\n"
+            found_info = True
+        
+        if stats['winrate']:
+            stats_text += f"**📈 승률**: {stats['winrate']}\n"
+            found_info = True
+            
+        if stats['wins']:
+            stats_text += f"**🏅 승리**: {stats['wins']}승\n"
+            found_info = True
+        
+        if stats['avg_rank'] and stats['avg_rank'] > 0:
+            stats_text += f"**📊 평균 순위**: {stats['avg_rank']:.1f}위\n"
+            found_info = True
+        
+        if not found_info:
+            stats_text += "\n⚠️ 상세 정보를 가져오지 못했어!\n랭크 게임을 더 플레이해봐!\n"
+        
+        stats_text += f"\n🔗 [공식 API 기반 정보]"
+        
+        # 결과 임베드 생성
+        result_embed = create_character_embed(
+            characters["debi"], 
+            "전적 검색 결과", 
+            f"{response}\n\n{stats_text}",
+            f"/전적 {닉네임}"
+        )
+        result_embed.set_footer(text="데비가 이터널리턴 공식 API에서 가져온 정보야!")
+        
+        # 원본 메시지 편집
+        await interaction.edit_original_response(embed=result_embed)
+        
+    except PlayerStatsError as e:
+        if "player_not_found" in str(e):
+            response = await generate_ai_response(
+                characters["debi"], 
+                f"{닉네임} 전적 검색 실패", 
+                "플레이어를 찾을 수 없었습니다"
+            )
+            error_embed = create_character_embed(
+                characters["debi"], 
+                "전적 검색 실패", 
+                f"{response}\n\n❌ **'{닉네임}'** 플레이어를 찾을 수 없어!\n닉네임을 다시 확인해줘!",
+                f"/전적 {닉네임}"
+            )
+        else:
+            response = await generate_ai_response(
+                characters["debi"], 
+                "전적 검색 오류", 
+                "전적 검색 중 오류가 발생했습니다"
+            )
+            error_embed = create_character_embed(
+                characters["debi"], 
+                "전적 검색 오류", 
+                f"{response}\n\n⚠️ 전적 검색 중 문제가 발생했어!\n잠시 후 다시 시도해줘!",
+                f"/전적 {닉네임}"
+            )
+        
+        await interaction.edit_original_response(embed=error_embed)
 
 @bot.tree.command(name="유튜브", description="데비가 이터널리턴 관련 유튜브 영상을 찾아드려요")
 async def youtube_slash(interaction: discord.Interaction, 검색어: Optional[str] = None):
@@ -984,12 +826,15 @@ async def generate_ai_response(character: Dict[str, Any], user_message: str, con
     print(f"✅ Claude API 응답 성공: {response[:50]}...")
     return response
 
-def create_character_embed(character: Dict[str, Any], title: str, description: str) -> discord.Embed:
+def create_character_embed(character: Dict[str, Any], title: str, description: str, user_message: str = None) -> discord.Embed:
     """캐릭터별 임베드 생성"""
     embed = discord.Embed(
         color=character["color"],
         description=description
     )
+    
+    if user_message:
+        embed.add_field(name="💬 메시지", value=f"```{user_message}```", inline=False)
     
     if character["image"]:
         embed.set_author(
@@ -1058,7 +903,13 @@ async def check_youtube_shorts():
                         )
                         embed.set_footer(text='데비가 발견한 새로운 영상!')
                         
-                        await channel.send(embed=embed)
+                        # 공지 채널로만 전송
+                        if ANNOUNCEMENT_CHANNEL_ID:
+                            announcement_channel = bot.get_channel(ANNOUNCEMENT_CHANNEL_ID)
+                            if announcement_channel:
+                                await announcement_channel.send(embed=embed)
+                        else:
+                            await channel.send(embed=embed)
                         
     except Exception as error:
         print(f'YouTube 체크 오류: {error}')
@@ -1067,6 +918,41 @@ async def check_youtube_shorts():
 async def before_check_youtube_shorts():
     """YouTube 체크 시작 전 봇 준비 대기"""
     await bot.wait_until_ready()
+
+@bot.tree.command(name="채널설정", description="봇이 사용할 채널을 설정합니다 (관리자 전용)")
+async def set_channels(interaction: discord.Interaction, 공지채널: discord.TextChannel = None, 대화채널: discord.TextChannel = None):
+    """채널 설정 커맨드"""
+    await interaction.response.defer()
+    
+    # 관리자 권한 체크
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.followup.send("❌ 이 명령어는 관리자만 사용할 수 있습니다.", ephemeral=True)
+        return
+    
+    global ANNOUNCEMENT_CHANNEL_ID, CHAT_CHANNEL_ID
+    
+    if 공지채널:
+        ANNOUNCEMENT_CHANNEL_ID = 공지채널.id
+        
+    if 대화채널:
+        CHAT_CHANNEL_ID = 대화채널.id
+    
+    settings_text = []
+    if ANNOUNCEMENT_CHANNEL_ID:
+        settings_text.append(f"🔔 공지 채널: <#{ANNOUNCEMENT_CHANNEL_ID}>")
+    if CHAT_CHANNEL_ID:
+        settings_text.append(f"💬 대화 채널: <#{CHAT_CHANNEL_ID}>")
+    
+    if not settings_text:
+        settings_text.append("❌ 설정된 채널이 없습니다.")
+    
+    embed = discord.Embed(
+        title="📋 채널 설정 완료",
+        description="\n".join(settings_text),
+        color=0x00FF00
+    )
+    
+    await interaction.followup.send(embed=embed)
 
 if __name__ == "__main__":
     bot.run(os.getenv('DISCORD_TOKEN'))

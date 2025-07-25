@@ -17,6 +17,11 @@ from googleapiclient.discovery import build
 import schedule
 import aiohttp
 from bs4 import BeautifulSoup
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import io
+from PIL import Image, ImageDraw, ImageFont
+import requests
 
 load_dotenv()
 
@@ -94,6 +99,155 @@ last_checked_video_id = None
 ANNOUNCEMENT_CHANNEL_ID = None  # 이리공지 채널 ID (YouTube 알림용)
 CHAT_CHANNEL_ID = None  # 이리 채널 ID (대화용)
 
+# 티어 이미지 URL 매핑
+TIER_IMAGES = {
+    "언랭": "https://static.dakgg.io/images/er/tiers/00-iron.png",
+    "언랭크": "https://static.dakgg.io/images/er/tiers/00-iron.png",
+    "아이언": "https://static.dakgg.io/images/er/tiers/01-iron.png", 
+    "브론즈": "https://static.dakgg.io/images/er/tiers/02-bronze.png",
+    "실버": "https://static.dakgg.io/images/er/tiers/03-silver.png",
+    "골드": "https://static.dakgg.io/images/er/tiers/04-gold.png",
+    "플래티넘": "https://static.dakgg.io/images/er/tiers/05-platinum.png",
+    "다이아몬드": "https://static.dakgg.io/images/er/tiers/06-diamond.png",
+    "미스릴": "https://static.dakgg.io/images/er/tiers/07-mithril.png",
+    "오리칼쿰": "https://static.dakgg.io/images/er/tiers/08-orihalcum.png"
+}
+
+def get_tier_image_url(tier_name: str) -> str:
+    """티어 이름에 따른 이미지 URL 반환"""
+    if not tier_name:
+        return TIER_IMAGES["언랭"]
+    
+    # **제거하고 첫 번째 단어만 추출 (예: "**플래티넘 1** 150 RP" -> "플래티넘")
+    cleaned_name = tier_name.replace("**", "").strip()
+    tier_base = cleaned_name.split()[0] if cleaned_name else "언랭"
+    
+    print(f"🔍 디버깅: tier_name='{tier_name}' -> tier_base='{tier_base}'")
+    
+    return TIER_IMAGES.get(tier_base, TIER_IMAGES["언랭"])
+
+async def create_custom_stats_image(player_stats: dict, most_char: dict) -> discord.File:
+    """커스텀 전적 이미지 생성"""
+    try:
+        # 캔버스 크기 설정
+        width, height = 600, 400
+        
+        # 배경 이미지 생성 (어두운 파랑 계열)
+        img = Image.new('RGB', (width, height), color=(40, 44, 52))
+        draw = ImageDraw.Draw(img)
+        
+        # 한글 폰트 설정 (AppleGothic 또는 시스템 한글 폰트 사용)
+        try:
+            # macOS 한글 폰트들을 순서대로 시도
+            font_paths = [
+                "/System/Library/Fonts/AppleGothic.ttf",
+                "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+                "/Library/Fonts/Arial Unicode MS.ttf",
+                "/System/Library/Fonts/PingFang.ttc"
+            ]
+            
+            font_path = None
+            for path in font_paths:
+                try:
+                    # 폰트 파일이 존재하는지 확인
+                    test_font = ImageFont.truetype(path, 12)
+                    font_path = path
+                    break
+                except:
+                    continue
+            
+            if font_path:
+                title_font = ImageFont.truetype(font_path, 24)
+                text_font = ImageFont.truetype(font_path, 16)
+                small_font = ImageFont.truetype(font_path, 14)
+                print(f"✅ 한글 폰트 로드 성공: {font_path}")
+            else:
+                raise Exception("한글 폰트를 찾을 수 없음")
+                
+        except Exception as e:
+            print(f"❌ 폰트 로드 실패: {e}, 기본 폰트 사용")
+            title_font = ImageFont.load_default()
+            text_font = ImageFont.load_default()
+            small_font = ImageFont.load_default()
+        
+        # 제목 그리기
+        nickname = player_stats.get('nickname', '플레이어')
+        draw.text((20, 20), f"{nickname}님의 전적", fill=(255, 255, 255), font=title_font)
+        
+        y_pos = 70
+        
+        # 현재 랭크 정보
+        tier_info = player_stats.get('tier_info', '정보 없음')
+        draw.text((20, y_pos), f"현재 랭크: {tier_info}", fill=(255, 255, 255), font=text_font)
+        y_pos += 40
+        
+        # 모스트 캐릭터 정보
+        if most_char:
+            char_text = f"모스트 캐릭터: {most_char['name']} ({most_char['games']}게임, {most_char['winrate']}% 승률)"
+        else:
+            char_text = "모스트 캐릭터: 데이터 없음"
+        draw.text((20, y_pos), char_text, fill=(255, 255, 255), font=text_font)
+        y_pos += 40
+        
+        # 통계 정보
+        stats = player_stats.get('stats', {})
+        stats_lines = [
+            f"평균 TK: {stats.get('avg_team_kills', 0):.1f}",
+            f"승률: {stats.get('winrate', 0):.1f}% ({stats.get('wins', 0)}/{stats.get('total_games', 0)})",
+            f"게임 수: {stats.get('total_games', 0)}게임"
+        ]
+        
+        for line in stats_lines:
+            draw.text((20, y_pos), line, fill=(200, 200, 200), font=small_font)
+            y_pos += 25
+        
+        # 티어 이미지 다운로드 및 추가
+        if player_stats.get('tier_image_url'):
+            try:
+                tier_url = player_stats['tier_image_url']
+                if tier_url.startswith('//'):
+                    tier_url = "https:" + tier_url
+                
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(tier_url) as response:
+                        if response.status == 200:
+                            tier_data = await response.read()
+                            tier_img = Image.open(io.BytesIO(tier_data))
+                            tier_img = tier_img.resize((60, 60))  # 60x60 크기로 조정
+                            img.paste(tier_img, (500, 70), tier_img if tier_img.mode == 'RGBA' else None)
+                            print("✅ 티어 이미지 추가 완료")
+            except Exception as e:
+                print(f"❌ 티어 이미지 처리 실패: {e}")
+        
+        # 캐릭터 이미지 다운로드 및 추가
+        if most_char and most_char.get('image_url'):
+            try:
+                char_url = most_char['image_url']
+                if char_url.startswith('//'):
+                    char_url = "https:" + char_url
+                
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(char_url) as response:
+                        if response.status == 200:
+                            char_data = await response.read()
+                            char_img = Image.open(io.BytesIO(char_data))
+                            char_img = char_img.resize((60, 60))  # 60x60 크기로 조정
+                            img.paste(char_img, (500, 150), char_img if char_img.mode == 'RGBA' else None)
+                            print("✅ 캐릭터 이미지 추가 완료")
+            except Exception as e:
+                print(f"❌ 캐릭터 이미지 처리 실패: {e}")
+        
+        # 이미지를 바이트로 변환
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format='PNG')
+        img_bytes.seek(0)
+        
+        return discord.File(img_bytes, filename="stats.png")
+        
+    except Exception as e:
+        print(f"❌ 커스텀 이미지 생성 실패: {e}")
+        return None
+
 class PlayerStatsError(Exception):
     """전적 검색 관련 예외"""
     pass
@@ -150,6 +304,364 @@ stats_cache = StatsCache(cache_duration_minutes=15)  # 15분 캐싱
 ETERNAL_RETURN_API_BASE = "https://open-api.bser.io"
 ETERNAL_RETURN_API_KEY = os.getenv('EternalReturn_API_KEY')
 
+# 닥지지 API 설정
+DAKGG_API_BASE = "https://er.dakgg.io/api/v1"
+
+async def create_mmr_graph(matches_data: List[Dict]) -> Optional[discord.File]:
+    """경기 데이터로 MMR 그래프를 생성합니다"""
+    try:
+        if not matches_data or len(matches_data) < 2:
+            return None
+            
+        # 최근 20경기의 MMR 데이터 추출
+        mmr_data = []
+        dates = []
+        
+        for i, match in enumerate(matches_data[:20]):
+            # 경기 후 MMR (matchingMode가 3(RANK)인 경우만)
+            if match.get('matchingMode') == 3:
+                mmr_after = match.get('mmrAfter', 0)
+                if mmr_after > 0:
+                    mmr_data.append(mmr_after)
+                    dates.append(len(matches_data) - i)  # 경기 번호 (최근부터 역순)
+        
+        if len(mmr_data) < 2:
+            return None
+            
+        # 한글 폰트 설정 (시스템에 따라 다를 수 있음)
+        plt.rcParams['font.family'] = ['DejaVu Sans', 'Arial Unicode MS', 'Malgun Gothic']
+        plt.rcParams['axes.unicode_minus'] = False
+        
+        # 그래프 생성
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(dates, mmr_data, marker='o', linewidth=2, markersize=4, color='#4CAF50')
+        ax.fill_between(dates, mmr_data, alpha=0.3, color='#4CAF50')
+        
+        # 그래프 스타일 설정
+        ax.set_title('MMR 변화 그래프 (최근 랭크 게임)', fontsize=16, fontweight='bold')
+        ax.set_xlabel('경기 (최근부터)', fontsize=12)
+        ax.set_ylabel('MMR', fontsize=12)
+        ax.grid(True, alpha=0.3)
+        ax.set_facecolor('#f8f9fa')
+        
+        # MMR 값 범위에 따른 Y축 설정
+        if mmr_data:
+            min_mmr = min(mmr_data)
+            max_mmr = max(mmr_data)
+            margin = (max_mmr - min_mmr) * 0.1
+            ax.set_ylim(min_mmr - margin, max_mmr + margin)
+        
+        # 그래프를 메모리 버퍼에 저장
+        buffer = io.BytesIO()
+        plt.tight_layout()
+        plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+        buffer.seek(0)
+        plt.close()
+        
+        return discord.File(buffer, filename='mmr_graph.png')
+        
+    except Exception as e:
+        print(f"MMR 그래프 생성 오류: {e}")
+        return None
+
+async def test_dakgg_api_structure(nickname: str = "모묘모"):
+    """DAKGG API 구조 테스트 - 실제 응답 확인"""
+    encoded_nickname = urllib.parse.quote(nickname)
+    
+    headers = {
+        'Accept': 'application/json, text/plain, */*',
+        'Origin': 'https://dak.gg',
+        'Referer': 'https://dak.gg/',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+    }
+    
+    urls_to_test = [
+        f'{DAKGG_API_BASE}/players/{encoded_nickname}/profile?season=SEASON_17',
+        f'{DAKGG_API_BASE}/players/{encoded_nickname}/profile?season=SEASON_16', 
+        f'{DAKGG_API_BASE}/players/{encoded_nickname}/characters?season=SEASON_17&matchingMode=RANK',
+        f'{DAKGG_API_BASE}/data/tiers?hl=ko',
+        f'{DAKGG_API_BASE}/data/characters?hl=ko'
+    ]
+    
+    async with aiohttp.ClientSession() as session:
+        for i, url in enumerate(urls_to_test):
+            try:
+                print(f"\n{'='*60}")
+                print(f"테스트 {i+1}: {url}")
+                print(f"{'='*60}")
+                
+                response = await session.get(url, headers=headers, timeout=10)
+                print(f"상태 코드: {response.status}")
+                
+                if response.status == 200:
+                    data = await response.json()
+                    print(f"응답 키들: {list(data.keys()) if isinstance(data, dict) else 'List type'}")
+                    
+                    if isinstance(data, dict):
+                        for key, value in data.items():
+                            if isinstance(value, list):
+                                print(f"  {key}: 리스트 (길이: {len(value)})")
+                                if value and len(value) > 0:
+                                    print(f"    첫 번째 항목 키들: {list(value[0].keys()) if isinstance(value[0], dict) else type(value[0])}")
+                            else:
+                                print(f"  {key}: {type(value)} = {value if not isinstance(value, (dict, list)) else f'{type(value)} with {len(value)} items'}")
+                    
+                    # JSON 전체 구조 출력 (처음 200자만)
+                    json_str = json.dumps(data, indent=2, ensure_ascii=False)
+                    print(f"\n전체 JSON 구조 (처음 500자):\n{json_str[:500]}...")
+                else:
+                    error_text = await response.text()
+                    print(f"오류 응답: {error_text[:200]}")
+                    
+            except Exception as e:
+                print(f"요청 실패: {e}")
+
+async def get_player_stats_from_dakgg(nickname: str, detailed: bool = False) -> Optional[Dict[str, Any]]:
+    """닥지지 API를 사용해서 플레이어 통계 정보 가져오기"""
+    try:
+        # 닉네임 URL 인코딩
+        encoded_nickname = urllib.parse.quote(nickname)
+        
+        # API URL 구성
+        player_url = f'{DAKGG_API_BASE}/players/{encoded_nickname}/profile?season=SEASON_17'
+        tier_url = f'{DAKGG_API_BASE}/data/tiers?hl=ko'
+        character_url = f'{DAKGG_API_BASE}/data/characters?hl=ko'
+        
+        headers = {
+            'Accept': 'application/json, text/plain, */*',
+            'Origin': 'https://dak.gg',
+            'Referer': 'https://dak.gg/',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            # 모든 데이터 동시 요청
+            player_task = session.get(player_url, headers=headers, timeout=10)
+            tier_task = session.get(tier_url, headers=headers, timeout=10)
+            character_task = session.get(character_url, headers=headers, timeout=10)
+            
+            player_response, tier_response, character_response = await asyncio.gather(
+                player_task, tier_task, character_task
+            )
+            
+            if (player_response.status == 200 and 
+                tier_response.status == 200 and 
+                character_response.status == 200):
+                
+                player_data = await player_response.json()
+                tier_data = await tier_response.json()
+                character_data = await character_response.json()
+                
+                # 결과 딕셔너리 초기화
+                result = {
+                    'nickname': nickname,
+                    'tier_info': None,
+                    'most_character': None,
+                    'stats': {}
+                }
+                
+                # 현재 시즌 정보 추출
+                if 'playerSeasons' not in player_data or len(player_data['playerSeasons']) == 0:
+                    return None
+                    
+                current_season = player_data['playerSeasons'][0]
+                
+                # 티어 정보 처리
+                mmr = current_season.get('mmr', 0)
+                tier_id = current_season.get('tierId', 0)
+                tier_grade_id = current_season.get('tierGradeId', 1)
+                tier_mmr = current_season.get('tierMmr', 0)
+                
+                # 티어 이름 및 이미지 찾기
+                tier_name = '언랭크'
+                tier_image = None
+                for tier in tier_data.get('tiers', []):
+                    if tier['id'] == tier_id:
+                        tier_name = tier['name']
+                        tier_image = tier.get('imageUrl') or tier.get('image') or tier.get('icon')
+                        print(f"🔍 찾은 티어 데이터: {tier}")
+                        break
+                
+                # 티어 등급 매핑
+                grade_names = {1: '1', 2: '2', 3: '3', 4: '4'}
+                grade_name = grade_names.get(tier_grade_id, '1')
+                
+                if tier_id == 0:
+                    result['tier_info'] = f'**{tier_name}** (MMR {mmr})'
+                else:
+                    result['tier_info'] = f'**{tier_name} {grade_name}** {tier_mmr} RP (MMR {mmr})'
+                
+                # 티어 이미지 URL 추가
+                result['tier_image_url'] = tier_image
+                
+                # 통계 정보 추출 (playerSeasonOverviews에서)
+                season_overviews = player_data.get('playerSeasonOverviews', [])
+                rank_stats = None
+                
+                # RANK 모드 통계 찾기 (matchingModeId가 0인 것이 랭크)
+                for overview in season_overviews:
+                    if overview.get('seasonId') == 33 and overview.get('matchingModeId') == 0:
+                        rank_stats = overview
+                        break
+                
+                if rank_stats:
+                    result['stats'] = {
+                        'total_games': rank_stats.get('play', 0),
+                        'wins': rank_stats.get('win', 0),
+                        'winrate': round((rank_stats.get('win', 0) / max(rank_stats.get('play', 1), 1)) * 100, 1),
+                        'avg_rank': round(rank_stats.get('place', 0) / max(rank_stats.get('play', 1), 1), 1),
+                        'avg_kills': round(rank_stats.get('playerKill', 0) / max(rank_stats.get('play', 1), 1), 1),
+                        'avg_team_kills': round(rank_stats.get('teamKill', 0) / max(rank_stats.get('play', 1), 1), 1),
+                        'avg_damage': round(rank_stats.get('damageToPlayer', 0) / max(rank_stats.get('play', 1), 1)),
+                        'top2': rank_stats.get('top2', 0),
+                        'top3': rank_stats.get('top3', 0),
+                        'top2_rate': round((rank_stats.get('top2', 0) / max(rank_stats.get('play', 1), 1)) * 100, 1),
+                        'top3_rate': round((rank_stats.get('top3', 0) / max(rank_stats.get('play', 1), 1)) * 100, 1),
+                        'mmr': mmr
+                    }
+                    
+                    # 모스트 캐릭터 찾기
+                    character_stats = rank_stats.get('characterStats', [])
+                    if character_stats:
+                        # 게임 수가 가장 많은 캐릭터 찾기
+                        most_char_stat = max(character_stats, key=lambda x: x.get('play', 0))
+                        char_key = most_char_stat.get('key', '')
+                        
+                        # 캐릭터 정보 찾기
+                        for char in character_data.get('characters', []):
+                            if char.get('id') == char_key:
+                                result['most_character'] = {
+                                    'name': char.get('name', '알 수 없음'),
+                                    'key': char_key,
+                                    'image_url': char.get('imageUrl', ''),
+                                    'games': most_char_stat.get('play', 0),
+                                    'wins': most_char_stat.get('win', 0),
+                                    'winrate': round((most_char_stat.get('win', 0) / max(most_char_stat.get('play', 1), 1)) * 100, 1)
+                                }
+                                break
+                
+                # 상세 정보 요청시 경기 데이터도 가져오기
+                if detailed:
+                    matches_url = f'{DAKGG_API_BASE}/players/{encoded_nickname}/matches?season=SEASON_17&matchingMode=RANK&teamMode=ALL&page=1'
+                    matches_response = await session.get(matches_url, headers=headers, timeout=10)
+                    
+                    if matches_response.status == 200:
+                        matches_data = await matches_response.json()
+                        result['matches_data'] = matches_data.get('matches', [])
+                    else:
+                        result['matches_data'] = []
+                    
+                    # 캐릭터 통계도 가져오기 (DAKGG API 엔드포인트 사용 - 문서 참고)
+                    char_stats_url = f'{DAKGG_API_BASE}/players/{encoded_nickname}/characters?season=SEASON_17&matchingMode=RANK'
+                    char_response = await session.get(char_stats_url, headers=headers, timeout=10)
+                    
+                    print(f"🔍 캐릭터 통계 API 호출: {char_stats_url}")
+                    
+                    if char_response.status == 200:
+                        char_data = await char_response.json()
+                        print(f"🔍 캐릭터 데이터 구조: {char_data}")
+                        
+                        # 캐릭터 통계를 게임 수 순으로 정렬하고 이미지 URL 추가
+                        char_stats = []
+                        
+                        # DAKGG API 문서에 따라 다양한 가능한 구조 확인
+                        # API 응답에서 characters 배열이나 stats 배열 등을 확인
+                        possible_keys = ['characters', 'stats', 'data', 'playerCharacters', 'characterStats']
+                        stats_data = []
+                        
+                        for key in possible_keys:
+                            if key in char_data and isinstance(char_data[key], list):
+                                stats_data = char_data[key]
+                                print(f"✅ 캐릭터 데이터를 '{key}' 키에서 찾음: {len(stats_data)}개")
+                                break
+                        
+                        if not stats_data:
+                            # 최상위 레벨이 배열인 경우도 체크
+                            if isinstance(char_data, list):
+                                stats_data = char_data
+                                print(f"✅ 캐릭터 데이터가 최상위 배열: {len(stats_data)}개")
+                        
+                        print(f"🔍 처리할 캐릭터 데이터: {stats_data[:3] if stats_data else 'None'}")
+                        
+                        for i, char_stat in enumerate(stats_data):
+                            if i >= 3:  # 상위 3개만
+                                break
+                                
+                            print(f"🔍 처리 중인 캐릭터 {i+1}: {char_stat}")
+                            
+                            # 다양한 가능한 키들 확인 (DAKGG API 문서 기반)
+                            possible_game_keys = ['totalGames', 'games', 'play', 'playCount', 'matchCount']
+                            possible_win_keys = ['wins', 'win', 'winCount', 'victories']
+                            possible_char_id_keys = ['characterNum', 'characterId', 'id', 'charId', 'character']
+                            
+                            games = 0
+                            for key in possible_game_keys:
+                                if key in char_stat and char_stat[key] is not None:
+                                    games = char_stat[key]
+                                    break
+                            
+                            wins = 0
+                            for key in possible_win_keys:
+                                if key in char_stat and char_stat[key] is not None:
+                                    wins = char_stat[key]
+                                    break
+                            
+                            winrate = (wins / max(games, 1)) * 100 if games > 0 else 0
+                            
+                            char_info = {
+                                'name': '알 수 없음',
+                                'games': games,
+                                'wins': wins,
+                                'winrate': round(winrate, 1),
+                                'image_url': None
+                            }
+                            
+                            # 캐릭터 ID 찾기
+                            char_id = None
+                            for key in possible_char_id_keys:
+                                if key in char_stat and char_stat[key] is not None:
+                                    char_id = char_stat[key]
+                                    break
+                            
+                            print(f"🔍 캐릭터 ID 찾음: {char_id}, 게임 수: {games}, 승수: {wins}")
+                            
+                            # 캐릭터 이름과 이미지 찾기
+                            if char_id:
+                                for char in character_data.get('characters', []):
+                                    if char.get('id') == char_id or char.get('key') == char_id:
+                                        char_info['name'] = char.get('name', '알 수 없음')
+                                        char_info['image_url'] = char.get('imageUrl') or char.get('image')
+                                        print(f"✅ 캐릭터 정보 매칭: {char_info['name']}")
+                                        break
+                            
+                            if games > 0:  # 게임 수가 있는 캐릭터만 추가
+                                char_stats.append(char_info)
+                                print(f"✅ 캐릭터 추가: {char_info}")
+                        
+                        # 게임 수 순으로 정렬
+                        char_stats.sort(key=lambda x: x['games'], reverse=True)
+                        result['character_stats'] = char_stats[:3]  # 상위 3개만
+                        print(f"✅ 최종 캐릭터 통계 {len(char_stats)}개 로드: {[c['name'] for c in char_stats]}")
+                    else:
+                        print(f"❌ 캐릭터 통계 API 실패: {char_response.status}")
+                        response_text = await char_response.text()
+                        print(f"❌ 응답 내용: {response_text[:500]}")
+                        result['character_stats'] = []
+                
+                return result
+            else:
+                print(f'닥지지 API 오류: Player {player_response.status}, Tier {tier_response.status}, Character {character_response.status}')
+                return None
+                
+    except Exception as e:
+        print(f'닥지지 API 오류: {e}')
+        return None
+
+async def get_tier_info_from_dakgg(nickname: str) -> Optional[str]:
+    """기존 호환성을 위한 간단한 티어 정보 함수"""
+    stats = await get_player_stats_from_dakgg(nickname)
+    return stats['tier_info'] if stats else None
+
 async def get_user_by_nickname_er(nickname: str) -> Dict[str, Any]:
     """이터널 리턴 공식 API - 닉네임으로 유저 정보 조회"""
     try:
@@ -179,7 +691,7 @@ async def get_user_by_nickname_er(nickname: str) -> Dict[str, Any]:
         print(f"닉네임 조회 중 오류: {e}")
         raise PlayerStatsError(f"nickname_search_failed: {str(e)}")
 
-async def get_user_stats_er(user_num: str, season_id: str = "33") -> Dict[str, Any]:
+async def get_user_stats_er(user_num: str, season_id: str = "17") -> Dict[str, Any]:
     """이터널 리턴 공식 API - 유저 통계 정보 조회"""
     try:
         async with aiohttp.ClientSession() as session:
@@ -204,7 +716,7 @@ async def get_user_stats_er(user_num: str, season_id: str = "33") -> Dict[str, A
         print(f"통계 조회 중 오류: {e}")
         raise PlayerStatsError(f"stats_search_failed: {str(e)}")
 
-async def get_user_rank_er(user_num: str, season_id: str = "33", matching_team_mode: str = "3") -> Dict[str, Any]:
+async def get_user_rank_er(user_num: str, season_id: str = "17", matching_team_mode: str = "3") -> Dict[str, Any]:
     """이터널 리턴 공식 API - 유저 랭킹 정보 조회"""
     try:
         async with aiohttp.ClientSession() as session:
@@ -341,7 +853,7 @@ async def get_meta_data_er(meta_type: str = "Character", max_retries: int = 3) -
     
     return None
 
-async def get_user_stats_v2_er(user_num: str, season_id: str = "33", matching_mode: str = "3") -> Dict[str, Any]:
+async def get_user_stats_v2_er(user_num: str, season_id: str = "17", matching_mode: str = "3") -> Dict[str, Any]:
     """이터널 리턴 공식 API v2 - 유저 통계 정보 조회 (매칭모드별)"""
     try:
         async with aiohttp.ClientSession() as session:
@@ -369,7 +881,7 @@ async def get_user_stats_v2_er(user_num: str, season_id: str = "33", matching_mo
         print(f"v2 통계 조회 중 오류: {e}")
         return None
 
-async def get_union_team_er(user_num: str, season_id: str = "33") -> Dict[str, Any]:
+async def get_union_team_er(user_num: str, season_id: str = "17") -> Dict[str, Any]:
     """이터널 리턴 공식 API - 유니언 럼블 팀 정보 조회"""
     try:
         async with aiohttp.ClientSession() as session:
@@ -417,7 +929,7 @@ async def get_free_characters_er(matching_mode: str = "3") -> Dict[str, Any]:
         print(f"무료 캐릭터 조회 중 오류: {e}")
         return None
 
-async def get_top_rankers_er(season_id: str = "33", matching_team_mode: str = "3", server_code: str = "kr") -> Dict[str, Any]:
+async def get_top_rankers_er(season_id: str = "17", matching_team_mode: str = "3", server_code: str = "kr") -> Dict[str, Any]:
     """이터널 리턴 공식 API - 상위 랭커 조회"""
     try:
         async with aiohttp.ClientSession() as session:
@@ -440,6 +952,44 @@ async def get_top_rankers_er(season_id: str = "33", matching_team_mode: str = "3
     except Exception as e:
         print(f"상위 랭커 조회 중 오류: {e}")
         return None
+
+# 현재 시즌 ID 캐시
+current_season_cache = {"season_id": None, "last_updated": 0}
+
+async def get_current_season_id() -> str:
+    """현재 활성화된 시즌 ID를 가져오는 함수 (캐싱 적용)"""
+    import time
+    
+    # 1시간마다 갱신 (3600초)
+    if (current_season_cache["season_id"] and 
+        time.time() - current_season_cache["last_updated"] < 3600):
+        return current_season_cache["season_id"]
+    
+    try:
+        season_meta = await get_meta_data_er("Season")
+        if season_meta and season_meta.get('data'):
+            # isCurrent가 1인 시즌 찾기
+            current_seasons = [s for s in season_meta['data'] if s.get('isCurrent') == 1]
+            
+            if current_seasons:
+                season_id = str(current_seasons[0]['seasonID'])
+                current_season_cache["season_id"] = season_id
+                current_season_cache["last_updated"] = time.time()
+                print(f"✅ 현재 시즌 ID: {season_id}")
+                return season_id
+            else:
+                # 가장 높은 seasonID 사용
+                latest_season = max(season_meta['data'], key=lambda x: x['seasonID'])
+                season_id = str(latest_season['seasonID'])
+                current_season_cache["season_id"] = season_id
+                current_season_cache["last_updated"] = time.time()
+                print(f"⚠️ 활성 시즌 없음, 최신 시즌 사용: {season_id}")
+                return season_id
+    except Exception as e:
+        print(f"⚠️ 시즌 조회 실패: {e}")
+    
+    # 기본값
+    return "17"
 
 async def get_player_stats_official_er(nickname: str, use_cache: bool = True) -> Dict[str, Any]:
     """
@@ -473,28 +1023,22 @@ async def get_player_stats_official_er(nickname: str, use_cache: bool = True) ->
         
         print(f"✅ 유저 발견: {user_data['nickname']} (userNum: {user_num})")
         
-        # 병렬로 여러 API 호출
+        # 현재 시즌 ID 가져오기
+        current_season = await get_current_season_id()
+        
+        # 병렬로 필요한 API만 호출 (속도 개선)
         import asyncio
         
-        # 2. 병렬 API 호출 (더 많은 정보 수집)
+        # 2. 최소한의 필수 API 호출만
         tasks = [
-            get_user_stats_er(str(user_num)),  # v1 통계
-            get_user_rank_er(str(user_num), "33", "3"),  # 솔로 랭크
-            get_user_rank_er(str(user_num), "33", "2"),  # 듀오 랭크
-            get_user_rank_er(str(user_num), "33", "1"),  # 스쿼드 랭크
-            get_user_recent_games_er(str(user_num)),  # 최근 게임
-            get_meta_data_er("Character"),  # 캐릭터 메타데이터
-            get_user_stats_v2_er(str(user_num), "33", "2"),  # v2 듀오 통계
-            get_user_stats_v2_er(str(user_num), "33", "3"),  # v2 솔로 통계
-            get_union_team_er(str(user_num), "33"),  # 유니언 럼블 팀
-            get_meta_data_er("Item"),  # 아이템 메타데이터
-            get_meta_data_er("WeaponType"),  # 무기 타입 메타데이터
-            get_free_characters_er("3")  # 무료 캐릭터
+            get_user_rank_er(str(user_num), current_season, "3"),  # 솔로 랭크
+            get_user_rank_er(str(user_num), current_season, "2"),  # 듀오 랭크
+            get_user_rank_er(str(user_num), current_season, "1"),  # 스쿼드 랭크
+            get_user_recent_games_er(str(user_num)),  # 최근 게임 (선호 캐릭터용)
         ]
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        (stats_data, solo_rank, duo_rank, squad_rank, recent_games, character_meta, 
-         duo_stats_v2, solo_stats_v2, union_team, item_meta, weapon_meta, free_chars) = results
+        (solo_rank, duo_rank, squad_rank, recent_games) = results
         
         # 결과 정리 (더 많은 정보 포함)
         result = {
@@ -517,12 +1061,63 @@ async def get_player_stats_official_er(nickname: str, use_cache: bool = True) ->
             'meta_info': {}
         }
         
-        # 3. 다중 모드 랭킹 정보 처리
+        # 3. 다중 모드 랭킹 정보 처리 + MMR을 티어로 변환
         mode_names = {3: '솔로', 2: '듀오', 1: '스쿼드'}
         ranks = [solo_rank, duo_rank, squad_rank]
         
         best_rank = None
-        best_rp = 0
+        best_mmr = 0
+        
+        # 티어 변환을 위한 메타데이터 조회
+        tier_mapping = None
+        try:
+            tier_meta = await get_meta_data_er("MatchingQueueTier")
+            if tier_meta and tier_meta.get('data'):
+                # Seoul 서버의 Solo Rank 티어만 추출
+                seoul_solo_tiers = [
+                    tier for tier in tier_meta['data']
+                    if (tier.get('matchingRegion') == 'Seoul' and 
+                        tier.get('teamMode') == 'Solo' and 
+                        tier.get('matchingMode') == 'Rank')
+                ]
+                # MMR 구간별 정렬
+                seoul_solo_tiers.sort(key=lambda x: x.get('mmrMoreThan', 0))
+                tier_mapping = seoul_solo_tiers
+                print(f"✅ 티어 매핑 데이터 로드: {len(seoul_solo_tiers)}개 구간")
+        except Exception as e:
+            print(f"⚠️ 티어 매핑 데이터 로드 실패: {e}")
+        
+        def mmr_to_tier(mmr):
+            """MMR을 티어로 변환"""
+            if not tier_mapping or mmr == 0:
+                return "Unranked"
+            
+            for tier_info in tier_mapping:
+                mmr_min = tier_info.get('mmrMoreThan', 0)
+                mmr_max = tier_info.get('mmrLess', 99999)
+                if mmr_min <= mmr < mmr_max:
+                    tier_name = tier_info.get('mmrTier', 'Unknown')
+                    # TIER숫자를 실제 티어명으로 변환 (간단한 매핑)
+                    if tier_name.startswith('TIER'):
+                        tier_num = int(tier_name.replace('TIER', ''))
+                        if tier_num >= 19:
+                            return "Immortal"
+                        elif tier_num >= 17:
+                            return "Titan"
+                        elif tier_num >= 14:
+                            return "Diamond"
+                        elif tier_num >= 11:
+                            return "Platinum"
+                        elif tier_num >= 8:
+                            return "Gold"
+                        elif tier_num >= 5:
+                            return "Silver"
+                        elif tier_num >= 3:
+                            return "Bronze"
+                        else:
+                            return "Iron"
+                    return tier_name
+            return "Unranked"
         
         for i, rank_data in enumerate(ranks):
             mode_id = 3 - i  # 3, 2, 1
@@ -530,23 +1125,27 @@ async def get_player_stats_official_er(nickname: str, use_cache: bool = True) ->
             
             if rank_data and not isinstance(rank_data, Exception) and rank_data.get('userRank'):
                 rank_info = rank_data['userRank']
-                tier_type = rank_info.get('tierType', 'Unranked')
-                division = rank_info.get('division', '')
-                rp = rank_info.get('rp', 0)
+                mmr = rank_info.get('mmr', 0)
+                rank_position = rank_info.get('rank', 0)
                 
-                tier_text = f"{tier_type} {division}".strip()
+                # MMR을 기반으로 티어 계산
+                tier_text = mmr_to_tier(mmr)
+                if mmr > 0 and rank_position > 0:
+                    tier_text = f"{tier_text} (#{rank_position})"
+                
                 result['multi_mode_ranks'][mode_name] = {
                     'tier': tier_text,
-                    'rp': rp,
-                    'mmr': rank_info.get('mmr', 0)
+                    'rp': 0,  # RP는 더 이상 사용되지 않음
+                    'mmr': mmr,
+                    'rank': rank_position
                 }
                 
-                # 가장 높은 RP 티어를 메인 티어로 설정
-                if rp > best_rp:
-                    best_rp = rp
+                # 가장 높은 MMR 티어를 메인 티어로 설정
+                if mmr > best_mmr:
+                    best_mmr = mmr
                     best_rank = tier_text
                     result['tier'] = tier_text
-                    result['rank_point'] = rp
+                    result['rank_point'] = mmr  # MMR을 rank_point로 사용
         
         if not result['tier']:
             result['tier'] = "Unranked"
@@ -556,6 +1155,7 @@ async def get_player_stats_official_er(nickname: str, use_cache: bool = True) ->
         
         # 4. 상세 통계 정보 처리 (디버깅 및 개선)
         total_stats_found = False
+        stats_data = None  # stats_data 변수 초기화
         
         # API 응답 디버깅
         print(f"🔍 stats_data 디버깅: {type(stats_data)}, 예외 여부: {isinstance(stats_data, Exception)}")
@@ -703,7 +1303,7 @@ async def get_player_stats_official_er(nickname: str, use_cache: bool = True) ->
                         print(f"⚠️ 최근 게임이 너무 적어 대체 통계 생성 불가 ({len(temp_games) if temp_games else 0}게임)")
                 else:
                     print(f"⚠️ 최근 게임 데이터도 없어 대체 통계 생성 불가")
-        elif stats_data.get('message'):
+        elif stats_data and stats_data.get('message'):
             print(f"⚠️ v1 통계 API 메시지: {stats_data.get('message')}")
             # 'Success' 메시지이지만 데이터가 없는 경우
             if stats_data.get('message') == 'Success':
@@ -740,6 +1340,9 @@ async def get_player_stats_official_er(nickname: str, use_cache: bool = True) ->
                 
                 # 선호 캐릭터 분석 (사용 횟수 기준 상위 3개)
                 sorted_chars = sorted(character_usage.items(), key=lambda x: x[1], reverse=True)[:3]
+                
+                # 캐릭터 메타데이터 가져오기
+                character_meta = await get_meta_data_er("Character")
                 
                 # 캐릭터 이름 매핑 (디버깅 및 안전한 처리)
                 print(f"🔍 character_meta 디버깅: {type(character_meta)}, 예외: {isinstance(character_meta, Exception)}")
@@ -953,6 +1556,95 @@ async def get_player_stats_official_er(nickname: str, use_cache: bool = True) ->
     except Exception as e:
         print(f"공식 API 전적 검색 중 오류: {e}")
         raise PlayerStatsError(f"official_api_failed: {str(e)}")
+
+async def get_simple_player_stats_only_tier(nickname: str) -> str:
+    """
+    간단한 티어 정보만 가져오는 함수 - API 호출 최소화
+    """
+    try:
+        # 1. 닉네임으로 유저 정보 조회
+        user_info = await get_user_by_nickname_er(nickname)
+        
+        if not user_info.get('user'):
+            return "❌ 플레이어를 찾을 수 없어요!"
+        
+        user_data = user_info['user']
+        user_num = str(user_data['userNum'])
+        
+        # 실제 게임 시즌 ID 확인 (최근 게임에서 가져오기)
+        recent_games = await get_user_recent_games_er(user_num)
+        current_season = "33"  # 기본값
+        if recent_games and not isinstance(recent_games, Exception) and recent_games.get('userGames'):
+            if recent_games['userGames']:
+                current_season = str(recent_games['userGames'][0].get('seasonId', 33))
+                print(f"🔍 실제 게임 시즌 ID: {current_season}")
+        
+        # 2. 솔로 랭킹만 빠르게 확인 (API 호출 최소화)
+        solo_rank = await get_user_rank_er(user_num, current_season, "3")
+        
+        # 3. 티어 매핑 데이터 로드 (한 번만)
+        tier_mapping = []
+        try:
+            tier_meta = await get_meta_data_er("MatchingQueueTier")
+            print(f"🔍 tier_meta 응답: {tier_meta}")
+            if tier_meta and tier_meta.get('data'):
+                print(f"🔍 tier_meta 데이터 개수: {len(tier_meta['data'])}")
+                # 필터링 전 데이터 확인
+                print(f"🔍 현재 시즌: {current_season}, 타입: {type(current_season)}")
+                all_tiers = tier_meta['data']
+                print(f"🔍 첫 번째 티어 데이터 샘플: {all_tiers[0] if all_tiers else 'None'}")
+                
+                # 서울(Seoul) 지역의 랭크 모드 솔로 티어 데이터만 필터링
+                seoul_solo_tiers = [tier for tier in tier_meta['data'] if 
+                                  tier.get('matchingRegion') == 'Seoul' and 
+                                  tier.get('matchingMode') == 'Rank' and 
+                                  tier.get('teamMode') == 'Solo']
+                print(f"🔍 필터링된 티어 개수: {len(seoul_solo_tiers)}")
+                if seoul_solo_tiers:
+                    print(f"🔍 첫 번째 필터링된 티어: {seoul_solo_tiers[0]}")
+                
+                seoul_solo_tiers.sort(key=lambda x: x.get('mmrMoreThan', 0))
+                tier_mapping = seoul_solo_tiers
+            else:
+                print("⚠️ tier_meta 데이터 없음")
+        except Exception as e:
+            print(f"⚠️ 티어 메타데이터 로드 실패: {e}")
+            pass
+        
+        def mmr_to_tier(mmr):
+            print(f"🔍 mmr_to_tier 호출: MMR={mmr}, tier_mapping 개수={len(tier_mapping)}")
+            if not tier_mapping or mmr <= 0:
+                return "Unranked"
+            for tier in reversed(tier_mapping):
+                mmr_threshold = tier.get('mmrMoreThan', 0)
+                tier_name = tier.get('tierType', 'Unranked')
+                print(f"🔍 티어 체크: {tier_name} (최소 MMR: {mmr_threshold})")
+                if mmr >= mmr_threshold:
+                    print(f"✅ 매칭된 티어: {tier_name}")
+                    return tier_name
+            return "Unranked"
+        
+        # 4. 간단한 결과 텍스트 생성 (디버깅 추가)
+        result = f"**🎮 플레이어**: {user_data['nickname']}\n\n"
+        
+        print(f"🔍 solo_rank 디버깅: {type(solo_rank)}, 예외: {isinstance(solo_rank, Exception)}")
+        if solo_rank and not isinstance(solo_rank, Exception):
+            print(f"🔍 solo_rank 키들: {list(solo_rank.keys()) if isinstance(solo_rank, dict) else 'Not dict'}")
+            print(f"🔍 solo_rank 내용: {solo_rank}")
+        
+        if solo_rank and not isinstance(solo_rank, Exception) and solo_rank.get('userRank'):
+            mmr = solo_rank['userRank'].get('mmr', 0)
+            tier = mmr_to_tier(mmr)
+            print(f"🔍 MMR: {mmr}, 계산된 티어: {tier}")
+            result += f"🥇 **솔로 랭크**: {tier} ({mmr}점)"
+        else:
+            print(f"⚠️ 랭킹 데이터 없음 - solo_rank: {solo_rank}")
+            result += f"🥇 **솔로 랭크**: Unranked"
+        
+        return result
+        
+    except Exception as e:
+        return f"❌ 전적 조회 중 오류가 발생했어요: {str(e)}"
 
 async def get_simple_player_stats(nickname: str) -> Dict[str, Any]:
     """
@@ -1251,11 +1943,392 @@ async def chat_slash(interaction: discord.Interaction, 메시지: str, 캐릭터
     
     await interaction.followup.send(embed=embed)
 
-@bot.tree.command(name="전적", description="데비가 플레이어 전적을 검색해드려요")
-async def stats_command(interaction: discord.Interaction, 닉네임: str):
-    """전적 검색 슬래시 커맨드"""
-    await interaction.response.defer()
-    
+def get_tier_image_url(tier_name: str) -> str:
+    """티어 이름에 맞는 이미지 URL을 반환합니다."""
+    tier_name_lower = tier_name.lower()
+    if "immortal" in tier_name_lower:
+        return "https://er.dak.gg/images/tier/immortal.png"
+    elif "titan" in tier_name_lower:
+        return "https://er.dak.gg/images/tier/titan.png"
+    elif "diamond" in tier_name_lower:
+        return "https://er.dak.gg/images/tier/diamond.png"
+    elif "platinum" in tier_name_lower:
+        return "https://er.dak.gg/images/tier/platinum.png"
+    elif "gold" in tier_name_lower:
+        return "https://er.dak.gg/images/tier/gold.png"
+    elif "silver" in tier_name_lower:
+        return "https://er.dak.gg/images/tier/silver.png"
+    elif "bronze" in tier_name_lower:
+        return "https://er.dak.gg/images/tier/bronze.png"
+    elif "iron" in tier_name_lower:
+        return "https://er.dak.gg/images/tier/iron.png"
+    else:
+        # 티어 이름에서 첫 단어만 추출하여 다시 시도
+        first_word = tier_name.split(' ')[0].lower()
+        first_word = first_word.replace('*','')
+        if first_word in ["immortal", "titan", "diamond", "platinum", "gold", "silver", "bronze", "iron"]:
+            return f"https://er.dak.gg/images/tier/{first_word}.png"
+        return ""
+
+# 전적 표시용 View 클래스
+class StatsView(discord.ui.View):
+    def __init__(self, player_stats: dict, most_char: dict, stats: dict, detailed_data: dict = None):
+        super().__init__(timeout=300)  # 5분 타임아웃
+        self.player_stats = player_stats
+        self.most_char = most_char
+        self.stats = stats
+        self.detailed_data = detailed_data
+
+    async def _get_previous_season_data(self, nickname: str) -> str:
+        """이전 시즌 데이터 가져오기 (DAKGG API 사용)"""
+        try:
+            encoded_nickname = urllib.parse.quote(nickname)
+            headers = {
+                'Accept': 'application/json, text/plain, */*',
+                'Origin': 'https://dak.gg',
+                'Referer': 'https://dak.gg/',
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+            }
+            
+            # DAKGG API Base URL
+            DAKGG_API_BASE = 'https://er.dakgg.io/api/v1'
+            
+            # Season 16 데이터 요청
+            prev_url = f'{DAKGG_API_BASE}/players/{encoded_nickname}/profile?season=SEASON_16'
+            tier_url = f'{DAKGG_API_BASE}/data/tiers?hl=ko'
+            
+            async with aiohttp.ClientSession() as session:
+                # 이전 시즌 데이터와 티어 데이터 동시 요청
+                prev_task = session.get(prev_url, headers=headers, timeout=5)
+                tier_task = session.get(tier_url, headers=headers, timeout=5)
+                
+                prev_response, tier_response = await asyncio.gather(prev_task, tier_task, return_exceptions=True)
+                
+                if (not isinstance(prev_response, Exception) and prev_response.status == 200 and
+                    not isinstance(tier_response, Exception) and tier_response.status == 200):
+                    
+                    prev_data = await prev_response.json()
+                    tier_data = await tier_response.json()
+                    
+                    if prev_data.get('playerSeasons') and len(prev_data['playerSeasons']) > 0:
+                        season_data = prev_data['playerSeasons'][0]
+                        mmr = season_data.get('mmr', 0)
+                        tier_id = season_data.get('tierId', 0)
+                        tier_grade_id = season_data.get('tierGradeId', 1)
+                        tier_mmr = season_data.get('tierMmr', 0)
+                        
+                        # 티어 이름 찾기
+                        tier_name = '언랭크'
+                        for tier in tier_data.get('tiers', []):
+                            if tier['id'] == tier_id:
+                                tier_name = tier['name']
+                                break
+                        
+                        # 티어 등급 매핑
+                        grade_name = str(tier_grade_id)
+                        
+                        if tier_id == 0:
+                            return f'{tier_name} (MMR {mmr})'
+                        else:
+                            return f'{tier_name} {grade_name} {tier_mmr} RP (MMR {mmr})'
+            
+            return None
+        except Exception as e:
+            print(f"이전 시즌 데이터 오류: {e}")
+            return None
+
+    @discord.ui.button(label='랭크', style=discord.ButtonStyle.success, emoji='🏆')
+    async def show_rank(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = discord.Embed(
+            title=f"{self.player_stats['nickname']}님의 랭크",
+            color=0x00D4AA
+        )
+        embed.set_author(name="데비", icon_url=characters["debi"]["image"])
+        embed.set_footer(text="이터널 리턴")
+        
+        # 현재 시즌 랭크
+        embed.add_field(
+            name="현재 시즌 (Season 17)",
+            value=f"**{self.player_stats['tier_info'].replace('**', '')}**",
+            inline=False
+        )
+        
+        # 저번 시즌 정보 (Season 16)
+        try:
+            prev_season_info = await self._get_previous_season_data(self.player_stats['nickname'])
+            if prev_season_info:
+                embed.add_field(
+                    name="이전 시즌 (Season 16)",
+                    value=f"**{prev_season_info}**",
+                    inline=False
+                )
+            else:
+                embed.add_field(
+                    name="이전 시즌 (Season 16)",
+                    value="Season 16 데이터 없음",
+                    inline=False
+                )
+        except:
+            embed.add_field(
+                name="이전 시즌 (Season 16)",
+                value="Season 16 데이터 없음",
+                inline=False
+            )
+        
+        # 티어 이미지를 큰 이미지로 설정
+        if self.player_stats and self.player_stats.get('tier_image_url'):
+            tier_image_raw = self.player_stats.get('tier_image_url')
+            tier_image_url = "https:" + tier_image_raw if tier_image_raw.startswith('//') else tier_image_raw
+            embed.set_image(url=tier_image_url)
+        
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label='실험체', style=discord.ButtonStyle.primary, emoji='🎯')
+    async def show_character(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = discord.Embed(
+            title=f"{self.player_stats['nickname']}님의 모스트 실험체",
+            color=0x5865F2
+        )
+        embed.set_author(name="데비", icon_url=characters["debi"]["image"])
+        embed.set_footer(text="이터널 리턴")
+        
+        # 상세 데이터가 없으면 가져오기
+        if not self.detailed_data:
+            await interaction.response.defer()
+            try:
+                self.detailed_data = await get_player_stats_from_dakgg(self.player_stats['nickname'], detailed=True)
+            except:
+                await interaction.followup.edit_message(content="❌ 실험체 정보를 불러오는데 실패했습니다.")
+                return
+        
+        # 모스트 3개 실험체 표시
+        if self.detailed_data and self.detailed_data.get('character_stats'):
+            # API에서 캐릭터 통계 가져오기
+            char_stats = self.detailed_data['character_stats'][:3]  # 상위 3개
+            
+            for i, char in enumerate(char_stats):
+                rank = ["1위", "2위", "3위"][i]
+                
+                embed.add_field(
+                    name=f"{rank}", 
+                    value=f"**{char.get('name', '알 수 없음')}**\n{char.get('games', 0)}게임, {char.get('winrate', 0):.1f}% 승률", 
+                    inline=True
+                )
+            
+            # 1순위 캐릭터 이미지를 큰 이미지로 설정
+            if char_stats and char_stats[0].get('image_url'):
+                char_image_url = "https:" + char_stats[0]['image_url'] if char_stats[0]['image_url'].startswith('//') else char_stats[0]['image_url']
+                embed.set_image(url=char_image_url)
+        
+        elif self.most_char:
+            # detailed_data가 없는 경우에도 상세 데이터 요청 시도
+            try:
+                await interaction.response.defer()
+                detailed_data = await get_player_stats_from_dakgg(self.player_stats['nickname'], detailed=True)
+                if detailed_data and detailed_data.get('character_stats') and len(detailed_data['character_stats']) > 1:
+                    # 상세 데이터로 업데이트
+                    self.detailed_data = detailed_data
+                    char_stats = detailed_data['character_stats'][:3]
+                    
+                    for i, char in enumerate(char_stats):
+                        rank = ["1위", "2위", "3위"][i]
+                        embed.add_field(
+                            name=f"{rank}", 
+                            value=f"**{char.get('name', '알 수 없음')}**\n{char.get('games', 0)}게임, {char.get('winrate', 0):.1f}% 승률", 
+                            inline=True
+                        )
+                    
+                    # 1순위 캐릭터 이미지를 큰 이미지로 설정
+                    if char_stats and char_stats[0].get('image_url'):
+                        char_image_url = "https:" + char_stats[0]['image_url'] if char_stats[0]['image_url'].startswith('//') else char_stats[0]['image_url']
+                        embed.set_image(url=char_image_url)
+                else:
+                    # 여전히 데이터가 없는 경우 기본 표시
+                    embed.add_field(
+                        name="1위", 
+                        value=f"**{self.most_char['name']}**\n{self.most_char['games']}게임, {self.most_char['winrate']}% 승률", 
+                        inline=True
+                    )
+                    embed.add_field(
+                        name="2위", 
+                        value=f"**데이터 수집 중..**\n-", 
+                        inline=True
+                    )
+                    embed.add_field(
+                        name="3위", 
+                        value=f"**데이터 수집 중..**\n-", 
+                        inline=True
+                    )
+                    
+                    # 1순위 캐릭터 이미지를 큰 이미지로 설정
+                    if self.most_char.get('image_url'):
+                        char_image_url = "https:" + self.most_char['image_url'] if self.most_char['image_url'].startswith('//') else self.most_char['image_url']
+                        embed.set_image(url=char_image_url)
+            except Exception as e:
+                print(f"캐릭터 상세 데이터 요청 실패: {e}")
+                # 기본 표시로 fallback
+                embed.add_field(
+                    name="1위", 
+                    value=f"**{self.most_char['name']}**\n{self.most_char['games']}게임, {self.most_char['winrate']}% 승률", 
+                    inline=True
+                )
+                embed.add_field(
+                    name="2위", 
+                    value=f"**데이터 수집 중..**\n-", 
+                    inline=True
+                )
+                embed.add_field(
+                    name="3위", 
+                    value=f"**데이터 수집 중..**\n-", 
+                    inline=True
+                )
+                
+                # 1순위 캐릭터 이미지를 큰 이미지로 설정
+                if self.most_char.get('image_url'):
+                    char_image_url = "https:" + self.most_char['image_url'] if self.most_char['image_url'].startswith('//') else self.most_char['image_url']
+                    embed.set_image(url=char_image_url)
+        else:
+            embed.description = "⚠️ 실험체 데이터가 없습니다."
+        
+        try:
+            await interaction.response.edit_message(embed=embed, view=self)
+        except:
+            # 이미 응답한 경우 followup 사용
+            await interaction.followup.edit_message(interaction.message.id, embed=embed, view=self)
+
+    @discord.ui.button(label='통계', style=discord.ButtonStyle.secondary, emoji='📊')
+    async def show_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 상세 통계가 없으면 가져오기
+        if not self.detailed_data:
+            await interaction.response.defer()
+            try:
+                self.detailed_data = await get_player_stats_from_dakgg(self.player_stats['nickname'], detailed=True)
+            except:
+                # 상세 데이터 실패시 기본 통계만 표시
+                embed = discord.Embed(
+                    title=f"{self.player_stats['nickname']}님의 통계",
+                    color=0x57F287
+                )
+                embed.set_author(name="데비", icon_url=characters["debi"]["image"])
+                embed.set_footer(text="이터널 리턴")
+                
+                embed.add_field(
+                    name="평균 TK", 
+                    value=f"**{self.stats.get('avg_team_kills', 0):.1f}**", 
+                    inline=True
+                )
+                embed.add_field(
+                    name="승률", 
+                    value=f"**{self.stats.get('winrate', 0):.1f}%**", 
+                    inline=True
+                )
+                embed.add_field(
+                    name="게임 수", 
+                    value=f"**{self.stats.get('total_games', 0)}**게임", 
+                    inline=True
+                )
+                
+                await interaction.followup.edit_message(embed=embed, view=self)
+                return
+        
+        embed = discord.Embed(
+            title=f"{self.player_stats['nickname']}님의 통계",
+            color=0x57F287
+        )
+        embed.set_author(name="데비", icon_url=characters["debi"]["image"])
+        embed.set_footer(text="이터널 리턴")
+        
+        # 기본 통계
+        embed.add_field(
+            name="평균 TK", 
+            value=f"**{self.stats.get('avg_team_kills', 0):.1f}**", 
+            inline=True
+        )
+        embed.add_field(
+            name="승률", 
+            value=f"**{self.stats.get('winrate', 0):.1f}%**", 
+            inline=True
+        )
+        embed.add_field(
+            name="게임 수", 
+            value=f"**{self.stats.get('total_games', 0)}**게임", 
+            inline=True
+        )
+        
+        # 상세 통계 (있을 경우)
+        if self.detailed_data and self.detailed_data.get('matches_data'):
+            matches = self.detailed_data['matches_data'][:20]  # 최근 20경기
+            
+            # 상세 통계 계산
+            total_kills = sum(match.get('playerKill', 0) for match in matches)
+            total_damage = sum(match.get('damageToPlayer', 0) for match in matches)
+            avg_rank = sum(match.get('gameRank', 18) for match in matches) / len(matches)
+            top2_count = sum(1 for match in matches if match.get('gameRank', 18) <= 2)
+            top3_count = sum(1 for match in matches if match.get('gameRank', 18) <= 3)
+            
+            embed.add_field(
+                name="평균 킬", 
+                value=f"**{total_kills/len(matches):.1f}**", 
+                inline=True
+            )
+            embed.add_field(
+                name="평균 딜량", 
+                value=f"**{total_damage/len(matches):,.0f}**", 
+                inline=True
+            )
+            embed.add_field(
+                name="평균 순위", 
+                value=f"**{avg_rank:.1f}**등", 
+                inline=True
+            )
+            embed.add_field(
+                name="TOP 2", 
+                value=f"**{top2_count}**회 ({top2_count/len(matches)*100:.1f}%)", 
+                inline=True
+            )
+            embed.add_field(
+                name="TOP 3", 
+                value=f"**{top3_count}**회 ({top3_count/len(matches)*100:.1f}%)", 
+                inline=True
+            )
+            embed.add_field(
+                name="분석 게임", 
+                value=f"최근 **{len(matches)}**게임", 
+                inline=True
+            )
+        
+        try:
+            await interaction.response.edit_message(embed=embed, view=self)
+        except:
+            # 이미 응답한 경우 followup 사용
+            await interaction.followup.edit_message(interaction.message.id, embed=embed, view=self)
+
+# 전적 검색 모달 클래스
+class StatsModal(discord.ui.Modal, title='🔍 전적 검색'):
+    def __init__(self):
+        super().__init__()
+
+    nickname = discord.ui.TextInput(
+        label='닉네임',
+        placeholder='검색할 플레이어 닉네임을 입력하세요...',
+        required=True,
+        max_length=20
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # ephemeral=True로 설정하여 사용자에게만 보이도록 합니다.
+        await interaction.response.defer(ephemeral=True)
+        await stats_search_logic(interaction, str(self.nickname))
+
+# /전적 명령어 (모달 사용)
+@bot.tree.command(name="전적", description="데비가 플레이어의 전적을 검색해 드려요!")
+async def stats_command(interaction: discord.Interaction):
+    """전적 검색 모달을 띄우는 슬래시 커맨드"""
+    await interaction.response.send_modal(StatsModal())
+
+# 모달을 띄우는 슬래시 커맨드
+async def stats_search_logic(interaction: discord.Interaction, 닉네임: str, 서버지역: str = None):
+    """전적 검색 로직 (모달과 일반 명령어에서 공통 사용)"""
     # 채널 체크
     if CHAT_CHANNEL_ID and interaction.channel.id != CHAT_CHANNEL_ID:
         await interaction.followup.send("❌ 이 명령어는 지정된 채널에서만 사용할 수 있습니다.", ephemeral=True)
@@ -1274,319 +2347,99 @@ async def stats_command(interaction: discord.Interaction, 닉네임: str):
         )
         await interaction.followup.send(embed=search_embed)
         
-        # 전적 검색 수행 - 공식 API 사용
-        stats = await get_player_stats_official_er(닉네임)
+        # 전적 검색 수행 - 닥지지 API 사용 (상세 정보 포함)
+        player_stats = await get_player_stats_from_dakgg(닉네임)
         
-        # AI 응답 생성 (상세한 분석 정보 제공)
-        try:
-            # 상세한 플레이어 분석 정보 구성
-            analysis_data = {
-                'nickname': stats['nickname'],
-                'tier': stats['tier'],
-                'rank_point': stats['rank_point'],
-                'total_games': stats['total_games'],
-                'winrate': stats['winrate'],
-                'avg_rank': stats['avg_rank'],
-                'favorite_characters': stats.get('favorite_characters', []),
-                'multi_mode_ranks': stats.get('multi_mode_ranks', {}),
-                'detailed_v2_stats': stats.get('detailed_v2_stats', {}),
-                'union_team_info': stats.get('union_team_info'),
-                'recent_performance': {
-                    'recent_games_count': len(stats.get('recent_games', [])),
-                    'avg_recent_rank': 0,
-                    'avg_recent_kills': 0,
-                    'recent_wins': 0,
-                    'recent_top3': 0
-                }
-            }
+        if player_stats is None:
+            # 닥지지 API 실패시 기존 API 사용
+            stats = await get_simple_player_stats_only_tier(닉네임)
+            stats_text = stats
+            response = f"와! {닉네임}님의 전적을 찾았어! 데비가 빠르게 정리해줄게!"
+        else:
+            # 닥지지 API 성공 - 상세 정보 포맷팅
+            stats = player_stats['stats']
+            most_char = player_stats['most_character']
             
-            # 최근 게임 성과 계산
-            if stats.get('recent_games'):
-                recent = stats['recent_games']
-                if len(recent) > 0:
-                    analysis_data['recent_performance']['avg_recent_rank'] = sum(g['rank'] for g in recent) / len(recent)
-                    analysis_data['recent_performance']['avg_recent_kills'] = sum(g['kills'] for g in recent) / len(recent)
-                    analysis_data['recent_performance']['recent_wins'] = sum(1 for g in recent if g['rank'] == 1)
-                    analysis_data['recent_performance']['recent_top3'] = sum(1 for g in recent if g['rank'] <= 3)
+            # 모스트 캐릭터 정보
+            if most_char:
+                char_info = f"**모스트 캐릭터**: {most_char['name']} ({most_char['games']}게임, {most_char['winrate']}% 승률)"
+            else:
+                char_info = "**모스트 캐릭터**: 데이터 없음"
             
-            # 플레이 스타일 분석
-            play_style = []
-            strengths = []
-            improvements = []
-            
-            # v2 통계 기반 분석
-            for mode, v2_data in stats.get('detailed_v2_stats', {}).items():
-                if v2_data.get('total_games', 0) > 5:  # 충분한 게임 수
-                    avg_kills = v2_data.get('avg_kills', 0)
-                    avg_rank = v2_data.get('avg_rank', 0)
-                    winrate = (v2_data.get('total_wins', 0) / v2_data['total_games']) * 100 if v2_data['total_games'] > 0 else 0
-                    
-                    if avg_kills > 3.0:
-                        strengths.append(f"{mode}에서 공격적인 플레이 (평균 {avg_kills:.1f}킬)")
-                    elif avg_kills < 1.5:
-                        improvements.append(f"{mode}에서 킬 관여도 향상 필요 (평균 {avg_kills:.1f}킬)")
-                    
-                    if avg_rank < 5:
-                        strengths.append(f"{mode}에서 상위권 안정성 (평균 {avg_rank:.1f}위)")
-                    elif avg_rank > 10:
-                        improvements.append(f"{mode}에서 생존력 향상 필요 (평균 {avg_rank:.1f}위)")
-                    
-                    if winrate > 15:
-                        strengths.append(f"{mode}에서 높은 승률 ({winrate:.1f}%)")
-                    elif winrate < 5:
-                        improvements.append(f"{mode}에서 승률 개선 여지 ({winrate:.1f}%)")
-            
-            # 캐릭터 선호도 분석
-            if stats.get('favorite_characters'):
-                top_chars = [char['character_name'] for char in stats['favorite_characters'][:3]]
-                play_style.append(f"주로 {', '.join(top_chars)} 캐릭터 사용")
-            
-            # 티어 분석
-            if stats['tier'] and stats['tier'] != "Unranked":
-                strengths.append(f"{stats['tier']} 달성으로 실력 인정")
-            
-            # 더 자세한 v2 통계 분석
-            detailed_analysis = []
-            for mode, v2_data in stats.get('detailed_v2_stats', {}).items():
-                if v2_data.get('total_games', 0) > 5:
-                    avg_damage = v2_data.get('avg_damage', 0)
-                    max_kills = v2_data.get('max_kills', 0)
-                    top1_rate = (v2_data.get('top1', 0) / v2_data['total_games']) * 100 if v2_data['total_games'] > 0 else 0
-                    detailed_analysis.append(f"{mode}: 평균 {avg_damage:.0f}데미지, 최고 {max_kills}킬, {top1_rate:.1f}% 1위율")
-            
-            # 모드별 랭킹 분석
-            rank_analysis = []
-            for mode, rank_info in stats.get('multi_mode_ranks', {}).items():
-                if rank_info.get('rp', 0) > 0:
-                    rank_analysis.append(f"{mode}: {rank_info['tier']} ({rank_info['rp']}RP)")
-            
-            # 캐릭터 마스터리 분석
-            mastery_analysis = []
-            if stats.get('mastery_info'):
-                # 기본 캐릭터명 매핑
-                default_char_names = {
-                    1: '잭키', 2: '아야', 3: '피오라', 4: '매그너스', 5: '자히르',
-                    6: '나딘', 7: '현우', 8: '하트', 9: '아이솔', 10: '이바',
-                    11: '유키', 12: '혜진', 13: '쇼이치', 14: '키아라', 15: '시셀라',
-                    16: '실비아', 17: '아드리아나', 18: '쇼우', 19: '엠마', 20: '레녹스',
-                    21: '로지', 22: '루크', 23: '캐시', 24: '아델라', 25: '버니스',
-                    26: '바바라', 27: '알렉스', 28: '수아', 29: '레온', 30: '일레븐',
-                    31: '리오', 32: '윌리엄', 33: '니키', 34: '나타폰', 35: '얀',
-                    36: '이바', 37: '다니엘', 38: '제니', 39: '캐밀로', 40: '클로에',
-                    41: '요한', 42: '비앙카', 43: '셀린', 44: '아르다', 45: '아비게일',
-                    46: '알론소', 47: '레니', 48: '다이애나', 49: '카를로스', 50: '드라코',
-                    69: '슈지로', 70: '씨하'
-                }
-                
-                for char_num, mastery in list(stats['mastery_info'].items())[:3]:
-                    char_name = default_char_names.get(int(char_num), f"캐릭터{char_num}")
-                    
-                    if isinstance(mastery, dict):
-                        level = mastery.get('level', 0)
-                        mastery_analysis.append(f"{char_name} 마스터리 {level}레벨")
+            # 통합된 전적 정보 생성
+            stats_info = f"""**현재 랭크**: {player_stats['tier_info']}
 
-            context_info = f"""플레이어 {닉네임} 완전 분석 리포트:
+**모스트 캐릭터**: {most_char['name'] if most_char else '데이터 없음'}
+{f"({most_char['games']}게임, {most_char['winrate']}% 승률)" if most_char else ""}
 
-=== 기본 정보 ===
-- 티어: {stats['tier'] or 'Unranked'}
-- 총 게임: {stats['total_games'] or 0}게임
-- 승률: {stats['winrate'] or '0%'}
-- 평균 순위: {stats['avg_rank'] or 0}위
-
-=== 모드별 랭킹 ===
-{chr(10).join(rank_analysis) if rank_analysis else "랭크 정보 없음"}
-
-=== 상세 v2 통계 ===
-{chr(10).join(detailed_analysis) if detailed_analysis else "v2 통계 없음"}
-
-=== 캐릭터 마스터리 ===
-{chr(10).join(mastery_analysis) if mastery_analysis else "마스터리 정보 없음"}
-
-=== 플레이 스타일 분석 ===
-{'; '.join(play_style) if play_style else '데이터 부족으로 분석 불가'}
-
-=== 강점 ===
-{chr(10).join(f'• {s}' for s in strengths) if strengths else '• 더 많은 게임 필요'}
-
-=== 개선점 ===
-{chr(10).join(f'• {i}' for i in improvements) if improvements else '• 현재 잘하고 있음'}
-
-=== 최근 {analysis_data['recent_performance']['recent_games_count']}게임 성과 ===
-- 평균 순위: {analysis_data['recent_performance']['avg_recent_rank']:.1f}위
-- 평균 킬: {analysis_data['recent_performance']['avg_recent_kills']:.1f}킬
-- 승리: {analysis_data['recent_performance']['recent_wins']}회
-- Top3: {analysis_data['recent_performance']['recent_top3']}회
-
-=== 유니언 럼블 팀 ===
-{f"팀명: {stats.get('union_team_info', {}).get('team_name', '없음')}" if stats.get('union_team_info') else "참여 안함"}
-
-이 모든 정보를 바탕으로 데비의 밝고 에너지 넘치는 성격으로 다음을 분석해주세요:
-1. 플레이어의 주요 강점과 플레이 스타일
-2. 구체적인 개선 방안 (어떤 캐릭터나 전략을 시도해볼지)
-3. 이 플레이어에게 맞는 추천 팁
-4. 격려의 말과 함께 실력 향상을 위한 조언
-단순한 칭찬이 아니라 실제로 도움되는 구체적인 분석과 조언을 해주세요!"""
-            
-            response = await generate_ai_response(
-                characters["debi"], 
-                f"{닉네임} 전적 분석", 
-                context_info
-            )
-        except Exception as e:
-            print(f"AI 응답 생성 실패: {e}")
-            # AI 응답 실패 시 기본 메시지 사용
-            response = f"와! {닉네임}님의 전적을 찾았어! 데비가 열심히 분석해봤어!"
+**통계**
+평균 TK: {stats.get('avg_team_kills', 0):.1f}
+승률: {stats.get('winrate', 0):.1f}% ({stats.get('wins', 0)}/{stats.get('total_games', 0)})
+게임 수: {stats.get('total_games', 0)}게임"""
         
-        # 전적 정보 포맷팅 (대폭 개선)
-        stats_text = f"**🎮 플레이어**: {stats['nickname']}\n"
+        # View + Button으로 전적 표시
+        view = StatsView(player_stats, most_char, stats)
         
-        found_info = False
-        
-        # 메인 티어 정보
-        if stats['tier']:
-            tier_text = stats['tier']
-            if stats['rank_point'] and stats['rank_point'] > 0:
-                tier_text += f" ({stats['rank_point']}RP)"
-            stats_text += f"**🏆 최고 티어**: {tier_text}\n"
-            found_info = True
-        
-        # 다중 모드 랭킹 정보
-        if stats.get('multi_mode_ranks'):
-            mode_emojis = {'솔로': '🥇', '듀오': '👥', '스쿼드': '👨\u200d👩\u200d👧\u200d👦'}
-            rank_info_list = []
-            for mode, rank_data in stats['multi_mode_ranks'].items():
-                emoji = mode_emojis.get(mode, '🎮')
-                if rank_data['rp'] > 0:
-                    rank_info_list.append(f"{emoji} {mode}: {rank_data['tier']} ({rank_data['rp']}RP)")
-                else:
-                    rank_info_list.append(f"{emoji} {mode}: {rank_data['tier']}")
-            
-            if rank_info_list:
-                stats_text += "\n**🎯 모드별 랭킹**\n" + "\n".join(rank_info_list) + "\n"
-                found_info = True
-        
-        # 기본 통계
-        if stats['total_games'] and stats['total_games'] > 0:
-            stats_text += f"\n**📊 주요 통계** (가장 많이 플레이한 모드)\n"
-            stats_text += f"🎯 **총 게임 수**: {stats['total_games']}게임\n"
-            found_info = True
-        
-        if stats['winrate']:
-            stats_text += f"📈 **승률**: {stats['winrate']}\n"
-            found_info = True
-            
-        if stats['wins']:
-            stats_text += f"🏅 **승리**: {stats['wins']}승\n"
-            found_info = True
-        
-        if stats['avg_rank'] and stats['avg_rank'] > 0:
-            stats_text += f"📊 **평균 순위**: {stats['avg_rank']:.1f}위\n"
-            found_info = True
-        
-        # 모든 모드 통계
-        if stats.get('all_modes_stats'):
-            mode_stats = []
-            for mode, mode_data in stats['all_modes_stats'].items():
-                if mode_data['total_games'] > 0:
-                    emoji = mode_emojis.get(mode, '🎮')
-                    mode_stats.append(
-                        f"{emoji} **{mode}**: {mode_data['total_games']}게임, "
-                        f"{mode_data['winrate']} 승률, "
-                        f"평균 {mode_data['avg_rank']:.1f}위"
-                    )
-            
-            if mode_stats:
-                stats_text += "\n**🎮 모드별 상세 통계**\n" + "\n".join(mode_stats) + "\n"
-                found_info = True
-        
-        # 선호 캐릭터
-        if stats.get('favorite_characters'):
-            char_list = []
-            for i, char in enumerate(stats['favorite_characters'][:3], 1):
-                medal = ['🥇', '🥈', '🥉'][i-1]
-                char_list.append(f"{medal} {char['character_name']} ({char['usage_count']}회)")
-            
-            if char_list:
-                stats_text += "\n**⭐ 최애 캐릭터** (최근 게임 기준)\n" + "\n".join(char_list) + "\n"
-                found_info = True
-        
-        # 최근 게임 성과
-        if stats.get('recent_games'):
-            recent_count = len(stats['recent_games'])
-            if recent_count > 0:
-                avg_rank = sum(game['rank'] for game in stats['recent_games']) / recent_count
-                avg_kills = sum(game['kills'] for game in stats['recent_games']) / recent_count
-                stats_text += f"\n**🕐 최근 {recent_count}게임**\n"
-                stats_text += f"📊 평균 순위: {avg_rank:.1f}위\n"
-                stats_text += f"⚔️ 평균 킬: {avg_kills:.1f}킬\n"
-                found_info = True
-        
-        if not found_info:
-            stats_text += "\n⚠️ 상세 정보를 가져오지 못했어!\n랭크 게임을 더 플레이해봐!\n"
-        
-        stats_text += f"\n🔗 **공식 API 기반 정보** | userNum: {stats['userNum']}"
-        
-        # 결과 임베드 생성 (더 풍부한 정보로)
-        result_embed = create_character_embed(
-            characters["debi"], 
-            "🔍 전적 검색 결과", 
-            f"{response}\n\n{stats_text}",
-            f"/전적 {닉네임}"
+        # 기본 전적 정보 표시 (깔끔하게 개선)
+        basic_embed = discord.Embed(
+            title=f"✨ {닉네임}님의 전적",
+            description="아래 버튼을 눌러 자세한 정보를 확인하세요!",
+            color=0x5865F2
         )
-        result_embed.set_footer(text="데비가 이터널리턴 공식 API에서 가져온 완전한 정보야! 🚀")
+        basic_embed.set_author(name="데비", icon_url=characters["debi"]["image"])
+        basic_embed.set_footer(text="이터널 리턴 • 버튼으로 정보를 탐색하세요")
         
-        # 추가 필드로 정보 구조화 (임베드 한계 고려)
-        if len(stats_text) > 1000:  # 너무 길면 분할
-            # 기본 정보만 description에, 나머지는 별도 처리
-            basic_info = f"**🎮 플레이어**: {stats['nickname']}\n"
-            if stats['tier']:
-                tier_text = stats['tier']
-                if stats['rank_point'] and stats['rank_point'] > 0:
-                    tier_text += f" ({stats['rank_point']}RP)"
-                basic_info += f"**🏆 최고 티어**: {tier_text}\n"
-            
-            result_embed = create_character_embed(
+        # 간단한 정보 미리보기
+        basic_embed.add_field(
+            name="🏆 랭크", 
+            value=f"**{player_stats['tier_info'].replace('**', '')}**", 
+            inline=False
+        )
+        
+        if most_char:
+            basic_embed.add_field(
+                name="🎯 모스트 실험체", 
+                value=f"**{most_char['name']}** ({most_char['games']}게임)", 
+                inline=True
+            )
+        
+        basic_embed.add_field(
+            name="📊 승률", 
+            value=f"**{stats.get('winrate', 0):.1f}%**", 
+            inline=True
+        )
+        
+        # 티어 이미지를 썸네일로 설정
+        if player_stats and player_stats.get('tier_image_url'):
+            tier_image_raw = player_stats.get('tier_image_url')
+            tier_image_url = "https:" + tier_image_raw if tier_image_raw.startswith('//') else tier_image_raw
+            basic_embed.set_thumbnail(url=tier_image_url)
+        
+        await interaction.followup.send(embed=basic_embed, view=view)
+        
+    except PlayerStatsError as e:
+        error_msg = str(e)
+        
+        try:
+            # 에러 메시지 번역
+            if "player_not_found" in error_msg:
+                response = f"앗! {닉네임} 플레이어를 찾을 수 없어!"
+            elif "stats_search_failed" in error_msg:
+                response = f"{닉네임}님의 전적을 가져오는 중에 문제가 생겼어!"
+            elif "official_api_failed" in error_msg:
+                response = "이터널 리턴 서버가 바쁜 것 같아! 잠시 후 다시 시도해줘!"
+            else:
+                response = "어? 뭔가 문제가 생긴 것 같아!"
+                
+            error_embed = create_character_embed(
                 characters["debi"], 
-                "🔍 전적 검색 결과", 
-                f"{response}\n\n{basic_info}",
+                "⚠️ 전적 검색 오류",
+                response,
                 f"/전적 {닉네임}"
             )
             
-            # 상세 정보는 별도 필드로
-            if stats.get('all_modes_stats'):
-                mode_info = ""
-                for mode, mode_data in list(stats['all_modes_stats'].items())[:3]:  # 최대 3개 모드
-                    if mode_data['total_games'] > 0:
-                        mode_info += f"**{mode}**: {mode_data['total_games']}게임, {mode_data['winrate']} 승률\n"
-                if mode_info:
-                    result_embed.add_field(name="🎮 모드별 통계", value=mode_info, inline=True)
+            await interaction.followup.send(embed=error_embed, ephemeral=True)
             
-            if stats.get('favorite_characters'):
-                char_info = ""
-                for char in stats['favorite_characters'][:3]:
-                    char_info += f"• {char['character_name']} ({char['usage_count']}회)\n"
-                if char_info:
-                    result_embed.add_field(name="⭐ 최애 캐릭터", value=char_info, inline=True)
-        
-        result_embed.set_footer(text="데비가 이터널리턴 공식 API에서 가져온 완전한 정보야! 🚀")
-        
-        # 원본 메시지 편집
-        await interaction.edit_original_response(embed=result_embed)
-        
-    except PlayerStatsError as e:
-        try:
-            if "player_not_found" in str(e):
-                response = await generate_ai_response(
-                    characters["debi"], 
-                    f"{닉네임} 전적 검색 실패", 
-                    "플레이어를 찾을 수 없었습니다"
-                )
-            else:
-                response = await generate_ai_response(
-                    characters["debi"], 
-                    "전적 검색 오류", 
-                    "전적 검색 중 오류가 발생했습니다"
-                )
         except Exception as ai_error:
             print(f"AI 응답 생성 실패 (에러 처리): {ai_error}")
             # AI 응답 실패 시 기본 메시지 사용
@@ -1594,28 +2447,19 @@ async def stats_command(interaction: discord.Interaction, 닉네임: str):
                 response = f"앗! {닉네임} 플레이어를 찾을 수 없어!"
             else:
                 response = "어? 뭔가 문제가 생긴 것 같아!"
-        
-        if "player_not_found" in str(e):
+                
             error_embed = create_character_embed(
                 characters["debi"], 
-                "전적 검색 실패", 
-                f"{response}\n\n❌ **'{닉네임}'** 플레이어를 찾을 수 없어!\n닉네임을 다시 확인해줘!",
+                "⚠️ 전적 검색 오류",
+                response,
                 f"/전적 {닉네임}"
             )
-        else:
-            error_embed = create_character_embed(
-                characters["debi"], 
-                "전적 검색 오류", 
-                f"{response}\n\n⚠️ 전적 검색 중 문제가 발생했어!\n잠시 후 다시 시도해줘!",
-                f"/전적 {닉네임}"
-            )
-        
-        await interaction.edit_original_response(embed=error_embed)
+            
+            await interaction.followup.send(embed=error_embed, ephemeral=True)
 
-@bot.tree.command(name="유튜브", description="데비가 이터널리턴 관련 유튜브 영상을 찾아드려요")
-async def youtube_slash(interaction: discord.Interaction, 검색어: Optional[str] = None):
-    """유튜브 검색 슬래시 커맨드"""
-    try:
+
+# /상세전적 명령어는 통합되어 제거됨 - /전적의 "상세 통계" 버튼으로 대체
+
         # 즉시 응답으로 검색 중 메시지 보내기
         embed = discord.Embed(
             color=characters["debi"]["color"],
@@ -1766,7 +2610,7 @@ async def generate_ai_response(character: Dict[str, Any], user_message: str, con
     print(f"✅ Claude API 응답 성공: {response[:50]}...")
     return response
 
-def create_character_embed(character: Dict[str, Any], title: str, description: str, user_message: str = None) -> discord.Embed:
+def create_character_embed(character: Dict[str, Any], title: str, description: str, user_message: str = None, author_image_override: str = None) -> discord.Embed:
     """캐릭터별 임베드 생성"""
     embed = discord.Embed(
         color=character["color"],
@@ -1774,12 +2618,15 @@ def create_character_embed(character: Dict[str, Any], title: str, description: s
     )
     
     if user_message:
-        embed.add_field(name="💬 메시지", value=f"```{user_message}```", inline=False)
+        embed.add_field(name="메시지", value=f"```{user_message}```", inline=False)
     
-    if character["image"]:
+    # author 이미지 오버라이드가 있으면 사용, 없으면 기본 캐릭터 이미지
+    author_icon = author_image_override if author_image_override else character["image"]
+    
+    if author_icon:
         embed.set_author(
             name=character["name"],
-            icon_url=character["image"]
+            icon_url=author_icon
         )
     else:
         embed.set_author(name=character["name"])
@@ -1894,5 +2741,499 @@ async def set_channels(interaction: discord.Interaction, 공지채널: discord.T
     
     await interaction.followup.send(embed=embed)
 
+
+# 프리미엄 분석 기능들
+async def get_premium_analysis(nickname: str):
+    """이터널 리턴 공식 API로 프리미엄 분석 수행"""
+    try:
+        # 1. 유저 정보 가져오기
+        encoded_nickname = urllib.parse.quote(nickname)
+        headers = {'x-api-key': ETERNAL_RETURN_API_KEY}
+        
+        async with aiohttp.ClientSession() as session:
+            # 유저 번호 조회
+            user_response = await session.get(
+                f'{ETERNAL_RETURN_API_BASE}/v1/user/nickname?query={encoded_nickname}',
+                headers=headers
+            )
+            
+            if user_response.status != 200:
+                return None
+                
+            user_data = await user_response.json()
+            if user_data['code'] != 200:
+                return None
+                
+            user_num = user_data['user']['userNum']
+            
+            # 시즌 33 랭크 통계 가져오기
+            stats_response = await session.get(
+                f'{ETERNAL_RETURN_API_BASE}/v2/user/stats/{user_num}/33/3',
+                headers=headers
+            )
+            
+            if stats_response.status != 200:
+                return None
+                
+            stats_data = await stats_response.json()
+            if stats_data['code'] != 200 or not stats_data['userStats']:
+                return None
+                
+            return {
+                'user_num': user_num,
+                'stats': stats_data['userStats'][0],
+                'nickname': nickname
+            }
+            
+    except Exception as e:
+        print(f"프리미엄 분석 오류: {e}")
+        return None
+
+@bot.tree.command(name="분석", description="데비가 플레이어의 성능을 심층 분석해드려요!")
+async def analysis_command(interaction: discord.Interaction, 닉네임: str):
+    """성능 분석 명령어"""
+    await interaction.response.defer()
+    
+    # 채널 체크
+    if CHAT_CHANNEL_ID and interaction.channel.id != CHAT_CHANNEL_ID:
+        await interaction.followup.send("❌ 이 명령어는 지정된 채널에서만 사용할 수 있습니다.", ephemeral=True)
+        return
+    
+    try:
+        # 분석 중 메시지
+        analysis_embed = discord.Embed(
+            title="🔬 성능 분석 중...",
+            description=f"**{닉네임}**님의 게임 데이터를 심층 분석하고 있어요!",
+            color=characters["debi"]["color"]
+        )
+        analysis_embed.set_author(
+            name=characters["debi"]["name"],
+            icon_url=characters["debi"]["image"]
+        )
+        await interaction.followup.send(embed=analysis_embed)
+        
+        # 프리미엄 분석 수행
+        analysis_data = await get_premium_analysis(닉네임)
+        
+        if not analysis_data:
+            response = f"앗! {닉네임} 플레이어의 분석 데이터를 가져올 수 없어!"
+            error_embed = create_character_embed(
+                characters["debi"], 
+                "⚠️ 분석 실패",
+                response,
+                f"/분석 {닉네임}"
+            )
+            await interaction.followup.send(embed=error_embed, ephemeral=True)
+            return
+        
+        stats = analysis_data['stats']
+        
+        # 성능 분석 결과 생성
+        analysis_text = f"""🏆 **랭크 정보**
+📊 **현재 MMR**: {stats['mmr']}점
+🏅 **서버 순위**: {stats['rank']:,}위 / {stats['rankSize']:,}명 (상위 {stats['rankPercent']:.1%})
+
+📈 **게임 성과 분석**
+🎮 **총 게임**: {stats['totalGames']}게임
+🏆 **승리**: {stats['totalWins']}회 ({stats['totalWins']/stats['totalGames']*100:.1f}%)
+💀 **평균 킬**: {stats['averageKills']:.1f}킬
+🤝 **평균 어시**: {stats['averageAssistants']:.1f}회
+📊 **평균 순위**: {stats['averageRank']:.1f}등
+
+🎯 **생존율 분석**
+🥇 **1등**: {stats['top1']:.1%}
+🥈 **TOP 2**: {stats['top2']:.1%}
+🥉 **TOP 3**: {stats['top3']:.1%}
+🏅 **TOP 5**: {stats['top5']:.1%}
+
+🎭 **캐릭터 분석**"""
+
+        # 캐릭터별 분석
+        if 'characterStats' in stats and stats['characterStats']:
+            char_stats = sorted(stats['characterStats'], key=lambda x: x['totalGames'], reverse=True)
+            for i, char in enumerate(char_stats[:3]):
+                char_name = f"캐릭터 {char['characterCode']}"  # 실제 캐릭터 이름 매핑 필요
+                analysis_text += f"""
+**{i+1}. {char_name}** ({char['totalGames']}게임)
+   - 승률: {char['wins']/char['totalGames']*100:.1f}% ({char['wins']}승)
+   - TOP3: {char['top3']}회
+   - 평균 순위: {char['averageRank']:.1f}등
+   - 최고 킬: {char['maxKillings']}킬"""
+
+        response = f"와! {닉네임}님의 심층 분석이 끝났어! 정말 상세한 데이터야!"
+        
+        # 임베드 생성 및 전송
+        embed = create_character_embed(
+            characters["debi"], 
+            f"🔬 {닉네임}님의 성능 분석",
+            response + "\n\n" + analysis_text,
+            f"/분석 {닉네임}"
+        )
+        
+        await interaction.followup.send(embed=embed)
+        
+    except Exception as e:
+        print(f"분석 명령어 오류: {e}")
+        response = f"앗! {닉네임}님의 분석 중에 문제가 생겼어!"
+        error_embed = create_character_embed(
+            characters["debi"], 
+            "⚠️ 분석 오류",
+            response,
+            f"/분석 {닉네임}"
+        )
+        await interaction.followup.send(embed=error_embed, ephemeral=True)
+
+@bot.tree.command(name="추천", description="데비가 AI 분석으로 개선점을 추천해드려요!")
+async def recommend_command(interaction: discord.Interaction, 닉네임: str):
+    """개선 추천 명령어"""
+    await interaction.response.defer()
+    
+    # 채널 체크
+    if CHAT_CHANNEL_ID and interaction.channel.id != CHAT_CHANNEL_ID:
+        await interaction.followup.send("❌ 이 명령어는 지정된 채널에서만 사용할 수 있습니다.", ephemeral=True)
+        return
+    
+    try:
+        # 분석 중 메시지
+        recommend_embed = discord.Embed(
+            title="🎯 AI 추천 분석 중...",
+            description=f"**{닉네임}**님만을 위한 맞춤 개선 방안을 찾고 있어요!",
+            color=characters["debi"]["color"]
+        )
+        recommend_embed.set_author(
+            name=characters["debi"]["name"],
+            icon_url=characters["debi"]["image"]
+        )
+        await interaction.followup.send(embed=recommend_embed)
+        
+        # 분석 데이터 가져오기
+        analysis_data = await get_premium_analysis(닉네임)
+        
+        if not analysis_data:
+            response = f"앗! {닉네임} 플레이어의 데이터를 가져올 수 없어!"
+            error_embed = create_character_embed(
+                characters["debi"], 
+                "⚠️ 추천 실패",
+                response,
+                f"/추천 {닉네임}"
+            )
+            await interaction.followup.send(embed=error_embed, ephemeral=True)
+            return
+        
+        stats = analysis_data['stats']
+        
+        # AI 스타일 추천 생성
+        recommendations = []
+        
+        # 승률 기반 추천
+        win_rate = stats['totalWins'] / stats['totalGames'] * 100
+        if win_rate < 10:
+            recommendations.append("🎯 **생존 우선 전략**: 승률이 낮으니 킬보다는 생존에 집중해보세요!")
+        elif win_rate > 20:
+            recommendations.append("🏆 **공격적 플레이**: 높은 승률이니 더 공격적으로 플레이해도 좋을 것 같아요!")
+        
+        # 평균 순위 기반 추천
+        avg_rank = stats['averageRank']
+        if avg_rank > 6:
+            recommendations.append("📈 **초반 생존력 강화**: 평균 순위가 낮으니 초반 파밍과 안전한 포지셔닝을 연습해보세요!")
+        elif avg_rank < 4:
+            recommendations.append("⚔️ **마무리 능력 향상**: 상위권 진입은 잘하시는데, 마지막 1등 경쟁력을 키워보세요!")
+        
+        # 킬 수 기반 추천
+        avg_kills = stats['averageKills']
+        if avg_kills < 2:
+            recommendations.append("💪 **전투력 강화**: 평균 킬이 낮으니 전투 연습을 더 해보세요!")
+        elif avg_kills > 4:
+            recommendations.append("🎭 **균형잡힌 플레이**: 킬은 잘 따시는데, 생존과의 밸런스를 맞춰보세요!")
+        
+        # 캐릭터 추천
+        if 'characterStats' in stats and stats['characterStats']:
+            char_stats = sorted(stats['characterStats'], key=lambda x: x['wins']/x['totalGames'] if x['totalGames'] > 0 else 0, reverse=True)
+            if char_stats:
+                best_char = char_stats[0]
+                recommendations.append(f"🌟 **추천 캐릭터**: 캐릭터 {best_char['characterCode']}로 {best_char['wins']}/{best_char['totalGames']}승! 더 연습해보세요!")
+        
+        # TOP 순위 분석
+        if stats['top3'] < 0.3:
+            recommendations.append("🥉 **중후반 전략**: TOP3 진입률이 낮아요. 중후반 판단력을 키워보세요!")
+        
+        recommend_text = "🔮 **맞춤 개선 추천**\n\n" + "\n\n".join(recommendations)
+        
+        # 일반적인 팁 추가
+        recommend_text += f"""
+
+💡 **일반적인 팁**
+• 현재 MMR: {stats['mmr']}점 (상위 {stats['rankPercent']:.1%})
+• 목표: 다음 등급까지 약 {max(0, (stats['mmr']//100 + 1)*100 - stats['mmr'])}점 필요
+• 추천 연습: 가장 잘하는 캐릭터로 꾸준히 플레이하기
+• 하루 목표: 2-3게임씩 꾸준히 플레이"""
+
+        response = f"와! {닉네임}님을 위한 맞춤형 추천이 완성됐어! 따라해보면 실력이 쑥쑥 늘 거야!"
+        
+        # 임베드 생성 및 전송
+        embed = create_character_embed(
+            characters["debi"], 
+            f"🎯 {닉네임}님의 AI 추천",
+            response + "\n\n" + recommend_text,
+            f"/추천 {닉네임}"
+        )
+        
+        await interaction.followup.send(embed=embed)
+        
+    except Exception as e:
+        print(f"추천 명령어 오류: {e}")
+        response = f"앗! {닉네임}님의 추천 분석 중에 문제가 생겼어!"
+        error_embed = create_character_embed(
+            characters["debi"], 
+            "⚠️ 추천 오류",
+            response,
+            f"/추천 {닉네임}"
+        )
+        await interaction.followup.send(embed=error_embed, ephemeral=True)
+
+@bot.tree.command(name="예측", description="데비가 티어 변동을 예측해드려요!")
+async def predict_command(interaction: discord.Interaction, 닉네임: str):
+    """티어 예측 명령어"""
+    await interaction.response.defer()
+    
+    # 채널 체크
+    if CHAT_CHANNEL_ID and interaction.channel.id != CHAT_CHANNEL_ID:
+        await interaction.followup.send("❌ 이 명령어는 지정된 채널에서만 사용할 수 있습니다.", ephemeral=True)
+        return
+    
+    try:
+        # 예측 중 메시지
+        predict_embed = discord.Embed(
+            title="🔮 티어 예측 중...",
+            description=f"**{닉네임}**님의 미래 랭크를 예측하고 있어요!",
+            color=characters["debi"]["color"]
+        )
+        predict_embed.set_author(
+            name=characters["debi"]["name"],
+            icon_url=characters["debi"]["image"]
+        )
+        await interaction.followup.send(embed=predict_embed)
+        
+        # 현재 시즌과 전 시즌 데이터 가져오기
+        analysis_data = await get_premium_analysis(닉네임)
+        
+        if not analysis_data:
+            response = f"앗! {닉네임} 플레이어의 데이터를 가져올 수 없어!"
+            error_embed = create_character_embed(
+                characters["debi"], 
+                "⚠️ 예측 실패",
+                response,
+                f"/예측 {닉네임}"
+            )
+            await interaction.followup.send(embed=error_embed, ephemeral=True)
+            return
+        
+        stats = analysis_data['stats']
+        user_num = analysis_data['user_num']
+        
+        # 전 시즌 데이터도 가져오기 (시즌 31)
+        prev_season_stats = None
+        try:
+            async with aiohttp.ClientSession() as session:
+                headers = {'x-api-key': ETERNAL_RETURN_API_KEY}
+                prev_response = await session.get(
+                    f'{ETERNAL_RETURN_API_BASE}/v2/user/stats/{user_num}/31/3',
+                    headers=headers
+                )
+                if prev_response.status == 200:
+                    prev_data = await prev_response.json()
+                    if prev_data['code'] == 200 and prev_data['userStats']:
+                        prev_season_stats = prev_data['userStats'][0]
+        except Exception as e:
+            print(f"전 시즌 데이터 조회 오류: {e}")
+        current_mmr = stats['mmr']
+        win_rate = stats['totalWins'] / stats['totalGames'] * 100
+        
+        # 정확한 티어 시스템 (이터널 리턴 공식)
+        mmr_tiers = {
+            6000: "에테르 1",
+            5800: "에테르 2", 
+            5600: "에테르 3",
+            5400: "미스릴 1",
+            5200: "미스릴 2",
+            5000: "미스릴 3",
+            4800: "플래티넘 1",
+            4600: "플래티넘 2", 
+            4400: "플래티넘 3",
+            4200: "골드 1",
+            4000: "골드 2",
+            3800: "골드 3",
+            3600: "실버 1",
+            3400: "실버 2",
+            3200: "실버 3",
+            3000: "브론즈 1",
+            2800: "브론즈 2",
+            2600: "브론즈 3",
+            2000: "아이언"
+        }
+        
+        # 현재 티어 찾기
+        current_tier = "언랭크"
+        for mmr_threshold, tier_name in mmr_tiers.items():
+            if current_mmr >= mmr_threshold:
+                current_tier = tier_name
+                break
+        
+        # 시즌간 트렌드 분석 및 예측
+        season_trend = ""
+        if prev_season_stats:
+            prev_mmr = prev_season_stats['mmr']
+            prev_win_rate = prev_season_stats['totalWins'] / prev_season_stats['totalGames'] * 100
+            mmr_change = current_mmr - prev_mmr
+            win_rate_change = win_rate - prev_win_rate
+            
+            if mmr_change > 0:
+                season_trend = f"📈 시즌간 상승 ({mmr_change:+.0f}점)"
+            else:
+                season_trend = f"📉 시즌간 하락 ({mmr_change:+.0f}점)"
+        
+        # 종합적인 MMR 변동 예측
+        prediction_factors = []
+        base_prediction = 0
+        
+        # 현재 승률 기반
+        if win_rate > 15:
+            prediction_factors.append("높은 승률 (+60점)")
+            base_prediction += 60
+        elif win_rate > 8:
+            prediction_factors.append("보통 승률 (±10점)")
+            base_prediction += 10
+        else:
+            prediction_factors.append("낮은 승률 (-40점)")
+            base_prediction -= 40
+            
+        # 전 시즌 대비 트렌드
+        if prev_season_stats:
+            if win_rate > prev_season_stats['totalWins'] / prev_season_stats['totalGames'] * 100:
+                prediction_factors.append("승률 향상 (+20점)")
+                base_prediction += 20
+            else:
+                prediction_factors.append("승률 하락 (-20점)")
+                base_prediction -= 20
+        
+        # 게임 수 기반 안정성
+        if stats['totalGames'] > 100:
+            prediction_factors.append("충분한 게임 수 (안정)")
+        else:
+            prediction_factors.append("적은 게임 수 (변동성 높음)")
+            base_prediction = int(base_prediction * 1.5)  # 변동성 증가
+        
+        # 최종 예측
+        if base_prediction > 30:
+            mmr_trend = "상승"
+            predicted_change = f"+{base_prediction-20}~+{base_prediction+20}"
+            trend_emoji = "📈"
+        elif base_prediction > -30:
+            mmr_trend = "유지"
+            predicted_change = f"{base_prediction-15}~+{abs(base_prediction)+15}"
+            trend_emoji = "📊"
+        else:
+            mmr_trend = "하락"
+            predicted_change = f"{base_prediction-20}~{base_prediction+20}"
+            trend_emoji = "📉"
+        
+        # 목표 달성 예측
+        next_tier_mmr = None
+        for mmr_threshold in sorted(mmr_tiers.keys(), reverse=True):
+            if mmr_threshold > current_mmr:
+                next_tier_mmr = mmr_threshold
+                next_tier_name = mmr_tiers[mmr_threshold]
+        
+        predict_text = f"""🔮 **고급 티어 예측 분석**
+
+📊 **현재 상태**
+• 현재 MMR: {current_mmr}점
+• 현재 티어: {current_tier}
+• 승률: {win_rate:.1f}% ({stats['totalWins']}/{stats['totalGames']})
+• 서버 순위: {stats['rank']:,}위 (상위 {stats['rankPercent']:.1%})
+
+{season_trend if season_trend else "📊 첫 시즌 데이터"}
+
+{trend_emoji} **AI 예측 결과**
+• MMR 트렌드: {mmr_trend} 경향
+• 예상 변동폭: {predicted_change}점
+• 10게임 후 예상 MMR: {current_mmr + base_prediction}점
+
+🔍 **예측 근거**
+{chr(10).join(f"• {factor}" for factor in prediction_factors)}"""
+
+        if next_tier_mmr:
+            games_needed = max(1, int((next_tier_mmr - current_mmr) / (20 if win_rate > 15 else 5)))
+            predict_text += f"""
+
+🎯 **목표 달성 예측**
+• 다음 티어: {next_tier_name}
+• 필요 MMR: {next_tier_mmr - current_mmr}점
+• 예상 게임 수: {games_needed}게임 (현재 승률 기준)
+• 달성 확률: {'높음' if win_rate > 15 else '보통' if win_rate > 8 else '낮음'}"""
+
+        # 전 시즌 비교 정보 추가
+        if prev_season_stats:
+            prev_tier = "언랭크"
+            for mmr_threshold, tier_name in mmr_tiers.items():
+                if prev_season_stats['mmr'] >= mmr_threshold:
+                    prev_tier = tier_name
+                    break
+                    
+            predict_text += f"""
+
+📈 **시즌간 비교 분석**
+• 시즌 31: {prev_tier} ({prev_season_stats['mmr']}점, {prev_win_rate:.1f}% 승률)
+• 시즌 33: {current_tier} ({current_mmr}점, {win_rate:.1f}% 승률)
+• 성장률: MMR {mmr_change:+.0f}점, 승률 {win_rate_change:+.1f}%
+• 트렌드: {'꾸준한 성장 중!' if mmr_change > 0 else '실력 조정 중'}"""
+
+        predict_text += f"""
+
+💡 **맞춤형 향상 가이드**
+• 승률 10% 향상시: 약 {int((next_tier_mmr - current_mmr) / 30) if next_tier_mmr else 20}게임으로 단축 가능
+• 추천 전략: {'공격적 플레이로 킬 늘리기' if win_rate > 10 else '생존 위주로 안정성 확보'}
+• 일일 목표: 2-3게임 (주 14게임)
+• 예상 도달 시간: {f'{int((next_tier_mmr - current_mmr) / max(base_prediction, 10))}주' if next_tier_mmr and base_prediction > 0 else '현재 폼 유지 필요'}"""
+
+        response = f"와! {닉네임}님의 미래가 보여! 이 예측대로라면 정말 기대돼!"
+        
+        # 임베드 생성 및 전송
+        embed = create_character_embed(
+            characters["debi"], 
+            f"🔮 {닉네임}님의 티어 예측",
+            response + "\n\n" + predict_text,
+            f"/예측 {닉네임}"
+        )
+        
+        await interaction.followup.send(embed=embed)
+        
+    except Exception as e:
+        print(f"예측 명령어 오류: {e}")
+        response = f"앗! {닉네임}님의 예측 분석 중에 문제가 생겼어!"
+        error_embed = create_character_embed(
+            characters["debi"], 
+            "⚠️ 예측 오류",
+            response,
+            f"/예측 {닉네임}"
+        )
+        await interaction.followup.send(embed=error_embed, ephemeral=True)
+
 if __name__ == "__main__":
-    bot.run(os.getenv('DISCORD_TOKEN'))
+    import sys
+    
+    # API 테스트 모드
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
+        print("DAKGG API 구조 테스트 모드")
+        asyncio.run(test_dakgg_api_structure())
+        exit(0)
+    
+    token = os.getenv('DISCORD_TOKEN')
+    if not token:
+        print("DISCORD_TOKEN이 설정되지 않았습니다!")
+        exit(1)
+    
+    try:
+        bot.run(token)
+    except Exception as e:
+        print(f"봇 실행 중 오류: {e}")

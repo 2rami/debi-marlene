@@ -2,6 +2,8 @@ import asyncio
 import aiohttp
 import urllib.parse
 import hashlib
+import json
+import os
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from config import ETERNAL_RETURN_API_BASE, ETERNAL_RETURN_API_KEY, DAKGG_API_BASE
@@ -60,6 +62,62 @@ stats_cache = StatsCache(cache_duration_minutes=15)
 
 # 현재 시즌 ID 캐시
 current_season_cache = {"season_id": None, "last_updated": 0}
+
+# 시즌 매핑 전역 변수
+_season_mapping = None
+
+def load_season_mapping():
+    """시즌 매핑 JSON 파일 로드"""
+    global _season_mapping
+    if _season_mapping is None:
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            json_path = os.path.join(current_dir, 'season_mapping.json')
+            with open(json_path, 'r', encoding='utf-8') as f:
+                _season_mapping = json.load(f)
+            print("✅ 시즌 매핑 JSON 로드 완료")
+        except Exception as e:
+            print(f"❌ 시즌 매핑 JSON 로드 실패: {e}")
+            # 폴백: 기본 매핑
+            _season_mapping = {
+                "season_ids": {
+                    "33": {"api_param": "SEASON_17", "name": "시즌 8"},
+                    "31": {"api_param": "SEASON_16", "name": "시즌 7"},
+                    "29": {"api_param": "SEASON_15", "name": "시즌 6"}
+                }
+            }
+    return _season_mapping
+
+def get_season_api_param(season_id: int) -> str:
+    """시즌 ID를 API 파라미터로 변환"""
+    mapping = load_season_mapping()
+    season_info = mapping["season_ids"].get(str(season_id))
+    if season_info:
+        return season_info["api_param"]
+    return "SEASON_17"  # 기본값
+
+def get_season_name(season_id: int) -> str:
+    """시즌 ID를 시즌 이름으로 변환"""
+    mapping = load_season_mapping()
+    season_info = mapping["season_ids"].get(str(season_id))
+    if season_info:
+        return season_info["name"]
+    return f"Season {season_id}"  # 기본값
+
+def get_season_id_by_key(season_key: str) -> int:
+    """시즌 키를 시즌 ID로 변환 (현재는 간단한 매핑만 제공)"""
+    # 주요 시즌 키만 매핑 (필요에 따라 확장 가능)
+    key_mapping = {
+        "current": 33,    # 현재 시즌 (시즌 8)
+        "previous": 31,   # 이전 시즌 (시즌 7)
+        "season6": 29,    # 시즌 6
+        "season5": 27,    # 시즌 5
+        "season4": 25,    # 시즌 4
+        "season3": 23,    # 시즌 3
+        "season2": 21,    # 시즌 2
+        "season1": 19     # 시즌 1
+    }
+    return key_mapping.get(season_key, 33)  # 기본값은 현재 시즌
 
 async def get_player_season_list_simple(nickname: str):
     """플레이어의 시즌 목록만 간단히 조회 (시즌 선택용)"""
@@ -235,123 +293,7 @@ async def test_dakgg_api_structure(nickname: str = "모묘모"):
         print(f"티어 API 오류: {e}")
         
     return
-    
-async def test_dakgg_api_structure_old(nickname: str = "모묘모"):
-    """DAKGG API 구조 테스트 - 실제 응답 확인"""
-    encoded_nickname = urllib.parse.quote(nickname)
-    
-    headers = {
-        'Accept': 'application/json, text/plain, */*',
-        'Origin': 'https://dak.gg',
-        'Referer': 'https://dak.gg/',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-    }
-    
-    urls_to_test = [
-        f'{DAKGG_API_BASE}/players/{encoded_nickname}/profile?season=SEASON_17',
-        f'{DAKGG_API_BASE}/players/{encoded_nickname}/profile?season=SEASON_16', 
-        f'{DAKGG_API_BASE}/players/{encoded_nickname}/characters?season=SEASON_17&matchingMode=RANK',
-        f'{DAKGG_API_BASE}/data/tiers?hl=ko',
-        f'{DAKGG_API_BASE}/data/characters?hl=ko'
-    ]
-    
-    async with aiohttp.ClientSession() as session:
-        for i, url in enumerate(urls_to_test):
-            try:
-                print(f"\n{'='*60}")
-                print(f"테스트 {i+1}: {url}")
-                print(f"{'='*60}")
-                
-                async with session.get(url, headers=headers, timeout=10) as response:
-                    print(f"응답 코드: {response.status}")
-                    print(f"응답 헤더: {dict(response.headers)}")
-                    
-                    if response.status == 200:
-                        data = await response.json()
-                        print(f"응답 키: {list(data.keys()) if isinstance(data, dict) else 'Not dict'}")
-                        if isinstance(data, dict):
-                            for key, value in data.items():
-                                if isinstance(value, (list, dict)):
-                                    print(f"  {key}: {type(value).__name__} (길이: {len(value) if hasattr(value, '__len__') else 'N/A'})")
-                                else:
-                                    print(f"  {key}: {value}")
-                    else:
-                        error_text = await response.text()
-                        print(f"오류 응답: {error_text[:200]}...")
-                        
-            except Exception as e:
-                print(f"오류 발생: {e}")
-            
-            await asyncio.sleep(1)  # API 호출 간격
 
-async def get_previous_season_tier_from_dakgg(nickname: str) -> Optional[str]:
-    """DAKGG에서 이전 시즌 티어 정보 조회"""
-    try:
-        encoded_nickname = urllib.parse.quote(nickname)
-        player_url = f'{DAKGG_API_BASE}/players/{encoded_nickname}/profile'
-        tier_url = f'{DAKGG_API_BASE}/data/tiers?hl=ko'
-        
-        headers = {
-            'Accept': 'application/json, text/plain, */*',
-            'Origin': 'https://dak.gg',
-            'Referer': 'https://dak.gg/',
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-        }
-        
-        async with aiohttp.ClientSession() as session:
-            profile_task = session.get(player_url, headers=headers, timeout=10)
-            tier_task = session.get(tier_url, headers=headers, timeout=10)
-            
-            profile_response, tier_response = await asyncio.gather(profile_task, tier_task)
-            
-            if profile_response.status == 200 and tier_response.status == 200:
-                profile_data = await profile_response.json()
-                tier_data = await tier_response.json()
-                
-                player_seasons = profile_data.get('playerSeasons', [])
-                print(f"🔍 플레이어 시즌 목록 (총 {len(player_seasons)}개):")
-                for season in player_seasons[:5]:
-                    print(f"  - seasonId: {season.get('seasonId')}, mmr: {season.get('mmr')}, tierId: {season.get('tierId')}")
-                
-                # 이전 시즌 데이터 찾기 (seasonId 31 = Season 16)
-                prev_season_data = None
-                for season in player_seasons:
-                    if season.get('seasonId') == 31:  # Season 16 (이전 시즌)
-                        prev_season_data = season
-                        break
-                
-                if prev_season_data and prev_season_data.get('mmr') is not None:
-                    mmr = prev_season_data.get('mmr', 0)
-                    tier_id = prev_season_data.get('tierId', 0)
-                    tier_grade_id = prev_season_data.get('tierGradeId', 1)
-                    tier_mmr = prev_season_data.get('tierMmr', 0)
-                    
-                    # 티어 이름 찾기
-                    tier_name = '언랭크'
-                    for tier in tier_data.get('tiers', []):
-                        if tier['id'] == tier_id:
-                            tier_name = tier['name']
-                            break
-                    
-                    grade_name = str(tier_grade_id)
-                    
-                    if tier_id == 0:
-                        result = f'{tier_name} (MMR {mmr})'
-                    else:
-                        result = f'{tier_name} {grade_name} {tier_mmr} RP (MMR {mmr})'
-                    
-                    print(f"✅ 이전 시즌 결과: {result}")
-                    return result
-                else:
-                    print("❌ 이전 시즌 데이터가 없음")
-                    return None
-            else:
-                print(f"❌ API 호출 실패 - Profile: {profile_response.status}, Tier: {tier_response.status}")
-                return None
-                
-    except Exception as e:
-        print(f"❌ 이전 시즌 조회 오류: {e}")
-        return None
 
 async def get_player_stats_from_dakgg(nickname: str, detailed: bool = False) -> Optional[Dict[str, Any]]:
     """닥지지 API를 사용해서 플레이어 통계 정보 가져오기"""
@@ -1028,7 +970,9 @@ async def get_season_tier_from_dakgg(nickname: str, season_id: int):
     """DAKGG에서 특정 시즌 티어 정보 조회 (숫자 ID 형식)"""
     try:
         encoded_nickname = urllib.parse.quote(nickname)
-        url = f"https://er.dakgg.io/api/v1/players/{encoded_nickname}/profile?season=SEASON_17"
+        # JSON에서 시즌 API 파라미터 가져오기
+        season_param = get_season_api_param(season_id)
+        url = f"https://er.dakgg.io/api/v1/players/{encoded_nickname}/profile?season={season_param}"
         
         headers = {
             'Accept': 'application/json, text/plain, */*',
@@ -1074,17 +1018,27 @@ async def get_season_tier_from_dakgg(nickname: str, season_id: int):
         print(f"❌ 시즌 {season_id} 티어 조회 실패: {e}")
         return None
 
-# 시즌 ID 매핑 (사용자 피드백 기반 수정 및 재검증 필요)
-SEASON_IDS = {
-    "current": 33,     # Season 8 (현재)
-    "previous": 31,    # Season 7 (이전)  
-    "season6": 30,     # Season 6
-    "season5": 29,     # Season 5
-    "season4": 21,     # Season 4 (추정)
-    "season3": 20,     # Season 3 (추정)  
-    "season2": 20,     # Season 2 (수정: 20이 시즌2일 가능성)
-    "season1": 19      # Season 1 (수정: 19가 시즌1 - 사용자가 골드라고 함)
-}
+# DEPRECATED: 이제 JSON 파일의 get_season_id_by_key() 함수 사용
+# 하위 호환성을 위해 남겨둠 - 추후 제거 예정
+def get_legacy_season_ids():
+    """하위 호환성을 위한 SEASON_IDS 딕셔너리 반환"""
+    # 기존 코드와의 호환성을 위한 간단한 매핑
+    return {
+        "current": 33,    # 현재 시즌 (시즌 8)
+        "previous": 31,   # 이전 시즌 (시즌 7)
+        "season6": 29,    # 시즌 6
+        "season5": 27,    # 시즌 5
+        "season4": 25,    # 시즌 4
+        "season3": 23,    # 시즌 3
+        "season2": 21,    # 시즌 2
+        "season1": 19     # 시즌 1
+    }
+
+# 하위 호환성을 위한 전역 변수 (지연 로딩)
+def __getattr__(name):
+    if name == 'SEASON_IDS':
+        return get_legacy_season_ids()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 async def get_player_season_info(nickname: str):
     """플레이어의 모든 시즌 정보 조회"""
@@ -1130,6 +1084,7 @@ async def get_player_all_season_tiers(nickname: str):
     """플레이어의 모든 시즌 티어 정보를 미리 조회"""
     try:
         encoded_nickname = urllib.parse.quote(nickname)
+        # 모든 시즌 정보를 가져오기 위해 최신 시즌으로 조회
         url = f"https://er.dakgg.io/api/v1/players/{encoded_nickname}/profile?season=SEASON_17"
         
         headers = {
@@ -1244,7 +1199,9 @@ async def get_season_characters_from_dakgg(nickname: str, season_id: int):
     """DAKGG에서 특정 시즌의 캐릭터 통계 조회 (프로필 API 활용, 개선됨)"""
     try:
         encoded_nickname = urllib.parse.quote(nickname)
-        url = f"https://er.dakgg.io/api/v1/players/{encoded_nickname}/profile?season=SEASON_17"
+        # JSON에서 시즌 API 파라미터 가져오기
+        season_param = get_season_api_param(season_id)
+        url = f"https://er.dakgg.io/api/v1/players/{encoded_nickname}/profile?season={season_param}"
         
         print(f"🔍 시즌 {season_id} 캐릭터 API 호출 (프로필 활용): {url}")
         
@@ -1333,35 +1290,8 @@ async def get_season_stats_from_dakgg(nickname: str, season_id: int):
     """DAKGG에서 특정 시즌의 통계 조회"""
     try:
         encoded_nickname = urllib.parse.quote(nickname)
-        # 시즌 ID를 SEASON_X 형식으로 변환 (추정 매핑)
-        season_map = {
-            # 정규 시즌
-            33: "SEASON_17", # Season 8 (현재) - 확인됨
-            31: "SEASON_16", # Season 7 (이전) - 확인됨  
-            30: "SEASON_15", # Season 6 - 확인됨
-            29: "SEASON_14", # Season 5 - 확인됨
-            21: "SEASON_10", # Season 4 (추정: 17-7=10)
-            20: "SEASON_9",  # Season 3 (추정: 17-8=9)
-            19: "SEASON_8",  # Season 2 (추정)
-            18: "SEASON_7",  # Season 1 (추정)
-            
-            # 프리시즌들
-            32: "SEASON_0",  # Season 7-8 프리시즌 - 추정
-            28: "SEASON_13", # Season 6-7 프리시즌 - 추정
-            27: "SEASON_12", # Season 5-6 프리시즌 - 추정
-            26: "SEASON_11", # Season 4-5 프리시즌 - 추정
-            25: "SEASON_6",  # Season 3-4 프리시즌 - 추정
-            24: "SEASON_5",  # Season 2-3 프리시즌 - 추정
-            23: "SEASON_4",  # Season 1-2 프리시즌 - 추정
-            22: "SEASON_3",  # Season 1 이전 프리시즌 - 추정
-            
-            # 얼리액세스
-            17: "SEASON_2",  # 얼리액세스 - 추정
-            16: "SEASON_1",  # 알파 테스트 - 추정
-            15: "SEASON_BETA", # 베타 테스트 - 추정
-        }
-        
-        season_param = season_map.get(season_id, "SEASON_17")
+        # JSON에서 시즌 API 파라미터 가져오기
+        season_param = get_season_api_param(season_id)
         url = f"https://er.dakgg.io/api/v1/players/{encoded_nickname}/profile?season={season_param}"
         
         headers = {
@@ -1415,7 +1345,9 @@ async def get_season_tier_with_image(nickname: str, season_id: int):
     """특정 시즌의 티어 정보와 이미지 URL을 함께 반환"""
     try:
         encoded_nickname = urllib.parse.quote(nickname)
-        url = f"https://er.dakgg.io/api/v1/players/{encoded_nickname}/profile?season=SEASON_17"
+        # JSON에서 시즌 API 파라미터 가져오기
+        season_param = get_season_api_param(season_id)
+        url = f"https://er.dakgg.io/api/v1/players/{encoded_nickname}/profile?season={season_param}"
         
         headers = {
             'Accept': 'application/json, text/plain, */*',

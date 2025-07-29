@@ -1,0 +1,144 @@
+{
+  "season_ids": {
+    "-1": {
+      "api_param": "LEGACY",
+      "name": "과거"
+    },
+    "0": {
+      "api_param": "NORMAL",
+      "name": "일반"
+    },
+    "1": {
+      "api_param": "SEASON_1",
+      "name": "EA 시즌 1"
+    },
+    "2": {
+      "api_param": "PRE_SEASON_2",
+      "name": "EA 프리 시즌 2"
+    },
+    "3": {
+      "api_param": "SEASON_2",
+      "name": "EA 시즌 2"
+    },
+    "4": {
+      "api_param": "PRE_SEASON_3",
+      "name": "EA 프리 시즌 3"
+    },
+    "5": {
+      "api_param": "SEASON_3",
+      "name": "EA 시즌 3"
+    },
+    "6": {
+      "api_param": "PRE_SEASON_4",
+      "name": "EA 프리 시즌 4"
+    },
+    "7": {
+      "api_param": "SEASON_4",
+      "name": "EA 시즌 4"
+    },
+    "8": {
+      "api_param": "PRE_SEASON_5",
+      "name": "EA 프리 시즌 5"
+    },
+    "9": {
+      "api_param": "SEASON_5",
+      "name": "EA 시즌 5"
+    },
+    "10": {
+      "api_param": "PRE_SEASON_6",
+      "name": "EA 프리 시즌 6"
+    },
+    "11": {
+      "api_param": "SEASON_6",
+      "name": "EA 시즌 6"
+    },
+    "12": {
+      "api_param": "PRE_SEASON_7",
+      "name": "EA 프리 시즌 7"
+    },
+    "13": {
+      "api_param": "SEASON_7",
+      "name": "EA 시즌 7"
+    },
+    "14": {
+      "api_param": "PRE_SEASON_8",
+      "name": "EA 프리 시즌 8"
+    },
+    "15": {
+      "api_param": "SEASON_8",
+      "name": "EA 시즌 8"
+    },
+    "16": {
+      "api_param": "PRE_SEASON_9",
+      "name": "EA 프리 시즌 9"
+    },
+    "17": {
+      "api_param": "SEASON_9",
+      "name": "EA 시즌 9"
+    },
+    "18": {
+      "api_param": "PRE_SEASON_10",
+      "name": "프리 시즌 1"
+    },
+    "19": {
+      "api_param": "SEASON_10",
+      "name": "시즌 1"
+    },
+    "20": {
+      "api_param": "PRE_SEASON_11",
+      "name": "프리 시즌 2"
+    },
+    "21": {
+      "api_param": "SEASON_11",
+      "name": "시즌 2"
+    },
+    "22": {
+      "api_param": "PRE_SEASON_12",
+      "name": "프리 시즌 3"
+    },
+    "23": {
+      "api_param": "SEASON_12",
+      "name": "시즌 3"
+    },
+    "24": {
+      "api_param": "PRE_SEASON_13",
+      "name": "프리 시즌 4"
+    },
+    "25": {
+      "api_param": "SEASON_13",
+      "name": "시즌 4"
+    },
+    "26": {
+      "api_param": "PRE_SEASON_14",
+      "name": "프리 시즌 5"
+    },
+    "27": {
+      "api_param": "SEASON_14",
+      "name": "시즌 5"
+    },
+    "28": {
+      "api_param": "PRE_SEASON_15",
+      "name": "프리 시즌 6"
+    },
+    "29": {
+      "api_param": "SEASON_15",
+      "name": "시즌 6"
+    },
+    "30": {
+      "api_param": "PRE_SEASON_16",
+      "name": "프리 시즌 7"
+    },
+    "31": {
+      "api_param": "SEASON_16",
+      "name": "시즌 7"
+    },
+    "32": {
+      "api_param": "PRE_SEASON_17",
+      "name": "프리 시즌 8"
+    },
+    "33": {
+      "api_param": "SEASON_17",
+      "name": "시즌 8"
+    }
+  }
+}

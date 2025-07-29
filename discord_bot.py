@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 from config import characters, DISCORD_TOKEN, YOUTUBE_API_KEY, ETERNAL_RETURN_CHANNEL_ID
 import config
-from api_clients import get_simple_player_stats, get_premium_analysis
+from api_clients import get_simple_player_stats, get_premium_analysis, get_season_name
 from ai_utils import create_character_embed
 
 # Discord 봇 설정
@@ -24,7 +24,7 @@ def create_main_embed(player_stats, most_char=None, stats=None):
         title=f"{player_stats['nickname']}님의 전적",
         color=0x00D4AA
     )
-    embed.set_footer(text="Season 8")
+    embed.set_footer(text=get_season_name(33))
     
     # 기본 정보 추가
     if player_stats.get('tier_info'):
@@ -74,9 +74,9 @@ def create_main_embed(player_stats, most_char=None, stats=None):
             char_image_url = "https:" + top_char['image_url'] if top_char['image_url'].startswith('//') else top_char['image_url']
     
     if char_image_url:
-        embed.set_author(name=f"Season 8 {player_stats['nickname']}님의 전적", icon_url=char_image_url)
+        embed.set_author(name=f"{get_season_name(33)} {player_stats['nickname']}님의 전적", icon_url=char_image_url)
     else:
-        embed.set_author(name=f"Season 8 {player_stats['nickname']}님의 전적")
+        embed.set_author(name=f"{get_season_name(33)} {player_stats['nickname']}님의 전적")
     
     return embed
 
@@ -171,7 +171,7 @@ class SeasonSelectView(discord.ui.View):
             # 기본값으로 현재 시즌 사용
             current_season_data = {
                 'season_id': 33,
-                'season_name': 'Season 8'
+                'season_name': get_season_name(33)
             }
         
         await interaction.response.defer()
@@ -247,7 +247,7 @@ class SeasonSelectView(discord.ui.View):
             # 기본값으로 현재 시즌 사용
             current_season_data = {
                 'season_id': 33,
-                'season_name': 'Season 8'
+                'season_name': get_season_name(33)
             }
         
         await interaction.response.defer()
@@ -390,7 +390,7 @@ class CharacterDropdown(discord.ui.Select):
                 description="실험체 데이터를 찾을 수 없습니다.",
                 color=0x5865F2
             )
-            embed.set_footer(text="Season 8")
+            embed.set_footer(text=get_season_name(33))
             await interaction.edit_original_response(embed=embed, view=self.view)
             return
         
@@ -415,7 +415,7 @@ class CharacterDropdown(discord.ui.Select):
             title=f"{self.player_stats['nickname']}님의 실험체 정보",
             color=0x5865F2
         )
-        embed.set_footer(text="Season 8")
+        embed.set_footer(text=get_season_name(33))
         
         # 캐릭터 상세 정보
         char_name = char.get('name', '알 수 없음')
@@ -470,24 +470,24 @@ class SeasonDropdown(discord.ui.Select):
         self.season_tiers = season_tiers or {}
         
         # 시즌 ID 매핑 import
-        from api_clients import SEASON_IDS
+        from api_clients import get_season_id_by_key, get_season_name
         
         # 시즌 옵션들 정의 (티어 정보 포함)
         options = []
         
         season_info = [
-            ("current", "Season 8 (현재 시즌)", "현재 진행 중인 시즌"),
-            ("previous", "Season 7 (이전 시즌)", "바로 전 시즌 기록"),
-            ("season6", "Season 6", "Season 6 기록"),
-            ("season5", "Season 5", "Season 5 기록"),
-            ("season4", "Season 4", "Season 4 기록"),
-            ("season3", "Season 3", "Season 3 기록"),
-            ("season2", "Season 2", "Season 2 기록"),
-            ("season1", "Season 1", "Season 1 기록")
+            ("current", f"{get_season_name(33)} (현재 시즌)", "현재 진행 중인 시즌"),
+            ("previous", f"{get_season_name(31)} (이전 시즌)", "바로 전 시즌 기록"),
+            ("season6", get_season_name(29), f"{get_season_name(29)} 기록"),
+            ("season5", get_season_name(27), f"{get_season_name(27)} 기록"),
+            ("season4", get_season_name(25), f"{get_season_name(25)} 기록"),
+            ("season3", get_season_name(23), f"{get_season_name(23)} 기록"),
+            ("season2", get_season_name(21), f"{get_season_name(21)} 기록"),
+            ("season1", get_season_name(19), f"{get_season_name(19)} 기록")
         ]
         
         for season_key, season_label, season_desc in season_info:
-            season_id = SEASON_IDS.get(season_key)
+            season_id = get_season_id_by_key(season_key)
             tier_info = self.season_tiers.get(season_id, "언랭크")
             
             # 티어 정보가 있으면 라벨에 포함
@@ -518,20 +518,9 @@ class SeasonDropdown(discord.ui.Select):
         selected_season = self.values[0]
         
         # 선택된 시즌 정보를 view에 저장
-        season_names = {
-            "current": "Season 8",
-            "previous": "Season 7", 
-            "season6": "Season 6",
-            "season5": "Season 5",
-            "season4": "Season 4",
-            "season3": "Season 3",
-            "season2": "Season 2",
-            "season1": "Season 1"
-        }
-        
-        from api_clients import SEASON_IDS
-        season_id = SEASON_IDS.get(selected_season, 33)
-        season_name = season_names.get(selected_season, "Season 8")
+        from api_clients import get_season_id_by_key, get_season_name
+        season_id = get_season_id_by_key(selected_season)
+        season_name = get_season_name(season_id)
         
         self.view._current_season_data = {
             'season_id': season_id,
@@ -545,25 +534,17 @@ class SeasonDropdown(discord.ui.Select):
         )
         
         # 시즌명을 기반으로 푸터 텍스트 설정
-        season_names = {
-            "current": "Season 8",
-            "previous": "Season 7", 
-            "season6": "Season 6",
-            "season5": "Season 5",
-            "season4": "Season 4",
-            "season3": "Season 3",
-            "season2": "Season 2",
-            "season1": "Season 1"
-        }
-        footer_text = f"{season_names.get(selected_season, 'Season 8')}"
+        from api_clients import get_season_id_by_key, get_season_name
+        season_id = get_season_id_by_key(selected_season)
+        footer_text = get_season_name(season_id)
         embed.set_footer(text=footer_text)
         
         if selected_season == "current":
             # 현재 시즌 데이터 (새로운 이미지 URL 사용)
             try:
-                from api_clients import get_season_tier_with_image, SEASON_IDS
+                from api_clients import get_season_tier_with_image, get_season_id_by_key
                 
-                season_id = SEASON_IDS.get("current")  # 33
+                season_id = get_season_id_by_key("current")  # 33
                 current_season_info, tier_image_url = await get_season_tier_with_image(self.player_stats['nickname'], season_id)
                 
                 if current_season_info:
@@ -576,7 +557,7 @@ class SeasonDropdown(discord.ui.Select):
                         formatted_current = f"**{current_season_info}**"
                         
                     embed.add_field(
-                        name="🔥 현재 시즌 (Season 8)",
+                        name=f"🔥 현재 시즌 ({get_season_name(33)})",
                         value=formatted_current,
                         inline=False
                     )
@@ -589,7 +570,7 @@ class SeasonDropdown(discord.ui.Select):
                     # 기존 방식으로 폴백
                     current_tier = self.player_stats.get('tier_info', '정보 없음').replace('**', '')
                     embed.add_field(
-                        name="🔥 현재 시즌 (Season 8)",
+                        name=f"🔥 현재 시즌 ({get_season_name(33)})",
                         value=f"**{current_tier}**",
                         inline=False
                     )
@@ -604,7 +585,7 @@ class SeasonDropdown(discord.ui.Select):
                 # 기존 방식으로 폴백
                 current_tier = self.player_stats.get('tier_info', '정보 없음').replace('**', '')
                 embed.add_field(
-                    name="🔥 현재 시즌 (Season 8)",
+                    name=f"🔥 현재 시즌 ({get_season_name(33)})",
                     value=f"**{current_tier}**",
                     inline=False
                 )
@@ -616,9 +597,9 @@ class SeasonDropdown(discord.ui.Select):
         elif selected_season == "previous":
             # 이전 시즌 데이터 (티어 이미지 포함)
             try:
-                from api_clients import get_season_tier_with_image, SEASON_IDS
+                from api_clients import get_season_tier_with_image, get_season_id_by_key
                 
-                season_id = SEASON_IDS.get("previous")  # 31
+                season_id = get_season_id_by_key("previous")  # 31
                 prev_season_info, tier_image_url = await get_season_tier_with_image(self.player_stats['nickname'], season_id)
                 
                 if prev_season_info:
@@ -631,7 +612,7 @@ class SeasonDropdown(discord.ui.Select):
                         formatted_prev = f"**{prev_season_info}**"
                     
                     embed.add_field(
-                        name="📊 이전 시즌 (Season 7)",
+                        name=f"📊 이전 시즌 ({get_season_name(31)})",
                         value=formatted_prev,
                         inline=False
                     )
@@ -642,7 +623,7 @@ class SeasonDropdown(discord.ui.Select):
                         print(f"✅ 이전 시즌 이미지 설정: {tier_image_url}")
                 else:
                     embed.add_field(
-                        name="📊 이전 시즌 (Season 7)",
+                        name=f"📊 이전 시즌 ({get_season_name(31)})",
                         value="`데이터 없음`",
                         inline=False
                     )
@@ -652,7 +633,7 @@ class SeasonDropdown(discord.ui.Select):
                     
             except:
                 embed.add_field(
-                    name="📊 이전 시즌 (Season 7)",
+                    name=f"📊 이전 시즌 ({get_season_name(31)})",
                     value="`데이터 없음`",
                     inline=False
                 )
@@ -661,13 +642,13 @@ class SeasonDropdown(discord.ui.Select):
         else:
             # 다른 시즌들 (티어 이미지 포함)
             try:
-                from api_clients import get_season_tier_with_image, SEASON_IDS
+                from api_clients import get_season_tier_with_image, get_season_id_by_key
                 
-                season_id = SEASON_IDS.get(selected_season)
+                season_id = get_season_id_by_key(selected_season)
                 if season_id:
                     # 티어 정보와 이미지 함께 가져오기
                     season_info, tier_image_url = await get_season_tier_with_image(self.player_stats['nickname'], season_id)
-                    season_name = selected_season.replace("season", "Season ")
+                    season_name = get_season_name(season_id)
                     
                     if season_info:
                         import re
@@ -700,14 +681,14 @@ class SeasonDropdown(discord.ui.Select):
                         print(f"✅ {season_name} 언랭크 이미지 설정")
                         
                 else:
-                    season_name = selected_season.replace("season", "Season ")
+                    season_name = get_season_name(season_id)
                     embed.add_field(
                         name=f"📈 {season_name}",
                         value="`해당 시즌 데이터는 아직 지원되지 않습니다`",
                         inline=False
                     )
             except Exception as e:
-                season_name = selected_season.replace("season", "Season ")
+                season_name = get_season_name(season_id)
                 embed.add_field(
                     name=f"📈 {season_name}",
                     value="`데이터 조회 중 오류 발생`",
@@ -715,6 +696,118 @@ class SeasonDropdown(discord.ui.Select):
                 )
         
         await interaction.edit_original_response(embed=embed, view=self.view)
+
+class SeasonStatsView(discord.ui.View):
+    """전시즌 메인 전적 화면 뷰 (실험체/통계 버튼 포함)"""
+    def __init__(self, player_stats, season_id, season_name, season_characters):
+        super().__init__(timeout=300)
+        self.player_stats = player_stats
+        self.season_id = season_id
+        self.season_name = season_name
+        self.season_characters = season_characters
+    
+    @discord.ui.button(label='실험체', style=discord.ButtonStyle.primary, row=0)
+    async def show_characters(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        
+        if self.season_characters and len(self.season_characters) > 0:
+            # 실험체 선택 화면으로 이동
+            character_view = SeasonCharacterView(
+                self.player_stats, 
+                self.season_id, 
+                self.season_name,
+                character_data=self.season_characters,
+                parent_interaction=interaction
+            )
+            
+            character_embed = discord.Embed(
+                title=f"🎮 {self.season_name} | {self.player_stats['nickname']}님의 실험체",
+                description=f"총 {len(self.season_characters)}개 실험체 • 드롭다운에서 선택해보세요",
+                color=0x5865F2
+            )
+            character_embed.set_footer(text=f"{self.season_name} • 랭크/일반 게임 기준")
+            
+            await interaction.edit_original_response(embed=character_embed, view=character_view)
+        else:
+            no_data_embed = discord.Embed(
+                title=f"{self.season_name} 실험체 정보",
+                description="해당 시즌에 플레이한 실험체가 없습니다.",
+                color=0x5865F2
+            )
+            no_data_embed.set_footer(text=self.season_name)
+            await interaction.edit_original_response(embed=no_data_embed, view=self)
+    
+    @discord.ui.button(label='통계', style=discord.ButtonStyle.secondary, row=0)
+    async def show_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        
+        try:
+            from api_clients import get_season_stats_from_dakgg
+            season_stats = await get_season_stats_from_dakgg(
+                self.player_stats['nickname'], 
+                self.season_id
+            )
+            
+            stats_embed = discord.Embed(
+                title=f"{self.player_stats['nickname']}님의 {self.season_name} 통계",
+                color=0xE67E22
+            )
+            stats_embed.set_footer(text=self.season_name)
+            
+            if season_stats and season_stats['total_games'] > 0:
+                stats_embed.add_field(
+                    name="게임 수",
+                    value=f"{season_stats['total_games']}게임",
+                    inline=True
+                )
+                stats_embed.add_field(
+                    name="승률",
+                    value=f"{season_stats['winrate']:.1f}%\n({season_stats['wins']}승)",
+                    inline=True
+                )
+                stats_embed.add_field(
+                    name="평균 순위",
+                    value=f"{season_stats['avg_rank']:.1f}등",
+                    inline=True
+                )
+                stats_embed.add_field(
+                    name="평균 킬",
+                    value=f"{season_stats['avg_kills']:.1f}킬",
+                    inline=True
+                )
+                stats_embed.add_field(
+                    name="평균 팀킬",
+                    value=f"{season_stats['avg_team_kills']:.1f}킬",
+                    inline=True
+                )
+                stats_embed.add_field(
+                    name="2등/3등",
+                    value=f"{season_stats['top2']}회 / {season_stats['top3']}회",
+                    inline=True
+                )
+            else:
+                stats_embed.add_field(
+                    name="통계 정보",
+                    value="해당 시즌 데이터가 없습니다.",
+                    inline=False
+                )
+            
+            await interaction.edit_original_response(embed=stats_embed, view=self)
+            
+        except Exception as e:
+            print(f"❌ 시즌별 통계 표시 실패: {e}")
+            error_embed = discord.Embed(
+                title=f"{self.player_stats['nickname']}님의 {self.season_name} 통계",
+                description="통계 데이터를 불러올 수 없습니다.",
+                color=0xE67E22
+            )
+            error_embed.set_footer(text=self.season_name)
+            await interaction.edit_original_response(embed=error_embed, view=self)
+    
+    @discord.ui.button(label='현재 시즌으로', style=discord.ButtonStyle.gray, row=1)
+    async def back_to_current(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        await stats_search_logic(interaction, self.player_stats['nickname'], selected_season_id=33)
 
 class SeasonCharacterView(discord.ui.View):
     """시즌별 실험체 선택 뷰"""
@@ -1057,7 +1150,7 @@ class StatsView(discord.ui.View):
             title=f"{self.player_stats['nickname']}님의 랭크",
             color=0x00D4AA
         )
-        embed.set_footer(text="Season 8")
+        embed.set_footer(text=get_season_name(33))
         
         # 현재 시즌 랭크 - 폰트 스타일링 개선
         current_tier = self.player_stats.get('tier_info', '정보 없음').replace('**', '')
@@ -1072,7 +1165,7 @@ class StatsView(discord.ui.View):
             formatted_current = f"**{current_tier}**"
             
         embed.add_field(
-            name="현재 시즌 (Season 8)",
+            name=f"현재 시즌 ({get_season_name(33)})",
             value=formatted_current,
             inline=False
         )
@@ -1117,7 +1210,7 @@ class StatsView(discord.ui.View):
                     description="실험체 데이터를 로드할 수 없습니다.",
                     color=0x5865F2
                 )
-                embed.set_footer(text="Season 8")
+                embed.set_footer(text=get_season_name(33))
                 await interaction.edit_original_response(embed=embed, view=self)
                 return
         
@@ -1127,7 +1220,7 @@ class StatsView(discord.ui.View):
             description="드롭다운에서 실험체를 선택해보세요",
             color=0x5865F2
         )
-        embed.set_footer(text="Season 8")
+        embed.set_footer(text=get_season_name(33))
         
         # 캐릭터 선택 뷰 생성
         character_view = CharacterSelectView(self.player_stats, self.detailed_data, parent_view=self)
@@ -1143,7 +1236,7 @@ class StatsView(discord.ui.View):
         # 통계 버튼용 캐릭터
         char_key = self.button_characters["stats"]
         embed.set_author(name=characters[char_key]["name"], icon_url=characters[char_key]["image"])
-        embed.set_footer(text="Season 8")
+        embed.set_footer(text=get_season_name(33))
         
         # 통계 정보 표시
         stats = self.stats
@@ -1192,6 +1285,35 @@ class StatsView(discord.ui.View):
         
         await interaction.response.edit_message(embed=embed, view=self)
 
+    @discord.ui.button(label='시즌 선택', style=discord.ButtonStyle.gray, row=1)
+    async def select_season(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        nickname = self.player_stats['nickname']
+        
+        # 플레이어의 시즌 목록 가져오기
+        from api_clients import get_player_season_list_simple
+        season_data = await get_player_season_list_simple(nickname)
+        
+        if not season_data:
+            await interaction.edit_original_response(content="시즌 정보를 가져올 수 없습니다.", embed=None, view=None)
+            return
+
+        available_seasons = season_data.get('playerSeasons', []) + season_data.get('playerSeasonOverviews', [])
+        available_seasons = sorted(
+            list({s['seasonId']: s for s in available_seasons if s.get('seasonId')}.values()),
+            key=lambda x: x.get('seasonId', 0), 
+            reverse=True
+        )
+
+        season_embed = discord.Embed(
+            title=f"🎮 {nickname}님의 시즌 선택",
+            description=f"{len(available_seasons)}개 시즌에서 플레이 기록을 찾았어요! 조회하고 싶은 시즌을 선택해주세요.",
+            color=0x5865F2
+        )
+        
+        view = SeasonSelectView(nickname, available_seasons)
+        await interaction.edit_original_response(embed=season_embed, view=view)
+
     @discord.ui.button(label='메인으로', style=discord.ButtonStyle.gray, row=1)
     async def back_to_main(self, interaction: discord.Interaction, button: discord.ui.Button):
         # 공통 함수로 메인 임베드 생성
@@ -1205,22 +1327,22 @@ class SeasonSelectDropdown(discord.ui.Select):
         
         # 시즌 이름 매핑 (확장)
         season_name_map = {
-            33: ("현재 시즌 (Season 8)", "현재 진행중인 시즌", "🏆"),
-            32: ("Season 7-8 프리시즌", "시즌 7과 8 사이", "🌟"),
-            31: ("Season 7", "이전 시즌", "🥈"),
-            30: ("Season 6", "Season 6", "🥉"),
-            29: ("Season 5", "Season 5", "📊"),
-            28: ("Season 6-7 프리시즌", "시즌 6과 7 사이", "🌟"),
-            27: ("Season 5-6 프리시즌", "시즌 5와 6 사이", "🌟"),
-            26: ("Season 4-5 프리시즌", "시즌 4와 5 사이", "🌟"),
-            25: ("Season 3-4 프리시즌", "시즌 3과 4 사이", "🌟"),
-            24: ("Season 2-3 프리시즌", "시즌 1과 2 사이", "🌟"),
-            23: ("Season 1-2 프리시즌", "시즌 1과 2 사이", "🌟"),
-            22: ("Season 1 이전 프리시즌", "Season 1 이전", "🌟"),
-            21: ("Season 4", "Season 4", "📊"),
-            20: ("Season 3", "Season 3", "📊"),
-            19: ("Season 2", "Season 2", "📊"),
-            18: ("Season 1", "Season 1", "📊"),
+            33: (f"현재 시즌 ({get_season_name(33)})", "현재 진행중인 시즌", "🏆"),
+            32: (get_season_name(32), "프리시즌", "🌟"),
+            31: (get_season_name(31), "이전 시즌", "🥈"),
+            30: (get_season_name(30), get_season_name(30), "🥉"),
+            29: (get_season_name(29), get_season_name(29), "📊"),
+            28: (get_season_name(28), "프리시즌", "🌟"),
+            27: (get_season_name(27), get_season_name(27), "🌟"),
+            26: (get_season_name(26), "프리시즌", "🌟"),
+            25: (get_season_name(25), get_season_name(25), "🌟"),
+            24: (get_season_name(24), "프리시즌", "🌟"),
+            23: (get_season_name(23), get_season_name(23), "🌟"),
+            22: (get_season_name(22), "프리시즌", "🌟"),
+            21: (get_season_name(21), get_season_name(21), "📊"),
+            20: (get_season_name(20), get_season_name(20), "📊"),
+            19: (get_season_name(19), get_season_name(19), "📊"),
+            18: (get_season_name(18), get_season_name(18), "📊"),
             17: ("얼리액세스", "얼리액세스 시즌", "🚀"),
             16: ("알파 테스트", "알파 테스트 시즌", "🚀"),
             15: ("베타 테스트", "베타 테스트 시즌", "🚀"),
@@ -1460,38 +1582,72 @@ async def stats_search_logic(interaction: discord.Interaction, 닉네임: str, s
             await interaction.edit_original_response(content=debi_message, embed=basic_embed, view=view)
 
         else:
-            # 다른 시즌이 선택된 경우
-            season_name_map = { 31: "Season 7", 30: "Season 6", 29: "Season 5" }
-            season_name = season_name_map.get(selected_season_id, f"Season {selected_season_id}")
+            # 다른 시즌이 선택된 경우 - 메인 임베드 먼저 표시
+            from api_clients import get_season_name
+            season_name = get_season_name(selected_season_id)
             
-            from api_clients import get_season_characters_from_dakgg, get_player_stats_from_dakgg
+            from api_clients import get_player_stats_from_dakgg, get_season_tier_from_dakgg, get_season_characters_from_dakgg
             base_player_stats = await get_player_stats_from_dakgg(닉네임)
             if not base_player_stats:
                  error_embed = create_character_embed(characters["debi"], "⚠️ 플레이어 정보 조회 실패", f"**{닉네임}**님의 기본 정보를 찾을 수 없어!")
                  await interaction.edit_original_response(embed=error_embed)
                  return
 
+            # 선택된 시즌의 티어 정보 조회
+            season_tier = await get_season_tier_from_dakgg(닉네임, selected_season_id)
             season_characters = await get_season_characters_from_dakgg(닉네임, selected_season_id)
             
-            if not season_characters:
-                error_embed = create_character_embed(characters["debi"], f"⚠️ {season_name} 데이터 없음", f"**{닉네임}**님의 {season_name} 전적을 찾을 수 없어!")
-                await interaction.edit_original_response(embed=error_embed)
-                return
-            
-            season_view = SeasonCharacterView(
-                base_player_stats, 
-                selected_season_id, 
-                season_name,
-                character_data=season_characters,
-                parent_interaction=interaction
-            )
-            
+            # 전시즌 메인 임베드 생성
             season_embed = discord.Embed(
-                title=f"🎮 {season_name} | {닉네임}님의 실험체",
-                description=f"총 {len(season_characters)}개 실험체 • 드롭다운에서 선택해보세요",
-                color=0x5865F2
+                title=f"{닉네임}님의 {season_name} 전적",
+                color=0x00D4AA
             )
-            season_embed.set_footer(text=f"{season_name} • 랭크/일반 게임 기준")
+            season_embed.set_footer(text=season_name)
+            
+            # 티어 정보 추가
+            if season_tier:
+                season_embed.add_field(
+                    name="랭크",
+                    value=f"**{season_tier}**",
+                    inline=False
+                )
+            else:
+                season_embed.add_field(
+                    name="랭크", 
+                    value="**언랭크**",
+                    inline=False
+                )
+            
+            # 모스트 캐릭터 정보 추가 (있는 경우)
+            if season_characters and len(season_characters) > 0:
+                most_char = season_characters[0]
+                season_embed.add_field(
+                    name="모스트 실험체",
+                    value=f"**{most_char['name']}** ({most_char['games']}게임)",
+                    inline=True
+                )
+                season_embed.add_field(
+                    name="승률",
+                    value=f"**{most_char['winrate']:.1f}%**",
+                    inline=True
+                )
+                
+                # 모스트 캐릭터 이미지 설정
+                if most_char.get('image_url'):
+                    char_image_url = "https:" + most_char['image_url'] if most_char['image_url'].startswith('//') else most_char['image_url']
+                    season_embed.set_author(name=f"{season_name} {닉네임}님의 전적", icon_url=char_image_url)
+                else:
+                    season_embed.set_author(name=f"{season_name} {닉네임}님의 전적")
+            else:
+                season_embed.add_field(
+                    name="실험체 정보",
+                    value="데이터가 없습니다.",
+                    inline=False
+                )
+                season_embed.set_author(name=f"{season_name} {닉네임}님의 전적")
+            
+            # 시즌별 뷰 생성 (실험체 버튼 포함)
+            season_view = SeasonStatsView(base_player_stats, selected_season_id, season_name, season_characters)
             
             await interaction.edit_original_response(embed=season_embed, view=season_view)
         

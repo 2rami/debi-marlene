@@ -8,7 +8,7 @@ import sys
 import asyncio
 from api_clients import test_dakgg_api_structure
 from discord_bot import run_bot
-테스트ㄹㄹㄹㄹㄹㄹㄹㄹ
+# 테스트
 def main():
     """메인 실행 함수"""
     # API 테스트 모드

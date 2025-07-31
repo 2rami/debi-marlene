@@ -66,13 +66,6 @@ async def fetch_api(url: str, headers: Dict = None) -> Optional[Dict]:
     except:
         return None
 
-async def get_player_basic_data(nickname: str) -> Optional[Dict]:
-    """플레이어의 기본 전적 데이터를 가져오는 메인 함수"""
-    # 캐시 확인
-    cache_key = hashlib.md5(nickname.lower().encode()).hexdigest()
-    cached = stats_cache.get(cache_key)
-    if cached:
-        return cached
     
     # URL 인코딩
     encoded_nickname = urllib.parse.quote(nickname)
@@ -90,10 +83,6 @@ async def get_player_basic_data(nickname: str) -> Optional[Dict]:
     if not profile_data or not profile_data.get('playerSeasons'):
         return None
     
-    # 데이터 가공 후 캐시 저장
-    result = process_player_data(nickname, profile_data, tier_data, char_data)
-    stats_cache.set(cache_key, result)
-    return result
 
 def process_player_data(nickname: str, profile_data: Dict, tier_data: Dict, char_data: Dict) -> Dict:
     """API에서 받은 원본 데이터를 봇에서 사용할 형태로 가공"""
@@ -228,8 +217,3 @@ async def get_simple_player_stats(nickname: str) -> Dict[str, Any]:
             'raw_data': data
         }
     return {'success': False, 'message': '플레이어를 찾을 수 없습니다.'}
-
-def get_season_id_by_key(season_key: str) -> int:
-    """시즌 키를 시즌 ID로 변환 (예: "season8" -> 33)"""
-    config = load_config_data()
-    return config['season_keys'].get(season_key, 33)

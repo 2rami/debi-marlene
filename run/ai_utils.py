@@ -1,7 +1,7 @@
 import discord
 from typing import Dict, Any, Optional
 from anthropic import AsyncAnthropic
-from config import CLAUDE_API_KEY, characters
+from run.config import CLAUDE_API_KEY, characters
 
 # AI 클라이언트 초기화
 anthropic_client: Optional[AsyncAnthropic] = None

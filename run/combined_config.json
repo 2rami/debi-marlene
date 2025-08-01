@@ -1,0 +1,239 @@
+{
+  "tier_names": {
+    "0": "언랭크",
+    "1": "아이언",
+    "2": "브론즈", 
+    "3": "실버",
+    "4": "골드",
+    "5": "플래티넘",
+    "6": "다이아몬드",
+    "7": "미스릴",
+    "60": "아데만타이트",
+    "63": "메테오라이트",
+    "65": "마스터",
+    "66": "미스릴",
+    "8": "이터니티"
+  },
+  "tier_images": {
+    "0": "https://cdn.dak.gg/assets/er/images/rank/full/0.png",
+    "1": "https://cdn.dak.gg/assets/er/images/rank/full/1.png",
+    "2": "https://cdn.dak.gg/assets/er/images/rank/full/2.png",
+    "3": "https://cdn.dak.gg/assets/er/images/rank/full/3.png",
+    "4": "https://cdn.dak.gg/assets/er/images/rank/full/4.png",
+    "5": "https://cdn.dak.gg/assets/er/images/rank/full/5.png",
+    "6": "https://cdn.dak.gg/assets/er/images/rank/full/6.png",
+    "7": "https://cdn.dak.gg/assets/er/images/rank/full/7.png",
+    "60": "https://cdn.dak.gg/assets/er/images/rank/full/60.png",
+    "63": "https://cdn.dak.gg/assets/er/images/rank/full/63.png",
+    "65": "https://cdn.dak.gg/assets/er/images/rank/full/65.png",
+    "66": "https://cdn.dak.gg/assets/er/images/rank/full/66.png",
+    "8": "https://cdn.dak.gg/assets/er/images/rank/full/8.png"
+  },
+  "season_keys": {
+    "season8": 33,
+    "season7": 31,
+    "season6": 29,
+    "season5": 27,
+    "season4": 25,
+    "season3": 23,
+    "season2": 21,
+    "season1": 19
+  },
+  "api_headers": {
+    "Accept": "application/json, text/plain, */*",
+    "Origin": "https://dak.gg",
+    "Referer": "https://dak.gg/",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+  },
+  "character_image_url": "https://cdn.dak.gg/assets/er/images/character/full/{character_id}.png",
+  "characters": {
+    "1": {"name": "재키", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/1.png"},
+    "2": {"name": "아야", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/2.png"},
+    "3": {"name": "피오라", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/3.png"},
+    "4": {"name": "매그너스", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/4.png"},
+    "5": {"name": "자히르", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/5.png"},
+    "6": {"name": "나딘", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/6.png"},
+    "7": {"name": "현우", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/7.png"},
+    "8": {"name": "하트", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/8.png"},
+    "9": {"name": "아이솔", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/9.png"},
+    "10": {"name": "리 다이린", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/10.png"},
+    "11": {"name": "유키", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/11.png"},
+    "12": {"name": "혜진", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/12.png"},
+    "13": {"name": "쇼우", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/13.png"},
+    "14": {"name": "키아라", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/14.png"},
+    "15": {"name": "시셀라", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/15.png"},
+    "16": {"name": "실비아", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/16.png"},
+    "17": {"name": "아드리아나", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/17.png"},
+    "18": {"name": "쇼이치", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/18.png"},
+    "19": {"name": "엠마", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/19.png"},
+    "20": {"name": "레녹스", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/20.png"},
+    "21": {"name": "로지", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/21.png"},
+    "22": {"name": "루크", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/22.png"},
+    "23": {"name": "캐시", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/23.png"},
+    "24": {"name": "아델라", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/24.png"},
+    "25": {"name": "버니스", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/25.png"},
+    "26": {"name": "바바라", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/26.png"},
+    "27": {"name": "알렉스", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/27.png"},
+    "28": {"name": "수아", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/28.png"},
+    "29": {"name": "레온", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/29.png"},
+    "30": {"name": "일레븐", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/30.png"},
+    "31": {"name": "리오", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/31.png"},
+    "32": {"name": "윌리엄", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/32.png"},
+    "33": {"name": "니키", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/33.png"},
+    "34": {"name": "나타폰", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/34.png"},
+    "35": {"name": "얀", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/35.png"},
+    "36": {"name": "이바", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/36.png"},
+    "37": {"name": "다니엘", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/37.png"},
+    "38": {"name": "제니", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/38.png"},
+    "39": {"name": "카밀로", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/39.png"},
+    "40": {"name": "클로에", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/40.png"},
+    "41": {"name": "요한", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/41.png"},
+    "42": {"name": "비앙카", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/42.png"},
+    "43": {"name": "셀린", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/43.png"},
+    "44": {"name": "에키온", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/44.png"},
+    "45": {"name": "마이", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/45.png"},
+    "46": {"name": "에이든", "image_url": "https://cdn.dak.gg/assets/er/images/character/full/46.png"}
+  },
+  "season_ids": {
+    "-1": {
+      "api_param": "LEGACY",
+      "name": "과거"
+    },
+    "0": {
+      "api_param": "NORMAL",
+      "name": "일반"
+    },
+    "1": {
+      "api_param": "SEASON_1",
+      "name": "EA 시즌 1"
+    },
+    "2": {
+      "api_param": "PRE_SEASON_2",
+      "name": "EA 프리 시즌 2"
+    },
+    "3": {
+      "api_param": "SEASON_2",
+      "name": "EA 시즌 2"
+    },
+    "4": {
+      "api_param": "PRE_SEASON_3",
+      "name": "EA 프리 시즌 3"
+    },
+    "5": {
+      "api_param": "SEASON_3",
+      "name": "EA 시즌 3"
+    },
+    "6": {
+      "api_param": "PRE_SEASON_4",
+      "name": "EA 프리 시즌 4"
+    },
+    "7": {
+      "api_param": "SEASON_4",
+      "name": "EA 시즌 4"
+    },
+    "8": {
+      "api_param": "PRE_SEASON_5",
+      "name": "EA 프리 시즌 5"
+    },
+    "9": {
+      "api_param": "SEASON_5",
+      "name": "EA 시즌 5"
+    },
+    "10": {
+      "api_param": "PRE_SEASON_6",
+      "name": "EA 프리 시즌 6"
+    },
+    "11": {
+      "api_param": "SEASON_6",
+      "name": "EA 시즌 6"
+    },
+    "12": {
+      "api_param": "PRE_SEASON_7",
+      "name": "EA 프리 시즌 7"
+    },
+    "13": {
+      "api_param": "SEASON_7",
+      "name": "EA 시즌 7"
+    },
+    "14": {
+      "api_param": "PRE_SEASON_8",
+      "name": "EA 프리 시즌 8"
+    },
+    "15": {
+      "api_param": "SEASON_8",
+      "name": "EA 시즌 8"
+    },
+    "16": {
+      "api_param": "PRE_SEASON_9",
+      "name": "EA 프리 시즌 9"
+    },
+    "17": {
+      "api_param": "SEASON_9",
+      "name": "EA 시즌 9"
+    },
+    "18": {
+      "api_param": "PRE_SEASON_10",
+      "name": "프리 시즌 1"
+    },
+    "19": {
+      "api_param": "SEASON_10",
+      "name": "시즌 1"
+    },
+    "20": {
+      "api_param": "PRE_SEASON_11",
+      "name": "프리 시즌 2"
+    },
+    "21": {
+      "api_param": "SEASON_11",
+      "name": "시즌 2"
+    },
+    "22": {
+      "api_param": "PRE_SEASON_12",
+      "name": "프리 시즌 3"
+    },
+    "23": {
+      "api_param": "SEASON_12",
+      "name": "시즌 3"
+    },
+    "24": {
+      "api_param": "PRE_SEASON_13",
+      "name": "프리 시즌 4"
+    },
+    "25": {
+      "api_param": "SEASON_13",
+      "name": "시즌 4"
+    },
+    "26": {
+      "api_param": "PRE_SEASON_14",
+      "name": "프리 시즌 5"
+    },
+    "27": {
+      "api_param": "SEASON_14",
+      "name": "시즌 5"
+    },
+    "28": {
+      "api_param": "PRE_SEASON_15",
+      "name": "프리 시즌 6"
+    },
+    "29": {
+      "api_param": "SEASON_15",
+      "name": "시즌 6"
+    },
+    "30": {
+      "api_param": "PRE_SEASON_16",
+      "name": "프리 시즌 7"
+    },
+    "31": {
+      "api_param": "SEASON_16",
+      "name": "시즌 7"
+    },
+    "32": {
+      "api_param": "PRE_SEASON_17",
+      "name": "프리 시즌 8"
+    },
+    "33": {
+      "api_param": "SEASON_17",
+      "name": "시즌 8"
+    }
+  }
+}

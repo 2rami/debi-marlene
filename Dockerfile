@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 애플리케이션 파일 복사
 COPY main.py .
+COPY run/ ./run/
 COPY assets/ ./assets/
 
 # 환경 변수 파일 복사 (선택사항) - 실제 운영시에는 docker-compose.yml에서 환경변수 설정

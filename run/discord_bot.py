@@ -443,50 +443,6 @@ class ChannelSelectView(discord.ui.View):
         )
 
 
-@bot.tree.command(name="설정확인", description="관리자 전용: 현재 채널 설정을 확인합니다.")
-async def check_settings(interaction: discord.Interaction):
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("이 명령어는 관리자만 사용할 수 있습니다.", ephemeral=True)
-        return
-    
-    announcement_channel = interaction.guild.get_channel(config.ANNOUNCEMENT_CHANNEL_ID) if config.ANNOUNCEMENT_CHANNEL_ID else None
-    chat_channel = interaction.guild.get_channel(config.CHAT_CHANNEL_ID) if config.CHAT_CHANNEL_ID else None
-    
-    embed = discord.Embed(title="현재 설정", color=0x00D4AA)
-    embed.add_field(
-        name="📢 공지 채널", 
-        value=announcement_channel.mention if announcement_channel else "❌ 설정 안됨", 
-        inline=False
-    )
-    embed.add_field(
-        name="💬 대화 채널", 
-        value=chat_channel.mention if chat_channel else "❌ 설정 안됨", 
-        inline=False
-    )
-    
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-@bot.tree.command(name="유튜브테스트", description="관리자 전용: 유튜브 체크를 강제로 실행합니다.")
-async def test_youtube(interaction: discord.Interaction):
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("이 명령어는 관리자만 사용할 수 있습니다.", ephemeral=True)
-        return
-    
-    await interaction.response.send_message("유튜브 체크를 시작합니다...", ephemeral=True)
-    try:
-        await youtube_service.check_new_videos()
-        await interaction.followup.send("✅ 유튜브 체크가 완료되었습니다!", ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"❌ 오류가 발생했습니다: {e}", ephemeral=True)
-
-@bot.tree.command(name="유튜브리셋", description="관리자 전용: 마지막 체크한 영상 ID를 초기화합니다.")
-async def reset_youtube(interaction: discord.Interaction):
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("이 명령어는 관리자만 사용할 수 있습니다.", ephemeral=True)
-        return
-    
-    youtube_service.last_checked_video_id = None
-    await interaction.response.send_message("✅ 유튜브 체크 상태가 초기화되었습니다! 다음 체크에서 최신 영상을 다시 전송합니다.", ephemeral=True)
 
 @bot.tree.command(name="채널설정", description="관리자 전용: 봇이 사용할 채널을 설정합니다.")
 async def set_channels(interaction: discord.Interaction):

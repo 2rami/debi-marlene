@@ -10,3 +10,6 @@ aiohttp==3.9.1
 beautifulsoup4==4.12.2
 httpx==0.25.2
 requests==2.31.0
+matplotlib==3.8.2
+torch>=2.0.0
+transformers>=4.35.0

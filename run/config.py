@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,11 +15,45 @@ ETERNAL_RETURN_API_BASE = "https://open-api.bser.io"
 DAKGG_API_BASE = "https://er.dakgg.io/api/v1"
 
 # YouTube 설정
-ETERNAL_RETURN_CHANNEL_ID = 'UCaktoGSdjMnfQFv5BSyYrvA'
+ETERNAL_RETURN_CHANNEL_ID = 'UCEOaB76vS9RfiAwEzxB8QGw'
 
-# 채널 설정 (런타임에 설정됨)
-ANNOUNCEMENT_CHANNEL_ID = None  # 이리공지 채널 ID (YouTube 알림용)
-CHAT_CHANNEL_ID = None  # 이리 채널 ID (대화용)
+# 설정 파일 경로
+SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'settings.json')
+
+def load_settings():
+    """설정 파일에서 채널 ID들을 로드"""
+    try:
+        with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return {"ANNOUNCEMENT_CHANNEL_ID": None, "CHAT_CHANNEL_ID": None}
+
+def save_settings(announcement_id=None, chat_id=None):
+    """설정을 파일에 저장"""
+    try:
+        settings = load_settings()
+        if announcement_id is not None:
+            settings["ANNOUNCEMENT_CHANNEL_ID"] = announcement_id
+        if chat_id is not None:
+            settings["CHAT_CHANNEL_ID"] = chat_id
+        
+        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(settings, f, indent=2)
+        
+        # 전역 변수도 업데이트
+        global ANNOUNCEMENT_CHANNEL_ID, CHAT_CHANNEL_ID
+        ANNOUNCEMENT_CHANNEL_ID = settings["ANNOUNCEMENT_CHANNEL_ID"]
+        CHAT_CHANNEL_ID = settings["CHAT_CHANNEL_ID"]
+        
+        return True
+    except Exception as e:
+        print(f"설정 저장 오류: {e}")
+        return False
+
+# 시작할 때 설정 로드
+settings = load_settings()
+ANNOUNCEMENT_CHANNEL_ID = settings["ANNOUNCEMENT_CHANNEL_ID"]
+CHAT_CHANNEL_ID = settings["CHAT_CHANNEL_ID"]
 
 # 캐릭터 설정
 characters = {

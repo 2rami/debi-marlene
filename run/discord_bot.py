@@ -13,6 +13,7 @@ from run.api_clients import (
 from run.graph_generator import save_mmr_graph_to_file
 import os
 import tempfile
+from run import youtube_service
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -23,8 +24,15 @@ bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
 async def on_ready():
     print(f'{bot.user} 봇이 시작되었습니다!')
     try:
+        # 명령어 동기화
+        await bot.tree.sync()
+        print("명령어 동기화 완료.")
+
         # 중앙 데이터 초기화 함수 호출
         await initialize_game_data()
+        await youtube_service.initialize_youtube()
+        youtube_service.set_bot_instance(bot)
+        youtube_service.check_new_videos.start()
     except Exception as e:
         print(f"CRITICAL: 데이터 초기화 중 봇 시작 실패: {e}")
         # 필요하다면 여기서 봇을 종료하거나, 관리자에게 알림을 보낼 수 있습니다.
@@ -110,7 +118,7 @@ class StatsView(discord.ui.View):
 
     @discord.ui.button(label='통계', style=discord.ButtonStyle.secondary)
     async def show_stats(self, interaction: discord.Interaction, button):
-        await interaction.response.defer()
+        await interaction.response.defer() 
         
         embed = discord.Embed(title=f"{self.player_data['nickname']}님의 통계", color=0xE67E22)
         stats = self.player_data.get('stats', {})
@@ -289,7 +297,7 @@ class StatsView(discord.ui.View):
 
 @bot.tree.command(name="전적", description="이터널 리턴 플레이어 전적을 검색해요!")
 async def stats_command(interaction: discord.Interaction, 닉네임: str):
-    await interaction.response.defer()
+    await interaction.response.defer() 
     
     if config.CHAT_CHANNEL_ID and interaction.channel.id != config.CHAT_CHANNEL_ID:
         await interaction.followup.send("이 명령어는 지정된 채널에서만 사용할 수 있습니다.", ephemeral=True)
@@ -348,25 +356,127 @@ async def stats_command(interaction: discord.Interaction, 닉네임: str):
         error_embed = create_character_embed(characters["debi"], "검색 오류", f"**{닉네임}**님 검색 중 오류가 발생했어!", f"/전적 {닉네임}")
         await interaction.edit_original_response(embed=error_embed, view=None)
 
-@bot.tree.command(name="채널설정", description="관리자 전용: 공지채널과 대화채널을 설정합니다")
-async def set_channels(interaction: discord.Interaction, 공지채널: discord.TextChannel = None, 대화채널: discord.TextChannel = None):
+class ChannelSelectView(discord.ui.View):
+    def __init__(self, guild_channels):
+        super().__init__(timeout=300)
+        self.guild_channels = guild_channels
+        self.current_step = 'announcement'  # 'announcement' 또는 'chat'
+        
+        # 첫 번째 단계: 공지 채널 선택
+        self.show_announcement_select()
+
+    def show_announcement_select(self):
+        # 기존 아이템들 제거
+        self.clear_items()
+        
+        # 공지 채널 선택 드롭다운
+        announcement_select = discord.ui.Select(
+            placeholder="📢 공지 채널을 선택하세요",
+            options=self.guild_channels[:25]  # 최대 25개
+        )
+        announcement_select.callback = self.announcement_callback
+        self.add_item(announcement_select)
+
+    def show_chat_select(self):
+        # 기존 아이템들 제거
+        self.clear_items()
+        
+        # 대화 채널 선택 드롭다운
+        chat_select = discord.ui.Select(
+            placeholder="💬 대화 채널을 선택하세요",
+            options=self.guild_channels[:25]  # 최대 25개
+        )
+        chat_select.callback = self.chat_callback
+        self.add_item(chat_select)
+        
+        # 완료 버튼
+        finish_button = discord.ui.Button(label="설정 완료", style=discord.ButtonStyle.success)
+        finish_button.callback = self.finish_setup
+        self.add_item(finish_button)
+
+    async def announcement_callback(self, interaction: discord.Interaction):
+        channel_id = int(interaction.data['values'][0])
+        channel = interaction.guild.get_channel(channel_id)
+        
+        if channel and isinstance(channel, discord.TextChannel):
+            # 파일에 저장
+            if config.save_settings(announcement_id=channel_id):
+                # 다음 단계로 진행
+                self.current_step = 'chat'
+                self.show_chat_select()
+                
+                await interaction.response.edit_message(
+                    content=f"📢 공지 채널: {channel.mention} (저장완료)\n💬 이제 대화 채널을 선택해주세요.",
+                    view=self
+                )
+            else:
+                await interaction.response.send_message("설정 저장에 실패했습니다.", ephemeral=True)
+        else:
+            await interaction.response.send_message("올바른 텍스트 채널을 선택해주세요.", ephemeral=True)
+
+    async def chat_callback(self, interaction: discord.Interaction):
+        channel_id = int(interaction.data['values'][0])
+        channel = interaction.guild.get_channel(channel_id)
+
+        if channel and isinstance(channel, discord.TextChannel):
+            # 파일에 저장
+            if config.save_settings(chat_id=channel_id):
+                announcement_channel = interaction.guild.get_channel(config.ANNOUNCEMENT_CHANNEL_ID)
+                await interaction.response.edit_message(
+                    content=f"✅ 채널 설정이 완료되었습니다! (영구저장됨)\n📢 공지 채널: {announcement_channel.mention if announcement_channel else '없음'}\n💬 대화 채널: {channel.mention}",
+                    view=self
+                )
+            else:
+                await interaction.response.send_message("설정 저장에 실패했습니다.", ephemeral=True)
+        else:
+            await interaction.response.send_message("올바른 텍스트 채널을 선택해주세요.", ephemeral=True)
+    
+    async def finish_setup(self, interaction: discord.Interaction):
+        announcement_channel = interaction.guild.get_channel(config.ANNOUNCEMENT_CHANNEL_ID) if config.ANNOUNCEMENT_CHANNEL_ID else None
+        chat_channel = interaction.guild.get_channel(config.CHAT_CHANNEL_ID) if config.CHAT_CHANNEL_ID else None
+        
+        self.clear_items()
+        
+        await interaction.response.edit_message(
+            content=f"🎉 모든 설정이 완료되었습니다!\n📢 공지 채널: {announcement_channel.mention if announcement_channel else '설정 안됨'}\n💬 대화 채널: {chat_channel.mention if chat_channel else '설정 안됨'}",
+            view=None
+        )
+
+
+
+@bot.tree.command(name="채널설정", description="관리자 전용: 봇이 사용할 채널을 설정합니다.")
+async def set_channels(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator:
         await interaction.response.send_message("이 명령어는 관리자만 사용할 수 있습니다.", ephemeral=True)
         return
+
+    await interaction.response.defer(ephemeral=True)
+
+    print("--- 채널 목록 생성 시작 (권한 확인 임시 비활성화) ---")
     
-    result_messages = []
-    if 공지채널:
-        config.ANNOUNCEMENT_CHANNEL_ID = 공지채널.id
-        result_messages.append(f"공지채널이 {공지채널.mention}로 설정되었습니다.")
-    if 대화채널:
-        config.CHAT_CHANNEL_ID = 대화채널.id
-        result_messages.append(f"대화채널이 {대화채널.mention}로 설정되었습니다.")
+    # 권한 확인을 임시로 건너뛰고 모든 텍스트 채널을 가져옵니다.
+    # 이름이 없는 채널은 제외합니다.
+    all_text_channels = sorted(
+        [ch for ch in interaction.guild.text_channels if ch.name],
+        key=lambda c: c.name
+    )
     
-    if not result_messages:
-        result_messages.append("설정할 채널을 선택해주세요.")
+    print(f"드롭다운에 포함될 채널 ({len(all_text_channels)}개): {[c.name for c in all_text_channels]}")
+    print("--- 채널 목록 생성 끝 ---")
     
-    embed = discord.Embed(title="채널 설정 완료", description="\n".join(result_messages), color=characters["debi"]["color"])
-    await interaction.response.send_message(embed=embed)
+    if not all_text_channels:
+        await interaction.followup.send("서버에 텍스트 채널이 없습니다.", ephemeral=True)
+        return
+
+    options = [
+        discord.SelectOption(label=f"#{channel.name}", value=str(channel.id))
+        for channel in all_text_channels[:25]
+    ]
+
+    view = ChannelSelectView(options)
+    
+    message_content = f"📢 먼저 공지 채널을 선택해주세요."
+    await interaction.followup.send(content=message_content, view=view, ephemeral=True)
 
 def run_bot():
     if not DISCORD_TOKEN:

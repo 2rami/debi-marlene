@@ -6,7 +6,11 @@
       "Bash(mv:*)",
       "Bash(rm:*)",
       "Bash(git push:*)",
-      "WebFetch(domain:er.dakgg.io)"
+      "WebFetch(domain:er.dakgg.io)",
+      "Bash(python:*)",
+      "Bash(env)",
+      "Bash(SUPABASE_ACCESS_TOKEN=\"sbp_20d8d7ce434efa56316d7c90b5517f047295cbe1\" python3 setup_supabase_characters.py)",
+      "WebFetch(domain:dak.gg)"
     ],
     "deny": []
   }

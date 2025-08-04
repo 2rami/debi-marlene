@@ -3,35 +3,68 @@ import asyncio
 from discord.ext import commands
 from run.config import characters, DISCORD_TOKEN
 from run import config
-from run.api_clients import get_player_basic_data, get_season_name, get_season_data, get_player_season_data, get_player_played_seasons
+from run.api_clients import (
+    get_player_basic_data, 
+    get_player_season_data, 
+    get_player_played_seasons,
+    initialize_game_data,
+    game_data # 중앙 캐시 객체 임포트
+)
+from run.graph_generator import save_mmr_graph_to_file
+import os
+import tempfile
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
 
+@bot.event
+async def on_ready():
+    print(f'{bot.user} 봇이 시작되었습니다!')
+    try:
+        # 중앙 데이터 초기화 함수 호출
+        await initialize_game_data()
+    except Exception as e:
+        print(f"CRITICAL: 데이터 초기화 중 봇 시작 실패: {e}")
+        # 필요하다면 여기서 봇을 종료하거나, 관리자에게 알림을 보낼 수 있습니다.
+        await bot.close()
+
 def create_embed(player_data):
+    # 1. RANK 정보를 타이틀로 설정
+    rank_info = player_data.get('tier_info', 'Unranked')
+    
+    # 2. description에 순위 정보 추가
+    description = ""
+    rank = player_data.get('rank', 0)
+    rank_percent = player_data.get('rank_percent', 0)
+    if rank > 0:
+        description = f"{rank:,}위 상위 {rank_percent}%"
+    
     embed = discord.Embed(
-        title=f"{player_data['nickname']}",
+        title=rank_info,
+        description=description,
         color=0x00D4AA
     )
     
-    # 모스트 실험체 아이콘 추가
+    # 3. 닉네임과 모스트 실험체는 set_author로 표시
+    nickname = player_data.get('nickname', 'Unknown Player')
+    author_icon_url = None  # Embed.Empty 대신 None 사용
     if player_data.get('most_characters'):
         most_char = player_data['most_characters'][0]
         if most_char.get('image_url'):
-            embed.set_author(
-                name=f"{player_data['nickname']} ({most_char['name']})",
-                icon_url=most_char['image_url']
-            )
-    
-    # 시즌 정보 푸터
-    season_name = player_data.get('season_name', get_season_name(33))
+            author_icon_url = most_char['image_url']
+    embed.set_author(name=nickname, icon_url=author_icon_url)
+
+    # 3. 시즌 정보 푸터
+    season_name = game_data.get_season_name(player_data['season_id'])
     embed.set_footer(text=season_name)
     
-    if player_data.get('tier_info'):
-        embed.add_field(name="RANK", value=f"**{player_data['tier_info']}**", inline=False)
-    
+    # 4. 티어 이미지는 썸네일로 유지
+    if player_data.get('tier_image_url'):
+        embed.set_thumbnail(url=player_data['tier_image_url'])
+
+    # 5. 나머지 정보는 필드로 추가
     if player_data.get('most_characters'):
         top_char = player_data['most_characters'][0]
         embed.add_field(name="가장 많이 플레이한 실험체", value=f"**{top_char['name']}** ({top_char['games']}게임)", inline=True)
@@ -40,21 +73,10 @@ def create_embed(player_data):
         stats = player_data['stats']
         embed.add_field(name="승률", value=f"**{stats.get('winrate', 0):.1f}%**", inline=True)
     
-    if player_data.get('tier_image_url'):
-        tier_image_url = player_data['tier_image_url']
-        if tier_image_url.startswith('//'):
-            tier_image_url = 'https:' + tier_image_url
-        embed.set_thumbnail(url=tier_image_url)
-    
     return embed
 
 def create_character_embed(character, title, description, command_used=""):
-    """캐릭터 기반 에러 임베드 생성"""
-    embed = discord.Embed(
-        title=title,
-        description=description,
-        color=character.get("color", 0xFF0000)
-    )
+    embed = discord.Embed(title=title, description=description, color=character.get("color", 0xFF0000))
     if command_used:
         embed.set_footer(text=f"사용된 명령어: {command_used}")
     return embed
@@ -64,104 +86,209 @@ class StatsView(discord.ui.View):
         super().__init__(timeout=300)
         self.player_data = player_data
         self.played_seasons = played_seasons or []
+        self.show_preseason = False  # False: 정식시즌, True: 프리시즌
 
     @discord.ui.button(label='실험체', style=discord.ButtonStyle.primary)
     async def show_characters(self, interaction: discord.Interaction, button):
         embed = discord.Embed(title=f"{self.player_data['nickname']}님의 실험체", color=0x5865F2)
-        
         most_chars = self.player_data.get('most_characters', [])
         if most_chars:
-            for i, char in enumerate(most_chars[:5]):
+            for i, char in enumerate(most_chars[:10]):  # 10개까지 표시
+                mmr_gain = char.get('mmr_gain', 0)
+                rp_text = f"{mmr_gain:+d} RP" if mmr_gain != 0 else "±0 RP"
+                rp_emoji = "📈" if mmr_gain > 0 else "📉" if mmr_gain < 0 else "➖"
+                avg_rank = char.get('avg_rank', 0)
+                
                 embed.add_field(
-                    name=f"{i+1}. {char['name']}",
-                    value=f"{char['games']}게임, {char['winrate']:.1f}% 승률",
+                    name=f"{i+1}. {char['name']}", 
+                    value=f"{char['games']}게임, {char['winrate']:.1f}% 승률\n평균 {avg_rank:.1f}등, {rp_emoji} {rp_text}", 
                     inline=True
                 )
         else:
             embed.add_field(name="실험체 정보", value="데이터가 없습니다.", inline=False)
-        
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=self, attachments=[])
 
     @discord.ui.button(label='통계', style=discord.ButtonStyle.secondary)
     async def show_stats(self, interaction: discord.Interaction, button):
-        embed = discord.Embed(title=f"{self.player_data['nickname']}님의 통계", color=0xE67E22)
+        await interaction.response.defer()
         
+        embed = discord.Embed(title=f"{self.player_data['nickname']}님의 통계", color=0xE67E22)
         stats = self.player_data.get('stats', {})
+        file_attachment = None
+        
+        # MMR 그래프 생성
+        mmr_history = self.player_data.get('mmr_history', [])
+        if mmr_history and len(mmr_history) >= 2:
+            try:
+                # 임시 파일에 그래프 저장
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                    graph_path = save_mmr_graph_to_file(
+                        mmr_history, 
+                        self.player_data.get('nickname', '플레이어'),
+                        tmp_file.name
+                    )
+                    
+                if graph_path and os.path.exists(graph_path):
+                    file_attachment = discord.File(graph_path, filename="mmr_graph.png")
+                    embed.set_image(url="attachment://mmr_graph.png")
+            except Exception as e:
+                print(f"그래프 생성 오류: {e}")
+        
         if stats:
             embed.add_field(name="게임 수", value=f"{stats.get('total_games', 0)}게임", inline=True)
             embed.add_field(name="승률", value=f"{stats.get('winrate', 0):.1f}%", inline=True)
             embed.add_field(name="평균 순위", value=f"{stats.get('avg_rank', 0):.1f}등", inline=True)
             embed.add_field(name="평균 킬", value=f"{stats.get('avg_kills', 0):.1f}킬", inline=True)
-            embed.add_field(name="MMR", value=f"{self.player_data.get('mmr', 0)}", inline=True)
+            embed.add_field(name="평균 어시", value=f"{stats.get('avg_assists', 0):.1f}어시", inline=True)
+            embed.add_field(name="KDA", value=f"**{stats.get('kda', 0):.2f}**", inline=True)
+            embed.add_field(name="평균 딜량", value=f"{stats.get('avg_damage', 0):,.0f}", inline=True)
+            embed.add_field(name="Top2 비율", value=f"{stats.get('top2_rate', 0):.1f}%", inline=True)
+            embed.add_field(name="Top3 비율", value=f"{stats.get('top3_rate', 0):.1f}%", inline=True)
+            
+            # 듀오 파트너 통계 추가
+            duo_partners = self.player_data.get('duo_partners', [])
+            if duo_partners:
+                # 파트너 정보를 한 줄로 묶어서 표시 (줄 간격 추가)
+                partner_info_str = "\n\u200b\n".join([
+                    f"**{p['nickname']}**: {p['games']}게임, {p['winrate']:.1f}% 승률, 평점 {p['avg_rank']:.1f}등"
+                    for p in duo_partners
+                ])
+                embed.add_field(
+                    name="\n\u200b\n함께 플레이 (최근 20 매치)",
+                    value=f"\u200b\n{partner_info_str}",
+                    inline=False
+                )
         else:
             embed.add_field(name="통계 정보", value="데이터가 없습니다.", inline=False)
         
-        await interaction.response.edit_message(embed=embed, view=self)
+        # 파일과 함께 응답
+        if file_attachment:
+            await interaction.edit_original_response(embed=embed, attachments=[file_attachment], view=self)
+            # 임시 파일 정리
+            try:
+                os.unlink(graph_path)
+            except:
+                pass
+        else:
+            await interaction.edit_original_response(embed=embed, view=self)
+
+    def _is_preseason(self, season_name: str) -> bool:
+        """시즌명으로 프리시즌 여부 판단"""
+        return "프리" in season_name or "Pre" in season_name
+
+    def _filter_seasons_by_type(self):
+        """현재 모드(정식/프리시즌)에 맞는 시즌만 필터링"""
+        if not self.played_seasons:
+            return []
+        
+        filtered = []
+        for season in self.played_seasons:
+            is_preseason = self._is_preseason(season['name'])
+            if self.show_preseason == is_preseason:
+                filtered.append(season)
+        
+        return filtered[:25]  # 최대 25개로 제한
 
     def create_season_select(self):
-        """플레이어가 플레이한 시즌으로 동적 드롭다운 생성"""
-        if not self.played_seasons:
-            # 기본 옵션들
-            options = [
-                discord.SelectOption(label="시즌 8 (현재)", value="33", emoji="🔥"),
-                discord.SelectOption(label="시즌 7", value="31"),
-                discord.SelectOption(label="시즌 6", value="29"),
-                discord.SelectOption(label="시즌 5", value="27"),
-                discord.SelectOption(label="시즌 4", value="25"),
-            ]
-        else:
-            # 플레이한 시즌들로 옵션 생성
-            options = []
-            for season in self.played_seasons:
-                label = f"{season['name']}" + (" (현재)" if season['is_current'] else "")
-                emoji = "🔥" if season['is_current'] else None
-                options.append(discord.SelectOption(
-                    label=label,
-                    value=str(season['id']),
-                    emoji=emoji
-                ))
+        filtered_seasons = self._filter_seasons_by_type()
         
-        select = discord.ui.Select(
-            placeholder="시즌별 전적 보기...",
-            options=options
-        )
+        if not filtered_seasons:
+            return None
+
+        options = []        
+        for season in filtered_seasons:
+            label = f"{season['name']}" + (" (현재)" if season.get('is_current') else "")
+            emoji = "🔥" if season.get('is_current') else None
+            options.append(discord.SelectOption(label=label, value=str(season['id']), emoji=emoji))
+        
+        if not options:
+            return None
+
+        placeholder = "프리시즌별 전적 보기..." if self.show_preseason else "시즌별 전적 보기..."
+        select = discord.ui.Select(placeholder=placeholder, options=options)
         select.callback = self.season_select_callback
         return select
     
     async def season_select_callback(self, interaction):
         await interaction.response.defer()
-        
         season_id = int(interaction.data['values'][0])
         
-        # 선택한 시즌의 전체 데이터 가져오기
         season_player_data = await get_player_season_data(self.player_data['nickname'], season_id)
         
         if season_player_data:
-            # 플레이어 데이터 업데이트
             self.player_data = season_player_data
-            # 새로운 데이터로 임베드 생성
             embed = create_embed(season_player_data)
         else:
+            season_name = game_data.get_season_name(season_id)
             embed = discord.Embed(
-                title=f"{self.player_data['nickname']}님의 {get_season_name(season_id)} 전적",
+                title=f"{self.player_data['nickname']}님의 {season_name} 전적",
                 description="해당 시즌 데이터를 찾을 수 없습니다.",
                 color=0xE74C3C
             )
-            embed.set_footer(text=get_season_name(season_id))
+            embed.set_footer(text=season_name)
         
-        # 새로운 뷰 생성 (드롭다운 다시 추가)
         new_view = StatsView(self.player_data, self.played_seasons)
-        new_view.add_item(new_view.create_season_select())
+        # 현재 시즌 모드 상태 유지
+        new_view.show_preseason = self.show_preseason
+        
+        season_select = new_view.create_season_select()
+        if season_select:
+            new_view.add_item(season_select)
+        
+        # 프리시즌이 있으면 전환 버튼 다시 추가
+        has_preseason = any(new_view._is_preseason(season['name']) for season in self.played_seasons)
+        if has_preseason:
+            toggle_button = discord.ui.Button(
+                label='정식시즌 보기' if new_view.show_preseason else '프리시즌 보기',
+                style=discord.ButtonStyle.secondary,
+                custom_id='toggle_season',
+                row=2
+            )
+            toggle_button.callback = new_view.toggle_season_type
+            new_view.add_item(toggle_button)
+            
+            # 메인으로 버튼도 row=2로 이동
+            for item in new_view.children:
+                if hasattr(item, 'label') and item.label == '메인으로':
+                    item.row = 2
+        
         await interaction.edit_original_response(embed=embed, view=new_view)
+    
+    async def toggle_season_type(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        
+        # 모드 전환
+        self.show_preseason = not self.show_preseason
+        
+        # 전환 버튼 찾아서 라벨 업데이트
+        for item in self.children:
+            if hasattr(item, 'custom_id') and item.custom_id == 'toggle_season':
+                item.label = '정식시즌 보기' if self.show_preseason else '프리시즌 보기'
+                break
+        
+        # 기존 시즌 셀렉트 제거하고 새로 추가
+        # Select 컴포넌트 찾아서 제거
+        for item in list(self.children):
+            if hasattr(item, 'options'):
+                self.remove_item(item)
+                break
+        
+        # 새로운 시즌 셀렉트 추가
+        season_select = self.create_season_select()
+        if season_select:
+            self.add_item(season_select)
+        
+        # 메인 임베드로 돌아가기
+        embed = create_embed(self.player_data)
+        await interaction.edit_original_response(embed=embed, view=self)
 
-    @discord.ui.button(label='메인으로', style=discord.ButtonStyle.gray)
+    @discord.ui.button(label='메인으로', style=discord.ButtonStyle.gray, row=2)
     async def back_to_main(self, interaction: discord.Interaction, button):
         embed = create_embed(self.player_data)
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=self, attachments=[])
 
 @bot.tree.command(name="전적", description="이터널 리턴 플레이어 전적을 검색해요!")
 async def stats_command(interaction: discord.Interaction, 닉네임: str):
-    """플레이어 전적 검색"""
     await interaction.response.defer()
     
     if config.CHAT_CHANNEL_ID and interaction.channel.id != config.CHAT_CHANNEL_ID:
@@ -169,48 +296,56 @@ async def stats_command(interaction: discord.Interaction, 닉네임: str):
         return
     
     try:
-        searching_embed = discord.Embed(
-            title="전적 검색 중...",
-            description=f"**{닉네임}**님의 전적을 검색하고 있어요!",
-            color=characters["debi"]["color"]
-        )
+        searching_embed = discord.Embed(title="전적 검색 중...", description=f"**{닉네임}**님의 전적을 검색하고 있어요!", color=characters["debi"]["color"])
         await interaction.followup.send(embed=searching_embed)
         
-        # 플레이어 기본 데이터와 시즌 목록을 동시에 가져오기
-        player_data_task = get_player_basic_data(닉네임.strip())
-        played_seasons_task = get_player_played_seasons(닉네임.strip())
-        
-        player_data, played_seasons = await asyncio.gather(player_data_task, played_seasons_task)
-        
-        # 초기 로드 시 현재 시즌(시즌 8) 정보 추가
-        if player_data:
-            player_data['season_id'] = 33
-            player_data['season_name'] = get_season_name(33)
+        player_data, played_seasons = await asyncio.gather(
+            get_player_basic_data(닉네임.strip()),
+            get_player_played_seasons(닉네임.strip())
+        )
         
         if not player_data:
-            error_embed = create_character_embed(
-                characters["debi"], 
-                "전적 검색 실패",
-                f"**{닉네임}**님의 전적을 찾을 수 없어!",
-                f"/전적 {닉네임}"
-            )
+            error_embed = create_character_embed(characters["debi"], "전적 검색 실패", f"**{닉네임}**님의 전적을 찾을 수 없어!", f"/전적 {닉네임}")
             await interaction.edit_original_response(embed=error_embed, view=None)
             return
         
         view = StatsView(player_data, played_seasons)
-        view.add_item(view.create_season_select())
+        if played_seasons:
+            # 프리시즌이 있는지 확인
+            has_preseason = any(view._is_preseason(season['name']) for season in played_seasons)
+            
+            # 시즌 셀렉트 추가
+            season_select = view.create_season_select()
+            if season_select:
+                view.add_item(season_select)
+            
+            # 프리시즌이 있으면 전환 버튼 추가
+            if has_preseason:
+                toggle_button = discord.ui.Button(
+                    label='프리시즌 보기', 
+                    style=discord.ButtonStyle.secondary, 
+                    custom_id='toggle_season',
+                    row=2
+                )
+                toggle_button.callback = view.toggle_season_type
+                view.add_item(toggle_button)
+                
+                # 메인으로 버튼도 row=2로 이동
+                for item in view.children:
+                    if hasattr(item, 'label') and item.label == '메인으로':
+                        item.row = 2
+            
         embed = create_embed(player_data)
         response_message = f"{닉네임}님의 전적 찾았어!"
 
         await interaction.edit_original_response(content=response_message, embed=embed, view=view)
         
     except Exception as e:
-        error_embed = create_character_embed(
-            characters["debi"], 
-            "검색 오류",
-            f"**{닉네임}**님 검색 중 오류가 발생했어!",
-            f"/전적 {닉네임}"
-        )
+        print(f"--- 전적 명령어 오류 발생 ---")
+        import traceback
+        traceback.print_exc()
+        print(f"--- 오류 끝 ---")
+        error_embed = create_character_embed(characters["debi"], "검색 오류", f"**{닉네임}**님 검색 중 오류가 발생했어!", f"/전적 {닉네임}")
         await interaction.edit_original_response(embed=error_embed, view=None)
 
 @bot.tree.command(name="채널설정", description="관리자 전용: 공지채널과 대화채널을 설정합니다")
@@ -220,11 +355,9 @@ async def set_channels(interaction: discord.Interaction, 공지채널: discord.T
         return
     
     result_messages = []
-    
     if 공지채널:
         config.ANNOUNCEMENT_CHANNEL_ID = 공지채널.id
         result_messages.append(f"공지채널이 {공지채널.mention}로 설정되었습니다.")
-    
     if 대화채널:
         config.CHAT_CHANNEL_ID = 대화채널.id
         result_messages.append(f"대화채널이 {대화채널.mention}로 설정되었습니다.")
@@ -232,22 +365,18 @@ async def set_channels(interaction: discord.Interaction, 공지채널: discord.T
     if not result_messages:
         result_messages.append("설정할 채널을 선택해주세요.")
     
-    embed = discord.Embed(
-        title="채널 설정 완료",
-        description="\n".join(result_messages),
-        color=characters["debi"]["color"]
-    )
-    
+    embed = discord.Embed(title="채널 설정 완료", description="\n".join(result_messages), color=characters["debi"]["color"])
     await interaction.response.send_message(embed=embed)
 
 def run_bot():
     if not DISCORD_TOKEN:
+        print("CRITICAL: DISCORD_TOKEN이 설정되지 않았습니다.")
         return
     
     try:
         bot.run(DISCORD_TOKEN)
     except Exception as e:
-        pass
+        print(f"CRITICAL: 봇 실행 중 치명적인 오류 발생: {e}")
 
 if __name__ == "__main__":
     run_bot()

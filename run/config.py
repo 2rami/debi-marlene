@@ -78,14 +78,3 @@ characters = {
     }
 }
 
-# 티어 이미지 URL 매핑
-tier_image_urls = {
-    "아이언": "https://static.dakgg.io/images/er/tiers/01-iron.png",
-    "브론즈": "https://static.dakgg.io/images/er/tiers/02-bronze.png", 
-    "실버": "https://static.dakgg.io/images/er/tiers/03-silver.png",
-    "골드": "https://static.dakgg.io/images/er/tiers/04-gold.png",
-    "플래티넘": "https://static.dakgg.io/images/er/tiers/05-platinum.png",
-    "다이아몬드": "https://static.dakgg.io/images/er/tiers/06-diamond.png",
-    "미스릴": "https://static.dakgg.io/images/er/tiers/07-mithril.png",
-    "오리칼쿰": "https://static.dakgg.io/images/er/tiers/08-orihalcum.png"
-}

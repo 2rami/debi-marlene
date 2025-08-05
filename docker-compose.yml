@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  discord-bot:
+    build: .
+    container_name: debi-marlene-bot
+    restart: unless-stopped
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - EternalReturn_API_KEY=${EternalReturn_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+    volumes:
+      - ./run/settings.json:/app/run/settings.json
+    networks:
+      - bot-network
+
+networks:
+  bot-network:
+    driver: bridge

@@ -1,0 +1,332 @@
+import discord
+from discord.ext import tasks
+from googleapiclient.discovery import build
+from run.config import YOUTUBE_API_KEY, ETERNAL_RETURN_CHANNEL_ID, characters, get_guild_settings
+from run import config
+
+youtube = None
+bot_instance = None
+
+def set_bot_instance(bot):
+    global bot_instance
+    bot_instance = bot
+
+async def initialize_youtube():
+    global youtube
+    if YOUTUBE_API_KEY:
+        try:
+            youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+            print("✅ 유튜브 API 초기화 완료 - 채널 메시지 기반 중복 체크 사용")
+        except Exception as e:
+            print(f"❌ 유튜브 API 초기화 실패: {e}")
+            youtube = None
+    else:
+        print("⚠️ YOUTUBE_API_KEY가 설정되지 않아 유튜브 관련 기능을 비활성화합니다.")
+        youtube = None
+
+async def check_video_duration(video_id):
+    if not youtube:
+        return False
+    try:
+        video_response = youtube.videos().list(
+            part='contentDetails',
+            id=video_id
+        ).execute()
+        
+        if video_response['items']:
+            duration = video_response['items'][0]['contentDetails']['duration']
+            import re
+            match = re.match(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?', duration)
+            if match:
+                hours, minutes, seconds = (int(g or 0) for g in match.groups())
+                total_seconds = hours * 3600 + minutes * 60 + seconds
+                return total_seconds <= 60
+        return False
+    except Exception as e:
+        print(f"❌ 영상 길이 체크 오류: {e}")
+        return False
+
+async def get_last_sent_video_id_from_channel(channel):
+    if not channel or not bot_instance:
+        return None
+    try:
+        async for message in channel.history(limit=50):
+            if message.author.id == bot_instance.user.id and message.embeds:
+                for embed in message.embeds:
+                    if embed.url and ('youtube.com/watch?v=' in embed.url or 'youtu.be/' in embed.url):
+                        import re
+                        match = re.search(r'(?:v=|/)([a-zA-Z0-9_-]{11})', embed.url)
+                        if match:
+                            return match.group(1)
+    except discord.Forbidden:
+        print(f"❌ 채널 '{channel.name}'의 메시지를 읽을 권한이 없습니다.")
+    except Exception as e:
+        print(f"❌ 채널 '{channel.name}'에서 마지막 영상 ID 확인 중 오류: {e}")
+    return None
+
+async def _send_notification(channel_or_user, video_id, snippet):
+    """지정된 채널 또는 유저에게 알림을 보냅니다."""
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
+    try:
+        is_shorts = await check_video_duration(video_id)
+        char_key = "debi" if is_shorts else "marlene"
+        character = characters[char_key]
+        action_text = "새로운 쇼츠를 발견했어!" if is_shorts else "새로운 영상을 가져왔어."
+
+        embed = discord.Embed(
+            title=f"**{snippet['title']}**",
+            description=snippet.get('description', '')[:150] + '...' if snippet.get('description') else action_text,
+            color=character['color']
+        )
+        embed.set_author(name=f"{character['name']}이(가) {action_text}", icon_url=character['image'])
+        embed.set_thumbnail(url=snippet['thumbnails']['high']['url'])
+        
+        await channel_or_user.send(video_url)
+        await channel_or_user.send(embed=embed)
+        return True
+    except discord.Forbidden:
+        target_name = channel_or_user.name if hasattr(channel_or_user, 'name') else channel_or_user.id
+        print(f"  -> ❌ 전송 실패: '{target_name}'에게 메시지를 보낼 권한이 없습니다.")
+        return False
+    except Exception as e:
+        target_name = channel_or_user.name if hasattr(channel_or_user, 'name') else channel_or_user.id
+        print(f"  -> ❌ 전송 실패: '{target_name}' 처리 중 오류 발생: {e}")
+        return False
+
+@tasks.loop(minutes=10)
+async def check_new_videos():
+    if not youtube or not bot_instance:
+        return
+
+    print("🚀 유튜브 새 영상 체크 시작")
+    try:
+        # 1. 최신 영상 정보 가져오기
+        channel_response = youtube.channels().list(part='contentDetails', id=ETERNAL_RETURN_CHANNEL_ID).execute()
+        if not channel_response.get('items'): return
+        uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+        playlist_response = youtube.playlistItems().list(part='snippet', playlistId=uploads_playlist_id, maxResults=10).execute()
+        if not playlist_response.get('items'): return
+
+        non_live_videos = [item for item in playlist_response['items'] if 'liveStreamingDetails' not in youtube.videos().list(part='snippet,liveStreamingDetails', id=item['snippet']['resourceId']['videoId']).execute().get('items', [{}])[0]]
+        if not non_live_videos: return
+
+        latest_video = non_live_videos[0]
+        video_id = latest_video['snippet']['resourceId']['videoId']
+        snippet = latest_video['snippet']
+
+        # 2. 마지막으로 확인한 영상과 동일하면 종료
+        last_checked_id = config.get_global_setting("LAST_CHECKED_VIDEO_ID")
+        if last_checked_id == video_id:
+            print("ℹ️ 새로운 영상이 없습니다. 체크 종료.")
+            return
+
+        # 3. 서버 채널에 공지 전송
+        print("- 서버 채널 공지 시작")
+        for guild in bot_instance.guilds:
+            guild_settings = config.get_guild_settings(guild.id)
+            channel_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
+            if channel_id:
+                channel = bot_instance.get_channel(channel_id)
+                if channel:
+                    last_sent_id = await get_last_sent_video_id_from_channel(channel)
+                    if last_sent_id != video_id:
+                        print(f"  -> 서버 '{guild.name}'에 새 영상 전송")
+                        await _send_notification(channel, video_id, snippet)
+        
+        # 4. 개인 구독자에게 DM 전송
+        print("- 개인 구독자 DM 전송 시작")
+        subscribers = config.get_youtube_subscribers()
+        for user_id in subscribers:
+            try:
+                user = await bot_instance.fetch_user(user_id)
+                print(f"  -> 구독자 '{user.name}'에게 DM 전송")
+                await _send_notification(user, video_id, snippet)
+            except discord.NotFound:
+                print(f"  -> ❌ 구독자 ID({user_id})를 찾을 수 없습니다. 목록에서 제거를 고려해보세요.")
+            except Exception as e:
+                print(f"  -> ❌ 구독자 ID({user_id}) 처리 중 오류: {e}")
+
+        # 5. 마지막으로 확인한 영상 ID 저장
+        config.save_global_setting("LAST_CHECKED_VIDEO_ID", video_id)
+        print(f"✅ 새 영상 ID({video_id})를 전역 설정에 저장했습니다.")
+
+    except Exception as e:
+        print(f"❌ 유튜브 영상 확인 중 심각한 오류 발생: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        print("🚀 유튜브 새 영상 체크 종료\n")
+
+
+async def manual_check_new_videos():
+    """수동으로 유튜브 새 영상을 확인하는 함수 (테스트용)"""
+    if not youtube or not bot_instance:
+        raise Exception("유튜브 API 또는 봇 인스턴스가 초기화되지 않았습니다.")
+    
+    print("🚀 유튜브 새 영상 수동 체크 시작")
+    try:
+        # 1. 최신 영상 정보 가져오기
+        channel_response = youtube.channels().list(part='contentDetails', id=ETERNAL_RETURN_CHANNEL_ID).execute()
+        if not channel_response.get('items'): 
+            raise Exception("채널 정보를 가져올 수 없습니다.")
+            
+        uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+        playlist_response = youtube.playlistItems().list(part='snippet', playlistId=uploads_playlist_id, maxResults=10).execute()
+        if not playlist_response.get('items'): 
+            raise Exception("플레이리스트 정보를 가져올 수 없습니다.")
+
+        non_live_videos = [item for item in playlist_response['items'] if 'liveStreamingDetails' not in youtube.videos().list(part='snippet,liveStreamingDetails', id=item['snippet']['resourceId']['videoId']).execute().get('items', [{}])[0]]
+        if not non_live_videos: 
+            raise Exception("일반 영상을 찾을 수 없습니다. (라이브 제외)")
+
+        latest_video = non_live_videos[0]
+        video_id = latest_video['snippet']['resourceId']['videoId']
+        snippet = latest_video['snippet']
+
+        # 2. 마지막으로 확인한 영상과 동일하면 메시지 출력
+        last_checked_id = config.get_global_setting("LAST_CHECKED_VIDEO_ID")
+        if last_checked_id == video_id:
+            print("ℹ️ 새로운 영상이 없습니다. (이미 전송된 영상)")
+            return f"새로운 영상이 없습니다. 최신 영상: {snippet['title']}"
+
+        # 3. 서버 채널에 공지 전송
+        sent_channels = 0
+        print("- 서버 채널 공지 시작")
+        for guild in bot_instance.guilds:
+            guild_settings = config.get_guild_settings(guild.id)
+            channel_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
+            if channel_id:
+                channel = bot_instance.get_channel(channel_id)
+                if channel:
+                    last_sent_id = await get_last_sent_video_id_from_channel(channel)
+                    if last_sent_id != video_id:
+                        print(f"  -> 서버 '{guild.name}'에 새 영상 전송")
+                        await _send_notification(channel, video_id, snippet)
+                        sent_channels += 1
+        
+        # 4. 개인 구독자에게 DM 전송
+        sent_dms = 0
+        print("- 개인 구독자 DM 전송 시작")
+        subscribers = config.get_youtube_subscribers()
+        for user_id in subscribers:
+            try:
+                user = await bot_instance.fetch_user(user_id)
+                print(f"  -> 구독자 '{user.name}'에게 DM 전송")
+                await _send_notification(user, video_id, snippet)
+                sent_dms += 1
+            except Exception as e:
+                print(f"  -> ❌ 구독자 ID({user_id}) 처리 중 오류: {e}")
+
+        # 5. 마지막으로 확인한 영상 ID 저장
+        config.save_global_setting("LAST_CHECKED_VIDEO_ID", video_id)
+        print(f"✅ 새 영상 ID({video_id})를 전역 설정에 저장했습니다.")
+        
+        return f"테스트 완료! 영상: {snippet['title']}\n서버 {sent_channels}개, DM {sent_dms}개 전송"
+
+    except Exception as e:
+        print(f"❌ 유튜브 영상 확인 중 심각한 오류 발생: {e}")
+        import traceback
+        traceback.print_exc()
+        raise e
+    finally:
+        print("🚀 유튜브 새 영상 수동 체크 종료\n")
+
+async def manual_check_for_user(user):
+    """특정 사용자에게만 유튜브 새 영상 테스트를 전송하는 함수"""
+    if not youtube or not bot_instance:
+        raise Exception("유튜브 API 또는 봇 인스턴스가 초기화되지 않았습니다.")
+    
+    print(f"🚀 사용자 '{user.name}'에 대한 유튜브 테스트 시작")
+    try:
+        # 1. 최신 영상 정보 가져오기
+        channel_response = youtube.channels().list(part='contentDetails', id=ETERNAL_RETURN_CHANNEL_ID).execute()
+        if not channel_response.get('items'): 
+            raise Exception("채널 정보를 가져올 수 없습니다.")
+            
+        uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+        playlist_response = youtube.playlistItems().list(part='snippet', playlistId=uploads_playlist_id, maxResults=10).execute()
+        if not playlist_response.get('items'): 
+            raise Exception("플레이리스트 정보를 가져올 수 없습니다.")
+
+        non_live_videos = [item for item in playlist_response['items'] if 'liveStreamingDetails' not in youtube.videos().list(part='snippet,liveStreamingDetails', id=item['snippet']['resourceId']['videoId']).execute().get('items', [{}])[0]]
+        if not non_live_videos: 
+            raise Exception("일반 영상을 찾을 수 없습니다. (라이브 제외)")
+
+        latest_video = non_live_videos[0]
+        video_id = latest_video['snippet']['resourceId']['videoId']
+        snippet = latest_video['snippet']
+
+        # 2. 해당 사용자에게 테스트 전송
+        print(f"  -> 사용자 '{user.name}'에게 테스트 영상 전송")
+        success = await _send_notification(user, video_id, snippet)
+        
+        if success:
+            return f"테스트 완료! 영상: {snippet['title'][:50]}...\n사용자 '{user.name}'에게 전송 성공"
+        else:
+            return f"테스트 실패! 영상: {snippet['title'][:50]}...\n사용자 '{user.name}'에게 전송 실패"
+
+    except Exception as e:
+        print(f"❌ 사용자 유튜브 테스트 중 오류 발생: {e}")
+        raise e
+    finally:
+        print("🚀 사용자 유튜브 테스트 종료\n")
+
+async def manual_check_for_guild(guild):
+    """특정 서버에만 유튜브 새 영상 테스트를 전송하는 함수"""
+    if not youtube or not bot_instance:
+        raise Exception("유튜브 API 또는 봇 인스턴스가 초기화되지 않았습니다.")
+    
+    print(f"🚀 서버 '{guild.name}'에 대한 유튜브 테스트 시작")
+    try:
+        # 1. 최신 영상 정보 가져오기
+        channel_response = youtube.channels().list(part='contentDetails', id=ETERNAL_RETURN_CHANNEL_ID).execute()
+        if not channel_response.get('items'): 
+            raise Exception("채널 정보를 가져올 수 없습니다.")
+            
+        uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+        playlist_response = youtube.playlistItems().list(part='snippet', playlistId=uploads_playlist_id, maxResults=10).execute()
+        if not playlist_response.get('items'): 
+            raise Exception("플레이리스트 정보를 가져올 수 없습니다.")
+
+        non_live_videos = [item for item in playlist_response['items'] if 'liveStreamingDetails' not in youtube.videos().list(part='snippet,liveStreamingDetails', id=item['snippet']['resourceId']['videoId']).execute().get('items', [{}])[0]]
+        if not non_live_videos: 
+            raise Exception("일반 영상을 찾을 수 없습니다. (라이브 제외)")
+
+        latest_video = non_live_videos[0]
+        video_id = latest_video['snippet']['resourceId']['videoId']
+        snippet = latest_video['snippet']
+
+        # 2. 해당 서버의 공지 채널 확인 및 전송
+        guild_settings = config.get_guild_settings(guild.id)
+        channel_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
+        
+        if not channel_id:
+            return f"테스트 실패! 서버 '{guild.name}'에 공지 채널이 설정되지 않았습니다."
+        
+        channel = bot_instance.get_channel(channel_id)
+        if not channel:
+            return f"테스트 실패! 설정된 공지 채널을 찾을 수 없습니다."
+
+        # 3. 채널 메시지 기반 중복 체크 (실제 알림과 동일한 방식)
+        last_sent_id = await get_last_sent_video_id_from_channel(channel)
+        if last_sent_id == video_id:
+            return f"테스트 결과: 이미 전송된 영상입니다.\n영상: {snippet['title'][:50]}...\n채널: #{channel.name}"
+        
+        # 4. 테스트 전송
+        print(f"  -> 서버 '{guild.name}'의 #{channel.name} 채널에 테스트 영상 전송")
+        success = await _send_notification(channel, video_id, snippet)
+        
+        if success:
+            return f"테스트 완료! 영상: {snippet['title'][:50]}...\n서버: {guild.name}\n채널: #{channel.name}\n전송 성공"
+        else:
+            return f"테스트 실패! 영상: {snippet['title'][:50]}...\n서버: {guild.name}\n채널: #{channel.name}\n전송 실패 (권한 부족?)"
+
+    except Exception as e:
+        print(f"❌ 서버 유튜브 테스트 중 오류 발생: {e}")
+        raise e
+    finally:
+        print(f"🚀 서버 '{guild.name}' 유튜브 테스트 종료\n")
+
+@check_new_videos.before_loop
+async def before_check():
+    await bot_instance.wait_until_ready()

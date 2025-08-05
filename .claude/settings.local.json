@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:er.dakgg.io)",
+      "Bash(python:*)",
+      "Bash(env)",
+      "Bash(SUPABASE_ACCESS_TOKEN=\"sbp_20d8d7ce434efa56316d7c90b5517f047295cbe1\" python3 setup_supabase_characters.py)",
+      "WebFetch(domain:dak.gg)",
+      "Bash(find:*)",
+      "Bash(chmod:*)",
+      "Bash(aws:*)",
+      "Bash(curl:*)",
+      "Bash(sudo installer:*)",
+      "Bash(brew install:*)",
+      "Bash(./deploy-aws.sh)",
+      "Bash(open:*)",
+      "Bash(docker:*)",
+      "Bash(--cluster debi-marlene-cluster )",
+      "Bash(--service-name debi-marlene-service )",
+      "Bash(--task-definition debi-marlene-bot:1 )",
+      "Bash(--desired-count 1 )",
+      "Bash(--launch-type FARGATE )",
+      "Bash(--network-configuration \"awsvpcConfiguration={subnets=[subnet-0438a822429dc7338],securityGroups=[sg-0febd4ae901273a9b],assignPublicIp=ENABLED}\")",
+      "Bash(--cluster debi-marlene-cluster )",
+      "Bash(--service-name debi-marlene-service )",
+      "Bash(--task-definition debi-marlene-bot:1 )",
+      "Bash(--desired-count 1 )",
+      "Bash(--launch-type FARGATE )",
+      "Bash(--network-configuration \"awsvpcConfiguration={subnets=[subnet-0eefaf57006bd7a62],securityGroups=[sg-016ead77129795d79],assignPublicIp=ENABLED}\")",
+      "Bash(pkill:*)",
+      "Bash(lsof:*)",
+      "Bash(pgrep:*)"
+    ],
+    "deny": []
+  }
+}

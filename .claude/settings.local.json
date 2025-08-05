@@ -34,7 +34,12 @@
       "Bash(--network-configuration \"awsvpcConfiguration={subnets=[subnet-0eefaf57006bd7a62],securityGroups=[sg-016ead77129795d79],assignPublicIp=ENABLED}\")",
       "Bash(pkill:*)",
       "Bash(lsof:*)",
-      "Bash(pgrep:*)"
+      "Bash(pgrep:*)",
+      "Bash(git rebase:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout --orphan clean-branch)"
     ],
     "deny": []
   }

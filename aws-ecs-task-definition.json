@@ -1,0 +1,32 @@
+{
+  "family": "debi-marlene-bot",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::718942600976:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "discord-bot",
+      "image": "718942600976.dkr.ecr.ap-northeast-2.amazonaws.com/debi-marlene-bot:latest",
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/debi-marlene-bot",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "secrets": [
+        {"name": "DISCORD_TOKEN", "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:718942600976:secret:debi-marlene/discord-token"},
+        {"name": "EternalReturn_API_KEY", "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:718942600976:secret:debi-marlene/eternalreturn-api-key"},
+        {"name": "CLAUDE_API_KEY", "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:718942600976:secret:debi-marlene/claude-api-key"},
+        {"name": "YOUTUBE_API_KEY", "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:718942600976:secret:debi-marlene/youtube-api-key"}
+      ],
+      "environment": [
+        {"name": "OWNER_ID", "value": "809085215237996584"}
+      ]
+    }
+  ]
+}

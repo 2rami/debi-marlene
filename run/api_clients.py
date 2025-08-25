@@ -11,6 +11,9 @@ class GameDataCache:
         self.characters: Dict[int, Any] = {}
         self.all_skins: Dict[int, Any] = {} # 모든 스킨을 ID로 저장
         self.tiers: Dict[int, Any] = {}
+        self.items: Dict[int, Any] = {}  # 아이템 데이터
+        self.masteries: Dict[int, Any] = {}  # 무기(마스터리) 데이터
+        self.trait_skills: Dict[int, Any] = {}  # 특성 스킬 데이터
         self.current_season_id: Optional[int] = None
 
     def get_season_name(self, season_id: int) -> str:
@@ -24,7 +27,18 @@ class GameDataCache:
         return None
 
     def get_character_name(self, char_id: int) -> str:
-        return self.characters.get(char_id, {}).get('name', f'Unknown_{char_id}')
+        if not self.characters:
+            print("❌ 캐릭터 데이터가 로드되지 않았습니다!")
+            return f'Unknown_{char_id}'
+        
+        char_name = self.characters.get(char_id, {}).get('name', f'Unknown_{char_id}')
+        if char_name == f'Unknown_{char_id}':
+            print(f"❌ 캐릭터 ID {char_id}를 찾을 수 없습니다. 로드된 캐릭터 수: {len(self.characters)}")
+            # 처음 몇 개 캐릭터 ID 출력
+            if self.characters:
+                sample_ids = list(self.characters.keys())[:5]
+                print(f"   로드된 캐릭터 ID 예시: {sample_ids}")
+        return char_name
 
     def get_skin_image_url(self, skin_id: int) -> Optional[str]:
         """스킨 ID로 이미지 URL을 반환합니다."""
@@ -40,10 +54,66 @@ class GameDataCache:
     def get_tier_image_url(self, tier_id: int) -> str:
         default_url = "https://cdn.dak.gg/assets/er/images/rank/full/0.png"
         return self.tiers.get(tier_id, {}).get('imageUrl', default_url)
+    
+    def get_item_image_url(self, item_id: int) -> Optional[str]:
+        """아이템 ID로 이미지 URL을 반환합니다 (CDN 직접 생성)."""
+        if item_id:
+            # CDN URL 직접 생성 (메인 화면 방식)
+            return f"https://cdn.dak.gg/assets/er/game-assets/8.4.0/ItemIcon_{item_id}.png"
+        return None
+    
+    def get_item_grade(self, item_id: int) -> str:
+        """아이템 ID로 등급을 반환합니다."""
+        item_info = self.items.get(item_id)
+        if item_info:
+            grade = item_info.get('grade', 'Common')
+            # 등급 이름 한글화
+            grade_map = {
+                'Common': '일반',
+                'Uncommon': '고급', 
+                'Rare': '희귀',
+                'Epic': '영웅',
+                'Legend': '전설',
+                'Mythic': '신화'
+            }
+            return grade_map.get(grade, grade)
+        return '일반'
+    
+    def get_weapon_image_url(self, weapon_id: int) -> Optional[str]:
+        """무기 ID로 이미지 URL을 반환합니다 (CDN 직접 생성)."""
+        if weapon_id:
+            # CDN URL 직접 생성 (메인 화면 방식)
+            return f"https://cdn.dak.gg/assets/er/game-assets/8.4.0/Ico_Mastery_{weapon_id}.png"
+        return None
+    
+    def get_trait_image_url(self, trait_id: int) -> Optional[str]:
+        """특성 ID로 이미지 URL을 반환합니다 (CDN 직접 생성)."""
+        if trait_id:
+            # CDN URL 직접 생성 (메인 화면 방식)
+            return f"https://cdn.dak.gg/assets/er/game-assets/8.4.0/TraitIcon_{trait_id}.png"
+        return None
 
 # --- 전역 인스턴스 및 상수 ---
 
 game_data = GameDataCache()
+
+async def load_character_data_fallback():
+    """캐릭터 데이터 로드 실패 시 대체 로딩 방법"""
+    try:
+        print("🔁 캐릭터 데이터 대체 로딩 시도...")
+        url = f"{DAKGG_API_BASE}/data/characters?hl=ko"
+        data = await _fetch_api(url)
+        if data and 'characters' in data:
+            for char in data.get('characters', []):
+                game_data.characters[char['id']] = char
+                if 'skins' in char:
+                    for skin in char['skins']:
+                        game_data.all_skins[skin['id']] = skin
+            print("✅ 캐릭터 데이터 대체 로딩 성공")
+        else:
+            print("❌ 캐릭터 데이터 대체 로딩 실패")
+    except Exception as e:
+        print(f"캐릭터 데이터 대체 로딩 오류: {e}")
 
 DAKGG_API_BASE = "https://er.dakgg.io/api/v1"
 API_HEADERS = {
@@ -56,83 +126,233 @@ API_HEADERS = {
 # --- 데이터 초기화 ---
 
 async def initialize_game_data():
-    print("⏳ DAK.GG 데이터 초기화를 시작합니다...")
+    import sys
+    print("⏳ DAK.GG 데이터 초기화를 시작합니다...", flush=True)
+    sys.stdout.flush()
     
-    async with aiohttp.ClientSession(headers=API_HEADERS) as session:
-        tasks = {
-            'current_season': session.get("https://er.dakgg.io/api/v0/current-season"),
-            'seasons': session.get(f"{DAKGG_API_BASE}/data/seasons?hl=ko"),
-            'characters': session.get(f"{DAKGG_API_BASE}/data/characters?hl=ko"),
-            'tiers': session.get(f"{DAKGG_API_BASE}/data/tiers?hl=ko")
-        }
-        responses = await asyncio.gather(*tasks.values(), return_exceptions=True)
-        results: Dict[str, Any] = dict(zip(tasks.keys(), responses))
+    # 15초 타임아웃으로 ClientSession 생성
+    timeout = aiohttp.ClientTimeout(total=15)
+    async with aiohttp.ClientSession(headers=API_HEADERS, timeout=timeout) as session:
+        try:
+            print("📡 API 요청들을 준비 중...", flush=True)
+            sys.stdout.flush()
+            
+            tasks = {
+                'current_season': session.get("https://er.dakgg.io/api/v0/current-season"),
+                'seasons': session.get(f"{DAKGG_API_BASE}/data/seasons?hl=ko"),
+                'characters': session.get(f"{DAKGG_API_BASE}/data/characters?hl=ko"),
+                'tiers': session.get(f"{DAKGG_API_BASE}/data/tiers?hl=ko"),
+                'items': session.get(f"{DAKGG_API_BASE}/data/items?hl=ko"),
+                'masteries': session.get(f"{DAKGG_API_BASE}/data/masteries?hl=ko"),
+                'trait_skills': session.get(f"{DAKGG_API_BASE}/data/trait-skills?hl=ko")
+            }
+            
+            print(f"📡 {len(tasks)}개 API 요청 실행 중...", flush=True)
+            sys.stdout.flush()
+            
+            responses = await asyncio.gather(*tasks.values(), return_exceptions=True)
+            results: Dict[str, Any] = dict(zip(tasks.keys(), responses))
+            
+            print("✅ 모든 API 요청 완료, 데이터 처리 시작...", flush=True)
+            sys.stdout.flush()
+            
+        except Exception as e:
+            print(f"❌ HTTP 요청 중 오류: {e}", flush=True)
+            sys.stdout.flush()
+            return
 
     # 현재 시즌 데이터 처리 (v0/current-season 우선 사용)
     current_season_resp = results.get('current_season')
     if isinstance(current_season_resp, aiohttp.ClientResponse) and current_season_resp.status == 200:
         current_season_data = await current_season_resp.json()
+        current_season_resp.close()
         game_data.current_season_id = current_season_data.get('id')
         print(f"✅ 현재 시즌 정보 로드 완료 (v0 API): {game_data.current_season_id}")
     else:
+        if isinstance(current_season_resp, aiohttp.ClientResponse):
+            current_season_resp.close()
         print("⚠️ v0/current-season API 실패, 기존 방법 사용")
         game_data.current_season_id = None
     
     # 전체 시즌 데이터 처리
     seasons_resp = results.get('seasons')
-    if isinstance(seasons_resp, aiohttp.ClientResponse) and seasons_resp.status == 200:
-        data = await seasons_resp.json()
-        game_data.seasons = {str(s['id']): s for s in data.get('seasons', [])}
-        
-        # v0 API로 현재 시즌을 못 가져왔으면 기존 방법 사용
-        if game_data.current_season_id is None:
-            current_season = next((s for s in data.get('seasons', []) if s.get('isCurrent')), None)
-            if current_season:
-                game_data.current_season_id = current_season['id']
-                print(f"✅ 시즌 데이터 로드 완료 (기존 방법): {game_data.current_season_id}")
+    try:
+        if isinstance(seasons_resp, aiohttp.ClientResponse) and seasons_resp.status == 200:
+            data = await seasons_resp.json()
+            seasons_resp.close()
+            game_data.seasons = {str(s['id']): s for s in data.get('seasons', [])}
+            
+            # v0 API로 현재 시즌을 못 가져왔으면 기존 방법 사용
+            if game_data.current_season_id is None:
+                current_season = next((s for s in data.get('seasons', []) if s.get('isCurrent')), None)
+                if current_season:
+                    game_data.current_season_id = current_season['id']
+                    print(f"✅ 시즌 데이터 로드 완료 (기존 방법): {game_data.current_season_id}")
+                else:
+                    raise Exception("❌ 치명적 오류: 현재 시즌 정보를 찾을 수 없습니다.")
             else:
-                raise Exception("❌ 치명적 오류: 현재 시즌 정보를 찾을 수 없습니다.")
+                print(f"✅ 전체 시즌 데이터 로드 완료")
         else:
-            print(f"✅ 전체 시즌 데이터 로드 완료")
-    else:
-        raise Exception(f"❌ 치명적 오류: 시즌 데이터를 가져오지 못했습니다. 응답: {seasons_resp}")
+            if isinstance(seasons_resp, aiohttp.ClientResponse):
+                seasons_resp.close()
+            raise Exception(f"❌ 치명적 오류: 시즌 데이터를 가져오지 못했습니다. 응답: {seasons_resp}")
+    except Exception as e:
+        if isinstance(seasons_resp, aiohttp.ClientResponse):
+            seasons_resp.close()
+        raise e
 
     # 캐릭터 및 스킨 데이터 처리
     characters_resp = results.get('characters')
-    if isinstance(characters_resp, aiohttp.ClientResponse) and characters_resp.status == 200:
-        data = await characters_resp.json()
-        for char in data.get('characters', []):
-            game_data.characters[char['id']] = char
-            if 'skins' in char:
-                for skin in char['skins']:
-                    game_data.all_skins[skin['id']] = skin
-        print("✅ 캐릭터 및 스킨 데이터 로드 완료")
-    else:
-        print(f"⚠️ 경고: 캐릭터 데이터를 가져오지 못했습니다. 응답: {characters_resp}")
+    try:
+        if isinstance(characters_resp, aiohttp.ClientResponse):
+            if characters_resp.status == 200:
+                data = await characters_resp.json()
+                characters_resp.close()
+                for char in data.get('characters', []):
+                    game_data.characters[char['id']] = char
+                    if 'skins' in char:
+                        for skin in char['skins']:
+                            game_data.all_skins[skin['id']] = skin
+                print("✅ 캐릭터 및 스킨 데이터 로드 완료")
+            else:
+                characters_resp.close()
+                print(f"⚠️ 경고: 캐릭터 데이터를 가져오지 못했습니다. 상태: {characters_resp.status}")
+                # 캐릭터 데이터가 중요하므로 다른 방법으로 다시 시도
+                await load_character_data_fallback()
+        else:
+            print(f"⚠️ 경고: 캐릭터 데이터 응답이 올바르지 않습니다: {characters_resp}")
+            # 캐릭터 데이터가 중요하므로 다른 방법으로 다시 시도
+            await load_character_data_fallback()
+    except Exception as e:
+        if isinstance(characters_resp, aiohttp.ClientResponse) and not characters_resp.closed:
+            characters_resp.close()
+        print(f"캐릭터 데이터 처리 중 오류: {e}")
+        # 캐릭터 데이터가 중요하므로 다른 방법으로 다시 시도
+        await load_character_data_fallback()
 
     # 티어 데이터 처리
     tiers_resp = results.get('tiers')
-    if isinstance(tiers_resp, aiohttp.ClientResponse) and tiers_resp.status == 200:
-        data = await tiers_resp.json()
-        game_data.tiers = {t['id']: {'name': t['name'], 'imageUrl': f"https:{t['imageUrl']}" if t.get('imageUrl', '').startswith('//') else t.get('imageUrl')} for t in data.get('tiers', [])}
-        print("✅ 티어 데이터 로드 완료")
-    else:
-        print(f"⚠️ 경고: 티어 데이터를 가져오지 못했습니다. 응답: {tiers_resp}")
+    try:
+        if isinstance(tiers_resp, aiohttp.ClientResponse) and tiers_resp.status == 200:
+            data = await tiers_resp.json()
+            tiers_resp.close()
+            game_data.tiers = {t['id']: {'name': t['name'], 'imageUrl': f"https:{t['imageUrl']}" if t.get('imageUrl', '').startswith('//') else t.get('imageUrl')} for t in data.get('tiers', [])}
+            print("✅ 티어 데이터 로드 완료")
+        else:
+            if isinstance(tiers_resp, aiohttp.ClientResponse):
+                tiers_resp.close()
+            print(f"⚠️ 경고: 티어 데이터를 가져오지 못했습니다. 응답: {tiers_resp}")
+    except Exception as e:
+        if isinstance(tiers_resp, aiohttp.ClientResponse):
+            tiers_resp.close()
+        print(f"티어 데이터 처리 중 오류: {e}")
 
-    print("🚀 모든 DAK.GG 데이터 초기화 완료!")
+    # 아이템 데이터 처리
+    items_resp = results.get('items')
+    try:
+        if isinstance(items_resp, aiohttp.ClientResponse):
+            if items_resp.status == 200:
+                data = await items_resp.json()
+                items_resp.close()
+                for item in data.get('items', []):
+                    game_data.items[item['id']] = item
+                print("✅ 아이템 데이터 로드 완료")
+            else:
+                items_resp.close()
+                print(f"⚠️ 경고: 아이템 데이터를 가져오지 못했습니다. 상태: {items_resp.status}")
+        else:
+            print(f"⚠️ 경고: 아이템 데이터 응답이 올바르지 않습니다: {items_resp}")
+    except Exception as e:
+        if isinstance(items_resp, aiohttp.ClientResponse) and not items_resp.closed:
+            items_resp.close()
+        print(f"아이템 데이터 처리 중 오류: {e}")
+    
+    # 무기(마스터리) 데이터 처리
+    masteries_resp = results.get('masteries')
+    try:
+        if isinstance(masteries_resp, aiohttp.ClientResponse):
+            if masteries_resp.status == 200:
+                data = await masteries_resp.json()
+                masteries_resp.close()
+                for mastery in data.get('masteries', []):
+                    game_data.masteries[mastery['id']] = mastery
+                print("✅ 무기 데이터 로드 완료")
+            else:
+                masteries_resp.close()
+                print(f"⚠️ 경고: 무기 데이터를 가져오지 못했습니다. 상태: {masteries_resp.status}")
+        else:
+            print(f"⚠️ 경고: 무기 데이터 응답이 올바르지 않습니다: {masteries_resp}")
+    except Exception as e:
+        if isinstance(masteries_resp, aiohttp.ClientResponse) and not masteries_resp.closed:
+            masteries_resp.close()
+        print(f"무기 데이터 처리 중 오류: {e}")
+    
+    # 특성 스킬 데이터 처리
+    trait_skills_resp = results.get('trait_skills')
+    try:
+        if isinstance(trait_skills_resp, aiohttp.ClientResponse):
+            if trait_skills_resp.status == 200:
+                data = await trait_skills_resp.json()
+                trait_skills_resp.close()
+                for trait in data.get('traitSkills', []):
+                    game_data.trait_skills[trait['id']] = trait
+                print("✅ 특성 데이터 로드 완료")
+            else:
+                trait_skills_resp.close()
+                print(f"⚠️ 경고: 특성 데이터를 가져오지 못했습니다. 상태: {trait_skills_resp.status}")
+        else:
+            print(f"⚠️ 경고: 특성 데이터 응답이 올바르지 않습니다: {trait_skills_resp}")
+    except Exception as e:
+        if isinstance(trait_skills_resp, aiohttp.ClientResponse) and not trait_skills_resp.closed:
+            trait_skills_resp.close()
+        print(f"특성 데이터 처리 중 오류: {e}")
+    
+    print("🚀 모든 DAK.GG 데이터 초기화 완료!", flush=True)
+    sys.stdout.flush()
 
 # --- API 호출 로직 ---
 
-async def _fetch_api(url: str) -> Optional[Dict]:
+async def _fetch_api(url: str, params: Optional[Dict] = None) -> Optional[Dict]:
     try:
+        import sys
+        print(f"API 호출: {url} with params: {params}", flush=True)
+        sys.stdout.flush()
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=API_HEADERS, timeout=10) as response:
+            async with session.get(url, headers=API_HEADERS, params=params, timeout=10) as response:
+                print(f"API 응답 상태: {response.status}", flush=True)
+                sys.stdout.flush()
                 if response.status == 200:
-                    return await response.json()
-                print(f"API Error: {response.status} for URL: {url}")
+                    result = await response.json()
+                    print(f"API 응답 성공, 데이터 크기: {len(str(result))} bytes", flush=True)
+                    sys.stdout.flush()
+                    return result
+                print(f"API Error: {response.status} for URL: {url}", flush=True)
+                sys.stdout.flush()
+                error_text = await response.text()
+                print(f"API Error response: {error_text[:200]}", flush=True)
+                sys.stdout.flush()
                 return None
     except Exception as e:
-        print(f"An unexpected error occurred during API fetch for {url}: {e}")
+        print(f"An unexpected error occurred during API fetch for {url}: {e}", flush=True)
+        sys.stdout.flush()
+        import traceback
+        traceback.print_exc()
+        sys.stdout.flush()
+        return None
+
+async def get_character_stats(dt: int = 7, team_mode: str = "SQUAD", tier: str = "diamond_plus") -> Optional[Dict]:
+    """캐릭터 통계 정보를 가져옵니다"""
+    try:
+        params = {
+            "dt": dt,
+            "matchingMode": "RANK", 
+            "teamMode": team_mode,
+            "tier": tier
+        }
+        url = f"{DAKGG_API_BASE}/character-stats"
+        return await _fetch_api(url, params)
+    except Exception as e:
+        print(f"캐릭터 통계 데이터 가져오기 오류: {e}")
         return None
 
 async def get_player_season_data(nickname: str, season_id: int) -> Optional[Dict]:
@@ -149,6 +369,121 @@ async def get_player_season_data(nickname: str, season_id: int) -> Optional[Dict
 async def get_player_basic_data(nickname: str) -> Optional[Dict]:
     if game_data.current_season_id is None: return None
     return await get_player_season_data(nickname, game_data.current_season_id)
+
+async def get_player_normal_game_data(nickname: str) -> Optional[Dict]:
+    """일반게임 데이터를 가져옵니다."""
+    try:
+        encoded_nickname = urllib.parse.quote(nickname)
+        profile_url = f"{DAKGG_API_BASE}/players/{encoded_nickname}/profile?season=NORMAL"
+        profile_data = await _fetch_api(profile_url)
+        if not profile_data:
+            return None
+        return _process_normal_game_data(nickname, profile_data)
+    except Exception as e:
+        print(f"일반게임 데이터 조회 오류: {e}")
+        return None
+
+def _process_normal_game_data(nickname: str, profile_data: Dict) -> Optional[Dict]:
+    """일반게임 데이터를 처리합니다."""
+    print(f"🔍 일반게임 데이터 처리 시작: {nickname}")
+    print(f"Profile data keys: {list(profile_data.keys())}")
+    
+    # 일반게임 오버뷰 찾기 (matchingModeId == 0)
+    overview = next((o for o in profile_data.get('playerSeasonOverviews', []) if o.get('matchingModeId') == 0), None)
+    
+    # 레벨 정보 찾기 - accountLevel 사용
+    level = 1
+    exp = 0
+    
+    # 1. player 객체의 accountLevel 확인  
+    if 'player' in profile_data and profile_data['player'].get('accountLevel'):
+        level = profile_data['player']['accountLevel']
+        print(f"✅ player.accountLevel에서 레벨 발견: {level}")
+    # 2. 최상위 accountLevel 확인
+    elif 'accountLevel' in profile_data:
+        level = profile_data['accountLevel']
+        print(f"✅ 최상위에서 accountLevel 발견: {level}")
+    # 3. player 객체의 level 확인  
+    elif 'player' in profile_data and profile_data['player'].get('level'):
+        level = profile_data['player']['level']
+        print(f"✅ player.level에서 레벨 발견: {level}")
+    # 4. 최상위 level 확인
+    elif 'level' in profile_data:
+        level = profile_data['level']
+        print(f"✅ 최상위에서 level 발견: {level}")
+    else:
+        print("❌ 레벨 정보를 찾을 수 없음")
+        # 디버깅을 위해 player 구조 출력
+        if 'player' in profile_data:
+            print(f"Player data keys: {list(profile_data['player'].keys())}")
+    
+    if not overview:
+        return {
+            'nickname': nickname, 'tier_info': '일반게임', 'tier_image_url': game_data.get_tier_image_url(0),
+            'mmr': 0, 'lp': 0, 'stats': {}, 'most_characters': [],
+            'season_id': None, 'season_name': '일반게임',
+            'rank': 0, 'rank_size': 0, 'rank_percent': 0,
+            'level': level, 'exp': exp  # 레벨 정보 추가
+        }
+    
+    total_games = overview.get('play', 1)
+    wins = overview.get('win', 0)
+    
+    kills = overview.get('playerKill', 0)
+    assists = overview.get('playerAssistant', 0)
+    deaths = overview.get('playerDeaths', 0)
+    kda = round((kills + assists) / max(1, deaths), 2)
+
+    stats = {
+        'total_games': overview.get('play', 0), 'wins': wins,
+        'winrate': round((wins / max(total_games, 1)) * 100, 1),
+        'avg_rank': round(overview.get('place', 0) / max(total_games, 1), 1),
+        'avg_kills': round(kills / max(total_games, 1), 1),
+        'avg_assists': round(assists / max(total_games, 1), 1),
+        'kda': kda,
+        'avg_damage': round(overview.get('damageToPlayer', 0) / max(total_games, 1), 0)
+    }
+    
+    # 실험체 통계
+    char_stats = []
+    print(f"🔍 캐릭터 통계 처리 시작 - 총 {len(overview.get('characterStats', []))}개 캐릭터")
+    for char_stat in overview.get('characterStats', []):
+        if char_stat.get('play', 0) > 0:
+            char_id = char_stat.get('key')
+            games = char_stat.get('play', 1)
+            
+            print(f"  - 캐릭터 ID: {char_id}")
+            character_name = game_data.get_character_name(char_id)
+            print(f"    캐릭터 이름: {character_name}")
+
+            # 가장 많이 사용한 스킨 찾기
+            most_used_skin_id = char_id * 1000 + 1 # 기본 스킨 ID로 초기화
+            if char_stat.get('skinStats'):
+                sorted_skins = sorted(char_stat['skinStats'], key=lambda x: x.get('play', 0), reverse=True)
+                if sorted_skins:
+                    most_used_skin_id = sorted_skins[0].get('key', most_used_skin_id)
+            
+            image_url = game_data.get_skin_image_url(most_used_skin_id)
+            print(f"    스킨 ID: {most_used_skin_id}, 이미지 URL: {image_url}")
+
+            char_stats.append({
+                'name': character_name,
+                'image_url': image_url,
+                'games': games, 'wins': char_stat.get('win', 0),
+                'winrate': round((char_stat.get('win', 0) / games) * 100, 1),
+                'avg_rank': round(char_stat.get('place', 0) / games, 1),
+                'mmr_gain': 0  # 일반게임은 RP 없음
+            })
+    
+    most_characters = sorted(char_stats, key=lambda x: x['games'], reverse=True)[:10]
+
+    return {
+        'nickname': nickname, 'tier_info': '일반게임', 'tier_image_url': game_data.get_tier_image_url(0),
+        'mmr': 0, 'lp': 0, 'stats': stats, 'most_characters': most_characters,
+        'season_id': None, 'season_name': '일반게임',
+        'rank': 0, 'rank_size': 0, 'rank_percent': 0,
+        'level': level, 'exp': exp  # 레벨 정보 추가
+    }
 
 async def get_player_played_seasons(nickname: str) -> List[Dict[str, Any]]:
     if game_data.current_season_id is None: return []
@@ -305,3 +640,347 @@ def _process_player_data(nickname: str, profile_data: Dict, target_season_id: in
                         break  # 첫 번째로 찾은 순위 정보 사용
         
     return result
+
+async def get_game_details(game_id: int) -> Optional[Dict]:
+    """공식 이터널 리턴 API로 게임 ID의 모든 참가자 정보를 가져옵니다."""
+    try:
+        # 공식 이터널 리턴 API 사용
+        url = f"https://open-api.bser.io/v1/games/{game_id}"
+        headers = {
+            "accept": "application/json",
+            "x-api-key": "wxIgXerGxj1xJ3r4z4xjoavjMUfh10Kw3pVtMasn"
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get('code') == 200 and data.get('userGames'):
+                        return data
+                    else:
+                        print(f"❌ 게임 {game_id} API 응답 오류: {data}")
+                        return None
+                else:
+                    print(f"❌ 게임 {game_id} 상세 정보 가져오기 실패: 상태 코드 {response.status}")
+                    return None
+                    
+    except asyncio.TimeoutError:
+        print(f"❌ 게임 {game_id} 상세 정보 요청 시간 초과")
+        return None
+    except Exception as e:
+        print(f"❌ 게임 {game_id} 상세 정보 조회 오류: {e}")
+        return None
+
+def get_team_members(game_data: Dict, target_nickname: str) -> List[str]:
+    """게임 데이터에서 특정 플레이어의 팀원들 닉네임을 반환합니다."""
+    if not game_data or not game_data.get('userGames'):
+        return []
+    
+    user_games = game_data['userGames']
+    
+    # 타겟 플레이어의 팀 번호 찾기
+    target_team_num = None
+    for player in user_games:
+        if player.get('nickname') == target_nickname:
+            target_team_num = player.get('teamNumber')
+            break
+    
+    if target_team_num is None:
+        return []
+    
+    # 같은 팀의 모든 플레이어 찾기 (자신 제외)
+    team_members = []
+    for player in user_games:
+        if (player.get('teamNumber') == target_team_num and 
+            player.get('nickname') != target_nickname):
+            team_members.append(player.get('nickname', '알수없음'))
+    
+    return team_members
+
+async def get_player_union_teams(nickname: str) -> Optional[Dict]:
+    """
+    플레이어의 유니온 팀 정보를 가져옵니다.
+    
+    Args:
+        nickname: 플레이어 닉네임
+    
+    Returns:
+        유니온 팀 데이터 또는 None
+    """
+    try:
+        encoded_nickname = urllib.parse.quote(nickname)
+        url = f"{DAKGG_API_BASE}/players/{encoded_nickname}/union-teams"
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return data
+                else:
+                    print(f"유니온 데이터 가져오기 실패: 상태 코드 {response.status}")
+                    return None
+    except asyncio.TimeoutError:
+        print(f"유니온 데이터 요청 시간 초과: {nickname}")
+        return None
+    except Exception as e:
+        print(f"유니온 데이터 가져오기 오류: {e}")
+        return None
+
+async def get_player_recent_games(nickname: str, season_id: int = None, game_mode: int = 3) -> Optional[List[Dict]]:
+    """
+    플레이어의 최근 게임 기록을 matches API에서 가져옵니다.
+    
+    Args:
+        nickname: 플레이어 닉네임
+        season_id: 시즌 ID (None이면 현재 시즌)
+        game_mode: 게임 모드 (0: 일반, 2: 듀오, 3: 랭크)
+    """
+    try:
+        encoded_nickname = urllib.parse.quote(nickname)
+        
+        # 게임 모드에 따른 시즌 파라미터 설정
+        if game_mode == 0:  # 일반게임
+            season_param = "NORMAL"
+        else:  # 랭크게임, 듀오게임
+            if season_id is None:
+                season_id = game_data.current_season_id
+            season_param = game_data.get_season_api_param(season_id)
+            if not season_param:
+                return None
+        
+        # matches API 호출
+        matches_url = f"{DAKGG_API_BASE}/players/{encoded_nickname}/matches"
+        params = {
+            'season': season_param,
+            'matchingMode': game_mode,
+            'limit': 20
+        }
+        
+        matches_data = await _fetch_api(matches_url, params=params)
+        if not matches_data:
+            return None
+        
+        games = matches_data.get('matches', matches_data.get('games', []))
+        if not games:
+            print(f"❌ {nickname}의 최근 게임 데이터가 없습니다. (모드: {game_mode})")
+            return None
+        
+        processed_games = []
+        for game in games[:20]:  # 최근 20게임만
+            # 모든 리스트/딕셔너리 타입 필드를 미리 문자열로 변환
+            safe_game = {}
+            for key, value in game.items():
+                if isinstance(value, (list, dict)):
+                    safe_game[key] = str(value)
+                else:
+                    safe_game[key] = value
+            game = safe_game  # 안전한 버전으로 교체
+            
+            # 디버깅: 게임 데이터의 키들 출력
+            if len(processed_games) == 0:  # 첫 번째 게임만 출력
+                print(f"🔍 게임 데이터 키들: {list(game.keys())}")
+                # 모든 키와 값 확인 (킬/팀킬 관련 정보 포함)
+                for key, value in game.items():
+                    if 'kill' in key.lower() or 'death' in key.lower() or 'assist' in key.lower():
+                        print(f"  - {key}: {value}")
+                # 다른 주요 키들도 확인
+                for key in ['items', 'equipment', 'weaponType', 'traitType', 'skillType', 'mastery', 'teamKill', 'playerKill']:
+                    if key in game and key not in ['playerKill', 'playerAssistant']:  # 이미 출력된 것 제외
+                        print(f"  - {key}: {game[key]}")
+            
+            # 게임 기본 정보
+            game_info = {
+                'gameId': game.get('gameId'),
+                'seasonId': season_id,
+                'matchingMode': game.get('matchingMode', game_mode),
+                'gameRank': game.get('gameRank', game.get('rank')),
+                'playerKill': game.get('playerKill', game.get('kills', 0)),
+                'playerAssistant': game.get('playerAssistant', game.get('assists', 0)),
+                'damageToPlayer': game.get('damageToPlayer', 0),
+                'mmrGain': game.get('mmrGain', 0),
+                'characterNum': game.get('characterNum'),
+                'characterSkinNum': game.get('characterSkinNum'),
+                'playTime': game.get('playTime'),
+                'datetime': game.get('datetime'),
+                # 추가 정보들
+                'weaponType': game.get('weaponType'),
+                'traitType': game.get('traitType'), 
+                'skillType': game.get('skillType'),
+                'items': str(game.get('items', [])),  # 리스트를 문자열로 변환
+                'equipment': str(game.get('equipment', [])),  # 리스트를 문자열로 변환
+                'mastery': str(game.get('mastery', [])),  # 리스트를 문자열로 변홨
+                'teamKill': game.get('teamKill', 0)  # 팀킬 정보 추가
+            }
+            
+            # 캐릭터 정보 추가
+            char_id = game.get('characterNum')
+            skin_id = game.get('characterSkinNum')
+            if len(processed_games) == 0:
+                print(f"  캐릭터 ID: {char_id}, 스킨 ID: {skin_id}")
+            
+            if char_id:
+                game_info['characterName'] = game_data.get_character_name(char_id)
+                
+                # 실제 사용한 스킨 이미지 가져오기
+                character_image_url = None
+                char_data = game_data.characters.get(char_id)
+                
+                if char_data and 'skins' in char_data:
+                    # skinCode에서 실제 사용한 스킨 ID 가져오기 (characterSkinNum 대신 skinCode 사용)
+                    actual_skin_id = game.get('skinCode')  # 실제 사용한 스킨 코드
+                    if len(processed_games) == 0:
+                        print(f"  실제 사용 스킨 ID: {actual_skin_id}")
+                    
+                    # 실제 사용한 스킨 찾기
+                    used_skin = None
+                    if actual_skin_id:
+                        for skin in char_data['skins']:
+                            if skin.get('id') == actual_skin_id:
+                                used_skin = skin
+                                break
+                    
+                    # 실제 사용한 스킨이 없으면 기본 스킨 사용
+                    if not used_skin and char_data['skins']:
+                        used_skin = char_data['skins'][0]
+                    
+                    if used_skin and 'imageUrl' in used_skin:
+                        skin_url = used_skin['imageUrl']
+                        character_image_url = f"https:{skin_url}" if skin_url.startswith('//') else skin_url
+                        if len(processed_games) == 0:
+                            print(f"  사용할 스킨: {used_skin.get('name', 'Unknown')} (ID: {used_skin.get('id')})")
+                
+                if len(processed_games) == 0:
+                    print(f"  생성된 캐릭터 이미지 URL: {character_image_url}")
+                game_info['characterImage'] = character_image_url
+                game_info['characterLevel'] = game.get('characterLevel', 1)  # 레벨 정보 추가
+            
+            # 무기 정보 추가 - bestWeapon 사용
+            best_weapon_id = game.get('bestWeapon')
+            if len(processed_games) == 0:
+                print(f"  무기 ID: {best_weapon_id}")
+            if best_weapon_id:
+                weapon_url = game_data.get_weapon_image_url(best_weapon_id)
+                weapon_name = game_data.masteries.get(best_weapon_id, {}).get('name', '')
+                if len(processed_games) == 0:
+                    print(f"  무기 URL: {weapon_url}, 이름: {weapon_name}")
+                game_info['weaponImage'] = weapon_url
+                game_info['weaponName'] = weapon_name
+            
+            # 특성 정보 추가 - traitFirstCore, traitFirstSub, traitSecondSub 사용
+            trait_core_id = game.get('traitFirstCore')
+            trait_first_sub_id = game.get('traitFirstSub')
+            trait_second_sub_id = game.get('traitSecondSub')
+            if len(processed_games) == 0:
+                print(f"  특성 Core ID: {trait_core_id}, Sub1 ID: {trait_first_sub_id}, Sub2 ID: {trait_second_sub_id}")
+            
+            if trait_core_id:
+                core_url = game_data.get_trait_image_url(trait_core_id)
+                core_name = game_data.trait_skills.get(trait_core_id, {}).get('name', '')
+                if len(processed_games) == 0:
+                    print(f"  Core URL: {core_url}, 이름: {core_name}")
+                game_info['traitImage'] = core_url
+                game_info['traitName'] = core_name
+            
+            # 특성 서브 ID 처리 (리스트인 경우 첫 번째 항목 사용)
+            if trait_first_sub_id:
+                if isinstance(trait_first_sub_id, list) and len(trait_first_sub_id) > 0:
+                    trait_first_sub_id = trait_first_sub_id[0]
+                elif isinstance(trait_first_sub_id, str):
+                    # 문자열인 경우 파싱 시도 (예: "[7210101, 7210801]")
+                    import re
+                    sub_ids = re.findall(r'\d+', trait_first_sub_id)
+                    if sub_ids:
+                        trait_first_sub_id = int(sub_ids[0])
+                
+                if isinstance(trait_first_sub_id, int):
+                    sub1_url = game_data.get_trait_image_url(trait_first_sub_id)
+                    sub1_name = game_data.trait_skills.get(trait_first_sub_id, {}).get('name', '')
+                    if len(processed_games) == 0:
+                        print(f"  Sub1 ID (processed): {trait_first_sub_id}, URL: {sub1_url}, 이름: {sub1_name}")
+                    game_info['traitFirstSubImage'] = sub1_url
+                    game_info['traitFirstSubName'] = sub1_name
+            
+            if trait_second_sub_id:
+                if isinstance(trait_second_sub_id, list) and len(trait_second_sub_id) > 0:
+                    trait_second_sub_id = trait_second_sub_id[0]
+                elif isinstance(trait_second_sub_id, str):
+                    # 문자열인 경우 파싱 시도 (예: "[7111001, 7110601]")
+                    import re
+                    sub_ids = re.findall(r'\d+', trait_second_sub_id)
+                    if sub_ids:
+                        trait_second_sub_id = int(sub_ids[0])
+                
+                if isinstance(trait_second_sub_id, int):
+                    sub2_url = game_data.get_trait_image_url(trait_second_sub_id)
+                    sub2_name = game_data.trait_skills.get(trait_second_sub_id, {}).get('name', '')
+                    if len(processed_games) == 0:
+                        print(f"  Sub2 ID (processed): {trait_second_sub_id}, URL: {sub2_url}, 이름: {sub2_name}")
+                    game_info['traitSecondSubImage'] = sub2_url
+                    game_info['traitSecondSubName'] = sub2_name
+            
+            # 아이템 이미지 추가 - equipmentGrade 배열 활용
+            equipment_images = []
+            equipment_str = game.get('equipment', '')
+            equipment_grades_raw = game.get('equipmentGrade', [])
+            
+            # equipmentGrade가 문자열인 경우 배열로 변환
+            if isinstance(equipment_grades_raw, str):
+                try:
+                    import ast
+                    equipment_grades = ast.literal_eval(equipment_grades_raw)
+                except:
+                    # ast 파싱 실패 시 re 사용
+                    import re
+                    grade_numbers = re.findall(r'\d+', equipment_grades_raw)
+                    equipment_grades = [int(num) for num in grade_numbers]
+            elif isinstance(equipment_grades_raw, list):
+                equipment_grades = equipment_grades_raw
+            else:
+                equipment_grades = []
+            
+            if equipment_str and equipment_str != '[]':  # 빈 리스트가 아닌 경우
+                # 등급 숫자를 한글 등급명으로 변환
+                def grade_number_to_korean(grade_num):
+                    grade_map = {
+                        1: '일반',    # Common
+                        2: '고급',    # Uncommon  
+                        3: '희귀',    # Rare
+                        4: '영웅',    # Epic
+                        5: '전설',    # Legend
+                        6: '신화'     # Mythic
+                    }
+                    return grade_map.get(grade_num, '일반')
+                
+                # 문자열에서 숫자 추출 시도
+                try:
+                    # '[105402, 202421, 201507, 205406, 204505]' 같은 형태에서 숫자 추출
+                    import re
+                    item_ids = re.findall(r'\d+', equipment_str)
+                    if len(processed_games) == 0:
+                        print(f"  추출된 아이템 ID들: {item_ids}")
+                    
+                    for i, item_id_str in enumerate(item_ids):
+                        item_id = int(item_id_str)
+                        # CDN URL 직접 생성으로 모든 아이템 이미지 표시
+                        img_url = game_data.get_item_image_url(item_id)
+                        if img_url:
+                            # equipmentGrade 배열에서 등급 가져오기
+                            grade_num = equipment_grades[i] if i < len(equipment_grades) else 1
+                            item_grade = grade_number_to_korean(grade_num)
+                            
+                            equipment_images.append({
+                                'url': img_url,
+                                'grade': item_grade
+                            })
+                except Exception as e:
+                    print(f"Equipment 처리 오류: {e}")
+            game_info['equipmentImages'] = equipment_images
+            
+            
+            processed_games.append(game_info)
+        
+        return processed_games
+        
+    except Exception as e:
+        print(f"❌ {nickname} 최근 게임 조회 오류: {e}")
+        return None

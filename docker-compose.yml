@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  discord-bot:
+    build: .
+    volumes:
+      - ./run/settings.json:/app/run/settings.json  # 로컬 settings.json을 컨테이너에 마운트
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - ETERNAL_RETURN_API_KEY=${ETERNAL_RETURN_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+      - OWNER_ID=${OWNER_ID}
+    restart: unless-stopped

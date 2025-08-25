@@ -3,11 +3,24 @@
 .env.local
 .env.production
 
-# Node.js
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node.js (미래에 사용할 수 있음)
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
 
 # 로그 파일
 *.log
@@ -47,3 +60,17 @@ bot_data/
 # API 키 백업
 api_keys/
 keys/
+
+# 봇 설정 파일 (런타임에 생성/수정됨)
+run/settings.json
+
+# 개발/테스트 파일
+test_*.py
+*_test.py
+*.png
+*.jpg
+*.jpeg
+
+# AWS 관련 (보안상 제외)
+aws-credentials.json
+.aws/

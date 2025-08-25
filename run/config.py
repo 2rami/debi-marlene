@@ -9,6 +9,7 @@ DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 ETERNAL_RETURN_API_KEY = os.getenv('EternalReturn_API_KEY')
 CLAUDE_API_KEY = os.getenv('CLAUDE_API_KEY')
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
+OWNER_ID = os.getenv('OWNER_ID')
 
 # API 베이스 URL
 ETERNAL_RETURN_API_BASE = "https://open-api.bser.io"
@@ -21,39 +22,94 @@ ETERNAL_RETURN_CHANNEL_ID = 'UCEOaB76vS9RfiAwEzxB8QGw'
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'settings.json')
 
 def load_settings():
-    """설정 파일에서 채널 ID들을 로드"""
+    """통합 설정 파일(settings.json)을 로드합니다."""
     try:
         with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        return {"ANNOUNCEMENT_CHANNEL_ID": None, "CHAT_CHANNEL_ID": None}
+            settings = json.load(f)
+            # DEBUG: 로딩된 설정 출력
+            import sys
+            print(f"DEBUG: settings.json 로딩됨: {settings}", flush=True)
+            sys.stdout.flush()
+            # guilds 키가 없으면 기본 구조 생성
+            if 'guilds' not in settings:
+                settings['guilds'] = {}
+            return settings
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        # 파일이 없거나 비어있으면 기본 구조 반환
+        import sys
+        print(f"DEBUG: settings.json 파일 없음/오류: {e}", flush=True)
+        sys.stdout.flush()
+        return {"guilds": {}, "global": {"LAST_CHECKED_VIDEO_ID": None}}
 
-def save_settings(announcement_id=None, chat_id=None):
-    """설정을 파일에 저장"""
+def save_settings(settings):
+    """통합 설정 파일(settings.json)에 저장합니다."""
     try:
-        settings = load_settings()
-        if announcement_id is not None:
-            settings["ANNOUNCEMENT_CHANNEL_ID"] = announcement_id
-        if chat_id is not None:
-            settings["CHAT_CHANNEL_ID"] = chat_id
-        
         with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
             json.dump(settings, f, indent=2)
-        
-        # 전역 변수도 업데이트
-        global ANNOUNCEMENT_CHANNEL_ID, CHAT_CHANNEL_ID
-        ANNOUNCEMENT_CHANNEL_ID = settings["ANNOUNCEMENT_CHANNEL_ID"]
-        CHAT_CHANNEL_ID = settings["CHAT_CHANNEL_ID"]
-        
         return True
     except Exception as e:
-        print(f"설정 저장 오류: {e}")
+        print(f"❌ 설정 저장 오류: {e}")
         return False
 
-# 시작할 때 설정 로드
-settings = load_settings()
-ANNOUNCEMENT_CHANNEL_ID = settings["ANNOUNCEMENT_CHANNEL_ID"]
-CHAT_CHANNEL_ID = settings["CHAT_CHANNEL_ID"]
+def get_guild_settings(guild_id):
+    """특정 서버(guild)의 설정을 가져옵니다."""
+    settings = load_settings()
+    return settings.get("guilds", {}).get(str(guild_id), {
+        "ANNOUNCEMENT_CHANNEL_ID": None,
+        "CHAT_CHANNEL_ID": None
+    })
+
+def save_guild_settings(guild_id, announcement_id=None, chat_id=None):
+    """특정 서버(guild)의 설정을 저장합니다."""
+    guild_id_str = str(guild_id)
+    settings = load_settings()
+    
+    # 해당 서버의 설정이 없으면 새로 생성
+    if guild_id_str not in settings["guilds"]:
+        settings["guilds"][guild_id_str] = {}
+        
+    # 새로운 값으로 업데이트
+    if announcement_id is not None:
+        settings["guilds"][guild_id_str]["ANNOUNCEMENT_CHANNEL_ID"] = announcement_id
+    if chat_id is not None:
+        settings["guilds"][guild_id_str]["CHAT_CHANNEL_ID"] = chat_id
+        
+    return save_settings(settings)
+
+def get_global_setting(key):
+    """전역 설정을 가져옵니다."""
+    settings = load_settings()
+    return settings.get("global", {}).get(key)
+
+def save_global_setting(key, value):
+    """전역 설정을 저장합니다."""
+    settings = load_settings()
+    if "global" not in settings:
+        settings["global"] = {}
+    settings["global"][key] = value
+    return save_settings(settings)
+
+def get_youtube_subscribers():
+    """유튜브 DM 알림을 구독한 모든 사용자 ID 목록을 반환합니다."""
+    settings = load_settings()
+    subscribers = []
+    for user_id, user_settings in settings.get("users", {}).items():
+        if user_settings.get("youtube_subscribed"):
+            subscribers.append(int(user_id))
+    return subscribers
+
+def set_youtube_subscription(user_id, subscribe: bool):
+    """사용자의 유튜브 DM 알림 구독 상태를 설정합니다."""
+    user_id_str = str(user_id)
+    settings = load_settings()
+    
+    if "users" not in settings:
+        settings["users"] = {}
+    if user_id_str not in settings["users"]:
+        settings["users"][user_id_str] = {}
+        
+    settings["users"][user_id_str]["youtube_subscribed"] = subscribe
+    return save_settings(settings)
 
 # 캐릭터 설정
 characters = {
@@ -61,6 +117,7 @@ characters = {
         "name": "데비",
         "image": "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/debi.png",
         "color": 0x0000FF,  # 진한 파랑
+        "welcome_message": "와, 새로운 곳이다! 여기서도 우리 팀워크를 보여주자!",
         "ai_prompt": """너는 이터널리턴의 데비(Debi)야. 마를렌과 함께 루미아 아일랜드에서 실험체로 활동하는 쌍둥이 언니야. 
         
 캐릭터 설정:
@@ -88,6 +145,7 @@ characters = {
         "name": "마를렌",
         "image": "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/marlen.png",
         "color": 0xDC143C,  # 진한 빨강
+        "welcome_message": "흥, 데비 언니... 너무 들뜨지 마. 일단 상황부터 파악해야지.",
         "ai_prompt": """너는 이터널리턴의 마를렌(Marlene)이야. 데비와 함께 루미아 아일랜드에서 실험체로 활동하는 쌍둥이 동생이야.
         
 캐릭터 설정:
@@ -112,4 +170,3 @@ characters = {
 말투: 쿨하고 건조한 반말, 언니를 "데비 언니" 또는 "언니"라고 부름, 가끔 상냥함이 드러나는 츤데레 스타일"""
     }
 }
-

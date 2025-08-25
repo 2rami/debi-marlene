@@ -40,6 +40,7 @@ https://er.dakgg.io/api/v0/leaderboard/characters/Theodore?teamMode=ALL&sortType
 
 https://er.dakgg.io/api/v0/leaderboard/characters/Garnet?teamMode=ALL&sortType=MATCH_COUNT&page=1&hl=ko
 티어통계: https://er.dakgg.io/api/v0/statistics/tier-distribution?teamMode=SQUAD
+https://er.dakgg.io/api/v1/data/tiers?hl=ko
 
 모스트통계: https://er.dakgg.io/api/v0/statistics/most-character?hl=ko&dt=3&teamMode=SQUAD
 스킨통계: https://er.dakgg.io/api/v0/statistics/character-skin?period=DAYS7&hl=ko

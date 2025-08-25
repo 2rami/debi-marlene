@@ -1,6 +1,6 @@
 import discord
 import asyncio
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 try:
     # main.py에서 실행할 때
@@ -17,7 +17,8 @@ try:
         get_team_members,
         get_character_stats,
         initialize_game_data,
-        game_data
+        game_data,
+        set_bot_instance
     )
     from run.graph_generator import save_mmr_graph_to_file
     from run.recent_games_image_generator import save_recent_games_image_to_file, save_union_image_to_file
@@ -50,6 +51,52 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
+
+# --- Periodic Tasks ---
+
+@tasks.loop(hours=1)  # 1시간마다 실행
+async def periodic_guild_logging():
+    """정기적으로 봇의 서버 연결 상태를 로깅 (AWS CloudWatch에서 파싱 가능)"""
+    import sys
+    
+    if not bot.is_ready():
+        return
+        
+    try:
+        guild_count = len(bot.guilds)
+        total_members = sum(guild.member_count for guild in bot.guilds if guild.member_count)
+        
+        # 서버 수와 전체 멤버 수 로깅
+        print(f"📊 정기 체크: 현재 {guild_count}개 서버에 연결, 총 {total_members}명 사용자", flush=True)
+        sys.stdout.flush()
+        
+        # 큰 서버들 로깅 (100명 이상)
+        large_guilds = [g for g in bot.guilds if g.member_count and g.member_count >= 100]
+        if large_guilds:
+            print(f"📈 대형 서버({len(large_guilds)}개): {', '.join([f'{g.name}({g.member_count}명)' for g in large_guilds[:3]])}", flush=True)
+            sys.stdout.flush()
+        
+        # 최근 가입한 서버들 (7일 이내)
+        from datetime import datetime, timedelta
+        recent_threshold = datetime.now() - timedelta(days=7)
+        
+        recent_guilds = []
+        for guild in bot.guilds:
+            if guild.me.joined_at and guild.me.joined_at > recent_threshold:
+                recent_guilds.append(guild)
+        
+        if recent_guilds:
+            print(f"🆕 최근 가입 서버({len(recent_guilds)}개): {', '.join([f'{g.name}(ID:{g.id})' for g in recent_guilds[:3]])}", flush=True)
+            sys.stdout.flush()
+            
+    except Exception as e:
+        print(f"⚠️ 정기 서버 로깅 오류: {e}", flush=True)
+        sys.stdout.flush()
+
+@periodic_guild_logging.before_loop
+async def before_periodic_logging():
+    """정기 로깅 시작 전 봇이 준비될 때까지 대기"""
+    await bot.wait_until_ready()
 
 # --- Helper Functions ---
 
@@ -796,6 +843,30 @@ async def on_ready():
     import sys
     print(f'🤖 {bot.user} 봇이 시작되었습니다!', flush=True)
     sys.stdout.flush()
+    
+    # 봇이 연결된 서버 수 로깅 (AWS CloudWatch에서 파싱 가능하도록)
+    guild_count = len(bot.guilds)
+    print(f"📊 현재 {guild_count}개 서버에 연결되었습니다.", flush=True)
+    sys.stdout.flush()
+    
+    # 처음 몇 개 서버 정보 로깅 (디버깅용)
+    for i, guild in enumerate(bot.guilds[:5]):
+        print(f"서버 {i+1}: {guild.name} (ID: {guild.id}) - 멤버 {guild.member_count}명", flush=True)
+        sys.stdout.flush()
+    
+    if guild_count > 5:
+        print(f"... 외 {guild_count - 5}개 서버", flush=True)
+        sys.stdout.flush()
+    
+    # 웹 패널을 위한 봇 인스턴스 저장
+    try:
+        set_bot_instance(bot)
+        print("🌐 웹 패널용 봇 인스턴스 등록 완료", flush=True)
+        sys.stdout.flush()
+    except Exception as e:
+        print(f"⚠️ 웹 패널용 봇 인스턴스 등록 실패: {e}", flush=True)
+        sys.stdout.flush()
+    
     try:
         print("🔧 명령어 동기화 시작...", flush=True)
         sys.stdout.flush()
@@ -818,6 +889,12 @@ async def on_ready():
         print("🔧 유튜브 체크 루프 시작...", flush=True)
         sys.stdout.flush()
         youtube_service.check_new_videos.start()
+        
+        # 정기적 서버 수 로깅 태스크 시작
+        periodic_guild_logging.start()
+        print("🔧 정기 서버 수 로깅 시작...", flush=True)
+        sys.stdout.flush()
+        
         print("✅ 모든 초기화 완료!", flush=True)
         sys.stdout.flush()
     except Exception as e:
@@ -830,7 +907,15 @@ async def on_ready():
 
 @bot.event
 async def on_guild_join(guild: discord.Guild):
-    print(f"✅ 새로운 서버에 초대되었습니다: {guild.name} (ID: {guild.id})")
+    import sys
+    print(f"✅ 새로운 서버에 초대되었습니다: {guild.name} (ID: {guild.id}) - 멤버 {guild.member_count}명", flush=True)
+    sys.stdout.flush()
+    
+    # 현재 총 서버 수 업데이트 로깅
+    guild_count = len(bot.guilds)
+    print(f"📊 서버 추가 후 총 {guild_count}개 서버에 연결됨", flush=True)
+    sys.stdout.flush()
+    
     target_channel = guild.system_channel
     if not target_channel or not target_channel.permissions_for(guild.me).send_messages:
         for channel in guild.text_channels:
@@ -849,6 +934,18 @@ async def on_guild_join(guild: discord.Guild):
             await target_channel.send(file=profile_image, embed=embed, view=WelcomeView())
         except Exception as e:
             print(f"❌ 환영 메시지 전송 중 오류 발생: {e}")
+
+@bot.event
+async def on_guild_remove(guild: discord.Guild):
+    """서버에서 봇이 제거될 때 로깅"""
+    import sys
+    print(f"❌ 서버에서 제거되었습니다: {guild.name} (ID: {guild.id})", flush=True)
+    sys.stdout.flush()
+    
+    # 현재 총 서버 수 업데이트 로깅
+    guild_count = len(bot.guilds)
+    print(f"📊 서버 제거 후 총 {guild_count}개 서버에 연결됨", flush=True)
+    sys.stdout.flush()
 
 # --- Commands ---
 
@@ -1116,7 +1213,6 @@ async def auto_setup_servers(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="목록", description="[관리자 전용] 봇이 추가된 서버 목록을 확인합니다")
-@app_commands.default_permissions()
 async def server_list(interaction: discord.Interaction):
     """봇 소유자 전용 서버 목록 확인 명령어"""
     # 봇 소유자만 사용 가능
@@ -1162,11 +1258,24 @@ async def server_list(interaction: discord.Interaction):
     
     subscriber_info = "\n".join(subscriber_list) if subscriber_list else "구독자가 없습니다."
     
+    # 설정 파일과의 차이 계산
+    settings = config.load_settings()
+    settings_guild_count = len(settings.get('guilds', {}))
+    actual_guild_count = len(bot.guilds)
+    
+    description = f"총 **{actual_guild_count}개** 서버에서 **{total_members}명**의 사용자와 함께하고 있습니다!\n"
+    description += f"개인 구독자: **{len(subscribers)}명**\n\n"
+    
+    # 설정 파일과 차이가 있으면 경고 표시
+    if settings_guild_count != actual_guild_count:
+        description += f"⚠️ **설정 파일 불일치**: 설정 파일에는 {settings_guild_count}개 서버만 저장됨\n"
+        description += f"📊 **실제 연결**: {actual_guild_count}개 서버에 연결됨"
+    
     # 결과 임베드 생성
     embed = discord.Embed(
         title="📊 데비&마를렌 봇 서버 현황",
-        description=f"총 **{len(bot.guilds)}개** 서버에서 **{total_members}명**의 사용자와 함께하고 있습니다!\n개인 구독자: **{len(subscribers)}명**",
-        color=0x00ff00
+        description=description,
+        color=0xffa500 if settings_guild_count != actual_guild_count else 0x00ff00
     )
     
     # 서버 목록을 여러 필드로 나눠서 추가

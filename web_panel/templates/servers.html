@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+
+{% block title %}서버 관리 - 데비&마를렌 봇{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <h2><i class="fas fa-server me-2"></i>서버 관리</h2>
+            <p class="text-muted mb-0">봇이 참여한 서버들의 설정을 관리하세요</p>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary" onclick="refreshServerList()">
+                <i class="fas fa-sync me-1"></i> 새로고침
+            </button>
+        </div>
+    </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">
+    <i class="fas fa-exclamation-circle me-2"></i>
+    오류가 발생했습니다: {{ error }}
+</div>
+{% endif %}
+
+<!-- 서버 목록 -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-list me-2"></i>서버 목록</h5>
+                <span class="badge bg-primary">{{ servers|length }}개 서버</span>
+            </div>
+            <div class="card-body p-0">
+                {% if servers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>서버명</th>
+                                    <th>멤버수</th>
+                                    <th>공지 채널</th>
+                                    <th>채팅 채널</th>
+                                    <th>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for server in servers %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ server.name }}</div>
+                                        <small class="text-muted">ID: {{ server.id }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ server.member_count }}명</span>
+                                    </td>
+                                    <td>
+                                        {% if server.announcement_channel.name %}
+                                            <span class="text-success">
+                                                <i class="fas fa-check-circle me-1"></i>
+                                                #{{ server.announcement_channel.name }}
+                                            </span>
+                                            <br><small class="text-muted">ID: {{ server.announcement_channel.id }}</small>
+                                        {% else %}
+                                            <span class="text-warning">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                미설정
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if server.chat_channel.name %}
+                                            <span class="text-success">
+                                                <i class="fas fa-check-circle me-1"></i>
+                                                #{{ server.chat_channel.name }}
+                                            </span>
+                                            <br><small class="text-muted">ID: {{ server.chat_channel.id }}</small>
+                                        {% else %}
+                                            <span class="text-muted">미설정</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                onclick="editServer('{{ server.id }}', '{{ server.name }}', {{ server.channels|tojson }}, '{{ server.announcement_channel.id or '' }}', '{{ server.chat_channel.id or '' }}')">
+                                            <i class="fas fa-cog me-1"></i>설정
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center p-5">
+                        <i class="fas fa-server fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">참여한 서버가 없습니다</h5>
+                        <p class="text-muted">봇을 Discord 서버에 초대해주세요.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- 사용자 관리 -->
+    <div class="col-md-4">
+        <!-- 개인 구독자 -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6><i class="fas fa-bell me-2"></i>YouTube 구독자</h6>
+                <span class="badge bg-info">{{ subscribers|length }}명</span>
+            </div>
+            <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                {% if subscribers %}
+                    <div class="list-group list-group-flush">
+                        {% for subscriber in subscribers %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-1">
+                            <div>
+                                <div class="fw-bold small">{{ subscriber.name }}</div>
+                                <small class="text-muted">ID: {{ subscriber.id }}</small>
+                                {% if subscriber.last_seen %}
+                                <br><small class="text-success">최근: {{ subscriber.last_seen }}</small>
+                                {% endif %}
+                            </div>
+                            <span class="badge bg-success">구독중</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-user-slash fa-2x mb-2"></i>
+                        <p>구독자가 없습니다</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 일반 사용자 -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6><i class="fas fa-users me-2"></i>일반 사용자</h6>
+                <span class="badge bg-secondary">{{ general_users|length }}명</span>
+            </div>
+            <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                {% if general_users %}
+                    <div class="list-group list-group-flush">
+                        {% for user in general_users %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-1">
+                            <div>
+                                <div class="fw-bold small">{{ user.name }}</div>
+                                <small class="text-muted">ID: {{ user.id }}</small>
+                                {% if user.last_seen %}
+                                <br><small class="text-muted">최근: {{ user.last_seen }}</small>
+                                {% endif %}
+                            </div>
+                            {% if user.server_admin %}
+                            <span class="badge bg-warning">관리자</span>
+                            {% else %}
+                            <span class="badge bg-light text-dark">일반</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-user fa-2x mb-2"></i>
+                        <p>일반 사용자가 없습니다</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 통계 요약 -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-chart-bar me-2"></i>통계 요약</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h4 text-primary">{{ servers|length }}</div>
+                            <small class="text-muted">총 서버</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h4 text-info">{{ subscribers|length }}</div>
+                            <small class="text-muted">YouTube 구독자</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h4 text-secondary">{{ general_users|length }}</div>
+                            <small class="text-muted">일반 사용자</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h4 text-success">
+                                {{ servers|selectattr('announcement_channel.id')|list|length }}
+                            </div>
+                            <small class="text-muted">공지 설정완료</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 서버 설정 편집 모달 -->
+<div class="modal fade" id="editServerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog me-2"></i>서버 설정
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="serverSettingsForm">
+                    <input type="hidden" id="serverId">
+                    
+                    <div class="mb-3">
+                        <h6 id="serverName" class="text-primary"></h6>
+                        <small class="text-muted">이 서버의 채널 설정을 관리합니다</small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="announcementChannel" class="form-label">
+                                    <i class="fas fa-bullhorn me-1"></i>공지 채널
+                                </label>
+                                <select class="form-select" id="announcementChannel">
+                                    <option value="">선택하지 않음</option>
+                                </select>
+                                <div class="form-text">YouTube 새 영상 알림이 전송될 채널입니다.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="chatChannel" class="form-label">
+                                    <i class="fas fa-comments me-1"></i>채팅 채널 (선택사항)
+                                </label>
+                                <select class="form-select" id="chatChannel">
+                                    <option value="">선택하지 않음</option>
+                                </select>
+                                <div class="form-text">AI 채팅 기능용 채널입니다.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>참고:</strong> 공지 채널은 봇이 메시지를 전송할 수 있는 권한이 있는 채널만 선택하세요.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="saveServerSettings()">
+                    <i class="fas fa-save me-1"></i>저장
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editServer(serverId, serverName, channels, currentAnnouncementId, currentChatId) {
+    document.getElementById('serverId').value = serverId;
+    document.getElementById('serverName').textContent = serverName;
+    
+    // 채널 옵션 초기화
+    const announcementSelect = document.getElementById('announcementChannel');
+    const chatSelect = document.getElementById('chatChannel');
+    
+    announcementSelect.innerHTML = '<option value="">선택하지 않음</option>';
+    chatSelect.innerHTML = '<option value="">선택하지 않음</option>';
+    
+    // 텍스트 채널만 필터링하여 옵션 추가
+    channels.forEach(channel => {
+        if (channel.type === 'ChannelType.text' || channel.type === 'text') {
+            const option1 = new Option(`#${channel.name}`, channel.id);
+            const option2 = new Option(`#${channel.name}`, channel.id);
+            
+            announcementSelect.add(option1);
+            chatSelect.add(option2);
+        }
+    });
+    
+    // 현재 설정값 선택
+    if (currentAnnouncementId && currentAnnouncementId !== 'None') {
+        announcementSelect.value = currentAnnouncementId;
+    }
+    if (currentChatId && currentChatId !== 'None') {
+        chatSelect.value = currentChatId;
+    }
+    
+    // 모달 표시
+    new bootstrap.Modal(document.getElementById('editServerModal')).show();
+}
+
+function saveServerSettings() {
+    const serverId = document.getElementById('serverId').value;
+    const announcementChannelId = document.getElementById('announcementChannel').value;
+    const chatChannelId = document.getElementById('chatChannel').value;
+    
+    // API 호출
+    fetch('/api/server/settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            guild_id: serverId,
+            announcement_channel_id: announcementChannelId || null,
+            chat_channel_id: chatChannelId || null
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 성공 메시지
+            showAlert('설정이 저장되었습니다!', 'success');
+            
+            // 모달 닫기
+            bootstrap.Modal.getInstance(document.getElementById('editServerModal')).hide();
+            
+            // 페이지 새로고침 (실제로는 해당 행만 업데이트하는 것이 더 좋음)
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showAlert('설정 저장에 실패했습니다: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving settings:', error);
+        showAlert('네트워크 오류가 발생했습니다.', 'error');
+    });
+}
+
+function refreshServerList() {
+    location.reload();
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const icon = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
+    
+    const alert = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            <i class="${icon} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.querySelector('.content-header').insertAdjacentHTML('afterend', alert);
+    
+    // 상단으로 스크롤
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // 3초 후 자동 제거
+    setTimeout(() => {
+        const alertElement = document.querySelector('.alert:last-of-type');
+        if (alertElement) {
+            alertElement.remove();
+        }
+    }, 3000);
+}
+</script>
+{% endblock %}

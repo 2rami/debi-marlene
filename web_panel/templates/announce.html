@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+
+{% block title %}공지 전송 - 데비&마를렌 봇{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <h2><i class="fas fa-bullhorn me-2"></i>공지 전송</h2>
+            <p class="text-muted mb-0">모든 서버와 개인 구독자에게 공지사항을 전송하세요</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 공지 작성 -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-edit me-2"></i>공지 내용</h5>
+            </div>
+            <div class="card-body">
+                <form id="announceForm">
+                    <div class="mb-3">
+                        <label for="messageContent" class="form-label">메시지 내용</label>
+                        <textarea class="form-control" id="messageContent" rows="10" 
+                                  placeholder="전송할 공지사항을 입력하세요...
+                                  
+📢 예시:
+안녕하세요! 데비&마를렌 봇 관리자입니다.
+
+이번 업데이트에서 다음과 같은 기능이 추가되었습니다:
+- 새로운 전적 검색 기능
+- 향상된 AI 채팅 응답
+- 웹 관리 패널 (베타)
+
+문의사항이 있으시면 언제든 연락주세요!
+
+감사합니다 ✨"></textarea>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            마크다운 문법과 이모지를 사용할 수 있습니다.
+                        </div>
+                    </div>
+                    
+                    <!-- 전송 옵션 -->
+                    <div class="mb-3">
+                        <label class="form-label">전송 대상 선택</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="sendToChannels" checked>
+                            <label class="form-check-label" for="sendToChannels">
+                                <i class="fas fa-hashtag me-1"></i>서버 공지 채널
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="sendToSubscribers" checked>
+                            <label class="form-check-label" for="sendToSubscribers">
+                                <i class="fas fa-bell me-1"></i>개인 구독자 DM
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="sendToAdmins">
+                            <label class="form-check-label" for="sendToAdmins">
+                                <i class="fas fa-crown me-1"></i>서버 관리자 DM
+                                <small class="text-muted d-block">각 서버의 관리자에게 별도 DM 전송</small>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="confirmSend" required>
+                            <label class="form-check-label text-warning" for="confirmSend">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <strong>선택한 대상에게 전송됨을 확인합니다</strong>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary" onclick="sendAnnouncement()" id="sendBtn">
+                            <i class="fas fa-paper-plane me-1"></i> 공지 전송
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="previewMessage()">
+                            <i class="fas fa-eye me-1"></i> 미리보기
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" onclick="clearMessage()">
+                            <i class="fas fa-trash me-1"></i> 초기화
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 전송 대상 정보 -->
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6><i class="fas fa-users me-2"></i>전송 대상</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span><i class="fas fa-hashtag me-1"></i>서버 공지 채널</span>
+                    <span class="badge bg-primary" id="serverCount">로딩중...</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span><i class="fas fa-bell me-1"></i>개인 구독자 DM</span>
+                    <span class="badge bg-info" id="subscriberCount">로딩중...</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-crown me-1"></i>서버 관리자 DM</span>
+                    <span class="badge bg-warning" id="adminCount">로딩중...</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>선택된 전송 대상</strong>
+                    <strong class="text-success" id="selectedCount">0</strong>
+                </div>
+                <small class="text-muted">전송 옵션에 따라 달라집니다</small>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-clock me-2"></i>전송 기록</h6>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush" id="sendHistory">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-history fa-2x mb-2"></i>
+                        <p>아직 전송 기록이 없습니다</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 전송 진행 상황 모달 -->
+<div class="modal fade" id="sendingModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-paper-plane me-2"></i>공지 전송 중
+                </h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">전송중...</span>
+                </div>
+                <p class="mb-0">공지사항을 전송하고 있습니다...</p>
+                <p class="text-muted"><small>잠시만 기다려 주세요</small></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 미리보기 모달 -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye me-2"></i>메시지 미리보기
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="card">
+                    <div class="card-header bg-discord text-white">
+                        <i class="fab fa-discord me-2"></i>Discord에서 보이는 모습
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-start">
+                            <img src="https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/debi.png" 
+                                 alt="봇" class="rounded-circle me-2" width="40" height="40">
+                            <div>
+                                <div class="fw-bold text-primary">데비&마를렌 봇 <small class="text-muted">지금</small></div>
+                                <div id="previewContent" class="mt-1"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                <button type="button" class="btn btn-primary" onclick="sendFromPreview()">이대로 전송</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-discord { background-color: #5865F2; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 페이지 로드시 통계 가져오기
+document.addEventListener('DOMContentLoaded', function() {
+    loadTargetStats();
+});
+
+function loadTargetStats() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            window.targetStats = {
+                servers: data.bot.total_servers,
+                subscribers: data.bot.subscribers_count,
+                admins: data.bot.total_servers * 2 // 추정값 (서버당 평균 2명의 관리자)
+            };
+            
+            document.getElementById('serverCount').textContent = window.targetStats.servers;
+            document.getElementById('subscriberCount').textContent = window.targetStats.subscribers;
+            document.getElementById('adminCount').textContent = window.targetStats.admins + ' (추정)';
+            
+            // 전송 옵션 변경 이벤트 리스너 추가
+            ['sendToChannels', 'sendToSubscribers', 'sendToAdmins'].forEach(id => {
+                document.getElementById(id).addEventListener('change', updateSelectedCount);
+            });
+            
+            updateSelectedCount();
+        })
+        .catch(error => {
+            console.error('Error loading stats:', error);
+            document.getElementById('serverCount').textContent = '오류';
+            document.getElementById('subscriberCount').textContent = '오류';
+            document.getElementById('adminCount').textContent = '오류';
+        });
+}
+
+function updateSelectedCount() {
+    if (!window.targetStats) return;
+    
+    let selectedCount = 0;
+    
+    if (document.getElementById('sendToChannels').checked) {
+        selectedCount += window.targetStats.servers;
+    }
+    if (document.getElementById('sendToSubscribers').checked) {
+        selectedCount += window.targetStats.subscribers;
+    }
+    if (document.getElementById('sendToAdmins').checked) {
+        selectedCount += window.targetStats.admins;
+    }
+    
+    document.getElementById('selectedCount').textContent = selectedCount;
+}
+
+function sendAnnouncement() {
+    const messageContent = document.getElementById('messageContent').value.trim();
+    const confirmSend = document.getElementById('confirmSend').checked;
+    const sendToChannels = document.getElementById('sendToChannels').checked;
+    const sendToSubscribers = document.getElementById('sendToSubscribers').checked;
+    const sendToAdmins = document.getElementById('sendToAdmins').checked;
+    
+    if (!messageContent) {
+        alert('메시지 내용을 입력해주세요.');
+        return;
+    }
+    
+    if (!sendToChannels && !sendToSubscribers && !sendToAdmins) {
+        alert('전송 대상을 하나 이상 선택해주세요.');
+        return;
+    }
+    
+    if (!confirmSend) {
+        alert('전송 확인을 체크해주세요.');
+        return;
+    }
+    
+    // 전송 모달 표시
+    const sendingModal = new bootstrap.Modal(document.getElementById('sendingModal'));
+    sendingModal.show();
+    
+    // API 호출
+    fetch('/api/announce', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message: messageContent,
+            send_to_channels: sendToChannels,
+            send_to_subscribers: sendToSubscribers,
+            send_to_admins: sendToAdmins
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        sendingModal.hide();
+        
+        if (data.success) {
+            showResult('성공!', 
+                      `공지가 성공적으로 전송되었습니다.\n전송 완료: ${data.sent_count}건`,
+                      'success');
+            
+            // 전송 기록에 추가
+            addToHistory(messageContent.substring(0, 50) + '...', data.sent_count, new Date());
+            
+            // 폼 초기화
+            document.getElementById('messageContent').value = '';
+            document.getElementById('confirmSend').checked = false;
+            document.getElementById('sendToChannels').checked = true;
+            document.getElementById('sendToSubscribers').checked = true;
+            document.getElementById('sendToAdmins').checked = false;
+            updateSelectedCount();
+            
+            if (data.errors && data.errors.length > 0) {
+                console.warn('일부 전송 실패:', data.errors);
+            }
+        } else {
+            showResult('전송 실패', data.error, 'error');
+        }
+    })
+    .catch(error => {
+        sendingModal.hide();
+        console.error('Error sending announcement:', error);
+        showResult('오류 발생', '네트워크 오류가 발생했습니다.', 'error');
+    });
+}
+
+function previewMessage() {
+    const messageContent = document.getElementById('messageContent').value.trim();
+    
+    if (!messageContent) {
+        alert('미리보기할 메시지를 입력해주세요.');
+        return;
+    }
+    
+    // 간단한 마크다운 변환 (실제로는 더 정교한 라이브러리 사용 권장)
+    let previewHtml = messageContent
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+    
+    document.getElementById('previewContent').innerHTML = previewHtml;
+    
+    const previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
+    previewModal.show();
+}
+
+function sendFromPreview() {
+    bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide();
+    
+    // 확인 체크박스 자동 체크
+    document.getElementById('confirmSend').checked = true;
+    
+    setTimeout(() => {
+        sendAnnouncement();
+    }, 300);
+}
+
+function clearMessage() {
+    if (confirm('작성 중인 내용이 모두 삭제됩니다. 계속하시겠습니까?')) {
+        document.getElementById('messageContent').value = '';
+        document.getElementById('confirmSend').checked = false;
+        document.getElementById('sendToChannels').checked = true;
+        document.getElementById('sendToSubscribers').checked = true;
+        document.getElementById('sendToAdmins').checked = false;
+        updateSelectedCount();
+    }
+}
+
+function showResult(title, message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const icon = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
+    
+    const alert = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            <i class="${icon} me-2"></i>
+            <strong>${title}</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.querySelector('.content-header').insertAdjacentHTML('afterend', alert);
+    
+    // 상단으로 스크롤
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function addToHistory(message, count, date) {
+    const historyContainer = document.getElementById('sendHistory');
+    
+    // 빈 메시지 제거
+    if (historyContainer.querySelector('.text-center')) {
+        historyContainer.innerHTML = '';
+    }
+    
+    const historyItem = document.createElement('div');
+    historyItem.className = 'list-group-item';
+    historyItem.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+                <div class="fw-bold">${message}</div>
+                <small class="text-muted">${count}건 전송 완료</small>
+            </div>
+            <small class="text-muted">${date.toLocaleTimeString()}</small>
+        </div>
+    `;
+    
+    historyContainer.insertBefore(historyItem, historyContainer.firstChild);
+    
+    // 최대 5개 항목만 유지
+    while (historyContainer.children.length > 5) {
+        historyContainer.removeChild(historyContainer.lastChild);
+    }
+}
+</script>
+{% endblock %}

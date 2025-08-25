@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}대시보드 - 데비&마를렌 봇{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <h2><i class="fas fa-tachometer-alt me-2"></i>대시보드</h2>
+            <p class="text-muted mb-0">데비&마를렌 봇의 실시간 상태를 확인하세요</p>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary" onclick="refreshStats()">
+                <i class="fas fa-sync me-1"></i> 새로고침
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 봇 상태 카드들 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <h1 id="bot-status">{{ bot_stats.status }}</h1>
+                <p class="mb-0">봇 상태</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <h1 id="server-count">{{ bot_stats.total_servers }}</h1>
+                <p class="mb-0">연결된 서버</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <h1 id="member-count">{{ bot_stats.total_members }}</h1>
+                <p class="mb-0">총 사용자</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <h1 id="subscriber-count">{{ bot_stats.subscribers_count }}</h1>
+                <p class="mb-0">개인 구독자</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 시스템 리소스 -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-line me-2"></i>시스템 리소스</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>CPU 사용률</h6>
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {{ system_stats.cpu_percent }}%"
+                                 id="cpu-progress">
+                                {{ "%.1f"|format(system_stats.cpu_percent) }}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>메모리 사용률</h6>
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {{ system_stats.memory_percent }}%"
+                                 id="memory-progress">
+                                {{ "%.1f"|format(system_stats.memory_percent) }}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>디스크 사용률</h6>
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {{ system_stats.disk_percent }}%"
+                                 id="disk-progress">
+                                {{ "%.1f"|format(system_stats.disk_percent) }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle me-2"></i>시스템 정보</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>마지막 업데이트:</strong><br>
+                   <small class="text-muted" id="last-update">{{ bot_stats.last_updated }}</small></p>
+                <p><strong>시스템 가동시간:</strong><br>
+                   <small class="text-muted">{{ system_stats.uptime }}</small></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 빠른 작업 버튼들 -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-bolt me-2"></i>빠른 작업</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-3 flex-wrap">
+                    <a href="{{ url_for('announce') }}" class="btn btn-primary">
+                        <i class="fas fa-bullhorn me-1"></i> 공지 전송
+                    </a>
+                    <a href="{{ url_for('servers') }}" class="btn btn-info">
+                        <i class="fas fa-cogs me-1"></i> 서버 설정
+                    </a>
+                    <a href="{{ url_for('logs') }}" class="btn btn-secondary">
+                        <i class="fas fa-file-alt me-1"></i> 로그 확인
+                    </a>
+                    <button class="btn btn-warning" onclick="showMaintenanceModal()">
+                        <i class="fas fa-tools me-1"></i> 유지보수 모드
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 최근 활동 -->
+<div class="row">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-history me-2"></i>최근 활동</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush" id="recent-activity">
+                    <div class="list-group-item d-flex align-items-center">
+                        <i class="fas fa-circle text-success me-2"></i>
+                        <div>
+                            <div>웹 관리 패널이 시작되었습니다</div>
+                            <small class="text-muted">방금 전</small>
+                        </div>
+                    </div>
+                    <div class="list-group-item d-flex align-items-center">
+                        <i class="fas fa-circle text-info me-2"></i>
+                        <div>
+                            <div>봇 상태를 확인했습니다</div>
+                            <small class="text-muted">1분 전</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 유지보수 모드 모달 -->
+<div class="modal fade" id="maintenanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">유지보수 모드</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>이 기능은 봇을 일시적으로 비활성화합니다.</p>
+                <p class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>주의: 모든 Discord 기능이 중단됩니다.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-warning" onclick="enableMaintenanceMode()">유지보수 모드 활성화</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function refreshStats() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            // 봇 통계 업데이트
+            document.getElementById('bot-status').textContent = data.bot.status;
+            document.getElementById('server-count').textContent = data.bot.total_servers;
+            document.getElementById('member-count').textContent = data.bot.total_members;
+            document.getElementById('subscriber-count').textContent = data.bot.subscribers_count;
+            document.getElementById('last-update').textContent = data.bot.last_updated;
+            
+            // 시스템 리소스 업데이트
+            document.getElementById('cpu-progress').style.width = data.system.cpu_percent + '%';
+            document.getElementById('cpu-progress').textContent = data.system.cpu_percent.toFixed(1) + '%';
+            
+            document.getElementById('memory-progress').style.width = data.system.memory_percent + '%';
+            document.getElementById('memory-progress').textContent = data.system.memory_percent.toFixed(1) + '%';
+            
+            document.getElementById('disk-progress').style.width = data.system.disk_percent + '%';
+            document.getElementById('disk-progress').textContent = data.system.disk_percent.toFixed(1) + '%';
+            
+            // 성공 알림
+            showToast('통계가 업데이트되었습니다', 'success');
+        })
+        .catch(error => {
+            console.error('Error refreshing stats:', error);
+            showToast('통계 업데이트에 실패했습니다', 'error');
+        });
+}
+
+function showMaintenanceModal() {
+    new bootstrap.Modal(document.getElementById('maintenanceModal')).show();
+}
+
+function enableMaintenanceMode() {
+    // 실제 구현에서는 봇을 일시정지하는 API 호출
+    alert('유지보수 모드 기능은 아직 구현 중입니다.');
+    bootstrap.Modal.getInstance(document.getElementById('maintenanceModal')).hide();
+}
+
+function showToast(message, type) {
+    // 간단한 토스트 알림 (실제로는 Toast 라이브러리 사용 권장)
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const toast = `
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999;" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', toast);
+    
+    // 3초 후 자동 제거
+    setTimeout(() => {
+        const alert = document.querySelector('.alert:last-child');
+        if (alert) alert.remove();
+    }, 3000);
+}
+
+// 5초마다 자동 새로고침
+setInterval(refreshStats, 5000);
+</script>
+{% endblock %}

@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}로그 확인 - 데비&마를렌 봇{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <h2><i class="fas fa-file-alt me-2"></i>로그 확인</h2>
+            <p class="text-muted mb-0">봇의 실시간 로그와 활동 기록을 확인하세요</p>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary" onclick="refreshLogs()">
+                <i class="fas fa-sync me-1"></i> 새로고침
+            </button>
+            <button class="btn btn-outline-secondary" onclick="toggleAutoRefresh()" id="autoRefreshBtn">
+                <i class="fas fa-play me-1"></i> 자동 새로고침
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 로그 뷰어 -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-terminal me-2"></i>실시간 로그</h5>
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="logLevel" id="logAll" autocomplete="off" checked>
+                    <label class="btn btn-outline-secondary" for="logAll">전체</label>
+                    
+                    <input type="radio" class="btn-check" name="logLevel" id="logInfo" autocomplete="off">
+                    <label class="btn btn-outline-info" for="logInfo">정보</label>
+                    
+                    <input type="radio" class="btn-check" name="logLevel" id="logWarn" autocomplete="off">
+                    <label class="btn btn-outline-warning" for="logWarn">경고</label>
+                    
+                    <input type="radio" class="btn-check" name="logLevel" id="logError" autocomplete="off">
+                    <label class="btn btn-outline-danger" for="logError">오류</label>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="log-container" id="logContainer" style="height: 500px; overflow-y: auto; background: #1a1a1a; color: #fff; font-family: 'Courier New', monospace; padding: 15px;">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-spinner fa-spin me-2"></i>
+                        로그를 불러오는 중...
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        마지막 업데이트: <span id="lastLogUpdate">-</span>
+                    </small>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="clearLogs()">
+                        <i class="fas fa-trash me-1"></i>로그 지우기
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 로그 통계 및 필터 -->
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6><i class="fas fa-chart-pie me-2"></i>로그 통계</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 text-center">
+                    <div class="col-6">
+                        <div class="h4 text-info" id="infoCount">0</div>
+                        <small class="text-muted">정보</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="h4 text-warning" id="warnCount">0</div>
+                        <small class="text-muted">경고</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="h4 text-danger" id="errorCount">0</div>
+                        <small class="text-muted">오류</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="h4 text-success" id="totalCount">0</div>
+                        <small class="text-muted">전체</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6><i class="fas fa-filter me-2"></i>로그 필터</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="searchKeyword" class="form-label">키워드 검색</label>
+                    <input type="text" class="form-control" id="searchKeyword" 
+                           placeholder="검색할 키워드 입력..." onkeyup="filterLogs()">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">시간 범위</label>
+                    <select class="form-select" id="timeRange" onchange="filterLogs()">
+                        <option value="all">전체</option>
+                        <option value="1h" selected>최근 1시간</option>
+                        <option value="6h">최근 6시간</option>
+                        <option value="24h">최근 24시간</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-sm btn-outline-secondary w-100" onclick="resetFilters()">
+                    <i class="fas fa-undo me-1"></i>필터 초기화
+                </button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-download me-2"></i>로그 내보내기</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="exportLogs('txt')">
+                        <i class="fas fa-file-alt me-1"></i>텍스트 파일 (.txt)
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="exportLogs('json')">
+                        <i class="fas fa-file-code me-1"></i>JSON 파일 (.json)
+                    </button>
+                </div>
+                <div class="form-text mt-2">
+                    현재 표시된 로그들을 파일로 다운로드합니다.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.log-entry {
+    margin-bottom: 5px;
+    padding: 5px 10px;
+    border-left: 3px solid #666;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+}
+
+.log-entry.info { border-left-color: #17a2b8; }
+.log-entry.warn { border-left-color: #ffc107; }
+.log-entry.error { border-left-color: #dc3545; }
+
+.log-timestamp {
+    color: #888;
+    font-size: 0.85em;
+}
+
+.log-level {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.75em;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.log-level.info { background: #17a2b8; color: white; }
+.log-level.warn { background: #ffc107; color: black; }
+.log-level.error { background: #dc3545; color: white; }
+
+.log-message {
+    color: #fff;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let autoRefreshInterval = null;
+let currentLogs = [];
+
+// 페이지 로드시 로그 불러오기
+document.addEventListener('DOMContentLoaded', function() {
+    loadLogs();
+    
+    // 로그 레벨 필터 이벤트
+    document.querySelectorAll('input[name="logLevel"]').forEach(radio => {
+        radio.addEventListener('change', filterLogs);
+    });
+});
+
+function loadLogs() {
+    fetch('/api/logs')
+        .then(response => response.json())
+        .then(data => {
+            if (data.logs) {
+                currentLogs = data.logs;
+                displayLogs(currentLogs);
+                updateLogStats(currentLogs);
+                document.getElementById('lastLogUpdate').textContent = new Date().toLocaleTimeString();
+            } else if (data.error) {
+                displayError('로그 로딩 오류: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading logs:', error);
+            displayError('네트워크 오류가 발생했습니다.');
+        });
+}
+
+function displayLogs(logs) {
+    const container = document.getElementById('logContainer');
+    
+    if (logs.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-file-alt fa-2x mb-2"></i>
+                <p>표시할 로그가 없습니다.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    logs.forEach(log => {
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry ${log.level.toLowerCase()}`;
+        logEntry.innerHTML = `
+            <div class="log-timestamp">${log.timestamp}</div>
+            <span class="log-level ${log.level.toLowerCase()}">${log.level}</span>
+            <span class="log-message">${escapeHtml(log.message)}</span>
+        `;
+        container.appendChild(logEntry);
+    });
+    
+    // 자동 스크롤 (최신 로그가 보이도록)
+    container.scrollTop = container.scrollHeight;
+}
+
+function displayError(message) {
+    const container = document.getElementById('logContainer');
+    container.innerHTML = `
+        <div class="text-center text-danger">
+            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+            <p>${message}</p>
+        </div>
+    `;
+}
+
+function updateLogStats(logs) {
+    const stats = {
+        info: logs.filter(log => log.level.toLowerCase() === 'info').length,
+        warn: logs.filter(log => log.level.toLowerCase() === 'warn').length,
+        error: logs.filter(log => log.level.toLowerCase() === 'error').length,
+        total: logs.length
+    };
+    
+    document.getElementById('infoCount').textContent = stats.info;
+    document.getElementById('warnCount').textContent = stats.warn;
+    document.getElementById('errorCount').textContent = stats.error;
+    document.getElementById('totalCount').textContent = stats.total;
+}
+
+function filterLogs() {
+    const selectedLevel = document.querySelector('input[name="logLevel"]:checked').id.replace('log', '').toLowerCase();
+    const searchKeyword = document.getElementById('searchKeyword').value.toLowerCase();
+    const timeRange = document.getElementById('timeRange').value;
+    
+    let filteredLogs = [...currentLogs];
+    
+    // 레벨 필터
+    if (selectedLevel !== 'all') {
+        filteredLogs = filteredLogs.filter(log => log.level.toLowerCase() === selectedLevel);
+    }
+    
+    // 키워드 필터
+    if (searchKeyword) {
+        filteredLogs = filteredLogs.filter(log => 
+            log.message.toLowerCase().includes(searchKeyword)
+        );
+    }
+    
+    // 시간 범위 필터 (실제 구현에서는 서버에서 처리하는 것이 좋음)
+    if (timeRange !== 'all') {
+        const now = new Date();
+        const hours = parseInt(timeRange.replace('h', ''));
+        const cutoffTime = new Date(now.getTime() - (hours * 60 * 60 * 1000));
+        
+        filteredLogs = filteredLogs.filter(log => {
+            const logTime = new Date(log.timestamp);
+            return logTime >= cutoffTime;
+        });
+    }
+    
+    displayLogs(filteredLogs);
+    updateLogStats(filteredLogs);
+}
+
+function clearLogs() {
+    if (confirm('로그를 모두 지우시겠습니까?')) {
+        document.getElementById('logContainer').innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-trash fa-2x mb-2"></i>
+                <p>로그가 지워졌습니다.</p>
+            </div>
+        `;
+        currentLogs = [];
+        updateLogStats([]);
+    }
+}
+
+function refreshLogs() {
+    loadLogs();
+}
+
+function toggleAutoRefresh() {
+    const btn = document.getElementById('autoRefreshBtn');
+    
+    if (autoRefreshInterval) {
+        // 자동 새로고침 중지
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        btn.innerHTML = '<i class="fas fa-play me-1"></i> 자동 새로고침';
+        btn.className = 'btn btn-outline-secondary';
+    } else {
+        // 자동 새로고침 시작 (5초마다)
+        autoRefreshInterval = setInterval(loadLogs, 5000);
+        btn.innerHTML = '<i class="fas fa-pause me-1"></i> 자동 새로고침 중지';
+        btn.className = 'btn btn-success';
+    }
+}
+
+function resetFilters() {
+    document.getElementById('logAll').checked = true;
+    document.getElementById('searchKeyword').value = '';
+    document.getElementById('timeRange').value = '1h';
+    filterLogs();
+}
+
+function exportLogs(format) {
+    const logs = currentLogs;
+    
+    if (logs.length === 0) {
+        alert('내보낼 로그가 없습니다.');
+        return;
+    }
+    
+    let content, filename, mimeType;
+    
+    if (format === 'txt') {
+        content = logs.map(log => `[${log.timestamp}] ${log.level}: ${log.message}`).join('\n');
+        filename = `debi-marlene-logs-${new Date().toISOString().split('T')[0]}.txt`;
+        mimeType = 'text/plain';
+    } else if (format === 'json') {
+        content = JSON.stringify(logs, null, 2);
+        filename = `debi-marlene-logs-${new Date().toISOString().split('T')[0]}.json`;
+        mimeType = 'application/json';
+    }
+    
+    // 파일 다운로드
+    const blob = new Blob([content], { type: mimeType });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// 페이지 종료 시 자동 새로고침 정리
+window.addEventListener('beforeunload', function() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+});
+</script>
+{% endblock %}

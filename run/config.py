@@ -98,6 +98,41 @@ def get_youtube_subscribers():
             subscribers.append(int(user_id))
     return subscribers
 
+def get_all_users():
+    """모든 등록된 사용자 정보를 반환합니다."""
+    settings = load_settings()
+    users = []
+    for user_id, user_settings in settings.get("users", {}).items():
+        users.append({
+            'id': int(user_id),
+            'youtube_subscribed': user_settings.get("youtube_subscribed", False),
+            'first_interaction': user_settings.get("first_interaction"),
+            'last_seen': user_settings.get("last_seen"),
+            'server_admin': user_settings.get("server_admin", False)
+        })
+    return users
+
+def add_user_interaction(user_id, interaction_type="general"):
+    """사용자 상호작용을 기록합니다."""
+    user_id_str = str(user_id)
+    settings = load_settings()
+    
+    if "users" not in settings:
+        settings["users"] = {}
+    if user_id_str not in settings["users"]:
+        settings["users"][user_id_str] = {}
+    
+    from datetime import datetime
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    if "first_interaction" not in settings["users"][user_id_str]:
+        settings["users"][user_id_str]["first_interaction"] = now
+    
+    settings["users"][user_id_str]["last_seen"] = now
+    settings["users"][user_id_str]["interaction_type"] = interaction_type
+    
+    return save_settings(settings)
+
 def set_youtube_subscription(user_id, subscribe: bool):
     """사용자의 유튜브 DM 알림 구독 상태를 설정합니다."""
     user_id_str = str(user_id)
@@ -109,6 +144,50 @@ def set_youtube_subscription(user_id, subscribe: bool):
         settings["users"][user_id_str] = {}
         
     settings["users"][user_id_str]["youtube_subscribed"] = subscribe
+    # 상호작용도 기록
+    add_user_interaction(user_id, "youtube_subscription")
+    return save_settings(settings)
+
+def get_server_admins(guild_id=None):
+    """서버 관리자 목록을 반환합니다. guild_id가 주어지면 해당 서버의 관리자만 반환."""
+    settings = load_settings()
+    admins = []
+    
+    if guild_id:
+        # 특정 서버의 관리자만 조회
+        guild_str = str(guild_id)
+        for user_id, user_settings in settings.get("users", {}).items():
+            if user_settings.get("admin_servers", {}).get(guild_str):
+                admins.append(int(user_id))
+    else:
+        # 모든 서버 관리자 조회
+        for user_id, user_settings in settings.get("users", {}).items():
+            if user_settings.get("admin_servers"):
+                admins.append({
+                    'user_id': int(user_id),
+                    'admin_servers': list(user_settings.get("admin_servers", {}).keys())
+                })
+    
+    return admins
+
+def set_server_admin(user_id, guild_id, is_admin=True):
+    """사용자를 특정 서버의 관리자로 설정하거나 해제합니다."""
+    user_id_str = str(user_id)
+    guild_str = str(guild_id)
+    settings = load_settings()
+    
+    if "users" not in settings:
+        settings["users"] = {}
+    if user_id_str not in settings["users"]:
+        settings["users"][user_id_str] = {}
+    if "admin_servers" not in settings["users"][user_id_str]:
+        settings["users"][user_id_str]["admin_servers"] = {}
+    
+    settings["users"][user_id_str]["admin_servers"][guild_str] = is_admin
+    
+    # 상호작용 기록
+    add_user_interaction(user_id, "admin_role_change")
+    
     return save_settings(settings)
 
 # 캐릭터 설정

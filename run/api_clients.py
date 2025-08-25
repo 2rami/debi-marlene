@@ -3,6 +3,18 @@ import aiohttp
 import urllib.parse
 from typing import Optional, Dict, Any, List
 
+# 글로벌 봇 인스턴스 저장
+_bot_instance = None
+
+def set_bot_instance(bot):
+    """웹 패널에서 사용할 봇 인스턴스를 설정"""
+    global _bot_instance
+    _bot_instance = bot
+
+def get_bot_instance():
+    """웹 패널에서 봇 인스턴스를 가져옴"""
+    return _bot_instance
+
 # --- 데이터 캐시 클래스 ---
 
 class GameDataCache:

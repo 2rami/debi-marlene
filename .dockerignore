@@ -42,6 +42,5 @@ README.md
 docker-compose.yml
 permission_example.py
 
-# 런타임 설정 파일
-# run/settings.json  # Docker 이미지에 포함하도록 주석 처리
-run/settings.json
+# 웹패널 (봇에 포함 안함)
+webpanel/

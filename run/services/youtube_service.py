@@ -1,14 +1,9 @@
 import discord
 from discord.ext import tasks
 from googleapiclient.discovery import build
-try:
-    # main.py에서 실행할 때
-    from run.config import YOUTUBE_API_KEY, ETERNAL_RETURN_CHANNEL_ID, characters, get_guild_settings
-    from run import config
-except ImportError:
-    # run 폴더 내에서 실행할 때
-    from config import YOUTUBE_API_KEY, ETERNAL_RETURN_CHANNEL_ID, characters, get_guild_settings
-    import config
+
+from run.core.config import YOUTUBE_API_KEY, ETERNAL_RETURN_CHANNEL_ID, get_guild_settings
+from run.core import config
 
 youtube = None
 bot_instance = None
@@ -77,16 +72,25 @@ async def _send_notification(channel_or_user, video_id, snippet):
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     try:
         is_shorts = await check_video_duration(video_id)
-        char_key = "debi" if is_shorts else "marlene"
-        character = characters[char_key]
-        action_text = "새로운 쇼츠를 발견했어!" if is_shorts else "새로운 영상을 가져왔어."
+
+        # 쇼츠면 데비, 일반 영상이면 마를렌
+        if is_shorts:
+            char_name = "데비"
+            char_color = 0x0000FF  # 파랑
+            char_image = "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/debi.png"
+            action_text = "새로운 쇼츠를 발견했어!"
+        else:
+            char_name = "마를렌"
+            char_color = 0xDC143C  # 빨강
+            char_image = "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/marlen.png"
+            action_text = "새로운 영상을 가져왔어."
 
         embed = discord.Embed(
             title=f"**{snippet['title']}**",
             description=snippet.get('description', '')[:150] + '...' if snippet.get('description') else action_text,
-            color=character['color']
+            color=char_color
         )
-        embed.set_author(name=f"{character['name']}이(가) {action_text}", icon_url=character['image'])
+        embed.set_author(name=f"{char_name}이(가) {action_text}", icon_url=char_image)
         embed.set_thumbnail(url=snippet['thumbnails']['high']['url'])
 
         # DM 메시지 전송

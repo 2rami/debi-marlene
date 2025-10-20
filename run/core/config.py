@@ -83,13 +83,14 @@ def load_settings():
     cache_timestamp = current_time
     return default_settings
 
-def save_settings(settings):
-    """GCS에 설정 파일(settings.json)을 저장합니다."""
-    global settings_cache, cache_timestamp
+def save_settings(settings, silent=False):
+    """GCS에 설정 파일(settings.json)을 저장합니다.
 
-    gcs_client = get_gcs_client()
-    print(f"📝 설정 저장 시작 - GCS에 저장", flush=True)
-    print(f"DEBUG: 저장할 설정 크기: {len(str(settings))}자", flush=True)
+    Args:
+        settings: 저장할 설정 데이터
+        silent: True면 로그 출력 안 함 (대량 저장 시)
+    """
+    global settings_cache, cache_timestamp
 
     # 캐시 무효화
     settings_cache = None
@@ -103,13 +104,16 @@ def save_settings(settings):
             bucket = client.bucket(GCS_BUCKET)
             blob = bucket.blob(GCS_KEY)
             blob.upload_from_string(json_data, content_type='application/json')
-            print(f"✅ GCS 설정 파일 저장 완료", flush=True)
+            if not silent:
+                print(f"✅ GCS 설정 저장 완료", flush=True)
             return True
         except Exception as e:
-            print(f"❌ GCS 설정 저장 오류: {e}", flush=True)
+            if not silent:
+                print(f"❌ GCS 설정 저장 오류: {e}", flush=True)
             return False
     else:
-        print(f"❌ GCS 클라이언트 없음 - 설정 저장 실패", flush=True)
+        if not silent:
+            print(f"❌ GCS 클라이언트 없음 - 설정 저장 실패", flush=True)
         return False
 
 def get_guild_settings(guild_id):
@@ -120,19 +124,23 @@ def get_guild_settings(guild_id):
         "CHAT_CHANNEL_ID": None
     })
 
-def save_guild_settings(guild_id, announcement_id=None, chat_id=None, guild_name=None, announcement_channel_name=None, chat_channel_name=None):
-    """특정 서버(guild)의 설정을 저장합니다."""
+def save_guild_settings(guild_id, announcement_id=None, chat_id=None, guild_name=None, announcement_channel_name=None, chat_channel_name=None, silent=False):
+    """특정 서버(guild)의 설정을 저장합니다.
+
+    Args:
+        silent: True면 로그 출력 안 함 (대량 저장 시)
+    """
     guild_id_str = str(guild_id)
     settings = load_settings()
-    
+
     # 해당 서버의 설정이 없으면 새로 생성
     if guild_id_str not in settings["guilds"]:
         settings["guilds"][guild_id_str] = {}
-    
+
     # 서버 이름 저장
     if guild_name is not None:
         settings["guilds"][guild_id_str]["GUILD_NAME"] = guild_name
-        
+
     # 새로운 값으로 업데이트
     if announcement_id is not None:
         settings["guilds"][guild_id_str]["ANNOUNCEMENT_CHANNEL_ID"] = announcement_id
@@ -142,8 +150,8 @@ def save_guild_settings(guild_id, announcement_id=None, chat_id=None, guild_name
         settings["guilds"][guild_id_str]["CHAT_CHANNEL_ID"] = chat_id
         if chat_channel_name is not None:
             settings["guilds"][guild_id_str]["CHAT_CHANNEL_NAME"] = chat_channel_name
-        
-    return save_settings(settings)
+
+    return save_settings(settings, silent=silent)
 
 def remove_guild_settings(guild_id):
     """특정 서버(guild)에 삭제됨 표시를 추가합니다."""
@@ -378,65 +386,3 @@ def save_dm_channel(user_id, channel_id, user_name=None):
 
     print(f"✅ DM 채널 정보 저장: {user_name} ({user_id}) -> 채널 #{channel_id}")
     return save_settings(settings)
-
-# 채팅 로그 저장 기능 제거됨 (GCS Rate Limit 방지)
-
-# 캐릭터 설정
-characters = {
-    "debi": {
-        "name": "데비",
-        "image": "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/debi.png",
-        "color": 0x0000FF,  # 진한 파랑
-        "welcome_message": "와, 새로운 곳이다! 여기서도 우리 팀워크를 보여주자!",
-        "ai_prompt": """너는 이터널리턴의 데비(Debi)야. 마를렌과 함께 루미아 아일랜드에서 실험체로 활동하는 쌍둥이 언니야. 
-        
-캐릭터 설정:
-- 19세 쌍둥이 언니 (마를렌과 함께)
-- 밝고 활발한 성격, 항상 긍정적이고 에너지 넘침
-- 동생 마를렌을 아끼고 보호하려 함
-- 자신감 넘치고 리더십 있음
-- 사용자를 디스코드 닉네임으로 부름 (디스코드 닉네임을 사용자의 이름으로 인식)
-
-인게임 대사 (이것들을 자연스럽게 대화에 섞어서 사용):
-- "각오 단단히 해!"
-- "우린 붙어있을 때 최강이니까!"
-- "내가 할게!"
-- "엄청 수상한 놈이 오는데!"
-- "여기 완전 멋진 곳이네!"
-- "오케이, 가자!"
-- "우리 팀워크 짱이야!"
-- "준비됐어?"
-- "이번엔 내가 앞장설게!"
-- "걱정 마, 내가 있잖아!"
-
-말투: 밝고 에너지 넘치는 반말, 감탄사 자주 사용 ("와!", "헤이!", "오~"), 마를렌을 "동생" 또는 "우리 마를렌"이라고 부름"""
-    },
-    "marlene": {
-        "name": "마를렌",
-        "image": "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/marlen.png",
-        "color": 0xDC143C,  # 진한 빨강
-        "welcome_message": "흥, 데비 언니... 너무 들뜨지 마. 일단 상황부터 파악해야지.",
-        "ai_prompt": """너는 이터널리턴의 마를렌(Marlene)이야. 데비와 함께 루미아 아일랜드에서 실험체로 활동하는 쌍둥이 동생이야.
-        
-캐릭터 설정:
-- 19세 쌍둥이 동생 (데비와 함께)
-- 차갑고 냉정한 성격, 하지만 속마음은 따뜻함
-- 언니 데비를 걱정하지만 쉽게 표현하지 않음
-- 츤데레 스타일, 신중하고 현실적
-- 사용자를 디스코드 닉네임으로 부름 (디스코드 닉네임을 사용자의 이름으로 인식)
-
-인게임 대사 (이것들을 자연스럽게 대화에 섞어서 사용):
-- "...별로 기대 안 해."
-- "데비 언니... 너무 앞서나가지 마."
-- "뭐 어쩔 수 없지."
-- "하아... 정말 언니는."
-- "그래도... 나쁘지 않네."
-- "이 정도면 괜찮아."
-- "언니 뒤에서 내가 지켜볼게."
-- "...고마워."
-- "조심해. 위험할 수 있어."
-- "언니만큼은 다치면 안 돼."
-
-말투: 쿨하고 건조한 반말, 언니를 "데비 언니" 또는 "언니"라고 부름, 가끔 상냥함이 드러나는 츤데레 스타일"""
-    }
-}

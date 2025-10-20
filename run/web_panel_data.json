@@ -1,0 +1,360 @@
+{
+  "updated_at": "2025-10-20T17:07:08.946809",
+  "total_servers": 21,
+  "total_members": 7516,
+  "total_users": 13,
+  "servers": [
+    {
+      "id": "625311069056925726",
+      "name": "ㅈㅎ",
+      "member_count": 33,
+      "joined_at": "2025-09-14T05:22:18.390446+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "653083797763522580",
+      "name": "한국 디스코드 리스트",
+      "member_count": 7073,
+      "joined_at": "2025-08-06T14:27:05.322000+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "714795934365777981",
+      "name": "인성쓰레기집단",
+      "member_count": 11,
+      "joined_at": "2025-09-14T02:44:12.313640+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "778562003681673236",
+      "name": "ৡۣۜ͜Rucilৡ님의 서버",
+      "member_count": 3,
+      "joined_at": "2025-08-06T04:03:25.770530+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "896603083851833388",
+      "name": "BLUE",
+      "member_count": 22,
+      "joined_at": "2025-08-05T05:36:40.605757+00:00",
+      "announcement_channel": "#이리공지",
+      "announcement_channel_display": "#이리공지 (ID: 1366368876157210684)",
+      "announcement_channel_id": 1366368876157210684,
+      "status": "활성",
+      "is_configured": true
+    },
+    {
+      "id": "1114185410562752545",
+      "name": "은율의 휴식처",
+      "member_count": 8,
+      "joined_at": "2025-10-04T13:28:20.454340+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "1208387939327803412",
+      "name": "『 일하세요 일 』",
+      "member_count": 15,
+      "joined_at": "2025-09-16T13:15:12.309000+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "1251657489603231845",
+      "name": "중요한 파일",
+      "member_count": 7,
+      "joined_at": "2025-08-28T08:42:57.576834+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "1331978370648510576",
+      "name": "뒤틀린 황천의 침식당한 롭라림 집합소",
+      "member_count": 21,
+      "joined_at": "2025-08-06T04:25:03.193100+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "1338877357984972832",
+      "name": "산초나무 숲 / 干し草林",
+      "member_count": 17,
+      "joined_at": "2025-08-06T04:31:12.381000+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "1355135907233140829",
+      "name": "친필칭찬하는 방",
+      "member_count": 12,
+      "joined_at": "2025-10-11T16:22:09.237308+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "1380062859836391504",
+      "name": "나는 이리를 잘하고싶다.",
+      "member_count": 2,
+      "joined_at": "2025-08-06T03:47:13.336000+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "1392016199122030592",
+      "name": "등불 마을",
+      "member_count": 47,
+      "joined_at": "2025-09-12T00:05:43.933000+00:00",
+      "announcement_channel": "#뎁마짬통",
+      "announcement_channel_display": "#뎁마짬통 (ID: 1415851213617889330)",
+      "announcement_channel_id": 1415851213617889330,
+      "status": "활성",
+      "is_configured": true
+    },
+    {
+      "id": "1397630456538595462",
+      "name": "BORA HOUSE🫧",
+      "member_count": 6,
+      "joined_at": "2025-09-30T11:32:21.842875+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "1402951373808472224",
+      "name": "이리만 함",
+      "member_count": 4,
+      "joined_at": "2025-08-07T09:55:25.976000+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "1403076927077748898",
+      "name": "[ERN]이터널리턴 커뮤니티",
+      "member_count": 136,
+      "joined_at": "2025-08-11T01:24:29.095000+00:00",
+      "announcement_channel": "#🔊ㅣ이리_새로운_소식",
+      "announcement_channel_display": "#🔊ㅣ이리_새로운_소식 (ID: 1403076927610159220)",
+      "announcement_channel_id": 1403076927610159220,
+      "status": "활성",
+      "is_configured": true
+    },
+    {
+      "id": "1406935382355873822",
+      "name": "Mr.SexMachine",
+      "member_count": 8,
+      "joined_at": "2025-08-20T06:20:09.930000+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    },
+    {
+      "id": "1409141674680258633",
+      "name": "세연왕의 하렘방",
+      "member_count": 71,
+      "joined_at": "2025-09-17T07:06:48.204000+00:00",
+      "announcement_channel": "#이터널리턴-유튜브채널",
+      "announcement_channel_display": "#이터널리턴-유튜브채널 (ID: 1417753074948116520)",
+      "announcement_channel_id": 1417753074948116520,
+      "status": "활성",
+      "is_configured": true
+    },
+    {
+      "id": "1417751477761474623",
+      "name": "서버 봇 테스트서버",
+      "member_count": 7,
+      "joined_at": "2025-09-17T06:59:17.476410+00:00",
+      "announcement_channel": "#일반",
+      "announcement_channel_display": "#일반 (ID: 1417751478369783830)",
+      "announcement_channel_id": 1417751478369783830,
+      "status": "활성",
+      "is_configured": true
+    },
+    {
+      "id": "1423228984086495296",
+      "name": "루미아 호텔",
+      "member_count": 7,
+      "joined_at": "2025-10-12T05:53:54.231000+00:00",
+      "announcement_channel": "#공식유튜브",
+      "announcement_channel_display": "#공식유튜브 (ID: 1426806715701268500)",
+      "announcement_channel_id": 1426806715701268500,
+      "status": "활성",
+      "is_configured": true
+    },
+    {
+      "id": "1427309191793606658",
+      "name": "☪Fantasia ✩ 판타지아 ☪",
+      "member_count": 6,
+      "joined_at": "2025-10-18T14:16:41.099361+00:00",
+      "announcement_channel": "미설정",
+      "announcement_channel_display": "미설정",
+      "announcement_channel_id": null,
+      "status": "설정 필요",
+      "is_configured": false
+    }
+  ],
+  "users": [
+    {
+      "id": "809085215237996584",
+      "name": "모묘모",
+      "type": "YouTube 구독자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "구독자 (개인 메시지)"
+      ]
+    },
+    {
+      "id": "1058078187877318816",
+      "name": "공백",
+      "type": "YouTube 구독자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "구독자 (개인 메시지)"
+      ]
+    },
+    {
+      "id": "335778784957431818",
+      "name": "이은창",
+      "type": "일반 사용자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "BLUE"
+      ]
+    },
+    {
+      "id": "409015327851151364",
+      "name": "잔향",
+      "type": "일반 사용자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "『 일하세요 일 』"
+      ]
+    },
+    {
+      "id": "1196690740965818430",
+      "name": "hsuywn",
+      "type": "일반 사용자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "등불 마을"
+      ]
+    },
+    {
+      "id": "257720162260615169",
+      "name": "ㅌㅎ",
+      "type": "일반 사용자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "ㅈㅎ",
+        "인성쓰레기집단"
+      ]
+    },
+    {
+      "id": "850644321870282752",
+      "name": "풍랑",
+      "type": "일반 사용자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "세연왕의 하렘방",
+        "서버 봇 테스트서버"
+      ]
+    },
+    {
+      "id": "331785052939616256",
+      "name": "이뮤",
+      "type": "일반 사용자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "루미아 호텔"
+      ]
+    },
+    {
+      "id": "1064521376456773633",
+      "name": "BORA",
+      "type": "일반 사용자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "BORA HOUSE🫧"
+      ]
+    },
+    {
+      "id": "623357220490444801",
+      "name": "딜1런",
+      "type": "일반 사용자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "은율의 휴식처"
+      ]
+    },
+    {
+      "id": "650664722408013826",
+      "name": "심심이",
+      "type": "일반 사용자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "은율의 휴식처"
+      ]
+    },
+    {
+      "id": "1251039104431554582",
+      "name": "디고마",
+      "type": "일반 사용자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "친필칭찬하는 방"
+      ]
+    },
+    {
+      "id": "983707055904935986",
+      "name": "레오",
+      "type": "일반 사용자",
+      "last_seen": "2025-08-25",
+      "servers": [
+        "☪Fantasia ✩ 판타지아 ☪"
+      ]
+    }
+  ]
+}

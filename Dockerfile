@@ -14,8 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 애플리케이션 파일 복사
 COPY . .
 
-# 포트 노출 (필요한 경우)
-EXPOSE 8080
+# 포트 노출
+EXPOSE 5001 8080
 
 # 봇 실행
 CMD ["python", "main.py"]

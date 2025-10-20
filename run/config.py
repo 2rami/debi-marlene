@@ -18,8 +18,8 @@ DAKGG_API_BASE = "https://er.dakgg.io/api/v1"
 # YouTube 설정
 ETERNAL_RETURN_CHANNEL_ID = 'UCEOaB76vS9RfiAwEzxB8QGw'
 
-# 설정 파일 경로
-SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'settings.json')
+# 로컬 설정 파일 사용 안 함 (GCS만 사용)
+# SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'settings.json')
 
 # GCS 설정
 GCS_BUCKET = 'debi-marlene-settings'
@@ -43,12 +43,12 @@ def get_gcs_client():
             bucket.exists()
             print(f"✅ GCS 연결 성공: {GCS_BUCKET}", flush=True)
         except Exception as e:
-            print(f"⚠️ GCS 클라이언트 생성 실패 (로컬 파일 사용): {e}", flush=True)
+            print(f"⚠️ GCS 클라이언트 생성 실패: {e}", flush=True)
             gcs_client = False  # 실패를 명시적으로 표시
     return gcs_client if gcs_client != False else None
 
 def load_settings():
-    """통합 설정 파일(settings.json)을 로드합니다."""
+    """GCS에서 설정 파일(settings.json)을 로드합니다."""
     global settings_cache, cache_timestamp
     import time
 
@@ -58,7 +58,7 @@ def load_settings():
     if settings_cache is not None and (current_time - cache_timestamp) < CACHE_DURATION:
         return settings_cache.copy()
 
-    # 먼저 GCS에서 로드 시도
+    # GCS에서 로드
     client = get_gcs_client()
     if client:
         try:
@@ -73,78 +73,29 @@ def load_settings():
             # 캐시 업데이트
             settings_cache = settings.copy()
             cache_timestamp = current_time
-            # 로컬에도 저장
-            try:
-                with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(settings, f, indent=2, ensure_ascii=False)
-            except:
-                pass
             return settings
         except Exception as e:
-            print(f"⚠️ GCS 로드 실패 (로컬 파일 사용): {e}", flush=True)
+            print(f"⚠️ GCS 로드 실패 (기본값 사용): {e}", flush=True)
 
-    # GCS 실패 시 로컬 파일 로드
-    try:
-        with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
-            settings = json.load(f)
-            # guilds 키가 없으면 기본 구조 생성
-            if 'guilds' not in settings:
-                settings['guilds'] = {}
-            # 캐시 업데이트
-            settings_cache = settings.copy()
-            cache_timestamp = current_time
-            return settings
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        # 파일이 없거나 비어있으면 기본 구조 반환
-        default_settings = {"guilds": {}, "global": {"LAST_CHECKED_VIDEO_ID": None}}
-        settings_cache = default_settings.copy()
-        cache_timestamp = current_time
-        return default_settings
+    # GCS 실패 시 기본 구조 반환
+    default_settings = {"guilds": {}, "users": {}, "global": {"LAST_CHECKED_VIDEO_ID": None}}
+    settings_cache = default_settings.copy()
+    cache_timestamp = current_time
+    return default_settings
 
 def save_settings(settings):
-    """통합 설정 파일(settings.json)에 저장합니다."""
+    """GCS에 설정 파일(settings.json)을 저장합니다."""
     global settings_cache, cache_timestamp
-    success_local = False
-    success_gcs = False
 
     gcs_client = get_gcs_client()
-    print(f"📝 설정 저장 시작 - 환경: {'GCP' if gcs_client else 'Local'}", flush=True)
+    print(f"📝 설정 저장 시작 - GCS에 저장", flush=True)
     print(f"DEBUG: 저장할 설정 크기: {len(str(settings))}자", flush=True)
 
     # 캐시 무효화
     settings_cache = None
     cache_timestamp = 0
 
-    # 로컬 파일 저장
-    try:
-        print(f"📝 로컬 파일 저장 시도: {SETTINGS_FILE}", flush=True)
-
-        # 파일이 존재하는지 확인
-        import os
-        if os.path.exists(SETTINGS_FILE):
-            print(f"DEBUG: 기존 파일 존재 확인됨", flush=True)
-        else:
-            print(f"DEBUG: 새 파일 생성", flush=True)
-
-        # 마운트된 파일에 직접 쓰기 (Docker 볼륨 마운트 환경에서는 원자적 교체가 문제가 될 수 있음)
-        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(settings, f, indent=2, ensure_ascii=False)
-            f.flush()  # 강제로 버퍼를 비움
-            os.fsync(f.fileno())  # 파일시스템에 즉시 동기화
-            print(f"DEBUG: 파일 쓰기 및 동기화 완료", flush=True)
-
-        # 저장 후 파일 크기 확인
-        file_size = os.path.getsize(SETTINGS_FILE)
-        print(f"DEBUG: 저장된 파일 크기: {file_size} bytes", flush=True)
-
-        print(f"✅ 로컬 설정 파일 저장 완료", flush=True)
-        success_local = True
-    except Exception as e:
-        print(f"❌ 로컬 설정 저장 오류: {e}", flush=True)
-        import traceback
-        traceback.print_exc()
-
-    # GCS 저장 활성화 (영구 저장)
+    # GCS에만 저장
     client = get_gcs_client()
     if client:
         try:
@@ -153,12 +104,13 @@ def save_settings(settings):
             blob = bucket.blob(GCS_KEY)
             blob.upload_from_string(json_data, content_type='application/json')
             print(f"✅ GCS 설정 파일 저장 완료", flush=True)
-            success_gcs = True
+            return True
         except Exception as e:
             print(f"❌ GCS 설정 저장 오류: {e}", flush=True)
-
-    # 둘 중 하나라도 성공하면 True
-    return success_local or success_gcs
+            return False
+    else:
+        print(f"❌ GCS 클라이언트 없음 - 설정 저장 실패", flush=True)
+        return False
 
 def get_guild_settings(guild_id):
     """특정 서버(guild)의 설정을 가져옵니다."""

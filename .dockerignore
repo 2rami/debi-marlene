@@ -1,0 +1,47 @@
+# Git 관련
+.git
+.gitignore
+
+# Python 캐시
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# 로그 파일
+*.log
+logs/
+
+# 임시 파일
+*.tmp
+*.temp
+temp/
+.tmp/
+
+# 에디터 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# 개발용 파일
+README.md
+*.md
+docker-compose.yml
+permission_example.py
+
+# 런타임 설정 파일
+# run/settings.json  # Docker 이미지에 포함하도록 주석 처리
+run/settings.json

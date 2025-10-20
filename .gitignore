@@ -1,0 +1,110 @@
+# 환경 변수 파일
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node.js (미래에 사용할 수 있음)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# 로그 파일
+*.log
+logs/
+
+# 런타임 데이터
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# 임시 파일
+.tmp/
+temp/
+
+# 에디터 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# 봇 관련 데이터
+bot_data/
+*.db
+*.sqlite
+
+# API 키 백업
+api_keys/
+keys/
+
+# 봇 설정 파일 (런타임에 생성/수정됨)
+run/settings.json
+
+# 개발/테스트 파일
+test_*.py
+*_test.py
+*.png
+*.jpg
+*.jpeg
+
+# AWS 관련 (보안상 제외)
+aws-credentials.json
+.aws/
+
+# GCP 관련 (보안상 제외)
+google-credentials.json
+service-account-key.json
+*-key.json
+.gcp/
+
+# Webpanel 빌드 파일
+webpanel/dist/
+webpanel/build/
+webpanel/release/
+webpanel/.next/
+webpanel/out/
+
+# Electron 빌드 파일
+*.asar
+*.dmg
+*.exe
+*.AppImage
+
+# 웹패널 전체 (로컬에만 유지)
+webpanel/
+
+# 봇 로그 파일
+bot.log
+nohup.out
+
+# Docker 관련
+.dockerignore
+docker-compose.override.yml
+
+# 캐시 파일
+.cache/
+*.cache

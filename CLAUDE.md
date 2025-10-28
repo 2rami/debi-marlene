@@ -1,3 +1,13 @@
+  ## 코딩 규칙
+
+  **중요: 이모지 사용 금지**
+  - 코드에서 이모지(🎉, 📊, ✅, 🔴, 🟢 등) 절대 사용하지 말 것
+  - Discord 임베드, 메시지, 로그 등 모든 곳에서 이모지 금지
+  - 대신 텍스트나 기호 사용 (#1, [TOP], *, - 등)
+  - 디버그 로그 추가하고 해결되면 삭제 
+
+  ## 뎁마봇 폴더 구조
+
   run/
   ├── __init__.py
   ├── main.py                    # 봇 시작점 (간단하게)
@@ -36,13 +46,68 @@
       ├── embeds.py             # Embed 생성 함수들
       └── gcs.py                # GCS 헬퍼 (필요시)
 
-  💡 장점:
 
-  1. 기능별로 분리 - 찾기 쉬움
-  2. Discord 명령어 → commands/ 폴더에 모임
-  3. UI 컴포넌트 → views/ 폴더에 모임
-  4. 이터널리턴 관련 → services/eternal_return/에 모임
-  5. 확장 쉬움 - 새 기능 추가할 때 어디 넣을지 명확
+## 웹패널 폴더 구조
+
+webpanel/
+├── src/                             # 프론트엔드 (React/TypeScript)
+│   ├── core/                        # 앱 진입점
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   │
+│   ├── components/                  # UI 컴포넌트
+│   │   ├── layout/                  # 레이아웃 컴포넌트
+│   │   │   ├── ServerList.tsx
+│   │   │   ├── ChannelList.tsx
+│   │   │   └── MemberList.tsx
+│   │   ├── chat/                    # 채팅 관련
+│   │   │   └── MessageArea.tsx
+│   │   └── auth/                    # 인증 관련
+│   │       └── Login.tsx
+│   │
+│   ├── services/                    # 프론트엔드 서비스
+│   │   ├── discord-api.ts
+│   │   ├── discord-oauth.ts
+│   │   └── theme-service.ts
+│   │
+│   └── types/                       # TypeScript 타입
+│       └── discord.ts
+│
+└── backend/                         # 백엔드 (Python/Flask)
+    ├── __init__.py
+    ├── app.py                      # Flask 앱 시작점 (메인 실행 파일)
+    ├── config.py                   # 앱 설정 (CORS, 세션, OAuth, 환경변수)
+    ├── gateway.py                  # Discord Gateway (기존 discord_gateway_webpanel.py)
+    │
+    ├── routes/                      # 라우트 정의 (URL → 핸들러 연결)
+    │   ├── __init__.py
+    │   ├── auth_routes.py          # /login, /auth/callback, /logout, /auth/discord
+    │   ├── main_routes.py          # /, /version (메인 페이지)
+    │   └── api_routes.py           # 모든 /api/* 라우트 등록
+    │
+    ├── api/                         # API 엔드포인트 핸들러 (비즈니스 로직)
+    │   ├── __init__.py
+    │   ├── auth.py                 # /api/check-auth, /api/logout
+    │   ├── servers.py              # /api/servers, /api/bot-info
+    │   ├── settings.py             # /api/raw-settings, /api/save-settings, /api/load-settings
+    │   ├── channels.py             # /api/channels/<guild_id>
+    │   ├── members.py              # /api/discord/guilds/<guild_id>/members
+    │   ├── messages.py             # /api/discord/channels/<channel_id>/messages (GET/POST)
+    │   └── users.py                # /api/discord/users/<user_id>, /api/discord/users/@me/channels
+    │
+    ├── services/                    # 비즈니스 로직 / 외부 서비스 연동
+    │   ├── __init__.py
+    │   └── discord_api.py          # Discord API 호출 함수들
+    │                                # - get_bot_guilds()
+    │                                # - get_discord_user_info()
+    │                                # - get_discord_channels()
+    │                                # - send_discord_message()
+    │
+    └── utils/                       # 유틸리티 / 헬퍼
+        ├── __init__.py
+        ├── decorators.py           # @login_required 데코레이터
+        └── helpers.py              # get_discord_avatar_url() 등
+
 
 
 ## 배포 방법 (VM에서 Docker 실행)
@@ -53,7 +118,7 @@
 - **webpanel/** 폴더가 제외 설정됨
 - Docker 이미지 빌드 시 webpanel은 자동으로 제외됩니다
 
-### 배포 절차
+### 로컬 도커 오류 시 배포 방법(코드 수정했다고 바로 배포 금지 로컬에서 우선 테스트)
 
 ```bash
 # 1. 로컬 코드를 VM에 업로드
@@ -71,13 +136,7 @@ gcloud compute ssh debi-marlene-bot --zone=asia-northeast3-a --command="docker r
 
 ## 주요 변경사항
 
-1. **채팅 로그 저장 기능 제거 (GCS Rate Limit 방지)**
-   - 파일: `run/discord_bot.py:1550`
-   - 파일: `run/config.py` (save_chat_log, fetch_old_messages_for_guild 함수 제거)
-   - 원인: GCS Rate Limit (1초당 1번 쓰기 제한) 초과로 429 에러 발생
-   - 해결: 채팅 로그 기능 완전 제거, settings.json만 업데이트
-
-2. **유튜브 알림 시 DM 채널 자동 저장**
+1. **유튜브 알림 시 DM 채널 자동 저장**
    - 파일: `run/youtube_service.py:75-131` (_send_notification 함수)
    - 봇이 유저에게 DM을 보낼 때 (유튜브 알림 등) 채널 정보를 자동으로 GCS에 저장
    - 기존: 유저 → 봇 DM만 저장됨

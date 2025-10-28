@@ -112,9 +112,6 @@ class ChannelSelectViewForSetting(discord.ui.View):
 
             if self.channel_type == "announcement":
                 # 공지 채널 설정
-                print(f"DEBUG: 서버 ID: {interaction.guild.id}, 채널 ID: {channel.id}", flush=True)
-                sys.stdout.flush()
-
                 result = config.save_guild_settings(
                     interaction.guild.id,
                     announcement_id=channel.id,
@@ -122,17 +119,9 @@ class ChannelSelectViewForSetting(discord.ui.View):
                     announcement_channel_name=channel.name
                 )
 
-                print(f"DEBUG: 저장 결과: {result}", flush=True)
-                sys.stdout.flush()
-
-                # 저장 후 바로 확인
-                saved_settings = config.get_guild_settings(interaction.guild.id)
-                print(f"DEBUG: 저장된 설정: {saved_settings}", flush=True)
-                sys.stdout.flush()
-
                 await interaction.followup.edit_message(
                     interaction.message.id,
-                    content=f"✅ 공지 채널이 {channel.mention}으로 설정되었습니다.",
+                    content=f"[완료] 공지 채널이 {channel.mention}으로 설정되었습니다.",
                     view=None
                 )
             else:
@@ -144,15 +133,13 @@ class ChannelSelectViewForSetting(discord.ui.View):
                     chat_channel_name=channel.name
                 )
 
-                print(f"DEBUG: 채팅 채널 저장 결과: {result}", flush=True)
-
                 await interaction.followup.edit_message(
                     interaction.message.id,
-                    content=f"✅ 채팅 채널이 {channel.mention}으로 설정되었습니다.",
+                    content=f"[완료] 채팅 채널이 {channel.mention}으로 설정되었습니다.",
                     view=None
                 )
         except Exception as e:
-            print(f"❌ 채널 설정 오류: {e}", flush=True)
+            print(f"[오류] 채널 설정 오류: {e}", flush=True)
             try:
                 await interaction.followup.send("설정 중 오류가 발생했습니다.", ephemeral=True)
             except:

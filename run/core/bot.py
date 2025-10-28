@@ -33,17 +33,11 @@ welcome_timestamps = {}
 async def update_guild_data_to_gcs(guild: discord.Guild):
     """특정 서버 데이터를 GCS에 업데이트"""
     try:
-        # 온라인/오프라인 멤버 수 계산
-        online_members = sum(1 for m in guild.members if m.status != discord.Status.offline)
-        offline_members = guild.member_count - online_members
-
         # 서버 데이터
         guild_data = {
             'id': str(guild.id),
             'name': guild.name,
             'member_count': guild.member_count,
-            'online_count': online_members,
-            'offline_count': offline_members,
             'icon': guild.icon.url if guild.icon else None,
             'owner_id': str(guild.owner_id) if guild.owner_id else None,
             'last_updated': datetime.now().isoformat(),
@@ -61,28 +55,28 @@ async def update_guild_data_to_gcs(guild: discord.Guild):
         # 기존 설정 유지하면서 실시간 데이터만 업데이트
         if str(guild.id) in settings['guilds']:
             settings['guilds'][str(guild.id)].update({
-                '서버이름': guild.name,
+                'GUILD_NAME': guild.name,
                 '멤버수': guild.member_count,
                 'GUILD_ICON_HASH': guild.icon.key if guild.icon else None,
                 'last_updated': datetime.now().isoformat()
             })
         else:
             settings['guilds'][str(guild.id)] = {
-                '서버이름': guild.name,
+                'GUILD_NAME': guild.name,
                 '멤버수': guild.member_count,
                 'GUILD_ICON_HASH': guild.icon.key if guild.icon else None,
                 'last_updated': datetime.now().isoformat()
             }
 
         config.save_settings(settings)
-        print(f"📊 서버 데이터 GCS 저장: {guild.name} ({guild.member_count}명)")
+        print(f"[정보] 서버 데이터 GCS 저장: {guild.name} ({guild.member_count}명)")
 
     except Exception as e:
-        print(f"❌ 서버 데이터 업데이트 실패 {guild.name}: {e}")
+        print(f"[오류] 서버 데이터 업데이트 실패 {guild.name}: {e}")
 
 
-async def save_server_info_for_web_panel():
-    """웹 패널용 서버 정보를 JSON 파일로 저장"""
+async def update_server_info_to_gcs():
+    """서버 정보를 GCS settings.json에 업데이트"""
     try:
         # 사용자 정보 수집
         users_data = []
@@ -159,8 +153,6 @@ async def save_server_info_for_web_panel():
                         'servers': ['알 수 없음']
                     })
 
-        print(f"DEBUG: 실제 사용자 수집 완료 - YouTube 구독자: {len(subscribers)}, 상호작용 사용자: {len(interaction_users)}, 총: {len(users_data)}")
-
         server_data = {
             'updated_at': datetime.now().isoformat(),
             'total_servers': len(bot.guilds),
@@ -204,11 +196,7 @@ async def save_server_info_for_web_panel():
 
             server_data['servers'].append(server_info)
 
-        # JSON 파일로 저장
-        web_panel_data_path = os.path.join(os.path.dirname(__file__), '..', 'web_panel_data.json')
-        with open(web_panel_data_path, 'w', encoding='utf-8') as f:
-            json.dump(server_data, f, ensure_ascii=False, indent=2)
-
+        # GCS settings.json 업데이트 (로컬 파일 저장 제거)
         try:
             current_settings = config.load_settings()
 
@@ -218,7 +206,7 @@ async def save_server_info_for_web_panel():
                 if guild_id in current_settings.get('guilds', {}):
                     # 기존 설정 유지하면서 실제 정보 업데이트
                     current_settings['guilds'][guild_id].update({
-                        '서버이름': server['name'],
+                        'GUILD_NAME': server['name'],
                         '멤버수': server['member_count'],
                         '가입일': server['joined_at'],
                         '상태': server['status'],
@@ -227,12 +215,10 @@ async def save_server_info_for_web_panel():
 
             config.save_settings(current_settings, silent=True)
         except Exception as e:
-            print(f"settings.json 업데이트 실패: {e}", flush=True)
-
-        print(f"📊 웹 패널 데이터 저장: {len(server_data['servers'])}개 서버, {server_data['total_members']:,}명", flush=True)
+            print(f"[오류] GCS settings.json 업데이트 실패: {e}", flush=True)
 
     except Exception as e:
-        print(f"❌ 웹 패널 데이터 저장 실패: {e}", flush=True)
+        print(f"[오류] 웹 패널 데이터 저장 실패: {e}", flush=True)
 
 
 # ========== 봇 이벤트 핸들러 ==========
@@ -241,17 +227,15 @@ async def save_server_info_for_web_panel():
 async def on_ready():
     """봇 준비 완료 시 실행"""
     import sys
-    print(f'🤖 {bot.user} 봇이 시작되었습니다!', flush=True)
+    print(f'[봇] {bot.user} 봇이 시작되었습니다!', flush=True)
     sys.stdout.flush()
 
     guild_count = len(bot.guilds)
     total_members = sum(guild.member_count for guild in bot.guilds if guild.member_count)
-    print(f"📊 현재 {guild_count}개 서버에 연결되었습니다, 총 {total_members}명 사용자", flush=True)
-    print(f"📊 정기 체크: 현재 {guild_count}개 서버에 연결, 총 {total_members}명 사용자", flush=True)
+    print(f"[정보] 현재 {guild_count}개 서버에 연결되었습니다, 총 {total_members}명 사용자", flush=True)
     sys.stdout.flush()
 
     # settings.json에 기존 서버들의 이름 정보를 한 번에 업데이트
-    print("📝 기존 서버들의 정보를 settings.json에 업데이트 중...", flush=True)
 
     # 모든 서버 정보를 모아서 한 번에 저장
     settings = config.load_settings()
@@ -290,24 +274,12 @@ async def on_ready():
 
             updated_count += 1
         except Exception as e:
-            print(f"⚠️ {guild.name} 서버 정보 업데이트 실패: {e}", flush=True)
+            print(f"[경고] {guild.name} 서버 정보 업데이트 실패: {e}", flush=True)
 
     # 한 번만 저장
     config.save_settings(settings)
-    print(f"✅ {updated_count}개 서버 정보 업데이트 완료", flush=True)
-    sys.stdout.flush()
-
-    # 처음 몇 개 서버 정보 로깅 (디버깅용)
-    for i, guild in enumerate(bot.guilds[:5]):
-        print(f"서버 {i+1}: {guild.name} (ID: {guild.id}) - 멤버 {guild.member_count}명", flush=True)
-        sys.stdout.flush()
-
-    if guild_count > 5:
-        print(f"... 외 {guild_count - 5}개 서버", flush=True)
-        sys.stdout.flush()
 
     # 기존 사용자들의 이름 정보 업데이트
-    print("📝 기존 사용자들의 이름 정보를 settings.json에 업데이트 중...", flush=True)
     settings = config.load_settings()
     existing_users = settings.get("users", {})
     user_update_count = 0
@@ -323,75 +295,60 @@ async def on_ready():
                     user_update_count += 1
                     print(f"  -> 사용자 {user_id} 이름 업데이트: {user_name}", flush=True)
             except Exception as e:
-                print(f"  -> ⚠️ 사용자 {user_id_str} 이름 업데이트 실패: {e}", flush=True)
-
-    print(f"✅ {user_update_count}개 사용자 이름 업데이트 완료", flush=True)
-    sys.stdout.flush()
+                print(f"  -> [경고] 사용자 {user_id_str} 이름 업데이트 실패: {e}", flush=True)
 
     # 웹 패널을 위한 봇 인스턴스 저장
     try:
         set_bot_instance(bot)
-        print("🌐 웹 패널용 봇 인스턴스 등록 완료", flush=True)
         sys.stdout.flush()
     except Exception as e:
-        print(f"⚠️ 웹 패널용 봇 인스턴스 등록 실패: {e}", flush=True)
+        print(f"[경고] 웹 패널용 봇 인스턴스 등록 실패: {e}", flush=True)
         sys.stdout.flush()
 
-    # 웹 패널용 서버 정보 JSON 파일로 저장
+    # GCS에 서버 정보 업데이트
     try:
-        await save_server_info_for_web_panel()
-        print("💾 웹 패널용 서버 정보 저장 완료", flush=True)
+        await update_server_info_to_gcs()
         sys.stdout.flush()
     except Exception as e:
-        print(f"⚠️ 서버 정보 저장 실패: {e}", flush=True)
+        print(f"[경고] GCS 서버 정보 업데이트 실패: {e}", flush=True)
         sys.stdout.flush()
 
     # 서버 정보 정기 업데이트 태스크 시작
     try:
-        update_server_info.start()
-        print("🔄 서버 정보 정기 업데이트 태스크 시작 (30분 간격)", flush=True)
+        update_server_info_periodic.start()
         sys.stdout.flush()
     except Exception as e:
-        print(f"⚠️ 서버 정보 업데이트 태스크 시작 실패: {e}", flush=True)
+        print(f"[경고] 서버 정보 업데이트 태스크 시작 실패: {e}", flush=True)
         sys.stdout.flush()
 
     try:
-        print("🔧 명령어 동기화 시작...", flush=True)
         sys.stdout.flush()
 
         # 명령어 동기화 (기존 명령어 업데이트)
         synced = await bot.tree.sync()
-        print(f"✅ 명령어 동기화 완료: {len(synced)}개 명령어", flush=True)
 
-        print("✅ 모든 명령어 동기화 완료.", flush=True)
+        print("[완료] 모든 명령어 동기화 완료.", flush=True)
         sys.stdout.flush()
 
-        print("🔧 게임 데이터 초기화 시작...", flush=True)
-        sys.stdout.flush()
         await initialize_game_data()
-        print("✅ 게임 데이터 초기화 완료.", flush=True)
-        sys.stdout.flush()
+        print("[완료] 게임 데이터 초기화 완료.", flush=True)
 
-        print("🔧 유튜브 서비스 설정 시작...", flush=True)
-        sys.stdout.flush()
         youtube_service.set_bot_instance(bot)
-        print("🔧 유튜브 API 초기화 시작...", flush=True)
-        sys.stdout.flush()
         await youtube_service.initialize_youtube()
-        print("🔧 유튜브 체크 루프 시작...", flush=True)
-        sys.stdout.flush()
         youtube_service.check_new_videos.start()
 
         # 정기적 서버 수 로깅 태스크 시작
         periodic_guild_logging.start()
-        print("🔧 정기 서버 수 로깅 시작...", flush=True)
-        sys.stdout.flush()
 
-        print("✅ 모든 초기화 완료!", flush=True)
+        # 이모지 맵 로드
+        from run.utils.emoji_utils import load_emoji_map
+        await load_emoji_map(bot)
+
+        print("[완료] 모든 초기화 완료!", flush=True)
         sys.stdout.flush()
 
     except Exception as e:
-        print(f"❌ CRITICAL: 데이터 초기화 중 봇 시작 실패: {e}", flush=True)
+        print(f"[오류] CRITICAL: 데이터 초기화 중 봇 시작 실패: {e}", flush=True)
         sys.stdout.flush()
         import traceback
         traceback.print_exc()
@@ -406,14 +363,14 @@ async def on_guild_join(guild: discord.Guild):
     import time
 
     current_time = time.time()
-    print(f"✅ 새로운 서버에 초대되었습니다: {guild.name} (ID: {guild.id}) - 멤버 {guild.member_count}명", flush=True)
+    print(f"[완료] 새로운 서버에 초대되었습니다: {guild.name} (ID: {guild.id}) - 멤버 {guild.member_count}명", flush=True)
     sys.stdout.flush()
 
     # 빠른 중복 이벤트 방지 (30초 이내 같은 서버 초대 무시)
     if guild.id in welcome_timestamps:
         time_diff = current_time - welcome_timestamps[guild.id]
         if time_diff < 30:  # 30초 이내라면 중복으로 간주
-            print(f"⚠️ 빠른 중복 이벤트 감지 ({time_diff:.1f}초 전): {guild.name} (ID: {guild.id})", flush=True)
+            print(f"[경고] 빠른 중복 이벤트 감지 ({time_diff:.1f}초 전): {guild.name} (ID: {guild.id})", flush=True)
             return
 
     settings = config.load_settings()
@@ -422,13 +379,12 @@ async def on_guild_join(guild: discord.Guild):
     # 재초대된 서버가 아니면 중복 체크 (재초대된 경우는 환영 메시지를 다시 보냄)
     is_reinvited = guild_id_str in settings.get("guilds", {}) and settings["guilds"][guild_id_str].get("STATUS") == "삭제됨"
     if not is_reinvited and guild.id in welcomed_guilds:
-        print(f"⚠️ 현재 세션에서 이미 환영 메시지를 보낸 서버입니다: {guild.name} (ID: {guild.id})", flush=True)
+        print(f"[경고] 현재 세션에서 이미 환영 메시지를 보낸 서버입니다: {guild.name} (ID: {guild.id})", flush=True)
         return
 
     # 서버를 환영 메시지 목록에 추가 (현재 세션 중복 방지)
     welcomed_guilds.add(guild.id)
     welcome_timestamps[guild.id] = current_time
-    print(f"DEBUG: 서버 {guild.id}를 환영 메시지 목록에 추가", flush=True)
 
     # 삭제됨 상태인 서버라면 상태 초기화
     if guild_id_str in settings.get("guilds", {}) and settings["guilds"][guild_id_str].get("STATUS") == "삭제됨":
@@ -436,7 +392,7 @@ async def on_guild_join(guild: discord.Guild):
         guild_settings = settings["guilds"][guild_id_str].copy()
         guild_settings.pop("STATUS", None)
         guild_settings.pop("REMOVED_AT", None)
-        print(f"🔄 삭제됨 상태 초기화: {guild.name} (ID: {guild.id})", flush=True)
+        print(f"[갱신] 삭제됨 상태 초기화: {guild.name} (ID: {guild.id})", flush=True)
 
         # 업데이트된 설정으로 저장
         config.save_guild_settings(
@@ -453,7 +409,6 @@ async def on_guild_join(guild: discord.Guild):
             guild.id,
             guild_name=guild.name
         )
-    print(f"📝 settings.json에 서버 정보 저장 완료: {guild.name}", flush=True)
 
     target_channel = guild.system_channel
     if not target_channel or not target_channel.permissions_for(guild.me).send_messages:
@@ -487,29 +442,36 @@ async def on_guild_join(guild: discord.Guild):
 
             view = WelcomeView()
             await target_channel.send(file=profile_image, embed=embed, view=view)
-
-            message_type = "재초대 환영" if is_reinvited else "초기 환영"
-            print(f"✅ {message_type} 메시지 전송 완료: {guild.name} (ID: {guild.id})", flush=True)
         except Exception as e:
-            print(f"❌ 환영 메시지 전송 중 오류 발생: {e}")
+            print(f"[오류] 환영 메시지 전송 중 오류 발생: {e}")
+
+    # 서버 참가 시 GCS 실시간 업데이트
+    try:
+        await update_server_info_to_gcs()
+    except Exception as e:
+        print(f"[경고] 서버 참가 GCS 업데이트 실패: {e}", flush=True)
 
 
 @bot.event
 async def on_guild_remove(guild: discord.Guild):
     """서버에서 봇이 제거될 때 설정 삭제 및 로깅"""
     import sys
-    print(f"❌ 서버에서 제거되었습니다: {guild.name} (ID: {guild.id})", flush=True)
+    print(f"[오류] 서버에서 제거되었습니다: {guild.name} (ID: {guild.id})", flush=True)
 
     try:
         # config.py의 remove_guild_settings 함수 호출 (삭제됨 표시 추가)
-        if config.remove_guild_settings(guild.id):
-            print(f"✅ 서버에 삭제됨 표시가 추가되었습니다: {guild.name} (ID: {guild.id})", flush=True)
-        else:
-            print(f"⚠️ 서버 삭제됨 표시 추가 실패: {guild.name} (ID: {guild.id})", flush=True)
+        if not config.remove_guild_settings(guild.id):
+            print(f"[경고] 서버 삭제됨 표시 추가 실패: {guild.name} (ID: {guild.id})", flush=True)
     except Exception as e:
-        print(f"❌ 서버 삭제됨 표시 추가 중 예외 발생: {e}", flush=True)
+        print(f"[오류] 서버 삭제됨 표시 추가 중 예외 발생: {e}", flush=True)
         import traceback
         traceback.print_exc()
+
+    # 서버 탈퇴 시 GCS 실시간 업데이트
+    try:
+        await update_server_info_to_gcs()
+    except Exception as e:
+        print(f"[경고] 서버 탈퇴 GCS 업데이트 실패: {e}", flush=True)
 
     sys.stdout.flush()
 
@@ -522,8 +484,12 @@ async def on_message(message):
         await bot.process_commands(message)
         return
 
-    # DM 메시지 처리
+    # DM 메시지 처리 (실제 내용이 있는 메시지만)
     if isinstance(message.channel, discord.DMChannel):
+        # 메시지 내용이 비어있으면 무시
+        if not message.content or not message.content.strip():
+            return
+
         dm_data = {
             'id': str(message.id),
             'content': message.content,
@@ -542,39 +508,29 @@ async def on_message(message):
         if len(gateway_dm_messages) > 500:
             gateway_dm_messages[:] = gateway_dm_messages[-400:]
 
-        print(f'💌 DM 수신: {message.author.display_name} - {message.content[:500]}...')
+        print(f'💌 DM 수신: {message.author.display_name} - {message.content[:100]}')
 
-        # GCS에 DM 채널 정보 저장
+        # GCS에 사용자 DM 정보 저장 (통합)
         try:
-            settings = config.load_settings()
-            user_id = str(message.author.id)
-
-            if 'users' not in settings:
-                settings['users'] = {}
-
-            if user_id not in settings['users']:
-                settings['users'][user_id] = {}
-
-            # DM 채널 ID 저장
-            settings['users'][user_id]['dm_channel_id'] = str(message.channel.id)
-            settings['users'][user_id]['user_name'] = message.author.display_name
-            settings['users'][user_id]['last_dm'] = datetime.now().isoformat()
-
-            config.save_settings(settings)
-            print(f'💾 DM 채널 정보 GCS 저장: {message.author.display_name} ({message.channel.id})')
+            config.save_user_dm_interaction(
+                user_id=message.author.id,
+                channel_id=message.channel.id,
+                user_name=message.author.display_name
+            )
+            print(f'[완료] DM 사용자 정보 저장 완료: {message.author.display_name}')
         except Exception as e:
-            print(f'❌ DM 채널 정보 GCS 저장 실패: {e}')
+            print(f'[오류] DM 정보 저장 실패: {e}')
 
 
 # ========== 정기 태스크 ==========
 
 @tasks.loop(minutes=30)
-async def update_server_info():
-    """30분마다 서버 정보를 업데이트"""
+async def update_server_info_periodic():
+    """30분마다 GCS에 서버 정보를 업데이트"""
     try:
-        await save_server_info_for_web_panel()
+        await update_server_info_to_gcs()
     except Exception as e:
-        print(f"❌ 정기 서버 정보 업데이트 실패: {e}")
+        print(f"[오류] 정기 GCS 서버 정보 업데이트 실패: {e}")
 
 
 @tasks.loop(minutes=60)
@@ -583,5 +539,4 @@ async def periodic_guild_logging():
     import sys
     guild_count = len(bot.guilds)
     total_members = sum(guild.member_count for guild in bot.guilds if guild.member_count)
-    print(f"📊 정기 체크: 현재 {guild_count}개 서버에 연결, 총 {total_members}명 사용자", flush=True)
     sys.stdout.flush()

@@ -41,7 +41,7 @@ class WelcomeView(discord.ui.View):
         )
         embed.add_field(
             name="📢 공지 채널",
-            value="유튜브 새 영상 알림이 올라갈 채널입니다. (필수)",
+            value="유튜브 새 영상 알림이 올라갈 채널입니다.",
             inline=False
         )
         embed.add_field(

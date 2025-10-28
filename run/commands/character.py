@@ -51,7 +51,7 @@ async def setup_character_command(bot):
             print(f"캐릭터 통계 응답: {stats_data is not None}", flush=True)
             sys.stdout.flush()
             if not stats_data:
-                await interaction.edit_original_response(content="❌ 캐릭터 통계 데이터를 가져올 수 없습니다.")
+                await interaction.edit_original_response(content="[오류] 캐릭터 통계 데이터를 가져올 수 없습니다.")
                 return
 
             # CharacterStatsView를 사용하여 페이지네이션과 함께 표시
@@ -63,4 +63,4 @@ async def setup_character_command(bot):
             print(f"캐릭터 통계 명령어 오류: {e}")
             import traceback
             traceback.print_exc()
-            await interaction.edit_original_response(content=f"❌ 캐릭터 통계를 처리하는 중 오류가 발생했습니다: {str(e)}")
+            await interaction.edit_original_response(content=f"[오류] 캐릭터 통계를 처리하는 중 오류가 발생했습니다: {str(e)}")

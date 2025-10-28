@@ -24,7 +24,7 @@ async def register_all_commands(bot):
     await setup_youtube_commands(bot)
     await setup_feedback_command(bot)
 
-    print("✅ 모든 명령어 등록 완료")
+    print("[완료] 모든 명령어 등록 완료")
 
 
 __all__ = [

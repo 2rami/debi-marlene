@@ -25,17 +25,17 @@ async def setup_youtube_commands(bot):
         try:
             user_name = interaction.user.display_name or interaction.user.global_name or interaction.user.name
             config.set_youtube_subscription(interaction.user.id, 받기, user_name)
-            message = "✅ 이제부터 새로운 영상이 올라오면 DM으로 알려드릴게요!" if 받기 else "✅ 유튜브 DM 알림을 해제했습니다."
+            message = "[완료] 이제부터 새로운 영상이 올라오면 DM으로 알려드릴게요!" if 받기 else "[완료] 유튜브 DM 알림을 해제했습니다."
             await interaction.response.send_message(message, ephemeral=True)
         except Exception as e:
-            print(f"❌ 유튜브알림 명령어 오류: {e}", flush=True)
+            print(f"[오류] 유튜브알림 명령어 오류: {e}", flush=True)
             try:
                 if interaction.response.is_done():
                     await interaction.followup.send(f"오류가 발생했어요: {e}", ephemeral=True)
                 else:
                     await interaction.response.send_message(f"오류가 발생했어요: {e}", ephemeral=True)
             except Exception as followup_error:
-                print(f"❌ 유튜브알림 오류 메시지 전송 실패: {followup_error}", flush=True)
+                print(f"[오류] 유튜브알림 오류 메시지 전송 실패: {followup_error}", flush=True)
 
     @bot.tree.command(name="유튜브테스트", description="[관리자] 유튜브 새 영상 확인을 수동으로 테스트합니다.")
     @app_commands.default_permissions(administrator=True)
@@ -69,10 +69,10 @@ async def setup_youtube_commands(bot):
             # 개인 DM에서 사용 시 해당 사용자에게만 테스트
             if not interaction.guild:
                 result = await youtube_service.manual_check_for_user(interaction.user)
-                await interaction.followup.send(f"✅ 개인 유튜브 테스트 완료!\n```{result}```", ephemeral=True)
+                await interaction.followup.send(f"[완료] 개인 유튜브 테스트 완료!\n```{result}```", ephemeral=True)
             else:
                 # 서버에서 사용 시 해당 서버에만 테스트
                 result = await youtube_service.manual_check_for_guild(interaction.guild)
-                await interaction.followup.send(f"✅ 서버 유튜브 테스트 완료!\n```{result}```", ephemeral=True)
+                await interaction.followup.send(f"[완료] 서버 유튜브 테스트 완료!\n```{result}```", ephemeral=True)
         except Exception as e:
-            await interaction.followup.send(f"❌ 유튜브 테스트 중 오류 발생: {e}", ephemeral=True)
+            await interaction.followup.send(f"[오류] 유튜브 테스트 중 오류 발생: {e}", ephemeral=True)

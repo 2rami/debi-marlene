@@ -6,7 +6,7 @@ ZONE = asia-northeast3-a
 VM_PATH = ~/debi-marlene
 CONTAINER_NAME = debi-marlene
 
-.PHONY: help deploy build-local upload-image restart stop start logs status clean test-local stop-vm start-vm
+.PHONY: help deploy deploy-vm build-local upload-image restart stop start logs status clean test-local stop-vm start-vm
 
 # 기본 명령어 (make 입력 시 도움말 표시)
 help:
@@ -38,7 +38,7 @@ deploy: build-local upload-image restart
 # 로컬에서 Docker 이미지 빌드
 build-local:
 	@echo "🔨 로컬에서 Docker 이미지 빌드 중 (linux/amd64)..."
-	@docker build --platform linux/amd64 -t $(CONTAINER_NAME) .
+	@DOCKER_BUILDKIT=1 docker build --platform linux/amd64 -t $(CONTAINER_NAME) .
 	@echo "✅ 빌드 완료"
 
 # Docker 이미지를 VM에 업로드

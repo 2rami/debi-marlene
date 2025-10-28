@@ -45,7 +45,7 @@ async def setup_settings_command(bot):
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
         except Exception as e:
-            print(f"❌ 설정 명령어 오류: {e}", flush=True)
+            print(f"[오류] 설정 명령어 오류: {e}", flush=True)
             try:
                 if interaction.response.is_done():
                     await interaction.followup.send("설정 중 오류가 발생했습니다.", ephemeral=True)

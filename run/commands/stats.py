@@ -27,20 +27,20 @@ async def setup_stats_command(bot):
     @bot.tree.command(name="전적", description="이터널 리턴 플레이어 전적을 검색해요!")
     async def stats_command(interaction: discord.Interaction, 닉네임: str):
 
-        # 채널 제한 체크를 먼저 하고 즉시 응답
+        # defer를 가장 먼저 호출 (3초 타임아웃 방지)
+        await interaction.response.defer(ephemeral=True)
+
+        # 채널 제한 체크 (defer 이후)
         if interaction.guild:
             guild_settings = config.get_guild_settings(interaction.guild.id)
             chat_channel_id = guild_settings.get("CHAT_CHANNEL_ID")
             if chat_channel_id and interaction.channel.id != chat_channel_id:
                 allowed_channel = bot.get_channel(chat_channel_id)
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"이 명령어는 {allowed_channel.mention} 채널에서만 사용할 수 있어요!",
                     ephemeral=True
                 )
                 return
-
-        # 즉시 응답
-        await interaction.response.send_message(f"🔍 {닉네임}님의 전적을 찾고 있어요...", ephemeral=True)
 
         try:
             # 백그라운드에서 데이터 가져오기

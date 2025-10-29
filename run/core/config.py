@@ -18,12 +18,10 @@ DAKGG_API_BASE = "https://er.dakgg.io/api/v1"
 # YouTube 설정
 ETERNAL_RETURN_CHANNEL_ID = 'UCEOaB76vS9RfiAwEzxB8QGw'
 
-# 로컬 설정 파일 사용 안 함 (GCS만 사용)
-# SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'settings.json')
-
 # GCS 설정
 GCS_BUCKET = 'debi-marlene-settings'
 GCS_KEY = 'settings.json'
+GCS_REMOVED_SERVERS_KEY = 'removed_servers.json'
 gcs_client = None
 
 # 설정 캐시 (성능 개선)
@@ -81,8 +79,37 @@ def load_settings():
     cache_timestamp = current_time
     return default_settings
 
+def save_local_backup(settings):
+    """로컬에 settings 백업을 저장합니다.
+
+    Args:
+        settings: 백업할 설정 데이터
+
+    Returns:
+        bool: 저장 성공 여부
+    """
+    import os
+
+    try:
+        # 프로젝트 루트 경로 가져오기
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        backup_dir = os.path.join(project_root, 'backups')
+        backup_file = os.path.join(backup_dir, 'settings_backup.json')
+
+        # backups 폴더가 없으면 생성
+        os.makedirs(backup_dir, exist_ok=True)
+
+        # JSON 파일로 저장
+        with open(backup_file, 'w', encoding='utf-8') as f:
+            json.dump(settings, f, indent=2, ensure_ascii=False)
+
+        return True
+    except Exception as e:
+        print(f"[경고] 로컬 백업 저장 실패: {e}", flush=True)
+        return False
+
 def save_settings(settings, silent=False):
-    """GCS에 설정 파일(settings.json)을 저장합니다.
+    """GCS에 설정 파일(settings.json)을 저장하고 로컬에도 백업합니다.
 
     Args:
         settings: 저장할 설정 데이터
@@ -94,7 +121,7 @@ def save_settings(settings, silent=False):
     settings_cache = None
     cache_timestamp = 0
 
-    # GCS에만 저장
+    # GCS에 저장
     client = get_gcs_client()
     if client:
         try:
@@ -102,6 +129,10 @@ def save_settings(settings, silent=False):
             bucket = client.bucket(GCS_BUCKET)
             blob = bucket.blob(GCS_KEY)
             blob.upload_from_string(json_data, content_type='application/json')
+
+            # GCS 저장 성공 시 로컬 백업도 저장
+            save_local_backup(settings)
+
             return True
         except Exception as e:
             if not silent:
@@ -149,12 +180,62 @@ def save_guild_settings(guild_id, announcement_id=None, chat_id=None, guild_name
 
     return save_settings(settings, silent=silent)
 
+def load_removed_servers():
+    """GCS에서 삭제된 서버 목록을 로드합니다."""
+    client = get_gcs_client()
+    if client:
+        try:
+            bucket = client.bucket(GCS_BUCKET)
+            blob = bucket.blob(GCS_REMOVED_SERVERS_KEY)
+            if blob.exists():
+                data = blob.download_as_text()
+                return json.loads(data)
+        except Exception as e:
+            print(f"[경고] 삭제된 서버 목록 로드 실패: {e}", flush=True)
+    return {"removed_servers": []}
+
+
+def save_removed_server(guild_id, guild_name, member_count=None):
+    """삭제된 서버 정보를 GCS에 저장합니다."""
+    from datetime import datetime
+
+    try:
+        removed_data = load_removed_servers()
+
+        # 새로운 삭제 정보 추가
+        removed_info = {
+            "guild_id": str(guild_id),
+            "guild_name": guild_name,
+            "removed_at": datetime.now().isoformat(),
+            "member_count": member_count
+        }
+
+        removed_data["removed_servers"].append(removed_info)
+
+        # GCS에 저장
+        client = get_gcs_client()
+        if client:
+            bucket = client.bucket(GCS_BUCKET)
+            blob = bucket.blob(GCS_REMOVED_SERVERS_KEY)
+            blob.upload_from_string(
+                json.dumps(removed_data, indent=2, ensure_ascii=False),
+                content_type='application/json'
+            )
+            print(f"[완료] 삭제된 서버 기록 완료: {guild_name} (ID: {guild_id})", flush=True)
+            return True
+    except Exception as e:
+        print(f"[오류] 삭제된 서버 저장 실패: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+    return False
+
+
 def remove_guild_settings(guild_id):
     """특정 서버(guild)에 삭제됨 표시를 추가합니다."""
     global settings_cache, cache_timestamp
     import time
     from datetime import datetime
-    
+
     guild_id_str = str(guild_id)
 
     # 즉시 캐시 무효화 (빠른 반영을 위해)

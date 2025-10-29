@@ -1,50 +1,92 @@
-  ## 코딩 규칙
+ ## 코딩 규칙
 
-  **중요: 이모지 사용 금지**
-  - 코드에서 이모지(🎉, 📊, ✅, 🔴, 🟢 등) 절대 사용하지 말 것
-  - Discord 임베드, 메시지, 로그 등 모든 곳에서 이모지 금지
-  - 대신 텍스트나 기호 사용 (#1, [TOP], *, - 등)
-  - 디버그 로그 추가하고 해결되면 삭제 
+  - 코드 수정 시 claude's question (선택하는거) 적극적으로 사용
 
-  ## 뎁마봇 폴더 구조
+ **중요: 이모지 사용 금지**
+ - 코드에서 이모지(🎉, 📊, ✅, 🔴, 🟢 등) 절대 사용하지 말 것
+ - Discord 임베드, 메시지, 로그 등 모든 곳에서 이모지 금지
+ - 대신 텍스트나 기호 사용 (#1, [TOP], *, - 등)
+ - 디버그 로그 추가하고 해결되면 삭제
 
-  run/
-  ├── __init__.py
-  ├── main.py                    # 봇 시작점 (간단하게)
-  │
-  ├── core/                      # 핵심 기능
-  │   ├── __init__.py
-  │   ├── bot.py                # Discord 봇 인스턴스, 이벤트
-  │   └── config.py             # GCS 설정 (기존)
-  │
-  ├── commands/                  # 슬래시 커맨드들
-  │   ├── __init__.py
-  │   ├── stats.py              # /전적 명령어
-  │   ├── character.py          # /통계 명령어
-  │   ├── settings.py           # /설정 명령어
-  │   ├── youtube.py            # /유튜브알림, /유튜브테스트
-  │   └── feedback.py           # /피드백 명령어
-  │
-  ├── views/                     # Discord UI (버튼, 셀렉트 등)
-  │   ├── __init__.py
-  │   ├── stats_view.py         # StatsView (전적 UI)
-  │   ├── character_view.py     # CharacterStatsView
-  │   ├── welcome_view.py       # WelcomeView
-  │   └── settings_view.py      # SettingsView, ChannelSelectView
-  │
-  ├── services/                  # 외부 서비스 연동
-  │   ├── __init__.py
-  │   ├── eternal_return/       # 이터널리턴 관련
-  │   │   ├── __init__.py
-  │   │   ├── api_client.py     # API 호출 (기존 api_clients.py)
-  │   │   ├── graph_generator.py # 그래프 (기존)
-  │   │   └── image_generator.py # 이미지 (기존 recent_games_image_generator.py)
-  │   └── youtube.py            # 유튜브 서비스 (기존)
-  │
-  └── utils/                     # 유틸리티
-      ├── __init__.py
-      ├── embeds.py             # Embed 생성 함수들
-      └── gcs.py                # GCS 헬퍼 (필요시)
+## 역할 구분 원칙
+
+### api_client (데이터 계층)
+- 순수 데이터 추출/변환 로직
+- Discord와 무관한 비즈니스 로직
+- API 호출 및 응답 처리
+- 데이터 캐싱 및 가공
+- 예: extract_team_members_info, get_weather_image_url
+
+### views (UI 계층)
+- Discord embed 생성 및 포맷팅
+- 사용자 인터랙션 처리 (버튼, 셀렉트)
+- Discord 전용 표시 로직
+- 예: format_teammate_info, create_game_embed
+
+### 원칙
+- 데이터 추출은 api_client
+- UI 포맷팅은 views
+- 명확한 책임 분리로 유지보수성 향상
+
+## Claude Code 활용
+
+### Agent 병렬 작업
+- 독립적인 여러 작업을 동시에 처리 가능
+- 예시:
+  - 대규모 리팩토링: 여러 폴더 동시 정리
+  - 코드 탐색 + 계획 수립 동시 진행
+  - 독립적인 기능들 동시 구현
+  - 테스트 + 문서화 동시 작업
+
+### TODO 관리
+- 복잡한 작업은 TodoWrite로 단계별 추적
+- 각 작업의 진행 상태 관리
+
+### 주의사항
+- 순차적 의존성이 있는 작업은 병렬 불가
+- 독립적인 작업만 병렬로 진행
+
+  ## dak gg 사용가능한 api endpoint.md 많이 참고
+
+## 뎁마봇 폴더 구조
+
+run/
+├── __init__.py
+├── main.py                    # 봇 시작점 (간단하게)
+│
+├── core/                      # 핵심 기능
+│   ├── __init__.py
+│   ├── bot.py                # Discord 봇 인스턴스, 이벤트
+│   └── config.py             # GCS 설정 (기존)
+│
+├── commands/                  # 슬래시 커맨드들
+│   ├── __init__.py
+│   ├── stats.py              # /전적 명령어
+│   ├── character.py          # /통계 명령어
+│   ├── settings.py           # /설정 명령어
+│   ├── youtube.py            # /유튜브알림, /유튜브테스트
+│   └── feedback.py           # /피드백 명령어
+│
+├── views/                     # Discord UI (버튼, 셀렉트 등)
+│   ├── __init__.py
+│   ├── stats_view.py         # StatsView (전적 UI)
+│   ├── character_view.py     # CharacterStatsView
+│   ├── welcome_view.py       # WelcomeView
+│   └── settings_view.py      # SettingsView, ChannelSelectView
+│
+├── services/                  # 외부 서비스 연동
+│   ├── __init__.py
+│   ├── eternal_return/       # 이터널리턴 관련
+│   │   ├── __init__.py
+│   │   ├── api_client.py     # API 호출 (기존 api_clients.py)
+│   │   ├── graph_generator.py # 그래프 (기존)
+│   │   └── image_generator.py # 이미지 (기존 recent_games_image_generator.py)
+│   └── youtube.py            # 유튜브 서비스 (기존)
+│
+└── utils/                     # 유틸리티
+    ├── __init__.py
+    ├── embeds.py             # Embed 생성 함수들
+    └── gcs.py                # GCS 헬퍼 (필요시)
 
 
 ## 웹패널 폴더 구조
@@ -110,7 +152,7 @@ webpanel/
 
 
 
-## 배포 방법 (VM에서 Docker 실행)
+## 배포 위치
 
 봇은 GCP VM(debi-marlene-bot)에서 Docker 컨테이너로 실행됩니다.
 
@@ -118,7 +160,7 @@ webpanel/
 - **webpanel/** 폴더가 제외 설정됨
 - Docker 이미지 빌드 시 webpanel은 자동으로 제외됩니다
 
-### 로컬 도커 오류 시 배포 방법(코드 수정했다고 바로 배포 금지 로컬에서 우선 테스트)
+### **중요 로컬 도커 오류 시 배포 방법(코드 수정했다고 바로 배포 금지!!! 로컬에서 사용자가 우선 테스트)
 
 ```bash
 # 1. 로컬 코드를 VM에 업로드
@@ -133,15 +175,6 @@ gcloud compute ssh debi-marlene-bot --zone=asia-northeast3-a --command="docker s
 # 4. 새 컨테이너 실행
 gcloud compute ssh debi-marlene-bot --zone=asia-northeast3-a --command="docker run -d --name debi-marlene -p 5000:5000 -p 8080:8080 debi-marlene-bot"
 ```
-
-## 주요 변경사항
-
-1. **유튜브 알림 시 DM 채널 자동 저장**
-   - 파일: `run/youtube_service.py:75-131` (_send_notification 함수)
-   - 봇이 유저에게 DM을 보낼 때 (유튜브 알림 등) 채널 정보를 자동으로 GCS에 저장
-   - 기존: 유저 → 봇 DM만 저장됨
-   - 수정 후: 봇 → 유저 DM도 저장됨 (양방향 저장)
-   - 저장 실패 시에도 메시지는 정상 전송됨
 
 
 ## 향후 개발 계획 (v1.1+)

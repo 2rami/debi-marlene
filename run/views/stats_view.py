@@ -18,11 +18,17 @@ from run.services.eternal_return.api_client import (
     get_player_basic_data,
     get_player_union_teams,
     get_game_details,
-    get_team_members,
+    extract_team_members_info,
     game_data
 )
 from run.services.eternal_return.graph_generator import save_mmr_graph_to_file
-from run.utils.emoji_utils import get_character_emoji, get_weapon_emoji, get_item_emoji, get_trait_emoji
+from run.utils.emoji_utils import (
+    get_character_emoji,
+    get_weapon_emoji,
+    get_item_emoji,
+    get_trait_emoji,
+    get_tactical_skill_emoji
+)
 
 
 class StatsView(discord.ui.View):
@@ -117,18 +123,7 @@ class StatsView(discord.ui.View):
                 recent_games = [game for game in recent_games if game.get('matchingMode') in [2, 3]]
 
         # 게임 모드 텍스트 결정
-        if recent_games and len(recent_games) > 0:
-            actual_mode = recent_games[0].get('matchingMode', game_mode)
-            if actual_mode == 0:
-                game_mode_text = "일반게임"
-            elif actual_mode == 2:
-                game_mode_text = "듀오게임" if game_mode != 0 else "일반 듀오게임"
-            elif actual_mode == 3:
-                game_mode_text = "랭크게임"
-            else:
-                game_mode_text = "일반게임" if game_mode == 0 else "랭크게임"
-        else:
-            game_mode_text = "일반게임" if game_mode == 0 else "랭크게임"
+        game_mode_text = "일반게임" if game_mode == 0 else "랭크게임"
 
         # 데이터가 없는 경우
         if not recent_games:
@@ -348,21 +343,6 @@ class RecentGamesView(discord.ui.View):
     async def create_game_embed(self, game_index: int) -> discord.Embed:
         """특정 게임의 임베드 생성"""
         game = self.games[game_index]
-
-        # 게임 데이터 전체 구조 로그 출력 (디버깅용)
-        print(f"\n[게임 데이터 전체] game keys: {list(game.keys())}")
-        print(f"[게임 데이터 샘플]")
-        for key in game.keys():
-            value = game[key]
-            if isinstance(value, (str, int, float, bool)) or value is None:
-                print(f"  {key}: {value}")
-            elif isinstance(value, list) and len(value) > 0:
-                print(f"  {key}: [{type(value[0]).__name__}...] (length: {len(value)})")
-            elif isinstance(value, dict):
-                print(f"  {key}: {dict} with keys: {list(value.keys())}")
-            else:
-                print(f"  {key}: {type(value).__name__}")
-
         season_name = game_data.get_season_name(self.player_data['season_id'])
 
         # 게임 기본 정보
@@ -376,7 +356,28 @@ class RecentGamesView(discord.ui.View):
         char_code = game.get('characterNum', 0)
         char_name = game_data.get_character_name(char_code)
         level = game.get('characterLevel', 1)
-        weapon_type = game.get('bestWeapon') or game.get('weaponType') or game.get('weapon') or 0
+
+        # weaponImage URL에서 무기 ID 추출
+        weapon_type = 0
+        weapon_image_url = game.get('weaponImage')
+        if weapon_image_url:
+            import re
+            match = re.search(r'Ico_Mastery_(\d+)\.png', weapon_image_url)
+            if match:
+                weapon_type = int(match.group(1))
+
+        # 무기 이모지
+        weapon_key = game_data.get_weapon_key(weapon_type) if weapon_type else None
+        weapon_emoji = get_weapon_emoji(weapon_key) if weapon_key else ""
+
+        # 전술스킬 정보 (game 객체에서 직접 가져오기)
+        tactical_skill_id = game.get('tacticalSkillGroup', 0)
+        tactical_skill_key = game_data.get_tactical_skill_key(tactical_skill_id) if tactical_skill_id else None
+        tactical_skill_emoji = get_tactical_skill_emoji(tactical_skill_key) if tactical_skill_key else ""
+
+        # 날씨 정보 (game 객체에서 직접 가져오기)
+        main_weather_id = game.get('mainWeather', 0)
+        sub_weather_id = game.get('subWeather', 0)
 
         # 순위에 따른 색상
         if rank == 1:
@@ -396,39 +397,46 @@ class RecentGamesView(discord.ui.View):
             color=color,
             url=f"https://dak.gg/bser/games/{game_id}"
         )
-        embed.set_footer(text=f"{season_name} | {game_index + 1}/{len(self.games)}")
 
-        # 스킨 이미지 설정
-        skin_code = game.get('skinCode', char_code)
-        if skin_code:
-            skin_image_url = f"https://er.dakgg.io/api/v0/assets/characters/{skin_code}.png"
-            embed.set_thumbnail(url=skin_image_url)
+        # Footer 설정: 날씨 이미지 + 날씨 이름 + 시즌
+        footer_text = season_name
 
-        # 캐릭터 + 무기 이모지
-        char_key = game_data.get_character_key(char_code)
-        char_emoji = get_character_emoji(char_key) if char_key else ""
-        weapon_key = game_data.get_weapon_key(weapon_type) if weapon_type else None
-        weapon_emoji = get_weapon_emoji(weapon_key) if weapon_key else ""
-        weapon_name = game_data.get_weapon_name(weapon_type) if weapon_type else "없음"
+        # 날씨 이름 추가
+        weather_names = []
+        main_weather_name = game_data.get_weather_name(main_weather_id) if main_weather_id else ""
+        sub_weather_name = game_data.get_weather_name(sub_weather_id) if sub_weather_id else ""
+
+        if main_weather_name:
+            weather_names.append(main_weather_name)
+        if sub_weather_name:
+            weather_names.append(sub_weather_name)
+
+        if weather_names:
+            footer_text = f"{' / '.join(weather_names)} | {season_name}"
+
+        # 주날씨 이미지를 footer 아이콘으로 설정
+        main_weather_image_url = game_data.get_weather_image_url(main_weather_id) if main_weather_id else None
+
+        if main_weather_image_url:
+            embed.set_footer(text=footer_text, icon_url=main_weather_image_url)
+        else:
+            embed.set_footer(text=footer_text)
+
+        # 스킨 이미지 설정 (API에서 직접 제공)
+        character_image = game.get('characterImage')
+        if character_image:
+            embed.set_thumbnail(url=character_image)
 
         # 본인 정보
-        char_display = f"{char_emoji} {char_name}" if char_emoji else char_name
-        weapon_display = f"{weapon_emoji} {weapon_name}" if weapon_emoji else weapon_name
+        char_display = char_name  # 캐릭터 이모지 제거
 
-        player_info = [
-            f"**캐릭터**: {char_display}",
-            f"**무기**: {weapon_display}",
-            f"**TK/K/A**: {team_kills}/{kills}/{assists}",
-            f"**딜량**: {damage:,}"
-        ]
+        # 무기 표시 (무기 이모지만)
+        weapon_display = weapon_emoji if weapon_emoji else None
 
-        if self.game_mode == 3 and mmr_gain != 0:
-            rp_sign = "+" if mmr_gain > 0 else ""
-            player_info.append(f"**RP**: {rp_sign}{mmr_gain}")
+        # 전술스킬 표시 (전술스킬 이모지만) - 위에서 이미 설정됨
+        tactical_display = tactical_skill_emoji if tactical_skill_emoji else None
 
-        embed.add_field(name="본인", value="\n".join(player_info), inline=False)
-
-        # 아이템 이모지
+        # 아이템 이모지 먼저 가져오기
         equipment = game.get('equipment', [])
 
         # equipment가 문자열이면 JSON 파싱
@@ -441,86 +449,103 @@ class RecentGamesView(discord.ui.View):
 
         item_emojis = []
         if equipment and isinstance(equipment, list):
-            for item in equipment[:6]:
+            # 최대 6개까지 처리
+            for i, item in enumerate(equipment):
+                if i >= 6:  # 6개 초과하면 중단
+                    break
+
                 if isinstance(item, dict):
                     item_code = item.get('itemCode', 0)
                 else:
                     item_code = item
 
-                if item_code:
+                if item_code and item_code > 0:
                     item_emoji = get_item_emoji(item_code)
                     if item_emoji:
                         item_emojis.append(item_emoji)
 
-        if item_emojis:
-            embed.add_field(name="아이템", value=" ".join(item_emojis), inline=False)
-
-        # 특성 이모지
-        mastery_info = game.get('mastery', [])
-
-        # mastery_info가 문자열이면 JSON 파싱
-        if isinstance(mastery_info, str):
-            import json
-            try:
-                mastery_info = json.loads(mastery_info)
-            except:
-                mastery_info = []
-
-        trait_emojis = []
-        if mastery_info and isinstance(mastery_info, list):
-            for mastery in mastery_info[:4]:
-                if isinstance(mastery, dict):
-                    trait_id = mastery.get('type', 0)
-                    if trait_id:
-                        trait_emoji = get_trait_emoji(trait_id)
-                        if trait_emoji:
-                            trait_emojis.append(trait_emoji)
-
-        if trait_emojis:
-            embed.add_field(name="특성", value=" ".join(trait_emojis), inline=False)
-
-        # 팀원 정보 (게임 상세 정보 가져오기)
+        # 팀원 정보 및 특성 정보 (게임 상세 정보 가져오기)
         game_details = await get_game_details(game_id)
+
+        # 특성 이모지 초기화
+        main_trait_emojis = []
+        sub_trait_emojis = []
+
+        if game_details and game_details.get('userGames'):
+            # 내 게임 데이터 찾기
+            my_match = None
+            for user_game in game_details['userGames']:
+                if user_game.get('nickname') == self.player_data['nickname']:
+                    my_match = user_game
+                    break
+
+            if my_match:
+                # 주특성 (traitFirstCore)
+                trait_first_core = my_match.get('traitFirstCore')
+                if trait_first_core:
+                    trait_emoji = get_trait_emoji(trait_first_core)
+                    if trait_emoji:
+                        main_trait_emojis.append(trait_emoji)
+
+                # 부특성 (traitFirstSub + traitSecondSub)
+                trait_first_sub = my_match.get('traitFirstSub', [])
+                for trait_id in trait_first_sub:
+                    trait_emoji = get_trait_emoji(trait_id)
+                    if trait_emoji:
+                        sub_trait_emojis.append(trait_emoji)
+
+                trait_second_sub = my_match.get('traitSecondSub', [])
+                for trait_id in trait_second_sub:
+                    trait_emoji = get_trait_emoji(trait_id)
+                    if trait_emoji:
+                        sub_trait_emojis.append(trait_emoji)
+
+        # 플레이어 정보 구성
+        player_info = [f"**캐릭터**: {char_display}"]
+
+        # 무기 줄: 무기 이모지 + 아이템 이모지들
+        weapon_line = f"**무기**: {weapon_display}" if weapon_display else ""
+        if item_emojis:
+            weapon_line += f" {' '.join(item_emojis)}" if weapon_line else f"{' '.join(item_emojis)}"
+        if weapon_line:
+            player_info.append(weapon_line)
+
+        # 전술스킬 (있을 때만 표시)
+        if tactical_display:
+            player_info.append(f"**전술스킬**: {tactical_display}")
+
+        # TK/K/A 줄: TK/K/A + 주특성 이모지
+        tk_line = f"**TK/K/A**: {team_kills}/{kills}/{assists}"
+        if main_trait_emojis:
+            tk_line += f" {' '.join(main_trait_emojis)}"
+        player_info.append(tk_line)
+
+        # 딜량 줄: 딜량 + 부특성 이모지들
+        damage_line = f"**딜량**: {damage:,}"
+        if sub_trait_emojis:
+            damage_line += f" {' '.join(sub_trait_emojis)}"
+        player_info.append(damage_line)
+
+        if self.game_mode == 3 and mmr_gain != 0:
+            rp_sign = "+" if mmr_gain > 0 else ""
+            player_info.append(f"**RP**: {rp_sign}{mmr_gain}")
+
+        # 하나의 필드로 모든 정보 표시
+        embed.add_field(name="\u200b", value="\n".join(player_info), inline=False)
+
         if game_details:
-            team_members_data = self.get_team_members_info(game_details, self.player_data['nickname'])
+            team_members_data = extract_team_members_info(game_details, self.player_data['nickname'])
             if team_members_data:
-                for idx, teammate in enumerate(team_members_data[:2], 1):  # 최대 2명
+                for teammate in team_members_data[:2]:  # 최대 2명
                     teammate_info = self.format_teammate_info(teammate)
-                    embed.add_field(name=f"팀원 {idx}: {teammate['nickname']}", value=teammate_info, inline=True)
+                    embed.add_field(name=teammate['nickname'], value=teammate_info, inline=True)
 
         return embed
-
-    def get_team_members_info(self, game_details: Dict, my_nickname: str) -> List[Dict]:
-        """팀원 정보 추출"""
-        if not game_details or not game_details.get('userGames'):
-            return []
-
-        user_games = game_details['userGames']
-
-        # 내 팀 번호 찾기
-        my_team_num = None
-        for player in user_games:
-            if player.get('nickname') == my_nickname:
-                my_team_num = player.get('teamNumber')
-                break
-
-        if my_team_num is None:
-            return []
-
-        # 같은 팀의 다른 플레이어들
-        teammates = []
-        for player in user_games:
-            if player.get('teamNumber') == my_team_num and player.get('nickname') != my_nickname:
-                teammates.append(player)
-
-        return teammates
 
     def format_teammate_info(self, teammate: Dict) -> str:
         """팀원 정보 포맷팅"""
         char_code = teammate.get('characterNum', 0)
         char_name = game_data.get_character_name(char_code)
-        kills = teammate.get('playerKill', 0)
-        assists = teammate.get('playerAssistant', 0)
         damage = teammate.get('damageToPlayer', 0)
 
         # 캐릭터 이모지
@@ -539,6 +564,10 @@ class RecentGamesView(discord.ui.View):
             except:
                 equipment = []
 
+        # equipment가 dict면 values()로 변환
+        if isinstance(equipment, dict):
+            equipment = list(equipment.values())
+
         item_emojis = []
         if equipment and isinstance(equipment, list):
             for item in equipment[:6]:
@@ -554,7 +583,6 @@ class RecentGamesView(discord.ui.View):
 
         info_lines = [
             f"{char_display}",
-            f"K/A: {kills}/{assists}",
             f"딜: {damage:,}"
         ]
 

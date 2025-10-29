@@ -35,12 +35,13 @@ async def setup_settings_command(bot):
 
             # SettingsView를 사용해서 선택 UI 표시
             embed = discord.Embed(
-                title="⚙️ 서버 설정",
+                title="[설정] 서버 설정",
                 description="아래 버튼으로 유튜브 공지 채널과 명령어 전용 채널을 설정하세요.",
                 color=0x7289DA
             )
-            embed.add_field(name="📢 공지 채널", value="유튜브 새 영상 알림이 올라갈 채널입니다. (필수)", inline=False)
-            embed.add_field(name="💬 채팅 채널", value="`/전적` 등 봇의 명령어를 사용할 특정 채널입니다. 설정하지 않으면 모든 채널에서 사용 가능합니다. (선택)", inline=False)
+            embed.add_field(name="[#] 공지 채널", value="유튜브 새 영상 알림이 올라갈 채널입니다. (필수)", inline=False)
+            embed.add_field(name="[*] 채팅 채널", value="`/전적` 등 봇의 명령어를 사용할 특정 채널입니다. 설정하지 않으면 모든 채널에서 사용 가능합니다. (선택)", inline=False)
+            embed.add_field(name="[X] 알림 해제", value="설정된 유튜브 알림을 해제합니다. (공지 채널 설정 시 표시)", inline=False)
             view = SettingsView(interaction.guild)
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 

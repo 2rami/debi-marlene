@@ -26,6 +26,8 @@ class GameDataCache:
         self.items: Dict[int, Any] = {}  # 아이템 데이터
         self.masteries: Dict[int, Any] = {}  # 무기(마스터리) 데이터
         self.trait_skills: Dict[int, Any] = {}  # 특성 스킬 데이터
+        self.tactical_skills: Dict[int, Any] = {}  # 전술 스킬 데이터
+        self.weathers: Dict[int, Any] = {}  # 날씨 데이터
         self.current_season_id: Optional[int] = None
 
     def get_season_name(self, season_id: int) -> str:
@@ -117,6 +119,38 @@ class GameDataCache:
             return f"https://cdn.dak.gg/assets/er/game-assets/8.4.0/TraitIcon_{trait_id}.png"
         return None
 
+    def get_tactical_skill_key(self, tactical_skill_id: int) -> Optional[str]:
+        """전술 스킬 ID로 영어 key를 반환합니다 (이모지용)."""
+        # 전술스킬 이모지 파일명: tactical_30.png, tactical_40.png 등
+        # 이모지 이름: tactical_30, tactical_40
+        if tactical_skill_id in self.tactical_skills:
+            return f"tactical_{tactical_skill_id}"
+        return None
+
+    def get_tactical_skill_name(self, tactical_skill_id: int) -> str:
+        """전술 스킬 ID로 한글 이름을 반환합니다."""
+        return self.tactical_skills.get(tactical_skill_id, {}).get('name', '알 수 없음')
+
+    def get_weather_key(self, weather_id: int) -> Optional[str]:
+        """날씨 ID로 영어 key를 반환합니다 (이모지용)."""
+        # 날씨 이모지 파일명: 10001.png, 10002.png 등
+        # 이모지 이름: 10001, 10002
+        if weather_id in self.weathers:
+            return str(weather_id)
+        return None
+
+    def get_weather_name(self, weather_id: int) -> str:
+        """날씨 ID로 한글 이름을 반환합니다."""
+        return self.weathers.get(weather_id, {}).get('name', '')
+
+    def get_weather_image_url(self, weather_id: int) -> Optional[str]:
+        """날씨 ID로 이미지 URL을 반환합니다."""
+        weather_info = self.weathers.get(weather_id)
+        if weather_info and 'imageUrl' in weather_info:
+            image_url = weather_info['imageUrl']
+            return f"https:{image_url}" if image_url.startswith('//') else image_url
+        return None
+
 # --- 전역 인스턴스 및 상수 ---
 
 game_data = GameDataCache()
@@ -162,7 +196,9 @@ async def initialize_game_data():
                 'tiers': session.get(f"{DAKGG_API_BASE}/data/tiers?hl=ko"),
                 'items': session.get(f"{DAKGG_API_BASE}/data/items?hl=ko"),
                 'masteries': session.get(f"{DAKGG_API_BASE}/data/masteries?hl=ko"),
-                'trait_skills': session.get(f"{DAKGG_API_BASE}/data/trait-skills?hl=ko")
+                'trait_skills': session.get(f"{DAKGG_API_BASE}/data/trait-skills?hl=ko"),
+                'tactical_skills': session.get(f"{DAKGG_API_BASE}/data/tactical-skills?hl=ko"),
+                'weathers': session.get(f"{DAKGG_API_BASE}/data/weathers?hl=ko")
             }
             
             responses = await asyncio.gather(*tasks.values(), return_exceptions=True)
@@ -244,7 +280,26 @@ async def initialize_game_data():
     if trait_skills_data and isinstance(trait_skills_data, dict):
         for trait in trait_skills_data.get('traitSkills', []):
             game_data.trait_skills[trait['id']] = trait
-    
+
+    # 전술 스킬 데이터 처리
+    tactical_skills_data = results.get('tactical_skills')
+    if tactical_skills_data and isinstance(tactical_skills_data, dict):
+        for tactical in tactical_skills_data.get('tacticalSkills', []):
+            if 'id' in tactical:
+                game_data.tactical_skills[tactical['id']] = tactical
+    else:
+        print(f"[경고] 전술 스킬 데이터를 가져오지 못했습니다.")
+
+    # 날씨 데이터 처리
+    weathers_data = results.get('weathers')
+    if weathers_data and isinstance(weathers_data, dict):
+        for weather in weathers_data.get('weathers', []):
+            # 날씨 데이터는 'key'를 사용
+            if 'key' in weather:
+                game_data.weathers[weather['key']] = weather
+    else:
+        print(f"[경고] 날씨 데이터를 가져오지 못했습니다.")
+
     print("[시작] 모든 DAK.GG 데이터 초기화 완료!", flush=True)
 
 # --- API 호출 로직 ---
@@ -598,32 +653,6 @@ async def get_game_details(game_id: int) -> Optional[Dict]:
         print(f"[오류] 게임 {game_id} 상세 정보 조회 오류: {e}")
         return None
 
-def get_team_members(game_data: Dict, target_nickname: str) -> List[str]:
-    """게임 데이터에서 특정 플레이어의 팀원들 닉네임을 반환합니다."""
-    if not game_data or not game_data.get('userGames'):
-        return []
-    
-    user_games = game_data['userGames']
-    
-    # 타겟 플레이어의 팀 번호 찾기
-    target_team_num = None
-    for player in user_games:
-        if player.get('nickname') == target_nickname:
-            target_team_num = player.get('teamNumber')
-            break
-    
-    if target_team_num is None:
-        return []
-    
-    # 같은 팀의 모든 플레이어 찾기 (자신 제외)
-    team_members = []
-    for player in user_games:
-        if (player.get('teamNumber') == target_team_num and 
-            player.get('nickname') != target_nickname):
-            team_members.append(player.get('nickname', '알수없음'))
-    
-    return team_members
-
 async def get_player_union_teams(nickname: str) -> Optional[Dict]:
     """
     플레이어의 유니온 팀 정보를 가져옵니다.
@@ -653,10 +682,44 @@ async def get_player_union_teams(nickname: str) -> Optional[Dict]:
         print(f"유니온 데이터 가져오기 오류: {e}")
         return None
 
+def extract_team_members_info(game_details: Dict, my_nickname: str) -> List[Dict]:
+    """
+    게임 상세 정보에서 팀원 정보를 추출합니다.
+
+    Args:
+        game_details: 게임 상세 정보 딕셔너리
+        my_nickname: 내 닉네임
+
+    Returns:
+        팀원 정보 리스트 (닉네임, 캐릭터, 장비 등)
+    """
+    if not game_details or not game_details.get('userGames'):
+        return []
+
+    user_games = game_details['userGames']
+
+    # 내 팀 번호 찾기
+    my_team_num = None
+    for player in user_games:
+        if player.get('nickname') == my_nickname:
+            my_team_num = player.get('teamNumber')
+            break
+
+    if my_team_num is None:
+        return []
+
+    # 같은 팀의 다른 플레이어들
+    teammates = []
+    for player in user_games:
+        if player.get('teamNumber') == my_team_num and player.get('nickname') != my_nickname:
+            teammates.append(player)
+
+    return teammates
+
 async def get_player_recent_games(nickname: str, season_id: int = None, game_mode: int = 3) -> Optional[List[Dict]]:
     """
     플레이어의 최근 게임 기록을 matches API에서 가져옵니다.
-    
+
     Args:
         nickname: 플레이어 닉네임
         season_id: 시즌 ID (None이면 현재 시즌)
@@ -719,8 +782,11 @@ async def get_player_recent_games(nickname: str, season_id: int = None, game_mod
                 'datetime': game.get('datetime'),
                 # 추가 정보들
                 'weaponType': game.get('weaponType'),
-                'traitType': game.get('traitType'), 
+                'traitType': game.get('traitType'),
                 'skillType': game.get('skillType'),
+                'tacticalSkillGroup': game.get('tacticalSkillGroup'),  # 전술스킬
+                'mainWeather': game.get('mainWeather'),  # 주 날씨
+                'subWeather': game.get('subWeather'),  # 부 날씨
                 'items': str(game.get('items', [])),  # 리스트를 문자열로 변환
                 'equipment': str(game.get('equipment', [])),  # 리스트를 문자열로 변환
                 'mastery': str(game.get('mastery', [])),  # 리스트를 문자열로 변홨

@@ -121,3 +121,27 @@ def get_item_emoji(item_id: int) -> str:
     # Application Emoji 이름은 item_{item_id} 형식
     emoji_name = f"item_{item_id}"
     return EMOJI_MAP.get(emoji_name, "")
+
+def get_tactical_skill_emoji(tactical_skill_key: str) -> str:
+    """
+    전술 스킬 이모지 가져오기
+
+    Args:
+        tactical_skill_key: 전술 스킬의 영어 key
+
+    Returns:
+        Discord 이모지 문자열 또는 빈 문자열
+    """
+    return EMOJI_MAP.get(tactical_skill_key, "")
+
+def get_weather_emoji(weather_key: str) -> str:
+    """
+    날씨 이모지 가져오기
+
+    Args:
+        weather_key: 날씨의 영어 key
+
+    Returns:
+        Discord 이모지 문자열 또는 빈 문자열
+    """
+    return EMOJI_MAP.get(weather_key, "")

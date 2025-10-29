@@ -152,12 +152,7 @@ async def check_new_videos():
         video_id = latest_video['snippet']['resourceId']['videoId']
         snippet = latest_video['snippet']
 
-        # 2. 마지막으로 확인한 영상과 동일하면 종료
-        last_checked_id = config.get_global_setting("LAST_CHECKED_VIDEO_ID")
-        if last_checked_id == video_id:
-            return
-
-        # 3. 서버별 알림 작업을 비동기로 생성
+        # 2. 서버별 알림 작업을 비동기로 생성 (각 채널별 중복 체크)
         import asyncio
         
         async def send_to_guild(guild, video_id, snippet):
@@ -165,7 +160,7 @@ async def check_new_videos():
             guild_settings = config.get_guild_settings(guild.id)
             channel_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
             if channel_id:
-                channel = bot_instance.get_channel(channel_id)
+                channel = bot_instance.get_channel(int(channel_id))
                 if channel:
                     last_sent_id = await get_last_sent_video_id_from_channel(channel)
                     if last_sent_id != video_id:
@@ -241,20 +236,14 @@ async def manual_check_new_videos():
         video_id = latest_video['snippet']['resourceId']['videoId']
         snippet = latest_video['snippet']
 
-        # 2. 마지막으로 확인한 영상과 동일하면 메시지 출력
-        last_checked_id = config.get_global_setting("LAST_CHECKED_VIDEO_ID")
-        if last_checked_id == video_id:
-            print("[정보] 새로운 영상이 없습니다. (이미 전송된 영상)")
-            return f"새로운 영상이 없습니다. 최신 영상: {snippet['title']}"
-
-        # 3. 서버 채널에 공지 전송
+        # 2. 서버 채널에 공지 전송 (각 채널별 중복 체크)
         sent_channels = 0
         print("- 서버 채널 공지 시작")
         for guild in bot_instance.guilds:
             guild_settings = config.get_guild_settings(guild.id)
             channel_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
             if channel_id:
-                channel = bot_instance.get_channel(channel_id)
+                channel = bot_instance.get_channel(int(channel_id))
                 if channel:
                     last_sent_id = await get_last_sent_video_id_from_channel(channel)
                     if last_sent_id != video_id:

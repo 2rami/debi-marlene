@@ -459,6 +459,12 @@ async def on_guild_remove(guild: discord.Guild):
     print(f"[오류] 서버에서 제거되었습니다: {guild.name} (ID: {guild.id})", flush=True)
 
     try:
+        # 삭제된 서버 정보를 GCS에 저장
+        config.save_removed_server(guild.id, guild.name, guild.member_count)
+    except Exception as e:
+        print(f"[경고] 삭제된 서버 저장 실패: {e}", flush=True)
+
+    try:
         # config.py의 remove_guild_settings 함수 호출 (삭제됨 표시 추가)
         if not config.remove_guild_settings(guild.id):
             print(f"[경고] 서버 삭제됨 표시 추가 실패: {guild.name} (ID: {guild.id})", flush=True)

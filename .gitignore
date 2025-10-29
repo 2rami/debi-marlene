@@ -71,6 +71,9 @@ run/emoji_map.json
 web_panel_data.json
 emoji_map.json
 
+# 로컬 백업 (GCS가 주 저장소)
+backups/
+
 # 개발/테스트 파일
 test_*.py
 *_test.py

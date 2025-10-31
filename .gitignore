@@ -81,9 +81,7 @@ test_*.py
 *.jpg
 *.jpeg
 
-# AWS 관련 (보안상 제외)
-aws-credentials.json
-.aws/
+
 
 # GCP 관련 (보안상 제외)
 google-credentials.json
@@ -106,6 +104,9 @@ webpanel/out/
 
 # 웹패널 전체 (로컬에만 유지)
 webpanel/
+
+# 스크립트
+scripts/
 
 # 봇 로그 파일
 bot.log

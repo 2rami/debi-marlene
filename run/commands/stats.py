@@ -28,7 +28,7 @@ async def setup_stats_command(bot):
     async def stats_command(interaction: discord.Interaction, 닉네임: str):
 
         # defer를 가장 먼저 호출 (3초 타임아웃 방지)
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=False)
 
         # 채널 제한 체크 (defer 이후)
         if interaction.guild:

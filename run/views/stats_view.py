@@ -27,7 +27,8 @@ from run.utils.emoji_utils import (
     get_weapon_emoji,
     get_item_emoji,
     get_trait_emoji,
-    get_tactical_skill_emoji
+    get_tactical_skill_emoji,
+    get_skin_emoji
 )
 
 
@@ -122,7 +123,9 @@ class StatsView(discord.ui.View):
             else:  # 랭크게임(듀오, 솔로)만
                 recent_games = [game for game in recent_games if game.get('matchingMode') in [2, 3]]
 
-        # 게임 모드 텍스트 결정
+        # # 게임 모드 텍스트 결정
+        # else:
+        # game_mode_text = f"gamemode: {game_mode} "
         game_mode_text = "일반게임" if game_mode == 0 else "랭크게임"
 
         # 데이터가 없는 경우
@@ -345,6 +348,17 @@ class RecentGamesView(discord.ui.View):
         game = self.games[game_index]
         season_name = game_data.get_season_name(self.player_data['season_id'])
 
+        # 실제 게임 모드 확인 (각 게임마다 다를 수 있음)
+        actual_matching_mode = game.get('matchingMode', 3)
+        if actual_matching_mode == 0:
+            game_mode_text = "일반게임"
+        elif actual_matching_mode == 2:
+            game_mode_text = "일반게임"
+        elif actual_matching_mode == 3:
+            game_mode_text = "랭크게임"
+        else:
+            game_mode_text = f"게임모드 {actual_matching_mode}"
+
         # 게임 기본 정보
         game_id = game.get('gameId', 0)
         rank = game.get('gameRank', 0)
@@ -356,6 +370,10 @@ class RecentGamesView(discord.ui.View):
         char_code = game.get('characterNum', 0)
         char_name = game_data.get_character_name(char_code)
         level = game.get('characterLevel', 1)
+
+        # 시간 정보
+        start_time = game.get('startDtm')  # 게임 시작 시간
+        play_time = game.get('playTime', 0)  # 플레이 시간 (초)
 
         # weaponImage URL에서 무기 ID 추출
         weapon_type = 0
@@ -377,42 +395,84 @@ class RecentGamesView(discord.ui.View):
 
         # 날씨 정보 (game 객체에서 직접 가져오기)
         main_weather_id = game.get('mainWeather', 0)
-        sub_weather_id = game.get('subWeather', 0)
 
         # 순위에 따른 색상
         if rank == 1:
             color = 0xFFD700  # 금색
-            rank_display = f"#{rank} WIN"
+            rank_display = f"{rank}등 WIN"
         elif rank <= 5:
             color = 0x5865F2  # 파란색
-            rank_display = f"#{rank} TOP5" if rank > 3 else f"#{rank}"
+            rank_display = f"{rank}등"
         else:
             color = 0x99AAB5  # 회색
-            rank_display = f"#{rank}"
+            rank_display = f"{rank}등"
+
+        # 시간 정보 계산
+        time_info = ""
+        if start_time:
+            from datetime import datetime, timezone
+            try:
+                # ISO 8601 형식 파싱 (한국 시간대 +0900 포함)
+                # "2025-10-29T02:42:12.012+0900" 형식
+                game_time = datetime.fromisoformat(start_time)
+                now = datetime.now(timezone.utc)
+                time_diff = now - game_time
+
+                # 몇 시간 전
+                total_seconds = time_diff.total_seconds()
+                hours_ago = int(total_seconds / 3600)
+                if hours_ago < 1:
+                    minutes_ago = int(total_seconds / 60)
+                    time_ago = f"{minutes_ago}분 전"
+                elif hours_ago < 24:
+                    time_ago = f"{hours_ago}시간 전"
+                else:
+                    days_ago = int(hours_ago / 24)
+                    time_ago = f"{days_ago}일 전"
+
+                # 플레이 시간
+                if play_time and play_time > 0:
+                    play_minutes = int(play_time / 60)
+                    play_seconds = int(play_time % 60)
+                    time_info = f"{time_ago} | {play_minutes}분 {play_seconds}초"
+                else:
+                    time_info = time_ago
+            except Exception:
+                # 에러 발생 시 무시
+                pass
+
+        # description에 캐릭터 정보 배치
+        desc_parts = []
+        desc_parts.append(f"{char_name} Lv.{level}")
+        if weapon_emoji:
+            desc_parts.append(weapon_emoji)
+        if tactical_skill_emoji:
+            desc_parts.append(tactical_skill_emoji)
+
+        # 시간 정보 추가
+        description_text = " ".join(desc_parts)
+        if time_info:
+            description_text += f"\n{time_info}"
+
+        # 캐릭터 기본 이미지 URL 가져오기 (CharProfile)
+        char_data = game_data.characters.get(char_code, {})
+        char_icon_url = char_data.get('imageUrl', '')
+
+        # URL이 //로 시작하면 https: 추가
+        if char_icon_url.startswith('//'):
+            char_icon_url = f"https:{char_icon_url}"
 
         # 임베드 생성
+        player_url = f"https://dak.gg/er/players/{self.player_data['nickname']}"
         embed = discord.Embed(
-            title=f"{self.player_data['nickname']}님의 최근전적 ({self.game_mode_text})",
-            description=f"{rank_display} | {char_name} Lv.{level}",
+            title=rank_display,
+            description=description_text,
             color=color,
-            url=f"https://dak.gg/bser/games/{game_id}"
+            url=player_url
         )
 
-        # Footer 설정: 날씨 이미지 + 날씨 이름 + 시즌
-        footer_text = season_name
-
-        # 날씨 이름 추가
-        weather_names = []
-        main_weather_name = game_data.get_weather_name(main_weather_id) if main_weather_id else ""
-        sub_weather_name = game_data.get_weather_name(sub_weather_id) if sub_weather_id else ""
-
-        if main_weather_name:
-            weather_names.append(main_weather_name)
-        if sub_weather_name:
-            weather_names.append(sub_weather_name)
-
-        if weather_names:
-            footer_text = f"{' / '.join(weather_names)} | {season_name}"
+        # Footer 설정: 시즌 + 게임 모드 (실제 게임 모드 사용)
+        footer_text = f"{season_name} | {game_mode_text}"
 
         # 주날씨 이미지를 footer 아이콘으로 설정
         main_weather_image_url = game_data.get_weather_image_url(main_weather_id) if main_weather_id else None
@@ -426,15 +486,6 @@ class RecentGamesView(discord.ui.View):
         character_image = game.get('characterImage')
         if character_image:
             embed.set_thumbnail(url=character_image)
-
-        # 본인 정보
-        char_display = char_name  # 캐릭터 이모지 제거
-
-        # 무기 표시 (무기 이모지만)
-        weapon_display = weapon_emoji if weapon_emoji else None
-
-        # 전술스킬 표시 (전술스킬 이모지만) - 위에서 이미 설정됨
-        tactical_display = tactical_skill_emoji if tactical_skill_emoji else None
 
         # 아이템 이모지 먼저 가져오기
         equipment = game.get('equipment', [])
@@ -500,58 +551,59 @@ class RecentGamesView(discord.ui.View):
                     if trait_emoji:
                         sub_trait_emojis.append(trait_emoji)
 
-        # 플레이어 정보 구성
-        player_info = [f"**캐릭터**: {char_display}"]
-
-        # 무기 줄: 무기 이모지 + 아이템 이모지들
-        weapon_line = f"**무기**: {weapon_display}" if weapon_display else ""
+        # 아이템 필드 (전체 너비)
         if item_emojis:
-            weapon_line += f" {' '.join(item_emojis)}" if weapon_line else f"{' '.join(item_emojis)}"
-        if weapon_line:
-            player_info.append(weapon_line)
+            embed.add_field(name="아이템", value=" ".join(item_emojis), inline=False)
+        else:
+            embed.add_field(name="아이템", value="\u200b", inline=False)
 
-        # 전술스킬 (있을 때만 표시)
-        if tactical_display:
-            player_info.append(f"**전술스킬**: {tactical_display}")
-
-        # TK/K/A 줄: TK/K/A + 주특성 이모지
-        tk_line = f"**TK/K/A**: {team_kills}/{kills}/{assists}"
+        # 특성 필드 (전체 너비)
+        trait_emojis = []
         if main_trait_emojis:
-            tk_line += f" {' '.join(main_trait_emojis)}"
-        player_info.append(tk_line)
-
-        # 딜량 줄: 딜량 + 부특성 이모지들
-        damage_line = f"**딜량**: {damage:,}"
+            trait_emojis.extend(main_trait_emojis)
         if sub_trait_emojis:
-            damage_line += f" {' '.join(sub_trait_emojis)}"
-        player_info.append(damage_line)
+            trait_emojis.extend(sub_trait_emojis)
 
-        if self.game_mode == 3 and mmr_gain != 0:
-            rp_sign = "+" if mmr_gain > 0 else ""
-            player_info.append(f"**RP**: {rp_sign}{mmr_gain}")
+        if trait_emojis:
+            embed.add_field(name="특성", value=" ".join(trait_emojis), inline=False)
+        else:
+            embed.add_field(name="특성", value="\u200b", inline=False)
 
-        # 하나의 필드로 모든 정보 표시
-        embed.add_field(name="\u200b", value="\n".join(player_info), inline=False)
+        # TK/K/A (왼쪽)
+        embed.add_field(name="TK/K/A", value=f"{team_kills}/{kills}/{assists}", inline=True)
 
+        # 딜량 (오른쪽)
+        embed.add_field(name="딜량", value=f"{damage:,}", inline=True)
+
+        # 빈 필드 (3번째 칸) - 다음 줄로 넘어가기
+        embed.add_field(name="\u200b", value="\u200b", inline=True)
+
+        # 팀원 정보
         if game_details:
             team_members_data = extract_team_members_info(game_details, self.player_data['nickname'])
             if team_members_data:
-                for teammate in team_members_data[:2]:  # 최대 2명
+                # 팀원들 배치 (최대 2명, 빈 칸 없이)
+                for i, teammate in enumerate(team_members_data[:2]):
                     teammate_info = self.format_teammate_info(teammate)
-                    embed.add_field(name=teammate['nickname'], value=teammate_info, inline=True)
-
+                    embed.add_field(name="\u200b", value=teammate_info, inline=True)
         return embed
 
     def format_teammate_info(self, teammate: Dict) -> str:
         """팀원 정보 포맷팅"""
         char_code = teammate.get('characterNum', 0)
-        char_name = game_data.get_character_name(char_code)
         damage = teammate.get('damageToPlayer', 0)
+        nickname = teammate.get('nickname', '')
+        skin_code = teammate.get('skinCode', 0)
 
-        # 캐릭터 이모지
-        char_key = game_data.get_character_key(char_code)
-        char_emoji = get_character_emoji(char_key) if char_key else ""
-        char_display = f"{char_emoji} {char_name}" if char_emoji else char_name
+        # 스킨 이모지 우선, 없으면 기본 캐릭터 이모지
+        char_emoji = ""
+        if skin_code:
+            char_emoji = get_skin_emoji(skin_code)
+
+        # 스킨 이모지가 없으면 기본 캐릭터 이모지 사용
+        if not char_emoji:
+            char_key = game_data.get_character_key(char_code)
+            char_emoji = get_character_emoji(char_key) if char_key else ""
 
         # 아이템 이모지
         equipment = teammate.get('equipment', [])
@@ -581,13 +633,17 @@ class RecentGamesView(discord.ui.View):
                     if item_emoji:
                         item_emojis.append(item_emoji)
 
-        info_lines = [
-            f"{char_display}",
-            f"딜: {damage:,}"
-        ]
+        # 첫 줄: 이모지 + 닉네임
+        info_lines = []
+        first_line = f"{char_emoji} {nickname}" if char_emoji else nickname
+        info_lines.append(first_line)
 
+        # 둘째 줄: 아이템
         if item_emojis:
             info_lines.append(" ".join(item_emojis))
+
+        # 셋째 줄: 딜량
+        info_lines.append(f"딜량: {damage:,}")
 
         return "\n".join(info_lines)
 

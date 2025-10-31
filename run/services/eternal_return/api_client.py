@@ -436,7 +436,7 @@ def _process_normal_game_data(nickname: str, profile_data: Dict) -> Optional[Dic
             
             # print(f"  - 캐릭터 ID: {char_id}")
             character_name = game_data.get_character_name(char_id)
-            print(f"    캐릭터 이름: {character_name}")
+            # print(f"    캐릭터 이름: {character_name}")
 
             # 가장 많이 사용한 스킨 찾기
             most_used_skin_id = char_id * 1000 + 1 # 기본 스킨 ID로 초기화
@@ -780,6 +780,8 @@ async def get_player_recent_games(nickname: str, season_id: int = None, game_mod
                 'characterSkinNum': game.get('characterSkinNum'),
                 'playTime': game.get('playTime'),
                 'datetime': game.get('datetime'),
+                'startDtm': game.get('startDtm'),  # 게임 시작 시간
+                'duration': game.get('duration'),  # 게임 지속 시간
                 # 추가 정보들
                 'weaponType': game.get('weaponType'),
                 'traitType': game.get('traitType'),

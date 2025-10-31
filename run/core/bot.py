@@ -341,8 +341,12 @@ async def on_ready():
         periodic_guild_logging.start()
 
         # 이모지 맵 로드
-        from run.utils.emoji_utils import load_emoji_map
+        from run.utils.emoji_utils import load_emoji_map, EmojiAutoUpdater
         await load_emoji_map(bot)
+
+        # 이모지 자동 업데이트 서비스 시작 (매주 목요일 오후 5시)
+        bot.emoji_auto_updater = EmojiAutoUpdater(bot)
+        print("[완료] 이모지 자동 업데이트 서비스 시작 (매주 목요일 오후 5시)", flush=True)
 
         print("[완료] 모든 초기화 완료!", flush=True)
         sys.stdout.flush()

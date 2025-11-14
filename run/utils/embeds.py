@@ -3,6 +3,33 @@ Discord Embed 생성 함수들
 """
 import discord
 from run.services.eternal_return.api_client import game_data
+from run.utils.emoji_utils import get_tier_emoji
+
+
+# 유니온 티어 매핑 (API tier 값 -> 티어 이름)
+UNION_TIER_MAP = {
+    90: 'SSS',
+    80: 'SS',
+    70: 'S',
+    66: 'AAA',
+    63: 'AA',
+    60: 'A',
+    56: 'BBB',
+    53: 'BB',
+    50: 'B',
+    46: 'CCC',
+    43: 'CC',
+    40: 'C',
+    36: 'DDD',
+    33: 'DD',
+    30: 'D',
+    26: 'EEE',
+    23: 'EE',
+    20: 'E',
+    16: 'FFF',
+    13: 'FF',
+    10: 'F',
+}
 
 
 def create_stats_embed(player_data, is_normal_mode=False):
@@ -87,7 +114,7 @@ def create_union_embed(union_data, nickname):
 
     # 가장 높은 티어의 팀 찾기 (썸네일용)
     highest_tier = "F"
-    tier_order = ['SSS', 'SS', 'S', 'AAA', 'AA', 'A', 'BBB', 'BB', 'B', 'CCC', 'CC', 'C', 'DDD', 'DD', 'D', 'E', 'FFF', 'FF', 'F']
+    highest_tier_id = 0
 
     for team_idx, team in enumerate(teams):
         team_name = team.get('tnm', f'팀 {team_idx + 1}')
@@ -109,51 +136,13 @@ def create_union_embed(union_data, nickname):
         # 팀 현재 티어 (ti 필드 사용)
         team_tier_id = team.get('ti', 0)
 
-        # ti 값을 실제 티어로 매핑
-        def get_tier_from_number(tier_num):
-            if tier_num >= 90:
-                return 'SSS'
-            elif tier_num >= 85:
-                return 'SS'
-            elif tier_num >= 80:
-                return 'S'
-            elif tier_num >= 75:
-                return 'AAA'
-            elif tier_num >= 70:
-                return 'AA'
-            elif tier_num >= 65:
-                return 'A'
-            elif tier_num >= 60:
-                return 'BBB'
-            elif tier_num >= 55:
-                return 'BB'
-            elif tier_num >= 50:
-                return 'B'
-            elif tier_num >= 45:
-                return 'CCC'
-            elif tier_num >= 40:  # 43이 CC이므로 40-44가 CC 구간
-                return 'CC'
-            elif tier_num >= 35:
-                return 'C'
-            elif tier_num >= 30:
-                return 'DDD'
-            elif tier_num >= 25:
-                return 'DD'
-            elif tier_num >= 20:
-                return 'D'
-            elif tier_num >= 15:
-                return 'E'
-            elif tier_num >= 10:
-                return 'F'
-            else:
-                return 'F'
-
-        team_tier = get_tier_from_number(team_tier_id)
+        # UNION_TIER_MAP을 사용하여 티어 조회 (없으면 F 티어)
+        team_tier = UNION_TIER_MAP.get(team_tier_id, 'F')
 
         # 가장 높은 티어 업데이트 (숫자가 높을수록 높은 티어)
-        if team_tier_id > (getattr(get_tier_from_number, 'highest_id', 0)):
+        if team_tier_id > highest_tier_id:
             highest_tier = team_tier
-            get_tier_from_number.highest_id = team_tier_id
+            highest_tier_id = team_tier_id
 
         # 팀원 정보
         user_nums = team.get('userNums', [])
@@ -174,7 +163,16 @@ def create_union_embed(union_data, nickname):
                     7: '데미갓', 8: '이터니티'
                 }
                 tier_name = tier_names.get(tier_id, '언랭')
-                member_info = f"{player_name} - {tier_name} {tier_grade if tier_grade else ''} ({mmr:,} MMR)"
+                tier_emoji = get_tier_emoji(tier_id)
+
+                # 티어 등급 표시 (1, 2, 3 등)
+                grade_text = f" {tier_grade}" if tier_grade else ''
+
+                # 티어 이모지가 있으면 추가, 없으면 생략
+                if tier_emoji:
+                    member_info = f"{player_name} - {tier_name}{grade_text} {tier_emoji} ({mmr:,} MMR)"
+                else:
+                    member_info = f"{player_name} - {tier_name}{grade_text} ({mmr:,} MMR)"
             else:
                 member_info = f"{player_name} - 언랭"
 
@@ -184,7 +182,17 @@ def create_union_embed(union_data, nickname):
         avg_rank = team.get('avgrnk', 0)
         avg_rank_text = f" | 평균 {avg_rank:.1f}등" if avg_rank > 0 else ""
 
-        field_value = f"**전적:** {total_games}게임 {wins}승 (승률 {win_rate:.1f}%){avg_rank_text}\n"
+        # Top3 비율
+        top3_rate = team.get('top3_rate', 0)
+        top3_text = f" | Top3 {top3_rate:.1f}%" if top3_rate > 0 else ""
+
+        # 팀 순위
+        team_rank = team.get('rank', 0)
+        rank_percent = team.get('rank_percent', 0)
+        rank_text = f"\n**순위:** {team_rank:,}위 (상위 {rank_percent:.1f}%)" if team_rank > 0 else ""
+
+        field_value = f"**티어:** {team_tier}\n"
+        field_value += f"**전적:** {total_games}게임 {wins}승 (승률 {win_rate:.1f}%){avg_rank_text}{top3_text}{rank_text}\n"
         field_value += f"**팀원:**\n" + "\n".join(f"• {member}" for member in team_members)
 
         embed.add_field(
@@ -193,8 +201,8 @@ def create_union_embed(union_data, nickname):
             inline=False
         )
 
-    # 가장 높은 티어의 이미지를 썸네일로 설정 (E 티어는 404이므로 제외)
-    if highest_tier != "E":
+    # 가장 높은 티어의 이미지를 썸네일로 설정
+    if highest_tier:
         tier_image_url = f"https://cdn.dak.gg/er/images/union/tier/img_SquadRumble_Rank_{highest_tier}.png"
         embed.set_thumbnail(url=tier_image_url)
 

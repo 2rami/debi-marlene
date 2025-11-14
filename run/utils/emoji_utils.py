@@ -160,6 +160,21 @@ def get_skin_emoji(skin_id: int) -> str:
     return EMOJI_MAP.get(emoji_name, "")
 
 
+def get_tier_emoji(tier_id: int) -> str:
+    """
+    티어 이모지 가져오기
+
+    Args:
+        tier_id: 티어 ID (예: 0=언랭, 1=아이언, 2=브론즈, ..., 8=이터니티)
+
+    Returns:
+        Discord 이모지 문자열 또는 빈 문자열
+    """
+    # Application Emoji 이름은 tier_{tier_id} 형식
+    emoji_name = f"tier_{tier_id}"
+    return EMOJI_MAP.get(emoji_name, "")
+
+
 # ========== 이모지 자동 업데이트 ==========
 
 import asyncio

@@ -13,7 +13,7 @@ https://er.dakgg.io/api/v1/players/%EB%AA%A8%EB%AC%98%EB%AA%A8/union-teams?seaso
 https://er.dakgg.io/api/v1/players/%EB%AA%A8%EB%AC%98%EB%AA%A8/profile?season=SEASON_17
 
 https://er.dakgg.io/api/v1/players/%EB%AA%A8%EB%AC%98%EB%AA%A8/union-teams
-
+https://er.dakgg.io/api/v1/union-team-ranks?season=SEASON_18&page=1
 
 ## 게임 데이터
 - **캐릭터**: `/data/characters?hl=ko`

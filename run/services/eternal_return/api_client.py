@@ -653,16 +653,37 @@ async def get_game_details(game_id: int) -> Optional[Dict]:
         print(f"[오류] 게임 {game_id} 상세 정보 조회 오류: {e}")
         return None
 
+async def get_union_team_ranks(season_param: str) -> Optional[Dict]:
+    """
+    유니온 팀 랭킹 정보를 가져옵니다.
+
+    Args:
+        season_param: 시즌 파라미터 (예: SEASON_18)
+
+    Returns:
+        유니온 팀 랭킹 데이터 또는 None
+    """
+    try:
+        ranks_url = f"{DAKGG_API_BASE}/union-team-ranks?season={season_param}&page=1"
+        ranks_data = await _fetch_api(ranks_url)
+
+        # 전체 페이지 데이터를 가져올 필요가 있다면 여기서 처리
+        return ranks_data
+    except Exception as e:
+        print(f"유니온 팀 랭킹 조회 오류: {e}")
+        return None
+
+
 async def get_player_union_teams(nickname: str) -> Optional[Dict]:
     """
     플레이어의 유니온 팀 정보를 가져옵니다.
-    실제 유니온 게임수도 함께 조회합니다.
+    실제 유니온 게임수, Top3 비율, 순위 정보도 함께 조회합니다.
 
     Args:
         nickname: 플레이어 닉네임
 
     Returns:
-        유니온 팀 데이터 (게임수 포함) 또는 None
+        유니온 팀 데이터 (게임수, Top3, 순위 포함) 또는 None
     """
     try:
         encoded_nickname = urllib.parse.quote(nickname)
@@ -674,14 +695,14 @@ async def get_player_union_teams(nickname: str) -> Optional[Dict]:
             return None
 
         async with aiohttp.ClientSession() as session:
-            # 유니온 팀 정보와 유니온 경기 수를 병렬로 조회
+            # 유니온 팀 정보, profile 정보, 팀 랭킹을 병렬로 조회
             union_url = f"{DAKGG_API_BASE}/players/{encoded_nickname}/union-teams"
-            matches_url = f"{DAKGG_API_BASE}/players/{encoded_nickname}/matches?season={season_param}&matchingMode=UNION&teamMode=ALL&page=1&limit=1"
+            profile_url = f"{DAKGG_API_BASE}/players/{encoded_nickname}/profile?season={season_param}"
 
             union_response = session.get(union_url, timeout=aiohttp.ClientTimeout(total=10))
-            matches_response = session.get(matches_url, timeout=aiohttp.ClientTimeout(total=10))
+            profile_response = session.get(profile_url, timeout=aiohttp.ClientTimeout(total=10))
 
-            union_resp, matches_resp = await asyncio.gather(union_response, matches_response, return_exceptions=True)
+            union_resp, profile_resp = await asyncio.gather(union_response, profile_response, return_exceptions=True)
 
             # 유니온 팀 데이터
             union_data = None
@@ -691,16 +712,57 @@ async def get_player_union_teams(nickname: str) -> Optional[Dict]:
                 print(f"유니온 데이터 가져오기 실패: {union_resp}")
                 return None
 
-            # 유니온 경기 수
+            # profile에서 유니온 경기 수 및 평균순위 가져오기 (matchingModeId == 8)
             union_games_count = 0
-            if isinstance(matches_resp, aiohttp.ClientResponse) and matches_resp.status == 200:
-                matches_data = await matches_resp.json()
-                union_games_count = matches_data.get('meta', {}).get('count', 0)
+            avg_rank = 0
+            if isinstance(profile_resp, aiohttp.ClientResponse) and profile_resp.status == 200:
+                profile_data = await profile_resp.json()
+                union_overview = next(
+                    (o for o in profile_data.get('playerSeasonOverviews', [])
+                     if o.get('seasonId') == game_data.current_season_id and o.get('matchingModeId') == 8),
+                    None
+                )
+                if union_overview:
+                    union_games_count = union_overview.get('play', 0)
+                    place_sum = union_overview.get('place', 0)  # 총 순위 합
+                    avg_rank = round(place_sum / max(union_games_count, 1), 1) if union_games_count > 0 else 0
 
-            # 유니온 데이터에 실제 게임수 추가
+            # 유니온 팀 랭킹 정보 가져오기
+            team_ranks = await get_union_team_ranks(season_param)
+
+            # 유니온 데이터에 추가 정보 포함
             if union_data and 'teams' in union_data:
                 for team in union_data['teams']:
                     team['actual_games'] = union_games_count
+                    team['avgrnk'] = avg_rank  # 평균순위 추가
+
+                    # 팀 랭킹 정보 추가
+                    if team_ranks:
+                        team_id = team.get('tid')
+
+                        team_rank_info = next(
+                            (r for r in team_ranks.get('rows', []) if r.get('teamId') == team_id),
+                            None
+                        )
+                        if team_rank_info:
+                            team['rank'] = team_rank_info.get('rank', 0)
+                            team['rank_percent'] = team_rank_info.get('rankPercent', 0)
+
+            # matches API에서 Top3 비율 계산
+            matches_url = f"{DAKGG_API_BASE}/players/{encoded_nickname}/matches?season={season_param}&matchingMode=UNION&teamMode=ALL&page=1&limit=100"
+            matches_data = await _fetch_api(matches_url)
+
+            if matches_data and 'matches' in matches_data and union_data and 'teams' in union_data:
+                matches = matches_data['matches']
+                # 각 팀별 Top3 비율 계산
+                for team in union_data['teams']:
+                    team_num = team.get('tnum')  # 팀 번호
+                    if team_num is not None:
+                        # 이 팀으로 플레이한 게임들 필터링
+                        team_games = [m for m in matches if m.get('teamNumber') == team_num]
+                        total = len(team_games)
+                        top3 = len([m for m in team_games if m.get('gameRank', 99) <= 3])
+                        team['top3_rate'] = round((top3 / total * 100), 1) if total > 0 else 0
 
             return union_data
 

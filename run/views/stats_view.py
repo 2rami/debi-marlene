@@ -58,15 +58,6 @@ class StatsView(discord.ui.View):
 
         # 프리시즌이 있으면 프리시즌 버튼과 일반게임 버튼을 3번째 줄에 추가
         if any(self._is_preseason(s['name']) for s in self.played_seasons):
-            toggle_button = discord.ui.Button(
-                label='프리시즌 보기',
-                style=discord.ButtonStyle.secondary,
-                custom_id='toggle_season',
-                row=3
-            )
-            toggle_button.callback = self.toggle_season_type
-            self.add_item(toggle_button)
-
             # 일반게임 버튼
             normal_button = discord.ui.Button(
                 label='일반게임',
@@ -86,6 +77,16 @@ class StatsView(discord.ui.View):
             )
             union_button.callback = self.toggle_union_mode
             self.add_item(union_button)
+
+            # 프리시즌 버튼
+            toggle_button = discord.ui.Button(
+                label='프리시즌',
+                style=discord.ButtonStyle.secondary,
+                custom_id='toggle_season',
+                row=3
+            )
+            toggle_button.callback = self.toggle_season_type
+            self.add_item(toggle_button)
 
     @discord.ui.button(label='메인', style=discord.ButtonStyle.primary, row=0)
     async def back_to_main(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -269,7 +270,7 @@ class StatsView(discord.ui.View):
         # 버튼 라벨 업데이트
         for item in self.children:
             if hasattr(item, 'custom_id') and item.custom_id == 'toggle_season':
-                item.label = '정식시즌 보기' if self.show_preseason else '프리시즌 보기'
+                item.label = '정식시즌' if self.show_preseason else '프리시즌'
                 break
 
         # 기존 시즌 선택 메뉴 제거하고 새로 추가

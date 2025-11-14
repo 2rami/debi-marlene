@@ -43,13 +43,19 @@ build-local:
 
 # Docker 이미지를 VM에 업로드
 upload-image:
+	@echo "🧹 VM Docker 공간 확보 중..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker system prune -a -f --volumes || true"
 	@echo "💾 Docker 이미지를 파일로 저장 중..."
 	@docker save $(CONTAINER_NAME) -o /tmp/$(CONTAINER_NAME).tar
 	@echo "📤 VM에 이미지 업로드 중..."
 	@gcloud compute scp /tmp/$(CONTAINER_NAME).tar $(VM_NAME):~/ --zone=$(ZONE)
 	@echo "📦 VM에서 이미지 로드 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker load -i ~/$(CONTAINER_NAME).tar && rm ~/$(CONTAINER_NAME).tar"
+		--command="pkill -f 'docker load' || true && docker load -i ~/$(CONTAINER_NAME).tar && rm ~/$(CONTAINER_NAME).tar"
+	@echo "✅ 이미지 로드 완료, 확인 중..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker images | grep $(CONTAINER_NAME)"
 	@echo "🧹 로컬 임시 파일 삭제..."
 	@rm /tmp/$(CONTAINER_NAME).tar
 	@echo "✅ 업로드 완료"
@@ -89,9 +95,9 @@ status:
 
 # 중지된 컨테이너 및 사용하지 않는 이미지 정리
 clean:
-	@echo "🧹 Docker 정리 중..."
+	@echo "🧹 Docker 및 임시 파일 정리 중..."
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker system prune -f"
+		--command="docker system prune -f && rm -rf ~/tmp && rm -f ~/$(CONTAINER_NAME).tar"
 	@echo "✅ 정리 완료"
 
 # VM 봇만 중지 (로컬 테스트 전)

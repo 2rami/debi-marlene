@@ -49,7 +49,7 @@ class StatsView(discord.ui.View):
         self.original_nickname = player_data['nickname']  # 원본 닉네임 보존
         self.played_seasons = played_seasons or []
         self.show_preseason = False  # 프리시즌 표시 여부
-        self.show_normal_games = False  # 일반게임 모드
+        self.current_mode = "RANK"  # 현재 모드: "RANK", "NORMAL", "UNION"
 
         # 시즌 선택 메뉴 추가
         season_select = self.create_season_select()
@@ -67,6 +67,7 @@ class StatsView(discord.ui.View):
             toggle_button.callback = self.toggle_season_type
             self.add_item(toggle_button)
 
+            # 일반게임 버튼
             normal_button = discord.ui.Button(
                 label='일반게임',
                 style=discord.ButtonStyle.secondary,
@@ -76,10 +77,21 @@ class StatsView(discord.ui.View):
             normal_button.callback = self.toggle_normal_games
             self.add_item(normal_button)
 
+            # 유니온 버튼
+            union_button = discord.ui.Button(
+                label='유니온',
+                style=discord.ButtonStyle.secondary,
+                custom_id='toggle_union',
+                row=3
+            )
+            union_button.callback = self.toggle_union_mode
+            self.add_item(union_button)
+
     @discord.ui.button(label='메인', style=discord.ButtonStyle.primary, row=0)
     async def back_to_main(self, interaction: discord.Interaction, button: discord.ui.Button):
         """메인 화면으로 돌아가기"""
-        embed = create_stats_embed(self.player_data, self.show_normal_games)
+        is_normal = (self.current_mode == "NORMAL")
+        embed = create_stats_embed(self.player_data, is_normal)
         await interaction.response.edit_message(embed=embed, view=self, attachments=[])
 
     @discord.ui.button(label='실험체', style=discord.ButtonStyle.primary, row=0)
@@ -107,8 +119,8 @@ class StatsView(discord.ui.View):
         """최근 게임 전적 표시 (한 게임씩, 화살표로 넘기기)"""
         await interaction.response.defer()
 
-        # 게임 모드 결정: 일반게임 모드면 0, 아니면 3 (랭크)
-        game_mode = 0 if self.show_normal_games else 3
+        # 현재 모드에 따라 게임 모드 결정
+        game_mode = self.current_mode  # "RANK", "NORMAL", "UNION"
 
         recent_games = await get_player_recent_games(
             self.player_data['nickname'],
@@ -118,15 +130,16 @@ class StatsView(discord.ui.View):
 
         # 게임 모드별 데이터 필터링
         if recent_games:
-            if game_mode == 0:  # 일반게임만
-                recent_games = [game for game in recent_games if game.get('matchingMode') == 0]
-            else:  # 랭크게임(듀오, 솔로)만
-                recent_games = [game for game in recent_games if game.get('matchingMode') in [2, 3]]
+            if game_mode == "NORMAL":  # 일반게임만 (matchingMode: 2)
+                recent_games = [game for game in recent_games if game.get('matchingMode') == 2]
+            elif game_mode == "RANK":  # 랭크게임만 (matchingMode: 3)
+                recent_games = [game for game in recent_games if game.get('matchingMode') == 3]
+            elif game_mode == "UNION":  # 유니온만 (matchingMode: 8)
+                recent_games = [game for game in recent_games if game.get('matchingMode') == 8]
 
-        # # 게임 모드 텍스트 결정
-        # else:
-        # game_mode_text = f"gamemode: {game_mode} "
-        game_mode_text = "일반게임" if game_mode == 0 else "랭크게임"
+        # 게임 모드 텍스트 결정
+        mode_text_map = {"RANK": "랭크게임", "NORMAL": "일반게임", "UNION": "유니온"}
+        game_mode_text = mode_text_map.get(game_mode, "게임")
 
         # 데이터가 없는 경우
         if not recent_games:
@@ -235,7 +248,8 @@ class StatsView(discord.ui.View):
 
         if season_player_data:
             self.player_data = season_player_data
-            embed = create_stats_embed(season_player_data, self.show_normal_games)
+            is_normal = (self.current_mode == "NORMAL")
+            embed = create_stats_embed(season_player_data, is_normal)
         else:
             season_name = game_data.get_season_name(season_id)
             embed = discord.Embed(
@@ -269,57 +283,71 @@ class StatsView(discord.ui.View):
         if season_select:
             self.add_item(season_select)
 
-        embed = create_stats_embed(self.player_data, self.show_normal_games)
+        is_normal = (self.current_mode == "NORMAL")
+        embed = create_stats_embed(self.player_data, is_normal)
         await interaction.edit_original_response(embed=embed, view=self)
 
     async def toggle_normal_games(self, interaction: discord.Interaction):
         """랭크게임/일반게임 전환"""
         await interaction.response.defer()
 
-        # 일반게임 모드 전환
-        self.show_normal_games = not self.show_normal_games
+        # 모드 전환
+        if self.current_mode == "NORMAL":
+            self.current_mode = "RANK"
+        else:
+            self.current_mode = "NORMAL"
 
         # 일반게임 버튼 찾아서 라벨 업데이트
         for item in self.children:
             if hasattr(item, 'custom_id') and item.custom_id == 'toggle_normal':
-                item.label = '랭크게임' if self.show_normal_games else '일반게임'
+                item.label = '랭크게임' if self.current_mode == "NORMAL" else '일반게임'
                 break
 
-        # 일반게임 모드로 전환할 때 일반게임 데이터 가져오기
-        if self.show_normal_games:
+        # 데이터 가져오기
+        if self.current_mode == "NORMAL":
             normal_data = await get_player_normal_game_data(self.player_data['nickname'])
             if normal_data:
                 self.player_data = normal_data
         else:
-            # 랭크게임 모드로 전환할 때 원래 데이터 복원
             rank_data = await get_player_basic_data(self.player_data['nickname'])
             if rank_data:
                 self.player_data = rank_data
 
-        # 메인 임베드로 돌아가기 (모드 변경 적용)
-        embed = create_stats_embed(self.player_data, self.show_normal_games)
-
+        # 메인 임베드로 돌아가기
+        is_normal = (self.current_mode == "NORMAL")
+        embed = create_stats_embed(self.player_data, is_normal)
         await interaction.edit_original_response(embed=embed, view=self)
 
-    @discord.ui.button(label='유니온', style=discord.ButtonStyle.secondary, row=3)
-    async def show_union(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """유니온 팀 정보 표시"""
+    async def toggle_union_mode(self, interaction: discord.Interaction):
+        """랭크게임/유니온 전환"""
         await interaction.response.defer()
 
-        # 유니온 데이터 가져오기 (항상 원본 닉네임 사용)
-        union_data = await get_player_union_teams(self.original_nickname)
+        # 모드 전환
+        if self.current_mode == "UNION":
+            self.current_mode = "RANK"
+            # 랭크 데이터 복원
+            rank_data = await get_player_basic_data(self.player_data['nickname'])
+            if rank_data:
+                self.player_data = rank_data
 
-        if union_data and union_data.get('teams'):
-            # 유니온 임베드 생성
-            embed = create_union_embed(union_data, self.original_nickname)
+            # 메인 화면으로
+            embed = create_stats_embed(self.player_data, False)
             await interaction.edit_original_response(embed=embed, view=self, attachments=[])
         else:
-            embed = discord.Embed(
-                title=f"{self.original_nickname}님의 유니온 정보",
-                description="유니온 데이터가 없습니다.",
-                color=0xFF0000
-            )
-            await interaction.edit_original_response(embed=embed, view=self, attachments=[])
+            self.current_mode = "UNION"
+            # 유니온 데이터 가져오기
+            union_data = await get_player_union_teams(self.original_nickname)
+
+            if union_data and union_data.get('teams'):
+                embed = create_union_embed(union_data, self.original_nickname)
+                await interaction.edit_original_response(embed=embed, view=self, attachments=[])
+            else:
+                embed = discord.Embed(
+                    title=f"{self.original_nickname}님의 유니온 정보",
+                    description="유니온 데이터가 없습니다.",
+                    color=0xFF0000
+                )
+                await interaction.edit_original_response(embed=embed, view=self, attachments=[])
 
 
 class RecentGamesView(discord.ui.View):
@@ -356,6 +384,8 @@ class RecentGamesView(discord.ui.View):
             game_mode_text = "일반게임"
         elif actual_matching_mode == 3:
             game_mode_text = "랭크게임"
+        elif actual_matching_mode == 8:
+            game_mode_text = "유니온"
         else:
             game_mode_text = f"게임모드 {actual_matching_mode}"
 
@@ -366,7 +396,7 @@ class RecentGamesView(discord.ui.View):
         team_kills = game.get('teamKill', 0)
         assists = game.get('playerAssistant', 0)
         damage = game.get('damageToPlayer', 0)
-        mmr_gain = game.get('mmrGain', 0)
+        mmr_gain = game.get('mmrGain') or game.get('mmrGainInGame', 0)
         char_code = game.get('characterNum', 0)
         char_name = game_data.get_character_name(char_code)
         level = game.get('characterLevel', 1)
@@ -572,11 +602,16 @@ class RecentGamesView(discord.ui.View):
         # TK/K/A (왼쪽)
         embed.add_field(name="TK/K/A", value=f"{team_kills}/{kills}/{assists}", inline=True)
 
-        # 딜량 (오른쪽)
+        # 딜량 (가운데)
         embed.add_field(name="딜량", value=f"{damage:,}", inline=True)
 
-        # 빈 필드 (3번째 칸) - 다음 줄로 넘어가기
-        embed.add_field(name="\u200b", value="\u200b", inline=True)
+        # RP (오른쪽) - 랭크게임과 유니온에서 표시
+        if actual_matching_mode == 3 or actual_matching_mode == 8:  # 랭크게임 또는 유니온
+            rp_value = f"{mmr_gain:+d} RP" if mmr_gain != 0 else "±0 RP"
+            embed.add_field(name="RP", value=rp_value, inline=True)
+        else:
+            # 빈 필드 (일반게임)
+            embed.add_field(name="\u200b", value="\u200b", inline=True)
 
         # 팀원 정보
         if game_details:
@@ -659,8 +694,23 @@ class RecentGamesView(discord.ui.View):
     @discord.ui.button(label='돌아가기', style=discord.ButtonStyle.primary, row=0)
     async def back_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """메인으로 돌아가기"""
-        embed = create_stats_embed(self.player_data, self.parent_view.show_normal_games)
-        await interaction.response.edit_message(embed=embed, view=self.parent_view)
+        # 유니온 모드일 때는 유니온 정보로 돌아가기
+        if self.parent_view.current_mode == "UNION":
+            union_data = await get_player_union_teams(self.parent_view.original_nickname)
+            if union_data and union_data.get('teams'):
+                embed = create_union_embed(union_data, self.parent_view.original_nickname)
+            else:
+                embed = discord.Embed(
+                    title=f"{self.parent_view.original_nickname}님의 유니온 정보",
+                    description="유니온 데이터가 없습니다.",
+                    color=0xFF0000
+                )
+            await interaction.response.edit_message(embed=embed, view=self.parent_view)
+        else:
+            # 일반게임 또는 랭크게임 모드
+            is_normal = (self.parent_view.current_mode == "NORMAL")
+            embed = create_stats_embed(self.player_data, is_normal)
+            await interaction.response.edit_message(embed=embed, view=self.parent_view)
 
     @discord.ui.button(label='▶', style=discord.ButtonStyle.secondary, row=0)
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):

@@ -656,30 +656,61 @@ async def get_game_details(game_id: int) -> Optional[Dict]:
 async def get_player_union_teams(nickname: str) -> Optional[Dict]:
     """
     플레이어의 유니온 팀 정보를 가져옵니다.
-    
+    실제 유니온 게임수도 함께 조회합니다.
+
     Args:
         nickname: 플레이어 닉네임
-    
+
     Returns:
-        유니온 팀 데이터 또는 None
+        유니온 팀 데이터 (게임수 포함) 또는 None
     """
     try:
         encoded_nickname = urllib.parse.quote(nickname)
-        url = f"{DAKGG_API_BASE}/players/{encoded_nickname}/union-teams"
-        
+
+        # 현재 시즌 파라미터 가져오기
+        season_param = game_data.get_season_api_param(game_data.current_season_id)
+        if not season_param:
+            print("[경고] 현재 시즌 파라미터를 찾을 수 없습니다.")
+            return None
+
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data
-                else:
-                    print(f"유니온 데이터 가져오기 실패: 상태 코드 {response.status}")
-                    return None
+            # 유니온 팀 정보와 유니온 경기 수를 병렬로 조회
+            union_url = f"{DAKGG_API_BASE}/players/{encoded_nickname}/union-teams"
+            matches_url = f"{DAKGG_API_BASE}/players/{encoded_nickname}/matches?season={season_param}&matchingMode=UNION&teamMode=ALL&page=1&limit=1"
+
+            union_response = session.get(union_url, timeout=aiohttp.ClientTimeout(total=10))
+            matches_response = session.get(matches_url, timeout=aiohttp.ClientTimeout(total=10))
+
+            union_resp, matches_resp = await asyncio.gather(union_response, matches_response, return_exceptions=True)
+
+            # 유니온 팀 데이터
+            union_data = None
+            if isinstance(union_resp, aiohttp.ClientResponse) and union_resp.status == 200:
+                union_data = await union_resp.json()
+            else:
+                print(f"유니온 데이터 가져오기 실패: {union_resp}")
+                return None
+
+            # 유니온 경기 수
+            union_games_count = 0
+            if isinstance(matches_resp, aiohttp.ClientResponse) and matches_resp.status == 200:
+                matches_data = await matches_resp.json()
+                union_games_count = matches_data.get('meta', {}).get('count', 0)
+
+            # 유니온 데이터에 실제 게임수 추가
+            if union_data and 'teams' in union_data:
+                for team in union_data['teams']:
+                    team['actual_games'] = union_games_count
+
+            return union_data
+
     except asyncio.TimeoutError:
         print(f"유니온 데이터 요청 시간 초과: {nickname}")
         return None
     except Exception as e:
         print(f"유니온 데이터 가져오기 오류: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 def extract_team_members_info(game_details: Dict, my_nickname: str) -> List[Dict]:
@@ -716,28 +747,28 @@ def extract_team_members_info(game_details: Dict, my_nickname: str) -> List[Dict
 
     return teammates
 
-async def get_player_recent_games(nickname: str, season_id: int = None, game_mode: int = 3) -> Optional[List[Dict]]:
+async def get_player_recent_games(nickname: str, season_id: int = None, game_mode: str = "RANK") -> Optional[List[Dict]]:
     """
     플레이어의 최근 게임 기록을 matches API에서 가져옵니다.
 
     Args:
         nickname: 플레이어 닉네임
         season_id: 시즌 ID (None이면 현재 시즌)
-        game_mode: 게임 모드 (0: 일반, 2: 듀오, 3: 랭크)
+        game_mode: 게임 모드 ("NORMAL": 일반게임, "RANK": 랭크게임, "UNION": 유니온)
     """
     try:
         encoded_nickname = urllib.parse.quote(nickname)
-        
+
         # 게임 모드에 따른 시즌 파라미터 설정
-        if game_mode == 0:  # 일반게임
+        if game_mode == "NORMAL":  # 일반게임
             season_param = "NORMAL"
-        else:  # 랭크게임, 듀오게임
+        else:  # 랭크게임, 유니온 등
             if season_id is None:
                 season_id = game_data.current_season_id
             season_param = game_data.get_season_api_param(season_id)
             if not season_param:
                 return None
-        
+
         # matches API 호출
         matches_url = f"{DAKGG_API_BASE}/players/{encoded_nickname}/matches"
         params = {
@@ -775,7 +806,7 @@ async def get_player_recent_games(nickname: str, season_id: int = None, game_mod
                 'playerKill': game.get('playerKill', game.get('kills', 0)),
                 'playerAssistant': game.get('playerAssistant', game.get('assists', 0)),
                 'damageToPlayer': game.get('damageToPlayer', 0),
-                'mmrGain': game.get('mmrGain', 0),
+                'mmrGain': game.get('mmrGain') or game.get('mmrGainInGame', 0),
                 'characterNum': game.get('characterNum'),
                 'characterSkinNum': game.get('characterSkinNum'),
                 'playTime': game.get('playTime'),

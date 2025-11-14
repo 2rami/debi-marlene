@@ -92,8 +92,10 @@ def create_union_embed(union_data, nickname):
     for team_idx, team in enumerate(teams):
         team_name = team.get('tnm', f'팀 {team_idx + 1}')
 
-        # 팀 티어 계산 (간단한 방식으로 구현)
-        total_games = team.get('ti', 0)
+        # 실제 유니온 게임수 (matches API에서 조회)
+        total_games = team.get('actual_games', 0)
+
+        # 모든 티어의 승수 합산
         wins = sum([
             team.get('ssstw', 0), team.get('sstw', 0), team.get('stw', 0),
             team.get('aaatw', 0), team.get('aatw', 0), team.get('atw', 0),

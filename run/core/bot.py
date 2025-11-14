@@ -15,6 +15,20 @@ from run.services.eternal_return.api_client import initialize_game_data, set_bot
 from run.services import youtube_service
 from run.views.welcome_view import WelcomeView
 
+# Opus 라이브러리 로드 (음성 채널 지원)
+if not discord.opus.is_loaded():
+    try:
+        # macOS Homebrew 경로
+        discord.opus.load_opus('/opt/homebrew/lib/libopus.dylib')
+        print("[완료] Opus 라이브러리 로드 완료", flush=True)
+    except:
+        try:
+            # macOS 대체 경로
+            discord.opus.load_opus('/usr/local/lib/libopus.dylib')
+            print("[완료] Opus 라이브러리 로드 완료", flush=True)
+        except Exception as e:
+            print(f"[경고] Opus 로드 실패: {e}", flush=True)
+
 
 # Discord 봇 설정
 intents = discord.Intents.all()  # 모든 Intents 활성화 (Gateway 기능용)
@@ -493,6 +507,15 @@ async def on_message(message):
     if message.author == bot.user:
         await bot.process_commands(message)
         return
+
+    # TTS 메시지 처리 (서버 메시지만)
+    if message.guild:
+        try:
+            from run.commands.voice import handle_tts_message
+            await handle_tts_message(message)
+        except Exception as e:
+            import logging
+            logging.error(f"TTS 메시지 처리 오류: {e}")
 
     # DM 메시지 처리 (실제 내용이 있는 메시지만)
     if isinstance(message.channel, discord.DMChannel):

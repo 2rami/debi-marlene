@@ -191,7 +191,7 @@ gcloud compute ssh debi-marlene-bot --zone=asia-northeast3-a --command="docker r
    - 컨텍스트 기억 및 학습 기능
 
 3. **AI 전적 분석 기능**
-
+4. **실시간 전적 검색 인게임**
 ### 웹패널 기능
 1. **서버 목록 폴더 기능**
    - 서버를 폴더로 그룹화

@@ -1,13 +1,13 @@
 """
 /공지 명령어
 
-관리자가 설정된 공지 채널에 메시지를 전송합니다.
+봇 소유자가 설정된 공지 채널에 업데이트 메시지를 전송합니다.
 """
 
 import discord
 from discord import app_commands
 
-from run.core.config import get_guild_settings
+from run.core.config import get_guild_settings, get_settings
 
 
 async def setup_announcement_command(bot):
@@ -18,22 +18,24 @@ async def setup_announcement_command(bot):
         bot: Discord 봇 인스턴스
     """
 
-    @bot.tree.command(name="공지", description="[관리자] 공지 채널에 임베드 메시지를 전송합니다.")
+    @bot.tree.command(name="공지", description="[소유자 전용] 공지 채널에 업데이트 알림을 전송합니다.")
     @app_commands.describe(
         제목="공지 제목",
         내용="공지 내용"
     )
-    @app_commands.default_permissions(administrator=True)
     async def announcement(interaction: discord.Interaction, 제목: str, 내용: str):
         try:
+            # 봇 소유자만 사용 가능
+            settings = get_settings()
+            owner_id = settings.get('OWNER_ID')
+
+            if str(interaction.user.id) != str(owner_id):
+                await interaction.response.send_message("이 명령어는 봇 소유자만 사용할 수 있습니다.", ephemeral=True)
+                return
+
             # 서버에서만 사용 가능
             if not interaction.guild:
                 await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요!", ephemeral=True)
-                return
-
-            # 관리자 권한 체크
-            if not interaction.user.guild_permissions.administrator:
-                await interaction.response.send_message("이 명령어는 서버 관리자만 사용할 수 있어요!", ephemeral=True)
                 return
 
             # 서버 설정 가져오기
@@ -75,12 +77,6 @@ async def setup_announcement_command(bot):
                 title=제목,
                 description=내용,
                 color=0xFF6B6B  # 부드러운 빨강색
-            )
-
-            # 작성자 정보 추가
-            embed.set_footer(
-                text=f"작성자: {interaction.user.display_name}",
-                icon_url=interaction.user.display_avatar.url if interaction.user.display_avatar else None
             )
 
             # 타임스탬프 추가

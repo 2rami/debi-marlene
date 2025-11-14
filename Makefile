@@ -3,19 +3,22 @@
 PROJECT_ID = ironic-objectivist-465713-a6
 VM_NAME = debi-marlene-bot
 ZONE = asia-northeast3-a
+REGION = asia-northeast3
 VM_PATH = ~/debi-marlene
 CONTAINER_NAME = debi-marlene
+REGISTRY = $(REGION)-docker.pkg.dev/$(PROJECT_ID)/debi-marlene
+IMAGE_TAG = $(REGISTRY)/$(CONTAINER_NAME):latest
 
-.PHONY: help deploy deploy-vm build-local upload-image restart stop start logs status clean test-local stop-vm start-vm
+.PHONY: help deploy build-local push-image restart stop start logs status clean test-local stop-vm start-vm
 
 # 기본 명령어 (make 입력 시 도움말 표시)
 help:
 	@echo "Debi Marlene Bot - 사용 가능한 명령어:"
 	@echo ""
 	@echo "📦 배포 관련:"
-	@echo "  make deploy        - 전체 배포 (로컬 빌드 + 업로드 + 재시작)"
+	@echo "  make deploy        - 전체 배포 (로컬 빌드 + Registry Push + 재시작)"
 	@echo "  make build-local   - 로컬에서 Docker 이미지 빌드"
-	@echo "  make upload-image  - Docker 이미지를 VM에 업로드"
+	@echo "  make push-image    - Docker 이미지를 Artifact Registry에 푸시"
 	@echo ""
 	@echo "🔧 VM 제어:"
 	@echo "  make restart       - 컨테이너 재시작"
@@ -32,33 +35,20 @@ help:
 	@echo ""
 
 # 전체 배포 프로세스
-deploy: build-local upload-image restart
+deploy: build-local push-image restart
 	@echo "✅ 배포 완료!"
 
 # 로컬에서 Docker 이미지 빌드
 build-local:
 	@echo "🔨 로컬에서 Docker 이미지 빌드 중 (linux/amd64)..."
-	@DOCKER_BUILDKIT=1 docker build --platform linux/amd64 -t $(CONTAINER_NAME) .
+	@DOCKER_BUILDKIT=1 docker build --platform linux/amd64 -t $(CONTAINER_NAME) -t $(IMAGE_TAG) .
 	@echo "✅ 빌드 완료"
 
-# Docker 이미지를 VM에 업로드
-upload-image:
-	@echo "🧹 VM Docker 공간 확보 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker system prune -a -f --volumes || true"
-	@echo "💾 Docker 이미지를 파일로 저장 중..."
-	@docker save $(CONTAINER_NAME) -o /tmp/$(CONTAINER_NAME).tar
-	@echo "📤 VM에 이미지 업로드 중..."
-	@gcloud compute scp /tmp/$(CONTAINER_NAME).tar $(VM_NAME):~/ --zone=$(ZONE)
-	@echo "📦 VM에서 이미지 로드 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="pkill -f 'docker load' || true && docker load -i ~/$(CONTAINER_NAME).tar && rm ~/$(CONTAINER_NAME).tar"
-	@echo "✅ 이미지 로드 완료, 확인 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker images | grep $(CONTAINER_NAME)"
-	@echo "🧹 로컬 임시 파일 삭제..."
-	@rm /tmp/$(CONTAINER_NAME).tar
-	@echo "✅ 업로드 완료"
+# Docker 이미지를 Artifact Registry에 푸시
+push-image:
+	@echo "📤 Docker 이미지를 Artifact Registry에 푸시 중..."
+	@docker push $(IMAGE_TAG)
+	@echo "✅ 푸시 완료"
 
 # 컨테이너 재시작
 restart: stop start
@@ -73,9 +63,12 @@ stop:
 
 # 새 컨테이너 시작
 start:
+	@echo "📥 VM에서 최신 이미지 pull 중..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker pull $(IMAGE_TAG) && docker image prune -f"
 	@echo "🚀 컨테이너 시작 중..."
-	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker run -d --name $(CONTAINER_NAME) -p 5001:5001 -p 8080:8080 --restart unless-stopped $(CONTAINER_NAME)"
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker run -d --name $(CONTAINER_NAME) -p 5001:5001 -p 8080:8080 --restart unless-stopped $(IMAGE_TAG)"
 	@echo "✅ 시작 완료"
 
 # 컨테이너 로그 확인

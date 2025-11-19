@@ -121,13 +121,34 @@ cp .env.example .env
 # 봇 실행
 python3 main.py
 
-# 웹패널 실행 (별도 터미널)
+# 웹패널 실행 (별도 터미널 두 개)
 cd webpanel
-python3 web_panel.py      # Flask 서버 (포트 8080)
-npm run dev               # Vite 개발 서버 (포트 5173)
+
+# 1) Flask 백엔드 (포트 8080)
+python3 backend/app.py
+
+# 2) React 프론트엔드 (포트 5173, /api/*는 8080으로 프록시)
+npm run dev
 
 # Electron 데스크톱 앱 실행
 npm run electron:dev
+```
+
+### Flask 백엔드 위치(빠른 안내)
+- 코드 위치: webpanel/backend
+  - 진입점: webpanel/backend/app.py (기본 포트 8080)
+  - 설정: webpanel/backend/config.py (ENV 로딩, 세션/정적 경로 등)
+  - 라우트(Blueprints):
+    - webpanel/backend/routes/api_routes.py (/api/* 묶음)
+    - webpanel/backend/routes/auth_routes.py (/auth/*)
+    - webpanel/backend/routes/main_routes.py (index.html, /version)
+  - API 핸들러: webpanel/backend/api/* (messages, channels, members, servers, users, settings)
+  - Discord Gateway: webpanel/backend/gateway.py (실시간 이벤트)
+
+빠른 실행
+```bash
+cd webpanel
+python3 backend/app.py   # Flask 서버 시작 (http://localhost:8080)
 ```
 
 ### GCS 인증 설정
@@ -155,23 +176,30 @@ debi-marlene/
 │   ├── api_clients.py          # 이터널리턴 API 클라이언트
 │   ├── graph_generator.py      # MMR 그래프 생성
 │   └── recent_games_image_generator.py  # 최근 전적 이미지
-├── webpanel/                   # 웹 관리 패널 (React + Flask)
-│   ├── web_panel.py            # Flask 백엔드 API
-│   ├── discord_gateway_service.py  # Discord Gateway 서비스
-│   ├── src/                    # React 프론트엔드
-│   │   ├── components/         # UI 컴포넌트
-│   │   │   ├── DiscordApp.tsx  # 메인 Discord UI
-│   │   │   ├── ServerList.tsx  # 서버 목록
-│   │   │   ├── ChannelList.tsx # 채널 목록
-│   │   │   └── MessageArea.tsx # 메시지 영역
-│   │   └── App.tsx             # React 메인
+├── webpanel/                   # 웹 관리 패널 (React + Flask + Electron)
+│   ├── backend/                # Flask 백엔드
+│   │   ├── app.py              # Flask 진입점 (포트 8080)
+│   │   ├── config.py           # 설정 및 ENV 로딩
+│   │   ├── gateway.py          # Discord Gateway (discord.py)
+│   │   ├── routes/             # Flask Blueprints
+│   │   │   ├── api_routes.py   # /api/* 묶음
+│   │   │   ├── auth_routes.py  # /auth/*
+│   │   │   └── main_routes.py  # 정적 페이지, 버전 정보
+│   │   ├── api/                # API 핸들러
+│   │   │   ├── messages.py     # 메시지 조회/전송
+│   │   │   ├── channels.py     # 채널 목록/음성 멤버
+│   │   │   ├── members.py      # 멤버/역할
+│   │   │   ├── servers.py      # 서버/봇 정보
+│   │   │   ├── users.py        # 유저/DM 채널
+│   │   │   └── settings.py     # GCS 설정 로드/저장
+│   │   └── utils/              # 헬퍼/데코레이터
+│   ├── src/                    # React 프론트엔드 (Vite, 포트 5173)
+│   │   ├── core/DiscordApp.tsx # 메인 Discord UI
+│   │   └── ...                 # 기타 컴포넌트
+│   ├── vite.config.mts         # /api, /auth 프록시 → http://localhost:8080
 │   ├── electron/               # Electron 데스크톱 앱
-│   │   └── main.cjs            # Electron 메인 프로세스
-│   ├── splash.html             # 스플래시 스크린
-│   ├── package.json            # Node.js 의존성
-│   ├── requirements.txt        # Python 의존성
-│   ├── Dockerfile              # 웹패널 Docker 이미지
-│   └── run/                    # 심볼릭 링크 (봇 모듈)
+│   │   └── main.cjs            # Flask 백엔드 동시 구동, 창 로딩
+│   └── package.json            # npm 스크립트 및 의존성
 ├── assets/                     # 이미지 및 정적 자원
 ├── requirements.txt            # 봇 Python 의존성
 ├── Dockerfile                  # 봇 Docker 이미지
@@ -282,6 +310,8 @@ gsutil cat gs://debi-marlene-settings/settings.json
 - 서버/채널 위치 바꾸기 (드래그 앤 드롭)
 - 사용자 상태창 구현 (프로필, 역할, 상태)
 - 웹 터미널 기능 (실시간 로그 스트리밍)
+- 모바일로 볼 수 있게, 알림
+
 
 ---
 

@@ -50,13 +50,22 @@ async def setup_announcement_command(bot):
                 )
                 return
 
-            # 공지 채널 가져오기
-            announcement_channel = interaction.guild.get_channel(announcement_channel_id)
+            # 공지 채널 가져오기 (문자열을 정수로 변환)
+            announcement_channel = interaction.guild.get_channel(int(announcement_channel_id))
 
             # 채널이 존재하지 않거나 접근할 수 없는 경우
             if not announcement_channel:
                 await interaction.response.send_message(
                     f"공지 채널(ID: {announcement_channel_id})을 찾을 수 없거나 접근할 수 없습니다.\n"
+                    "`/설정` 명령어로 공지 채널을 다시 설정해주세요.",
+                    ephemeral=True
+                )
+                return
+
+            # 채널이 현재 서버에 속해 있는지 확인 (안전 검증)
+            if announcement_channel.guild.id != interaction.guild.id:
+                await interaction.response.send_message(
+                    "공지 채널이 현재 서버에 속해 있지 않습니다.\n"
                     "`/설정` 명령어로 공지 채널을 다시 설정해주세요.",
                     ephemeral=True
                 )

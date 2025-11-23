@@ -21,6 +21,9 @@ audio_player: Optional[AudioPlayer] = None
 # 캐릭터별 TTS 서비스 캐시
 tts_services: dict = {}
 
+# 서버별 메시지 카운터 (번갈아가며 데비/마를렌 선택용)
+message_counters: dict = {}
+
 
 async def get_tts_service(character: str = "default") -> TTSService:
     """
@@ -42,16 +45,9 @@ async def get_tts_service(character: str = "default") -> TTSService:
     if voice_manager is None:
         voice_manager = VoiceManager()
 
-    # 캐릭터 모델 경로 가져오기
-    model_paths = voice_manager.get_model_paths(character)
-
-    if model_paths:
-        model_path, config_path = model_paths
-        logger.info(f"캐릭터 '{character}' 모델 로드")
-        tts_service = TTSService(model_path=model_path, config_path=config_path)
-    else:
-        logger.info(f"캐릭터 '{character}' 모델이 없어 기본 한국어 모델 사용")
-        tts_service = TTSService()
+    # GPT-SoVITS 사용 (파인튜닝된 모델은 더 이상 사용하지 않음)
+    logger.info(f"GPT-SoVITS TTS 사용 ({character})")
+    tts_service = TTSService(speaker=character)
 
     await tts_service.initialize()
 
@@ -205,6 +201,9 @@ async def setup_voice_commands(bot):
                 )
                 return
 
+            # 즉시 defer (GCS 통신 전에)
+            await interaction.response.defer(ephemeral=True)
+
             # 설정 저장
             settings = load_settings()
             guild_id = str(interaction.guild.id)
@@ -220,14 +219,20 @@ async def setup_voice_commands(bot):
                 description=f"{채널.mention} 채널의 메시지를 읽어드릴게요!",
                 color=0x7289DA
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
         except Exception as e:
             logger.error(f"읽기채널설정 명령어 오류: {e}")
-            await interaction.response.send_message(
-                f"오류가 발생했어요: {str(e)}",
-                ephemeral=True
-            )
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    f"오류가 발생했어요: {str(e)}",
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    f"오류가 발생했어요: {str(e)}",
+                    ephemeral=True
+                )
 
     @bot.tree.command(name="읽기채널해제", description="TTS 채널 설정을 해제합니다")
     @app_commands.default_permissions(administrator=True)
@@ -314,8 +319,23 @@ async def handle_tts_message(message: discord.Message):
         if not message.content.strip():
             return
 
-        # 캐릭터 설정 가져오기 (기본값: default)
-        character = guild_settings.get("tts_character", "default")
+        # 번갈아가며 데비/마를렌 선택
+        global message_counters
+
+        # 서버별 카운터 초기화
+        if guild_id not in message_counters:
+            message_counters[guild_id] = 0
+
+        # 카운터 증가
+        message_counters[guild_id] += 1
+
+        # 홀수 메시지는 데비, 짝수 메시지는 마를렌
+        if message_counters[guild_id] % 2 == 1:
+            character = "debi"
+        else:
+            character = "marlene"
+
+        logger.info(f"메시지 #{message_counters[guild_id]} - {character} 목소리 사용")
 
         # 캐릭터에 맞는 TTS 서비스 가져오기
         tts_service = await get_tts_service(character)

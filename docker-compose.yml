@@ -1,0 +1,44 @@
+services:
+  # GPT-SoVITS API 서버
+  tts-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.tts-api
+    container_name: debi-marlene-tts-api
+    volumes:
+      - ./assets/models/debimarlene_gptsovits:/models:ro
+      - ./assets/reference_audio:/reference_audio:ro
+    ports:
+      - "9880:9880"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9880/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Discord 봇
+  bot:
+    build: .
+    container_name: debi-marlene-bot
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - TTS_API_URL=http://tts-api:9880
+    ports:
+      - "5001:5001"
+      - "8080:8080"
+    depends_on:
+      tts-api:
+        condition: service_healthy
+    restart: unless-stopped

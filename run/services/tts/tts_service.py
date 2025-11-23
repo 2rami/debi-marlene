@@ -1,13 +1,12 @@
 """
 TTS 서비스: 텍스트를 음성으로 변환하는 엔진
 
-Google TTS (gTTS)를 사용하여 텍스트를 음성으로 변환합니다.
+GPT-SoVITS를 사용하여 데비&마를렌 목소리로 TTS를 제공합니다.
 """
 
 import os
 import asyncio
 from typing import Optional
-from gtts import gTTS
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,38 +16,60 @@ class TTSService:
     """
     TTS 엔진 클래스
 
-    Google TTS를 사용하여 텍스트를 음성으로 변환합니다.
+    GPT-SoVITS (학습된 데비&마를렌 모델)만 사용합니다.
     """
 
     def __init__(
         self,
         model_path: Optional[str] = None,
         config_path: Optional[str] = None,
-        default_model: str = "ko"  # 한국어
+        default_model: str = "ko",
+        use_coqui: bool = False,
+        speaker: Optional[str] = None,
+        use_gpt_sovits: bool = True
     ):
         """
         TTS 서비스 초기화
 
         Args:
-            model_path: 사용하지 않음 (호환성 유지)
-            config_path: 사용하지 않음 (호환성 유지)
+            model_path: 모델 경로 (사용 안 함, 하위 호환용)
+            config_path: 설정 파일 경로 (사용 안 함, 하위 호환용)
             default_model: 언어 코드 (기본값: 'ko' - 한국어)
+            use_coqui: 사용 안 함, 하위 호환용
+            speaker: 화자 이름 (debi, marlene)
+            use_gpt_sovits: GPT-SoVITS 사용 여부
         """
         self.language = default_model
         self.temp_dir = "/tmp/tts_audio"
+        self.speaker = speaker or "debi"
+        self.gpt_sovits_service = None
 
         # 임시 파일 저장 폴더 생성
         os.makedirs(self.temp_dir, exist_ok=True)
 
-        logger.info(f"gTTS 서비스 초기화 완료 (언어: {self.language})")
+        # GPT-SoVITS 모델 경로
+        self.gpt_model_path = "assets/models/debimarlene_gptsovits/gpt_model.ckpt"
+        self.sovits_model_path = "assets/models/debimarlene_gptsovits/sovits_model.pth"
+
+        # API URL (환경 변수에서 가져오기)
+        self.api_url = os.getenv("TTS_API_URL", "http://localhost:9880")
+
+        logger.info(f"TTS 서비스 초기화 (GPT-SoVITS 전용, 화자: {self.speaker})")
 
     async def initialize(self):
         """
         TTS 엔진을 비동기로 초기화합니다.
-
-        gTTS는 초기화가 필요 없으므로 즉시 완료됩니다.
         """
-        logger.info("gTTS 초기화 완료")
+        if self.gpt_sovits_service is None:
+            from .gpt_sovits_service import GPTSoVITSService
+
+            self.gpt_sovits_service = GPTSoVITSService(
+                gpt_model_path=self.gpt_model_path,
+                sovits_model_path=self.sovits_model_path,
+                api_url=self.api_url
+            )
+            await self.gpt_sovits_service.initialize()
+            logger.info("GPT-SoVITS 초기화 완료")
 
     async def text_to_speech(
         self,
@@ -65,32 +86,22 @@ class TTSService:
         Returns:
             생성된 음성 파일의 경로
         """
-        # 출력 파일 경로 생성
-        if output_path is None:
-            import hashlib
-            text_hash = hashlib.md5(text.encode()).hexdigest()[:8]
-            output_path = os.path.join(self.temp_dir, f"tts_{text_hash}.mp3")
+        if not self.gpt_sovits_service:
+            raise RuntimeError("GPT-SoVITS 서비스가 초기화되지 않았습니다. initialize()를 먼저 호출하세요.")
 
-        try:
-            # TTS 변환 실행 (blocking이므로 executor 사용)
-            loop = asyncio.get_event_loop()
-
-            def generate_tts():
-                tts = gTTS(text=text, lang=self.language, slow=False)
-                tts.save(output_path)
-
-            await loop.run_in_executor(None, generate_tts)
-
-            logger.info(f"TTS 변환 완료: {text[:20]}... -> {output_path}")
-            return output_path
-
-        except Exception as e:
-            logger.error(f"TTS 변환 실패: {e}")
-            raise
+        return await self.gpt_sovits_service.text_to_speech(
+            text=text,
+            speaker=self.speaker,
+            language=self.language,
+            output_path=output_path
+        )
 
     def cleanup_temp_files(self):
         """임시 음성 파일들을 정리합니다."""
         try:
+            if self.gpt_sovits_service:
+                self.gpt_sovits_service.cleanup_temp_files()
+
             for file in os.listdir(self.temp_dir):
                 file_path = os.path.join(self.temp_dir, file)
                 if os.path.isfile(file_path):

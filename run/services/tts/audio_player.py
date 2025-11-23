@@ -7,10 +7,33 @@
 import asyncio
 import discord
 import logging
+import os
+import glob
 from typing import Optional, Dict
 from collections import deque
 
 logger = logging.getLogger(__name__)
+
+# ffmpeg 실행 파일 경로 찾기
+def find_ffmpeg():
+    """ffmpeg 실행 파일의 경로를 찾습니다."""
+    # Windows WinGet 설치 경로
+    winget_path = os.path.join(
+        os.getenv("LOCALAPPDATA"),
+        "Microsoft", "WinGet", "Packages",
+        "Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_*",
+        "ffmpeg-*-essentials_build", "bin", "ffmpeg.exe"
+    )
+
+    matches = glob.glob(winget_path)
+    if matches:
+        return matches[0]
+
+    # 기본값 (PATH에서 찾기)
+    return "ffmpeg"
+
+FFMPEG_PATH = find_ffmpeg()
+logger.info(f"ffmpeg 경로: {FFMPEG_PATH}")
 
 
 class AudioPlayer:
@@ -165,7 +188,7 @@ class AudioPlayer:
                 # MP3 파일을 지원하기 위한 옵션 추가
                 audio_source = discord.FFmpegPCMAudio(
                     audio_path,
-                    executable="ffmpeg",
+                    executable=FFMPEG_PATH,
                     options="-vn"  # 비디오 스트림 무시
                 )
 

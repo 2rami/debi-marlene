@@ -30,64 +30,20 @@ class VoiceManager:
         # 모델 디렉토리 생성 (없으면)
         os.makedirs(self.models_dir, exist_ok=True)
 
-        # 캐릭터별 모델 경로
-        # 각 캐릭터 폴더에 model.pth와 config.json이 있어야 함
-        self.character_models = {
-            "debi": os.path.join(self.models_dir, "debi"),
-            "marlene": os.path.join(self.models_dir, "marlene"),
-            "default": os.path.join(self.models_dir, "default")
-        }
+        # 파인튜닝된 모델 경로
+        self.finetuned_model_path = os.path.join(self.models_dir, "debi_marlene_finetuned")
 
-    def get_model_paths(
-        self,
-        character: str = "default"
-    ) -> Optional[Tuple[str, str]]:
+    def get_finetuned_model_path(self) -> Optional[str]:
         """
-        캐릭터의 TTS 모델 파일 경로를 가져옵니다.
-
-        Args:
-            character: 캐릭터 이름 ("debi", "marlene", "default")
+        파인튜닝된 모델 경로를 반환합니다.
 
         Returns:
-            (model_path, config_path) 튜플 (없으면 None)
+            모델 경로 (없으면 None)
         """
-        model_dir = self.character_models.get(character)
+        if os.path.exists(self.finetuned_model_path):
+            return self.finetuned_model_path
+        return None
 
-        if not model_dir:
-            logger.warning(f"알 수 없는 캐릭터: {character}")
-            return None
-
-        model_path = os.path.join(model_dir, "model.pth")
-        config_path = os.path.join(model_dir, "config.json")
-
-        # 둘 다 존재하는지 확인
-        if os.path.exists(model_path) and os.path.exists(config_path):
-            logger.info(f"캐릭터 모델 발견: {character} -> {model_dir}")
-            return (model_path, config_path)
-        else:
-            logger.info(f"캐릭터 모델이 없습니다: {character}")
-            return None
-
-    def has_model(self, character: str = "default") -> bool:
-        """
-        캐릭터의 TTS 모델이 존재하는지 확인합니다.
-
-        Args:
-            character: 캐릭터 이름
-
-        Returns:
-            모델 존재 여부
-        """
-        return self.get_model_paths(character) is not None
-
-    def list_available_characters(self) -> Dict[str, bool]:
-        """
-        사용 가능한 캐릭터 목록을 반환합니다.
-
-        Returns:
-            {캐릭터명: 모델존재여부} 딕셔너리
-        """
-        return {
-            char: self.has_model(char)
-            for char in self.character_models.keys()
-        }
+    def has_finetuned_model(self) -> bool:
+        """파인튜닝된 모델이 있는지 확인합니다."""
+        return self.get_finetuned_model_path() is not None

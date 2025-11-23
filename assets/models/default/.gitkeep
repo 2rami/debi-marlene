@@ -1,4 +1,0 @@
-# 기본 목소리 TTS 모델 폴더 (선택)
-
-model.pth와 config.json 파일을 여기에 넣어주세요.
-파일이 없으면 Coqui TTS 기본 한국어 모델을 사용합니다.

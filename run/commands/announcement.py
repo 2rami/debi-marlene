@@ -7,7 +7,7 @@
 import discord
 from discord import app_commands
 
-from run.core.config import get_guild_settings, get_settings
+from run.core.config import get_guild_settings, OWNER_ID
 
 
 async def setup_announcement_command(bot):
@@ -26,10 +26,7 @@ async def setup_announcement_command(bot):
     async def announcement(interaction: discord.Interaction, 제목: str, 내용: str):
         try:
             # 봇 소유자만 사용 가능
-            settings = get_settings()
-            owner_id = settings.get('OWNER_ID')
-
-            if str(interaction.user.id) != str(owner_id):
+            if str(interaction.user.id) != str(OWNER_ID):
                 await interaction.response.send_message("이 명령어는 봇 소유자만 사용할 수 있습니다.", ephemeral=True)
                 return
 

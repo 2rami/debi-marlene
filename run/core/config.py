@@ -470,3 +470,60 @@ def save_dm_channel(user_id, channel_id, user_name=None):
     """[DEPRECATED] save_user_dm_interaction 사용 권장
     유튜브 서비스 등 기존 코드 호환성을 위해 유지"""
     return save_user_dm_interaction(user_id, channel_id, user_name)
+
+
+def cleanup_removed_servers():
+    """삭제된 서버를 settings.json에서 완전히 제거합니다.
+
+    removed_servers.json에 기록된 서버들을 settings.json의 guilds에서 삭제합니다.
+
+    Returns:
+        dict: 정리 결과 (removed_count, cleaned_servers)
+    """
+    try:
+        # 삭제된 서버 목록 로드
+        removed_data = load_removed_servers()
+        removed_servers = removed_data.get("removed_servers", [])
+
+        if not removed_servers:
+            print("[정보] 삭제된 서버가 없습니다.", flush=True)
+            return {"removed_count": 0, "cleaned_servers": []}
+
+        # 현재 설정 로드
+        settings = load_settings()
+
+        cleaned_servers = []
+        removed_count = 0
+
+        for removed_server in removed_servers:
+            guild_id = str(removed_server.get("guild_id"))
+            guild_name = removed_server.get("guild_name", "알 수 없음")
+
+            # settings.json에서 해당 서버 삭제
+            if guild_id in settings.get("guilds", {}):
+                del settings["guilds"][guild_id]
+                cleaned_servers.append({
+                    "guild_id": guild_id,
+                    "guild_name": guild_name,
+                    "removed_at": removed_server.get("removed_at")
+                })
+                removed_count += 1
+                print(f"[정리] 삭제된 서버 제거: {guild_name} (ID: {guild_id})", flush=True)
+
+        # 변경사항 저장
+        if removed_count > 0:
+            save_settings(settings)
+            print(f"[완료] {removed_count}개의 삭제된 서버 정리 완료", flush=True)
+        else:
+            print("[정보] 정리할 서버가 없습니다.", flush=True)
+
+        return {
+            "removed_count": removed_count,
+            "cleaned_servers": cleaned_servers
+        }
+
+    except Exception as e:
+        print(f"[오류] 삭제된 서버 정리 실패: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return {"removed_count": 0, "cleaned_servers": [], "error": str(e)}

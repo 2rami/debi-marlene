@@ -208,10 +208,12 @@ async def setup_voice_commands(bot):
             settings = load_settings()
             guild_id = str(interaction.guild.id)
 
-            if guild_id not in settings:
-                settings[guild_id] = {}
+            if "guilds" not in settings:
+                settings["guilds"] = {}
+            if guild_id not in settings["guilds"]:
+                settings["guilds"][guild_id] = {}
 
-            settings[guild_id]["tts_channel_id"] = str(채널.id)
+            settings["guilds"][guild_id]["tts_channel_id"] = str(채널.id)
             save_settings(settings)
 
             embed = discord.Embed(
@@ -258,8 +260,8 @@ async def setup_voice_commands(bot):
             settings = load_settings()
             guild_id = str(interaction.guild.id)
 
-            if guild_id in settings and "tts_channel_id" in settings[guild_id]:
-                del settings[guild_id]["tts_channel_id"]
+            if "guilds" in settings and guild_id in settings["guilds"] and "tts_channel_id" in settings["guilds"][guild_id]:
+                del settings["guilds"][guild_id]["tts_channel_id"]
                 save_settings(settings)
 
                 embed = discord.Embed(
@@ -308,7 +310,7 @@ async def handle_tts_message(message: discord.Message):
     try:
         # 설정 확인
         settings = load_settings()
-        guild_settings = settings.get(guild_id, {})
+        guild_settings = settings.get("guilds", {}).get(guild_id, {})
 
         # TTS 채널이 설정되어 있으면 해당 채널만 읽음
         tts_channel_id = guild_settings.get("tts_channel_id")

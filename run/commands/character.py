@@ -9,6 +9,7 @@ from discord import app_commands
 
 from run.services.eternal_return.api_client import get_character_stats
 from run.views.character_view import CharacterStatsView
+from run.utils.command_logger import log_command_usage
 
 
 async def setup_character_command(bot):
@@ -42,6 +43,16 @@ async def setup_character_command(bot):
     async def character_stats(interaction: discord.Interaction, 티어: str = "diamond_plus", 기간: int = 7):
 
         await interaction.response.defer()
+
+        # 명령어 사용 로깅
+        await log_command_usage(
+            command_name="통계",
+            user_id=interaction.user.id,
+            user_name=interaction.user.display_name or interaction.user.name,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            guild_name=interaction.guild.name if interaction.guild else None,
+            args={"티어": 티어, "기간": 기간}
+        )
 
         try:
             import sys

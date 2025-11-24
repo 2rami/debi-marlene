@@ -22,6 +22,7 @@ ETERNAL_RETURN_CHANNEL_ID = 'UCEOaB76vS9RfiAwEzxB8QGw'
 GCS_BUCKET = 'debi-marlene-settings'
 GCS_KEY = 'settings.json'
 GCS_REMOVED_SERVERS_KEY = 'removed_servers.json'
+GCS_COMMAND_LOGS_KEY = 'command_logs.json'
 gcs_client = None
 
 # 설정 캐시 (성능 개선)
@@ -527,3 +528,121 @@ def cleanup_removed_servers():
         import traceback
         traceback.print_exc()
         return {"removed_count": 0, "cleaned_servers": [], "error": str(e)}
+
+def save_command_log(log_entry):
+    """명령어 사용 로그를 GCS에 저장합니다.
+
+    Args:
+        log_entry: 로그 항목 (dict)
+            - command_name: 명령어 이름
+            - user_id: 사용자 ID
+            - user_name: 사용자 이름
+            - guild_id: 서버 ID (optional)
+            - guild_name: 서버 이름 (optional)
+            - timestamp: ISO 형식 타임스탬프
+            - args: 명령어 인자 (dict)
+    """
+    from datetime import datetime, timedelta
+
+    try:
+        client = get_gcs_client()
+        if not client:
+            return False
+
+        bucket = client.bucket(GCS_BUCKET)
+        blob = bucket.blob(GCS_COMMAND_LOGS_KEY)
+
+        # 기존 로그 로드 (없으면 빈 구조 생성)
+        if blob.exists():
+            logs_data = json.loads(blob.download_as_text())
+        else:
+            logs_data = {"logs": []}
+
+        # 새 로그 추가
+        logs_data["logs"].append(log_entry)
+
+        # 30일 이상 된 로그 삭제 (로그 로테이션)
+        cutoff_date = datetime.now() - timedelta(days=30)
+        logs_data["logs"] = [
+            log for log in logs_data["logs"]
+            if datetime.fromisoformat(log["timestamp"]) > cutoff_date
+        ]
+
+        # GCS에 저장
+        blob.upload_from_string(
+            json.dumps(logs_data, indent=2, ensure_ascii=False),
+            content_type='application/json'
+        )
+
+        return True
+
+    except Exception as e:
+        print(f"[경고] 명령어 로그 저장 실패: {e}", flush=True)
+        return False
+
+def load_command_logs(filters=None):
+    """명령어 사용 로그를 GCS에서 로드합니다.
+
+    Args:
+        filters: 필터 딕셔너리 (optional)
+            - guild_id: 특정 서버의 로그만 (str)
+            - user_id: 특정 사용자의 로그만 (str)
+            - command_name: 특정 명령어의 로그만 (str)
+            - start_date: 시작 날짜 (ISO 형식 str)
+            - end_date: 종료 날짜 (ISO 형식 str)
+            - limit: 최대 개수 (int)
+
+    Returns:
+        list: 필터링된 로그 항목 리스트 (최신순)
+    """
+    from datetime import datetime
+
+    try:
+        client = get_gcs_client()
+        if not client:
+            return []
+
+        bucket = client.bucket(GCS_BUCKET)
+        blob = bucket.blob(GCS_COMMAND_LOGS_KEY)
+
+        if not blob.exists():
+            return []
+
+        logs_data = json.loads(blob.download_as_text())
+        logs = logs_data.get("logs", [])
+
+        # 필터 적용
+        if filters:
+            # 서버 ID 필터
+            if filters.get("guild_id"):
+                logs = [log for log in logs if log.get("guild_id") == str(filters["guild_id"])]
+
+            # 사용자 ID 필터
+            if filters.get("user_id"):
+                logs = [log for log in logs if log.get("user_id") == str(filters["user_id"])]
+
+            # 명령어 이름 필터
+            if filters.get("command_name"):
+                logs = [log for log in logs if log.get("command_name") == filters["command_name"]]
+
+            # 날짜 범위 필터
+            if filters.get("start_date"):
+                start = datetime.fromisoformat(filters["start_date"])
+                logs = [log for log in logs if datetime.fromisoformat(log["timestamp"]) >= start]
+
+            if filters.get("end_date"):
+                end = datetime.fromisoformat(filters["end_date"])
+                logs = [log for log in logs if datetime.fromisoformat(log["timestamp"]) <= end]
+
+            # 개수 제한
+            if filters.get("limit"):
+                logs = logs[:filters["limit"]]
+
+        # 최신순 정렬 (타임스탬프 기준 내림차순)
+        logs.sort(key=lambda x: x["timestamp"], reverse=True)
+
+        return logs
+
+    except Exception as e:
+        print(f"[경고] 명령어 로그 로드 실패: {e}", flush=True)
+        return []

@@ -11,6 +11,7 @@ import logging
 
 from run.services.tts import TTSService, VoiceManager, AudioPlayer
 from run.core.config import load_settings, save_settings
+from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,17 @@ async def setup_voice_commands(bot):
 
             # 오디오 플레이어 초기화
             await interaction.response.defer(ephemeral=True)
+
+            # 명령어 사용 로깅
+            await log_command_usage(
+                command_name="음성입장",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                args={}
+            )
+
             await initialize_audio_player()
 
             # 음성 채널 입장
@@ -152,6 +164,17 @@ async def setup_voice_commands(bot):
 
             # 퇴장
             await interaction.response.defer(ephemeral=True)
+
+            # 명령어 사용 로깅
+            await log_command_usage(
+                command_name="음성퇴장",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                args={}
+            )
+
             success = await audio_player.leave_voice_channel(guild_id)
 
             if success:
@@ -204,6 +227,16 @@ async def setup_voice_commands(bot):
             # 즉시 defer (GCS 통신 전에)
             await interaction.response.defer(ephemeral=True)
 
+            # 명령어 사용 로깅
+            await log_command_usage(
+                command_name="읽기채널설정",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                args={"채널": 채널.name}
+            )
+
             # 설정 저장
             settings = load_settings()
             guild_id = str(interaction.guild.id)
@@ -255,6 +288,16 @@ async def setup_voice_commands(bot):
                     ephemeral=True
                 )
                 return
+
+            # 명령어 사용 로깅
+            await log_command_usage(
+                command_name="읽기채널해제",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                args={}
+            )
 
             # 설정 삭제
             settings = load_settings()

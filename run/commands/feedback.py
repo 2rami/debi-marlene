@@ -7,6 +7,7 @@
 import discord
 
 from run.core import config
+from run.utils.command_logger import log_command_usage
 
 
 async def setup_feedback_command(bot):
@@ -30,6 +31,16 @@ async def setup_feedback_command(bot):
 
         # defer로 처리 시간 확보
         await interaction.response.defer(ephemeral=True)
+
+        # 명령어 사용 로깅
+        await log_command_usage(
+            command_name="피드백",
+            user_id=interaction.user.id,
+            user_name=interaction.user.display_name or interaction.user.name,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            guild_name=interaction.guild.name if interaction.guild else None,
+            args={"내용": 내용[:50] + "..." if len(내용) > 50 else 내용}  # 내용은 50자까지만 로깅
+        )
 
         try:
             owner = await bot.fetch_user(int(OWNER_ID))

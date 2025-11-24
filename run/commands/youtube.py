@@ -9,6 +9,7 @@ import discord
 from discord import app_commands
 
 from run.core import config
+from run.utils.command_logger import log_command_usage
 
 
 async def setup_youtube_commands(bot):
@@ -23,6 +24,16 @@ async def setup_youtube_commands(bot):
     async def subscribe_youtube(interaction: discord.Interaction, 받기: bool):
 
         try:
+            # 명령어 사용 로깅
+            await log_command_usage(
+                command_name="유튜브알림",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                args={"받기": 받기}
+            )
+
             user_name = interaction.user.display_name or interaction.user.global_name or interaction.user.name
             config.set_youtube_subscription(interaction.user.id, 받기, user_name)
             message = "[완료] 이제부터 새로운 영상이 올라오면 DM으로 알려드릴게요!" if 받기 else "[완료] 유튜브 DM 알림을 해제했습니다."
@@ -63,6 +74,17 @@ async def setup_youtube_commands(bot):
         # DM에서는 누구나 사용 가능 (개인 테스트용)
 
         await interaction.response.defer(ephemeral=True)
+
+        # 명령어 사용 로깅
+        await log_command_usage(
+            command_name="유튜브테스트",
+            user_id=interaction.user.id,
+            user_name=interaction.user.display_name or interaction.user.name,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            guild_name=interaction.guild.name if interaction.guild else None,
+            args={}
+        )
+
         try:
             from run.services import youtube_service
 

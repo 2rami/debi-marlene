@@ -8,6 +8,7 @@ import discord
 from discord import app_commands
 
 from run.views.settings_view import SettingsView
+from run.utils.command_logger import log_command_usage
 
 
 async def setup_settings_command(bot):
@@ -32,6 +33,16 @@ async def setup_settings_command(bot):
             if not interaction.user.guild_permissions.administrator:
                 await interaction.response.send_message("이 명령어는 서버 관리자만 사용할 수 있어요!", ephemeral=True)
                 return
+
+            # 명령어 사용 로깅
+            await log_command_usage(
+                command_name="설정",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                args={}
+            )
 
             # SettingsView를 사용해서 선택 UI 표시
             embed = discord.Embed(

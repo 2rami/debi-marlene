@@ -2,7 +2,8 @@ import os
 import json
 from dotenv import load_dotenv
 
-load_dotenv()
+# override=False: app.py에서 이미 설정한 GOOGLE_APPLICATION_CREDENTIALS를 유지
+load_dotenv(override=False)
 
 # API 키 설정
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
@@ -35,13 +36,34 @@ def get_gcs_client():
     global gcs_client
     if gcs_client is None:
         try:
+            # 디버깅: 환경변수 확인
+            creds_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+            print(f"[GCS] GOOGLE_APPLICATION_CREDENTIALS: {creds_path}", flush=True)
+
+            if creds_path:
+                if os.path.exists(creds_path):
+                    print(f"[GCS] 인증 파일 존재함", flush=True)
+                    # 파일 내용 일부 확인
+                    with open(creds_path, 'r') as f:
+                        content = f.read()
+                        print(f"[GCS] 인증 파일 크기: {len(content)} bytes", flush=True)
+                else:
+                    print(f"[GCS] 인증 파일이 존재하지 않음!", flush=True)
+
             from google.cloud import storage
-            gcs_client = storage.Client()
+            # authorized_user credentials는 project_id가 없으므로 명시적으로 지정
+            gcs_client = storage.Client(project='ironic-objectivist-465713-a6')
+            print(f"[GCS] Client 생성 성공", flush=True)
+
             # 버킷 접근 테스트
             bucket = gcs_client.bucket(GCS_BUCKET)
-            bucket.exists()
+            exists = bucket.exists()
+            print(f"[GCS] 버킷 '{GCS_BUCKET}' 존재: {exists}", flush=True)
+
         except Exception as e:
-            print(f"[경고] GCS 클라이언트 생성 실패: {e}", flush=True)
+            import traceback
+            print(f"[GCS 오류] 클라이언트 생성 실패: {e}", flush=True)
+            print(f"[GCS 오류] 상세: {traceback.format_exc()}", flush=True)
             gcs_client = False  # 실패를 명시적으로 표시
     return gcs_client if gcs_client != False else None
 

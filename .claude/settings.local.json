@@ -1,6 +1,14 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(open:*)",
+      "Bash(xattr -cr:*)",
+      "Bash(xattr:*)",
+      "Bash(npm install:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "chrome-devtools"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

@@ -9,21 +9,17 @@ from discord import app_commands
 from typing import Optional
 import logging
 
-from run.services.tts import TTSService, VoiceManager, AudioPlayer
+from run.services.tts import TTSService, AudioPlayer
 from run.core.config import load_settings, save_settings
 from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
 
 # 전역 인스턴스
-voice_manager: Optional[VoiceManager] = None
 audio_player: Optional[AudioPlayer] = None
 
 # 캐릭터별 TTS 서비스 캐시
 tts_services: dict = {}
-
-# 서버별 메시지 카운터 (번갈아가며 데비/마를렌 선택용)
-message_counters: dict = {}
 
 
 async def get_tts_service(character: str = "default") -> TTSService:
@@ -36,17 +32,13 @@ async def get_tts_service(character: str = "default") -> TTSService:
     Returns:
         TTS 서비스 인스턴스
     """
-    global voice_manager, tts_services
+    global tts_services
 
     # 이미 로드된 서비스가 있으면 반환
     if character in tts_services:
         return tts_services[character]
 
-    # VoiceManager 초기화
-    if voice_manager is None:
-        voice_manager = VoiceManager()
-
-    # GPT-SoVITS 사용 (파인튜닝된 모델은 더 이상 사용하지 않음)
+    # GPT-SoVITS 사용
     logger.info(f"GPT-SoVITS TTS 사용 ({character})")
     tts_service = TTSService(speaker=character)
 
@@ -269,6 +261,79 @@ async def setup_voice_commands(bot):
                     ephemeral=True
                 )
 
+    @bot.tree.command(name="음성설정", description="TTS 음성을 설정합니다 (데비 또는 마를렌)")
+    @app_commands.describe(음성="사용할 음성 선택")
+    @app_commands.choices(음성=[
+        app_commands.Choice(name="데비", value="debi"),
+        app_commands.Choice(name="마를렌", value="marlene"),
+    ])
+    @app_commands.default_permissions(administrator=True)
+    async def set_tts_voice(
+        interaction: discord.Interaction,
+        음성: app_commands.Choice[str]
+    ):
+        """TTS 음성을 설정합니다."""
+        try:
+            if not interaction.guild:
+                await interaction.response.send_message(
+                    "이 명령어는 서버에서만 사용할 수 있어요!",
+                    ephemeral=True
+                )
+                return
+
+            # 관리자 권한 체크
+            if not interaction.user.guild_permissions.administrator:
+                await interaction.response.send_message(
+                    "이 명령어는 서버 관리자만 사용할 수 있어요!",
+                    ephemeral=True
+                )
+                return
+
+            # 즉시 defer
+            await interaction.response.defer(ephemeral=True)
+
+            # 명령어 사용 로깅
+            await log_command_usage(
+                command_name="음성설정",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                args={"음성": 음성.name}
+            )
+
+            # 설정 저장
+            settings = load_settings()
+            guild_id = str(interaction.guild.id)
+
+            if "guilds" not in settings:
+                settings["guilds"] = {}
+            if guild_id not in settings["guilds"]:
+                settings["guilds"][guild_id] = {}
+
+            settings["guilds"][guild_id]["tts_voice"] = 음성.value
+            save_settings(settings)
+
+            embed = discord.Embed(
+                title="TTS 음성 설정 완료",
+                description=f"{음성.name} 목소리로 메시지를 읽어드릴게요!",
+                color=0x7289DA
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
+        except Exception as e:
+            logger.error(f"음성설정 명령어 오류: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    f"오류가 발생했어요: {str(e)}",
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    f"오류가 발생했어요: {str(e)}",
+                    ephemeral=True
+                )
+
     @bot.tree.command(name="읽기채널해제", description="TTS 채널 설정을 해제합니다")
     @app_commands.default_permissions(administrator=True)
     async def unset_tts_channel(interaction: discord.Interaction):
@@ -364,23 +429,11 @@ async def handle_tts_message(message: discord.Message):
         if not message.content.strip():
             return
 
-        # 번갈아가며 데비/마를렌 선택
-        global message_counters
+        # 서버 설정에서 음성 선택 (설정 안 되어 있으면 데비가 기본값)
+        tts_voice = guild_settings.get("tts_voice", "debi")
+        character = tts_voice
 
-        # 서버별 카운터 초기화
-        if guild_id not in message_counters:
-            message_counters[guild_id] = 0
-
-        # 카운터 증가
-        message_counters[guild_id] += 1
-
-        # 홀수 메시지는 데비, 짝수 메시지는 마를렌
-        if message_counters[guild_id] % 2 == 1:
-            character = "debi"
-        else:
-            character = "marlene"
-
-        logger.info(f"메시지 #{message_counters[guild_id]} - {character} 목소리 사용")
+        logger.info(f"TTS 음성 사용: {character}")
 
         # 캐릭터에 맞는 TTS 서비스 가져오기
         tts_service = await get_tts_service(character)

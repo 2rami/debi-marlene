@@ -24,9 +24,7 @@ class TTSService:
         model_path: Optional[str] = None,
         config_path: Optional[str] = None,
         default_model: str = "ko",
-        use_coqui: bool = False,
-        speaker: Optional[str] = None,
-        use_gpt_sovits: bool = True
+        speaker: Optional[str] = None
     ):
         """
         TTS 서비스 초기화
@@ -35,9 +33,7 @@ class TTSService:
             model_path: 모델 경로 (사용 안 함, 하위 호환용)
             config_path: 설정 파일 경로 (사용 안 함, 하위 호환용)
             default_model: 언어 코드 (기본값: 'ko' - 한국어)
-            use_coqui: 사용 안 함, 하위 호환용
             speaker: 화자 이름 (debi, marlene)
-            use_gpt_sovits: GPT-SoVITS 사용 여부
         """
         self.language = default_model
         self.temp_dir = "/tmp/tts_audio"

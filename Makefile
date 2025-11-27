@@ -40,9 +40,9 @@ deploy: build-local push-image restart
 
 # 로컬에서 Docker 이미지 빌드
 build-local:
-	@echo "🔨 로컬에서 Docker 이미지 빌드 중 (linux/amd64)..."
-	@DOCKER_BUILDKIT=1 docker build --platform linux/amd64 -t $(CONTAINER_NAME) -t $(IMAGE_TAG) .
-	@echo "✅ 빌드 완료"
+	@echo "로컬에서 Docker 이미지 빌드 중 (linux/amd64)..."
+	@docker build --platform linux/amd64 -t $(CONTAINER_NAME) -t $(IMAGE_TAG) .
+	@echo "빌드 완료"
 
 # Docker 이미지를 Artifact Registry에 푸시
 push-image:

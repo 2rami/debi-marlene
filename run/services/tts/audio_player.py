@@ -17,19 +17,24 @@ logger = logging.getLogger(__name__)
 # ffmpeg 실행 파일 경로 찾기
 def find_ffmpeg():
     """ffmpeg 실행 파일의 경로를 찾습니다."""
-    # Windows WinGet 설치 경로
-    winget_path = os.path.join(
-        os.getenv("LOCALAPPDATA"),
-        "Microsoft", "WinGet", "Packages",
-        "Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_*",
-        "ffmpeg-*-essentials_build", "bin", "ffmpeg.exe"
-    )
+    import platform
 
-    matches = glob.glob(winget_path)
-    if matches:
-        return matches[0]
+    # Windows 환경
+    if platform.system() == "Windows":
+        localappdata = os.getenv("LOCALAPPDATA")
+        if localappdata:
+            # Windows WinGet 설치 경로
+            winget_path = os.path.join(
+                localappdata,
+                "Microsoft", "WinGet", "Packages",
+                "Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_*",
+                "ffmpeg-*-essentials_build", "bin", "ffmpeg.exe"
+            )
+            matches = glob.glob(winget_path)
+            if matches:
+                return matches[0]
 
-    # 기본값 (PATH에서 찾기)
+    # Linux/Mac 또는 PATH에서 찾기 (기본값)
     return "ffmpeg"
 
 FFMPEG_PATH = find_ffmpeg()

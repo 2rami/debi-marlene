@@ -177,6 +177,23 @@ async def check_new_videos():
             """개별 사용자에게 DM을 보내는 비동기 함수"""
             try:
                 user = await bot_instance.fetch_user(user_id)
+
+                # DM 채널 ID 확인 (GCS에 저장된 정보)
+                settings = config.load_settings()
+                user_settings = settings.get('users', {}).get(str(user_id), {})
+                dm_channel_id = user_settings.get('dm_channel_id')
+
+                # DM 채널이 있으면 중복 체크
+                if dm_channel_id:
+                    try:
+                        dm_channel = await bot_instance.fetch_channel(int(dm_channel_id))
+                        last_sent_id = await get_last_sent_video_id_from_channel(dm_channel)
+                        if last_sent_id == video_id:
+                            print(f"  -> 구독자 '{user.name}#{user.discriminator}' (ID: {user_id}): 이미 전송된 영상")
+                            return
+                    except Exception as channel_error:
+                        print(f"  -> [경고] DM 채널 확인 실패 (새로 전송 시도): {channel_error}")
+
                 print(f"  -> 구독자 '{user.name}#{user.discriminator}' (ID: {user_id})에게 DM 전송")
                 await _send_notification(user, video_id, snippet)
             except discord.NotFound:
@@ -258,6 +275,23 @@ async def manual_check_new_videos():
         for user_id in subscribers:
             try:
                 user = await bot_instance.fetch_user(user_id)
+
+                # DM 채널 ID 확인 (GCS에 저장된 정보)
+                settings = config.load_settings()
+                user_settings = settings.get('users', {}).get(str(user_id), {})
+                dm_channel_id = user_settings.get('dm_channel_id')
+
+                # DM 채널이 있으면 중복 체크
+                if dm_channel_id:
+                    try:
+                        dm_channel = await bot_instance.fetch_channel(int(dm_channel_id))
+                        last_sent_id = await get_last_sent_video_id_from_channel(dm_channel)
+                        if last_sent_id == video_id:
+                            print(f"  -> 구독자 '{user.name}': 이미 전송된 영상")
+                            continue
+                    except Exception as channel_error:
+                        print(f"  -> [경고] DM 채널 확인 실패 (새로 전송 시도): {channel_error}")
+
                 print(f"  -> 구독자 '{user.name}'에게 DM 전송")
                 await _send_notification(user, video_id, snippet)
                 sent_dms += 1
@@ -304,10 +338,24 @@ async def manual_check_for_user(user):
         video_id = latest_video['snippet']['resourceId']['videoId']
         snippet = latest_video['snippet']
 
-        # 2. 해당 사용자에게 테스트 전송
+        # 2. DM 채널에서 중복 확인
+        settings = config.load_settings()
+        user_settings = settings.get('users', {}).get(str(user.id), {})
+        dm_channel_id = user_settings.get('dm_channel_id')
+
+        if dm_channel_id:
+            try:
+                dm_channel = await bot_instance.fetch_channel(int(dm_channel_id))
+                last_sent_id = await get_last_sent_video_id_from_channel(dm_channel)
+                if last_sent_id == video_id:
+                    return f"테스트 결과: 이미 전송된 영상입니다.\n영상: {snippet['title'][:50]}..."
+            except Exception as channel_error:
+                print(f"  -> [경고] DM 채널 확인 실패 (새로 전송 시도): {channel_error}")
+
+        # 3. 해당 사용자에게 테스트 전송
         print(f"  -> 사용자 '{user.name}'에게 테스트 영상 전송")
         success = await _send_notification(user, video_id, snippet)
-        
+
         if success:
             return f"테스트 완료! 영상: {snippet['title'][:50]}...\n사용자 '{user.name}'에게 전송 성공"
         else:
@@ -351,7 +399,7 @@ async def manual_check_for_guild(guild):
         if not channel_id:
             return f"테스트 실패! 서버 '{guild.name}'에 공지 채널이 설정되지 않았습니다."
         
-        channel = bot_instance.get_channel(channel_id)
+        channel = bot_instance.get_channel(int(channel_id))
         if not channel:
             return f"테스트 실패! 설정된 공지 채널을 찾을 수 없습니다."
 

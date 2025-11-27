@@ -2,7 +2,8 @@ import os
 import json
 from dotenv import load_dotenv
 
-load_dotenv()
+# override=False: app.py에서 이미 설정한 GOOGLE_APPLICATION_CREDENTIALS를 유지
+load_dotenv(override=False)
 
 # API 키 설정
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
@@ -22,6 +23,7 @@ ETERNAL_RETURN_CHANNEL_ID = 'UCEOaB76vS9RfiAwEzxB8QGw'
 GCS_BUCKET = 'debi-marlene-settings'
 GCS_KEY = 'settings.json'
 GCS_REMOVED_SERVERS_KEY = 'removed_servers.json'
+GCS_COMMAND_LOGS_KEY = 'command_logs.json'
 gcs_client = None
 
 # 설정 캐시 (성능 개선)
@@ -34,13 +36,34 @@ def get_gcs_client():
     global gcs_client
     if gcs_client is None:
         try:
+            # 디버깅: 환경변수 확인
+            creds_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+            print(f"[GCS] GOOGLE_APPLICATION_CREDENTIALS: {creds_path}", flush=True)
+
+            if creds_path:
+                if os.path.exists(creds_path):
+                    print(f"[GCS] 인증 파일 존재함", flush=True)
+                    # 파일 내용 일부 확인
+                    with open(creds_path, 'r') as f:
+                        content = f.read()
+                        print(f"[GCS] 인증 파일 크기: {len(content)} bytes", flush=True)
+                else:
+                    print(f"[GCS] 인증 파일이 존재하지 않음!", flush=True)
+
             from google.cloud import storage
-            gcs_client = storage.Client()
+            # authorized_user credentials는 project_id가 없으므로 명시적으로 지정
+            gcs_client = storage.Client(project='ironic-objectivist-465713-a6')
+            print(f"[GCS] Client 생성 성공", flush=True)
+
             # 버킷 접근 테스트
             bucket = gcs_client.bucket(GCS_BUCKET)
-            bucket.exists()
+            exists = bucket.exists()
+            print(f"[GCS] 버킷 '{GCS_BUCKET}' 존재: {exists}", flush=True)
+
         except Exception as e:
-            print(f"[경고] GCS 클라이언트 생성 실패: {e}", flush=True)
+            import traceback
+            print(f"[GCS 오류] 클라이언트 생성 실패: {e}", flush=True)
+            print(f"[GCS 오류] 상세: {traceback.format_exc()}", flush=True)
             gcs_client = False  # 실패를 명시적으로 표시
     return gcs_client if gcs_client != False else None
 
@@ -470,3 +493,178 @@ def save_dm_channel(user_id, channel_id, user_name=None):
     """[DEPRECATED] save_user_dm_interaction 사용 권장
     유튜브 서비스 등 기존 코드 호환성을 위해 유지"""
     return save_user_dm_interaction(user_id, channel_id, user_name)
+
+
+def cleanup_removed_servers():
+    """삭제된 서버를 settings.json에서 완전히 제거합니다.
+
+    removed_servers.json에 기록된 서버들을 settings.json의 guilds에서 삭제합니다.
+
+    Returns:
+        dict: 정리 결과 (removed_count, cleaned_servers)
+    """
+    try:
+        # 삭제된 서버 목록 로드
+        removed_data = load_removed_servers()
+        removed_servers = removed_data.get("removed_servers", [])
+
+        if not removed_servers:
+            print("[정보] 삭제된 서버가 없습니다.", flush=True)
+            return {"removed_count": 0, "cleaned_servers": []}
+
+        # 현재 설정 로드
+        settings = load_settings()
+
+        cleaned_servers = []
+        removed_count = 0
+
+        for removed_server in removed_servers:
+            guild_id = str(removed_server.get("guild_id"))
+            guild_name = removed_server.get("guild_name", "알 수 없음")
+
+            # settings.json에서 해당 서버 삭제
+            if guild_id in settings.get("guilds", {}):
+                del settings["guilds"][guild_id]
+                cleaned_servers.append({
+                    "guild_id": guild_id,
+                    "guild_name": guild_name,
+                    "removed_at": removed_server.get("removed_at")
+                })
+                removed_count += 1
+                print(f"[정리] 삭제된 서버 제거: {guild_name} (ID: {guild_id})", flush=True)
+
+        # 변경사항 저장
+        if removed_count > 0:
+            save_settings(settings)
+            print(f"[완료] {removed_count}개의 삭제된 서버 정리 완료", flush=True)
+        else:
+            print("[정보] 정리할 서버가 없습니다.", flush=True)
+
+        return {
+            "removed_count": removed_count,
+            "cleaned_servers": cleaned_servers
+        }
+
+    except Exception as e:
+        print(f"[오류] 삭제된 서버 정리 실패: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return {"removed_count": 0, "cleaned_servers": [], "error": str(e)}
+
+def save_command_log(log_entry):
+    """명령어 사용 로그를 GCS에 저장합니다.
+
+    Args:
+        log_entry: 로그 항목 (dict)
+            - command_name: 명령어 이름
+            - user_id: 사용자 ID
+            - user_name: 사용자 이름
+            - guild_id: 서버 ID (optional)
+            - guild_name: 서버 이름 (optional)
+            - timestamp: ISO 형식 타임스탬프
+            - args: 명령어 인자 (dict)
+    """
+    from datetime import datetime, timedelta
+
+    try:
+        client = get_gcs_client()
+        if not client:
+            return False
+
+        bucket = client.bucket(GCS_BUCKET)
+        blob = bucket.blob(GCS_COMMAND_LOGS_KEY)
+
+        # 기존 로그 로드 (없으면 빈 구조 생성)
+        if blob.exists():
+            logs_data = json.loads(blob.download_as_text())
+        else:
+            logs_data = {"logs": []}
+
+        # 새 로그 추가
+        logs_data["logs"].append(log_entry)
+
+        # 30일 이상 된 로그 삭제 (로그 로테이션)
+        cutoff_date = datetime.now() - timedelta(days=30)
+        logs_data["logs"] = [
+            log for log in logs_data["logs"]
+            if datetime.fromisoformat(log["timestamp"]) > cutoff_date
+        ]
+
+        # GCS에 저장
+        blob.upload_from_string(
+            json.dumps(logs_data, indent=2, ensure_ascii=False),
+            content_type='application/json'
+        )
+
+        return True
+
+    except Exception as e:
+        print(f"[경고] 명령어 로그 저장 실패: {e}", flush=True)
+        return False
+
+def load_command_logs(filters=None):
+    """명령어 사용 로그를 GCS에서 로드합니다.
+
+    Args:
+        filters: 필터 딕셔너리 (optional)
+            - guild_id: 특정 서버의 로그만 (str)
+            - user_id: 특정 사용자의 로그만 (str)
+            - command_name: 특정 명령어의 로그만 (str)
+            - start_date: 시작 날짜 (ISO 형식 str)
+            - end_date: 종료 날짜 (ISO 형식 str)
+            - limit: 최대 개수 (int)
+
+    Returns:
+        list: 필터링된 로그 항목 리스트 (최신순)
+    """
+    from datetime import datetime
+
+    try:
+        client = get_gcs_client()
+        if not client:
+            return []
+
+        bucket = client.bucket(GCS_BUCKET)
+        blob = bucket.blob(GCS_COMMAND_LOGS_KEY)
+
+        if not blob.exists():
+            return []
+
+        logs_data = json.loads(blob.download_as_text())
+        logs = logs_data.get("logs", [])
+
+        # 필터 적용
+        if filters:
+            # 서버 ID 필터
+            if filters.get("guild_id"):
+                logs = [log for log in logs if log.get("guild_id") == str(filters["guild_id"])]
+
+            # 사용자 ID 필터
+            if filters.get("user_id"):
+                logs = [log for log in logs if log.get("user_id") == str(filters["user_id"])]
+
+            # 명령어 이름 필터
+            if filters.get("command_name"):
+                logs = [log for log in logs if log.get("command_name") == filters["command_name"]]
+
+            # 날짜 범위 필터
+            if filters.get("start_date"):
+                start = datetime.fromisoformat(filters["start_date"])
+                logs = [log for log in logs if datetime.fromisoformat(log["timestamp"]) >= start]
+
+            if filters.get("end_date"):
+                end = datetime.fromisoformat(filters["end_date"])
+                logs = [log for log in logs if datetime.fromisoformat(log["timestamp"]) <= end]
+
+            # 개수 제한
+            if filters.get("limit"):
+                logs = logs[:filters["limit"]]
+
+        # 최신순 정렬 (타임스탬프 기준 내림차순)
+        logs.sort(key=lambda x: x["timestamp"], reverse=True)
+
+        return logs
+
+    except Exception as e:
+        print(f"[경고] 명령어 로그 로드 실패: {e}", flush=True)
+        return []

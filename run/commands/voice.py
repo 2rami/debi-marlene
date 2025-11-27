@@ -11,6 +11,7 @@ import logging
 
 from run.services.tts import TTSService, VoiceManager, AudioPlayer
 from run.core.config import load_settings, save_settings
+from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,17 @@ async def setup_voice_commands(bot):
 
             # 오디오 플레이어 초기화
             await interaction.response.defer(ephemeral=True)
+
+            # 명령어 사용 로깅
+            await log_command_usage(
+                command_name="음성입장",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                args={}
+            )
+
             await initialize_audio_player()
 
             # 음성 채널 입장
@@ -152,6 +164,17 @@ async def setup_voice_commands(bot):
 
             # 퇴장
             await interaction.response.defer(ephemeral=True)
+
+            # 명령어 사용 로깅
+            await log_command_usage(
+                command_name="음성퇴장",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                args={}
+            )
+
             success = await audio_player.leave_voice_channel(guild_id)
 
             if success:
@@ -204,14 +227,26 @@ async def setup_voice_commands(bot):
             # 즉시 defer (GCS 통신 전에)
             await interaction.response.defer(ephemeral=True)
 
+            # 명령어 사용 로깅
+            await log_command_usage(
+                command_name="읽기채널설정",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                args={"채널": 채널.name}
+            )
+
             # 설정 저장
             settings = load_settings()
             guild_id = str(interaction.guild.id)
 
-            if guild_id not in settings:
-                settings[guild_id] = {}
+            if "guilds" not in settings:
+                settings["guilds"] = {}
+            if guild_id not in settings["guilds"]:
+                settings["guilds"][guild_id] = {}
 
-            settings[guild_id]["tts_channel_id"] = str(채널.id)
+            settings["guilds"][guild_id]["tts_channel_id"] = str(채널.id)
             save_settings(settings)
 
             embed = discord.Embed(
@@ -254,12 +289,22 @@ async def setup_voice_commands(bot):
                 )
                 return
 
+            # 명령어 사용 로깅
+            await log_command_usage(
+                command_name="읽기채널해제",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                args={}
+            )
+
             # 설정 삭제
             settings = load_settings()
             guild_id = str(interaction.guild.id)
 
-            if guild_id in settings and "tts_channel_id" in settings[guild_id]:
-                del settings[guild_id]["tts_channel_id"]
+            if "guilds" in settings and guild_id in settings["guilds"] and "tts_channel_id" in settings["guilds"][guild_id]:
+                del settings["guilds"][guild_id]["tts_channel_id"]
                 save_settings(settings)
 
                 embed = discord.Embed(
@@ -308,7 +353,7 @@ async def handle_tts_message(message: discord.Message):
     try:
         # 설정 확인
         settings = load_settings()
-        guild_settings = settings.get(guild_id, {})
+        guild_settings = settings.get("guilds", {}).get(guild_id, {})
 
         # TTS 채널이 설정되어 있으면 해당 채널만 읽음
         tts_channel_id = guild_settings.get("tts_channel_id")

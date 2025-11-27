@@ -14,6 +14,7 @@ from run.services.eternal_return.api_client import (
 )
 from run.views.stats_view import StatsView
 from run.utils.embeds import create_stats_embed
+from run.utils.command_logger import log_command_usage
 
 
 async def setup_stats_command(bot):
@@ -29,6 +30,16 @@ async def setup_stats_command(bot):
 
         # defer를 가장 먼저 호출 (3초 타임아웃 방지)
         await interaction.response.defer(ephemeral=False)
+
+        # 명령어 사용 로깅
+        await log_command_usage(
+            command_name="전적",
+            user_id=interaction.user.id,
+            user_name=interaction.user.display_name or interaction.user.name,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            guild_name=interaction.guild.name if interaction.guild else None,
+            args={"닉네임": 닉네임}
+        )
 
         # 채널 제한 체크 (defer 이후)
         if interaction.guild:

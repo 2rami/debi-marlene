@@ -264,11 +264,12 @@ async def setup_voice_commands(bot):
                     ephemeral=True
                 )
 
-    @bot.tree.command(name="음성설정", description="TTS 음성을 설정합니다 (데비 또는 마를렌)")
+    @bot.tree.command(name="음성설정", description="TTS 음성을 설정합니다 (데비, 마를렌, 교대)")
     @app_commands.describe(음성="사용할 음성 선택")
     @app_commands.choices(음성=[
         app_commands.Choice(name="데비", value="debi"),
         app_commands.Choice(name="마를렌", value="marlene"),
+        app_commands.Choice(name="교대 (데비+마를렌)", value="alternate"),
     ])
     @app_commands.default_permissions(administrator=True)
     async def set_tts_voice(
@@ -317,9 +318,20 @@ async def setup_voice_commands(bot):
             settings["guilds"][guild_id]["tts_voice"] = 음성.value
             save_settings(settings)
 
+            # 메시지 설명
+            if 음성.value == "alternate":
+                description = (
+                    "교대 모드가 설정되었어요!\n\n"
+                    "1번째 단어: 데비\n"
+                    "2번째 단어: 마를렌\n"
+                    "3번째 이후: 데비 + 마를렌 동시에"
+                )
+            else:
+                description = f"{음성.name} 목소리로 메시지를 읽어드릴게요!"
+
             embed = discord.Embed(
                 title="TTS 음성 설정 완료",
-                description=f"{음성.name} 목소리로 메시지를 읽어드릴게요!",
+                description=description,
                 color=0x7289DA
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
@@ -432,70 +444,91 @@ async def handle_tts_message(message: discord.Message):
         if not message.content.strip():
             return
 
-        # 텍스트를 띄어쓰기로 분리
-        words = message.content.strip().split()
+        # 서버 설정에서 음성 모드 확인 (기본값: alternate)
+        tts_voice = guild_settings.get("tts_voice", "alternate")
 
-        logger.info(f"TTS 교대 말하기: {len(words)}개 단어 처리")
+        # 설정된 목소리가 있으면 그 목소리로만 말하기
+        if tts_voice in ["debi", "marlene"]:
+            logger.info(f"TTS 단일 목소리 모드: {tts_voice}")
 
-        # 모든 단어의 오디오를 먼저 생성
-        audio_segments = []
+            # 설정된 목소리로 TTS 생성
+            tts_service = await get_tts_service(tts_voice)
+            audio_path = await tts_service.text_to_speech(text=message.content)
 
-        for i, word in enumerate(words):
-            if i == 0:
-                # 첫 번째 단어: 데비만
-                logger.info(f"[{i}] 데비: {word}")
-                tts_service = await get_tts_service("debi")
-                audio_path = await tts_service.text_to_speech(text=word)
-                audio_segments.append(audio_path)
+            logger.info(f"TTS 변환 완료: {audio_path}")
 
-            elif i == 1:
-                # 두 번째 단어: 마를렌만
-                logger.info(f"[{i}] 마를렌: {word}")
-                tts_service = await get_tts_service("marlene")
-                audio_path = await tts_service.text_to_speech(text=word)
-                audio_segments.append(audio_path)
+            # 재생
+            await audio_player.play_audio(guild_id, audio_path)
+            logger.info("TTS 단일 목소리 재생 완료")
 
-            else:
-                # 세 번째 단어부터: 데비와 마를렌이 동시에
-                logger.info(f"[{i}] 데비 + 마를렌 동시: {word}")
+        else:
+            # 설정이 없거나 "alternate"이면 교대로 말하기 모드
+            logger.info("TTS 교대 모드: 데비와 마를렌 교대로 말하기")
 
-                # 데비 TTS
-                debi_service = await get_tts_service("debi")
-                debi_audio = await debi_service.text_to_speech(text=word)
+            # 텍스트를 띄어쓰기로 분리
+            words = message.content.strip().split()
 
-                # 마를렌 TTS
-                marlene_service = await get_tts_service("marlene")
-                marlene_audio = await marlene_service.text_to_speech(text=word)
+            logger.info(f"TTS 교대 말하기: {len(words)}개 단어 처리")
 
-                # 두 오디오 믹싱
-                text_hash = hashlib.md5(f"{word}_mixed_{i}".encode()).hexdigest()[:8]
-                mixed_path = os.path.join("/tmp/tts_audio", f"mixed_{text_hash}.wav")
+            # 모든 단어의 오디오를 먼저 생성
+            audio_segments = []
 
-                mixed_audio = GPTSoVITSService.mix_audio_files(
-                    [debi_audio, marlene_audio],
-                    mixed_path
-                )
+            for i, word in enumerate(words):
+                if i == 0:
+                    # 첫 번째 단어: 데비만
+                    logger.info(f"[{i}] 데비: {word}")
+                    tts_service = await get_tts_service("debi")
+                    audio_path = await tts_service.text_to_speech(text=word)
+                    audio_segments.append(audio_path)
 
-                logger.info(f"TTS 믹싱 완료: {mixed_audio}")
-                audio_segments.append(mixed_audio)
+                elif i == 1:
+                    # 두 번째 단어: 마를렌만
+                    logger.info(f"[{i}] 마를렌: {word}")
+                    tts_service = await get_tts_service("marlene")
+                    audio_path = await tts_service.text_to_speech(text=word)
+                    audio_segments.append(audio_path)
 
-        # 모든 오디오 세그먼트를 하나로 이어붙이기
-        logger.info(f"총 {len(audio_segments)}개 오디오 세그먼트 이어붙이기 시작")
+                else:
+                    # 세 번째 단어부터: 데비와 마를렌이 동시에
+                    logger.info(f"[{i}] 데비 + 마를렌 동시: {word}")
 
-        message_hash = hashlib.md5(message.content.encode()).hexdigest()[:8]
-        final_path = os.path.join("/tmp/tts_audio", f"final_{message_hash}.wav")
+                    # 데비 TTS
+                    debi_service = await get_tts_service("debi")
+                    debi_audio = await debi_service.text_to_speech(text=word)
 
-        final_audio = GPTSoVITSService.concatenate_audio_files(
-            audio_segments,
-            final_path
-        )
+                    # 마를렌 TTS
+                    marlene_service = await get_tts_service("marlene")
+                    marlene_audio = await marlene_service.text_to_speech(text=word)
 
-        logger.info(f"최종 오디오 생성 완료: {final_audio}")
+                    # 두 오디오 믹싱
+                    text_hash = hashlib.md5(f"{word}_mixed_{i}".encode()).hexdigest()[:8]
+                    mixed_path = os.path.join("/tmp/tts_audio", f"mixed_{text_hash}.wav")
 
-        # 최종 오디오 파일 하나만 재생
-        await audio_player.play_audio(guild_id, final_audio)
+                    mixed_audio = GPTSoVITSService.mix_audio_files(
+                        [debi_audio, marlene_audio],
+                        mixed_path
+                    )
 
-        logger.info("TTS 교대 말하기 처리 완료")
+                    logger.info(f"TTS 믹싱 완료: {mixed_audio}")
+                    audio_segments.append(mixed_audio)
+
+            # 모든 오디오 세그먼트를 하나로 이어붙이기
+            logger.info(f"총 {len(audio_segments)}개 오디오 세그먼트 이어붙이기 시작")
+
+            message_hash = hashlib.md5(message.content.encode()).hexdigest()[:8]
+            final_path = os.path.join("/tmp/tts_audio", f"final_{message_hash}.wav")
+
+            final_audio = GPTSoVITSService.concatenate_audio_files(
+                audio_segments,
+                final_path
+            )
+
+            logger.info(f"최종 오디오 생성 완료: {final_audio}")
+
+            # 최종 오디오 파일 하나만 재생
+            await audio_player.play_audio(guild_id, final_audio)
+
+            logger.info("TTS 교대 말하기 처리 완료")
 
     except Exception as e:
         logger.error(f"TTS 메시지 처리 오류: {e}")

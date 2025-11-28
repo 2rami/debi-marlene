@@ -58,7 +58,7 @@ class GPTSoVITSService:
         self.reference_audio_config = {
             "debi": {
                 "audio_path": os.path.abspath(os.path.join(reference_audio_dir, "debi_reference.wav")),
-                "text": "이야~ 수영복이라도 챙겨올걸 그랬나~?",
+                "text": "세상에는 말이야 너희가 상상도 못할것들이 오고간다고",
                 "language": "ko"
             },
             "marlene": {
@@ -68,7 +68,7 @@ class GPTSoVITSService:
             },
             "default": {
                 "audio_path": os.path.abspath(os.path.join(reference_audio_dir, "debi_reference.wav")),
-                "text": "이야~ 수영복이라도 챙겨올걸 그랬나~?",
+                "text": "세상에는 말이야 너희가 상상도 못할것들이 오고간다고",
                 "language": "ko"
             }
         }

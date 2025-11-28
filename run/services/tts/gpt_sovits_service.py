@@ -7,13 +7,18 @@ GPT-SoVITS API 서버에 HTTP 요청을 보내 TTS를 생성합니다.
 import os
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, List
 import hashlib
 
 try:
     import aiohttp
 except ImportError:
     aiohttp = None
+
+try:
+    from pydub import AudioSegment
+except ImportError:
+    AudioSegment = None
 
 logger = logging.getLogger(__name__)
 
@@ -53,17 +58,17 @@ class GPTSoVITSService:
         self.reference_audio_config = {
             "debi": {
                 "audio_path": os.path.abspath(os.path.join(reference_audio_dir, "debi_reference.wav")),
-                "text": "하아... 드디어 끝났네 이제 시작인거야",
+                "text": "이야~ 수영복이라도 챙겨올걸 그랬나~?",
                 "language": "ko"
             },
             "marlene": {
                 "audio_path": os.path.abspath(os.path.join(reference_audio_dir, "marlene_reference.wav")),
-                "text": "변수는 없었어 우리가 제일 강할 뿐",
+                "text": "포기하던가 아니면 끝까지 발악하던가",
                 "language": "ko"
             },
             "default": {
                 "audio_path": os.path.abspath(os.path.join(reference_audio_dir, "debi_reference.wav")),
-                "text": "필요한 게 있었으면 좋겠는데",
+                "text": "이야~ 수영복이라도 챙겨올걸 그랬나~?",
                 "language": "ko"
             }
         }
@@ -182,3 +187,78 @@ class GPTSoVITSService:
             logger.info("GPT-SoVITS 임시 파일 정리 완료")
         except Exception as e:
             logger.error(f"임시 파일 정리 실패: {e}")
+
+    @staticmethod
+    def mix_audio_files(audio_paths: List[str], output_path: str) -> str:
+        """
+        여러 오디오 파일을 믹싱(합성)합니다.
+
+        Args:
+            audio_paths: 믹싱할 오디오 파일 경로 리스트
+            output_path: 출력 파일 경로
+
+        Returns:
+            믹싱된 오디오 파일 경로
+        """
+        if AudioSegment is None:
+            raise ImportError("pydub가 설치되지 않았습니다. pip install pydub을 실행하세요.")
+
+        if not audio_paths:
+            raise ValueError("믹싱할 오디오 파일이 없습니다.")
+
+        try:
+            # 첫 번째 오디오 로드
+            mixed = AudioSegment.from_file(audio_paths[0])
+
+            # 나머지 오디오를 오버레이
+            for audio_path in audio_paths[1:]:
+                audio = AudioSegment.from_file(audio_path)
+                # 두 오디오를 동시에 재생 (오버레이)
+                mixed = mixed.overlay(audio)
+
+            # 믹싱된 오디오 저장
+            mixed.export(output_path, format="wav")
+            logger.info(f"오디오 믹싱 완료: {len(audio_paths)}개 파일 -> {output_path}")
+
+            return output_path
+
+        except Exception as e:
+            logger.error(f"오디오 믹싱 실패: {e}")
+            raise
+
+    @staticmethod
+    def concatenate_audio_files(audio_paths: List[str], output_path: str) -> str:
+        """
+        여러 오디오 파일을 순서대로 이어붙입니다.
+
+        Args:
+            audio_paths: 이어붙일 오디오 파일 경로 리스트
+            output_path: 출력 파일 경로
+
+        Returns:
+            이어붙인 오디오 파일 경로
+        """
+        if AudioSegment is None:
+            raise ImportError("pydub가 설치되지 않았습니다. pip install pydub을 실행하세요.")
+
+        if not audio_paths:
+            raise ValueError("이어붙일 오디오 파일이 없습니다.")
+
+        try:
+            # 첫 번째 오디오 로드
+            combined = AudioSegment.from_file(audio_paths[0])
+
+            # 나머지 오디오를 순서대로 이어붙이기
+            for audio_path in audio_paths[1:]:
+                audio = AudioSegment.from_file(audio_path)
+                combined = combined + audio
+
+            # 이어붙인 오디오 저장
+            combined.export(output_path, format="wav")
+            logger.info(f"오디오 이어붙이기 완료: {len(audio_paths)}개 파일 -> {output_path}")
+
+            return output_path
+
+        except Exception as e:
+            logger.error(f"오디오 이어붙이기 실패: {e}")
+            raise

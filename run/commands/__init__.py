@@ -10,6 +10,7 @@ from run.commands.settings import setup_settings_command
 from run.commands.youtube import setup_youtube_commands
 from run.commands.feedback import setup_feedback_command
 from run.commands.voice import setup_voice_commands
+from run.commands.chat import setup_chat_command
 
 
 async def register_all_commands(bot):
@@ -25,6 +26,7 @@ async def register_all_commands(bot):
     await setup_youtube_commands(bot)
     await setup_feedback_command(bot)
     await setup_voice_commands(bot)
+    await setup_chat_command(bot)
 
     print("[완료] 모든 명령어 등록 완료")
 
@@ -37,4 +39,5 @@ __all__ = [
     'setup_youtube_commands',
     'setup_feedback_command',
     'setup_voice_commands',
+    'setup_chat_command',
 ]

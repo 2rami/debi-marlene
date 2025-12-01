@@ -4,7 +4,8 @@
       "Bash(open:*)",
       "Bash(xattr -cr:*)",
       "Bash(xattr:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(python3:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

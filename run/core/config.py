@@ -68,7 +68,7 @@ def get_gcs_client():
     return gcs_client if gcs_client != False else None
 
 def load_settings():
-    """로컬 백업 또는 GCS에서 설정 파일을 로드합니다. (로컬 우선)"""
+    """GCS 또는 로컬 백업에서 설정 파일을 로드합니다. (GCS 우선)"""
     global settings_cache, cache_timestamp
     import time
 
@@ -78,26 +78,7 @@ def load_settings():
     if settings_cache is not None and (current_time - cache_timestamp) < CACHE_DURATION:
         return settings_cache.copy()
 
-    # 1순위: 로컬 백업 파일에서 로드
-    try:
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        backup_file = os.path.join(project_root, 'backups', 'settings_backup.json')
-
-        if os.path.exists(backup_file):
-            with open(backup_file, 'r', encoding='utf-8') as f:
-                settings = json.load(f)
-            # guilds 키가 없으면 기본 구조 생성
-            if 'guilds' not in settings:
-                settings['guilds'] = {}
-            # 캐시 업데이트
-            settings_cache = settings.copy()
-            cache_timestamp = current_time
-            print(f"[로컬] 설정 로드 완료 (로컬 백업)", flush=True)
-            return settings
-    except Exception as e:
-        print(f"[경고] 로컬 백업 로드 실패: {e}", flush=True)
-
-    # 2순위: GCS에서 로드
+    # 1순위: GCS에서 로드
     client = get_gcs_client()
     if client:
         try:
@@ -115,6 +96,25 @@ def load_settings():
             return settings
         except Exception as e:
             print(f"[경고] GCS 로드 실패: {e}", flush=True)
+
+    # 2순위: 로컬 백업 파일에서 로드 (GCS 실패 시 폴백)
+    try:
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        backup_file = os.path.join(project_root, 'backups', 'settings_backup.json')
+
+        if os.path.exists(backup_file):
+            with open(backup_file, 'r', encoding='utf-8') as f:
+                settings = json.load(f)
+            # guilds 키가 없으면 기본 구조 생성
+            if 'guilds' not in settings:
+                settings['guilds'] = {}
+            # 캐시 업데이트
+            settings_cache = settings.copy()
+            cache_timestamp = current_time
+            print(f"[로컬] 설정 로드 완료 (GCS 실패 - 로컬 백업 사용)", flush=True)
+            return settings
+    except Exception as e:
+        print(f"[경고] 로컬 백업 로드 실패: {e}", flush=True)
 
     # 모두 실패 시 기본 구조 반환
     print(f"[기본값] 새로운 설정 생성", flush=True)
@@ -153,7 +153,7 @@ def save_local_backup(settings):
         return False
 
 def save_settings(settings, silent=False):
-    """로컬 백업에 설정을 저장하고, GCS에도 시도합니다. (로컬 우선)
+    """GCS에 설정을 저장하고, 로컬 백업에도 저장합니다. (GCS 우선)
 
     Args:
         settings: 저장할 설정 데이터
@@ -165,13 +165,9 @@ def save_settings(settings, silent=False):
     settings_cache = None
     cache_timestamp = 0
 
-    # 1순위: 로컬 백업에 저장 (항상 시도)
-    local_success = save_local_backup(settings)
-    if not local_success:
-        if not silent:
-            print(f"[경고] 로컬 백업 저장 실패", flush=True)
+    gcs_success = False
 
-    # 2순위: GCS에 저장 (선택적)
+    # 1순위: GCS에 저장 (주 저장소)
     client = get_gcs_client()
     if client:
         try:
@@ -179,14 +175,20 @@ def save_settings(settings, silent=False):
             bucket = client.bucket(GCS_BUCKET)
             blob = bucket.blob(GCS_KEY)
             blob.upload_from_string(json_data, content_type='application/json')
+            gcs_success = True
             if not silent:
                 print(f"[GCS] 설정 저장 완료", flush=True)
         except Exception as e:
             if not silent:
                 print(f"[경고] GCS 설정 저장 실패: {e}", flush=True)
 
-    # 로컬 저장이 성공하면 True 반환 (GCS는 선택사항)
-    return local_success
+    # 2순위: 로컬 백업에도 저장 (백업용)
+    local_success = save_local_backup(settings)
+    if not local_success and not silent:
+        print(f"[경고] 로컬 백업 저장 실패", flush=True)
+
+    # GCS 저장 성공 여부 반환 (주 저장소 기준)
+    return gcs_success
 
 def get_guild_settings(guild_id):
     """특정 서버(guild)의 설정을 가져옵니다."""

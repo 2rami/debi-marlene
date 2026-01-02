@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데비&마를렌 - Discord Bot Portfolio</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="hero">
+        <div class="hero-content">
+            <div class="project-badge">Discord Bot Project</div>
+            <h1>데비 & 마를렌</h1>
+            <p class="hero-subtitle">Eternal Return 게임 전적 검색 + 유튜브 알림 + AI 음성 합성 Discord Bot</p>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-value">5,000+</span>
+                    <span class="stat-label">지원 서버</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">Full-Stack</span>
+                    <span class="stat-label">Bot + Web Panel</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">GPT-SoVITS</span>
+                    <span class="stat-label">AI 음성 합성</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 목차 -->
+    <nav class="toc">
+        <div class="container">
+            <a href="#overview">개요</a>
+            <a href="#tech-stack">기술 스택</a>
+            <a href="#architecture">아키텍처</a>
+            <a href="#features">주요 기능</a>
+            <a href="#web-panel">웹 패널</a>
+            <a href="#code-highlights">코드 하이라이트</a>
+            <a href="#screenshots">스크린샷</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <!-- 프로젝트 개요 -->
+        <section id="overview" class="section">
+            <h2>프로젝트 개요</h2>
+            <div class="overview-grid">
+                <div class="overview-card">
+                    <h3>프로젝트 목적</h3>
+                    <p>Eternal Return 게임 유저들을 위한 Discord 봇으로, 게임 전적 검색, 캐릭터 통계, 유튜브 신규 영상 알림, AI 캐릭터 음성 합성 기능을 제공합니다.</p>
+                </div>
+                <div class="overview-card">
+                    <h3>개발 기간</h3>
+                    <p>2024년 ~ 현재 (지속 운영 중)</p>
+                </div>
+                <div class="overview-card">
+                    <h3>역할</h3>
+                    <p>1인 개발 - 기획, 설계, 개발, 배포, 운영</p>
+                </div>
+                <div class="overview-card highlight">
+                    <h3>핵심 성과</h3>
+                    <ul>
+                        <li>GCP VM + Docker 기반 인프라 설계 및 구현</li>
+                        <li>다중 API 비동기 병렬 처리로 응답 속도 최적화</li>
+                        <li>GPT-SoVITS 기반 캐릭터 음성 합성 시스템 구축</li>
+                        <li>React + Flask 풀스택 웹 패널 및 Electron 데스크톱 앱 개발</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 기술 스택 -->
+        <section id="tech-stack" class="section">
+            <h2>기술 스택</h2>
+            <div class="tech-grid">
+                <div class="tech-category">
+                    <h3>Backend</h3>
+                    <div class="tech-items">
+                        <div class="tech-item">
+                            <span class="tech-name">Python 3.11</span>
+                            <span class="tech-desc">메인 언어</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">discord.py</span>
+                            <span class="tech-desc">Discord API 래퍼</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">Flask</span>
+                            <span class="tech-desc">웹 패널 API 서버</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">aiohttp / asyncio</span>
+                            <span class="tech-desc">비동기 처리</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="tech-category">
+                    <h3>Frontend</h3>
+                    <div class="tech-items">
+                        <div class="tech-item">
+                            <span class="tech-name">React 19</span>
+                            <span class="tech-desc">UI 프레임워크</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">TypeScript</span>
+                            <span class="tech-desc">타입 안전성</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">Vite</span>
+                            <span class="tech-desc">빌드 도구</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">Tailwind CSS</span>
+                            <span class="tech-desc">스타일링</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="tech-category">
+                    <h3>Desktop & Cloud</h3>
+                    <div class="tech-items">
+                        <div class="tech-item">
+                            <span class="tech-name">Electron</span>
+                            <span class="tech-desc">데스크톱 앱</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">GCP Compute Engine</span>
+                            <span class="tech-desc">VM 인스턴스</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">Cloud Storage</span>
+                            <span class="tech-desc">웹 패널 데이터</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">Docker</span>
+                            <span class="tech-desc">컨테이너화</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="tech-category">
+                    <h3>AI / ML</h3>
+                    <div class="tech-items">
+                        <div class="tech-item accent">
+                            <span class="tech-name">GPT-SoVITS</span>
+                            <span class="tech-desc">음성 합성 모델</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">pydub</span>
+                            <span class="tech-desc">오디오 처리</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="tech-category">
+                    <h3>External APIs</h3>
+                    <div class="tech-items">
+                        <div class="tech-item">
+                            <span class="tech-name">Discord OAuth2</span>
+                            <span class="tech-desc">웹 패널 인증</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">Dak.gg API</span>
+                            <span class="tech-desc">캐릭터 통계</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">YouTube Data API</span>
+                            <span class="tech-desc">영상 모니터링</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 시스템 아키텍처 -->
+        <section id="architecture" class="section">
+            <h2>시스템 아키텍처</h2>
+            <div class="architecture-diagram">
+                <svg viewBox="0 0 900 500" class="arch-svg">
+                    <!-- 배경 그리드 -->
+                    <defs>
+                        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)"/>
+
+                    <!-- Discord 클라이언트 -->
+                    <g transform="translate(50, 200)">
+                        <rect width="120" height="80" rx="8" fill="#5865F2" stroke="#7289da" stroke-width="2"/>
+                        <text x="60" y="35" text-anchor="middle" fill="white" font-size="12" font-weight="600">Discord</text>
+                        <text x="60" y="55" text-anchor="middle" fill="#c5cae9" font-size="10">사용자 요청</text>
+                    </g>
+
+                    <!-- 화살표 1 -->
+                    <path d="M 180 240 L 250 240" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                    <!-- Discord Bot (GCP VM) -->
+                    <g transform="translate(260, 150)">
+                        <rect width="180" height="180" rx="12" fill="#1a1a2e" stroke="#4285f4" stroke-width="2"/>
+                        <text x="90" y="25" text-anchor="middle" fill="#4285f4" font-size="11" font-weight="600">GCP VM + Docker</text>
+
+                        <!-- 내부 컴포넌트들 -->
+                        <rect x="15" y="40" width="150" height="30" rx="4" fill="#16213e"/>
+                        <text x="90" y="60" text-anchor="middle" fill="#e8eaed" font-size="10">Discord Bot (Python)</text>
+
+                        <rect x="15" y="80" width="150" height="30" rx="4" fill="#16213e"/>
+                        <text x="90" y="100" text-anchor="middle" fill="#e8eaed" font-size="10">Flask API Server</text>
+
+                        <rect x="15" y="120" width="150" height="30" rx="4" fill="#16213e"/>
+                        <text x="90" y="140" text-anchor="middle" fill="#e8eaed" font-size="10">Discord Gateway</text>
+                    </g>
+
+                    <!-- 화살표 2 (GCS로) -->
+                    <path d="M 350 340 L 350 380" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                    <!-- GCS -->
+                    <g transform="translate(280, 390)">
+                        <rect width="140" height="60" rx="8" fill="#1a1a2e" stroke="#fbbc04" stroke-width="2"/>
+                        <text x="70" y="28" text-anchor="middle" fill="#fbbc04" font-size="11" font-weight="600">Cloud Storage</text>
+                        <text x="70" y="45" text-anchor="middle" fill="#9aa0a6" font-size="9">settings.json</text>
+                    </g>
+
+                    <!-- 화살표 3 (외부 API로) -->
+                    <path d="M 450 240 L 520 160" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <path d="M 450 240 L 520 240" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <path d="M 450 240 L 520 320" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                    <!-- 외부 API들 -->
+                    <g transform="translate(530, 100)">
+                        <rect width="130" height="50" rx="6" fill="#1a1a2e" stroke="#00bcd4" stroke-width="2"/>
+                        <text x="65" y="22" text-anchor="middle" fill="#00bcd4" font-size="10" font-weight="600">Dak.gg API</text>
+                        <text x="65" y="38" text-anchor="middle" fill="#9aa0a6" font-size="9">캐릭터 통계</text>
+                    </g>
+
+                    <g transform="translate(530, 210)">
+                        <rect width="130" height="50" rx="6" fill="#1a1a2e" stroke="#ff5722" stroke-width="2"/>
+                        <text x="65" y="22" text-anchor="middle" fill="#ff5722" font-size="10" font-weight="600">Eternal Return API</text>
+                        <text x="65" y="38" text-anchor="middle" fill="#9aa0a6" font-size="9">게임 데이터</text>
+                    </g>
+
+                    <g transform="translate(530, 300)">
+                        <rect width="130" height="50" rx="6" fill="#1a1a2e" stroke="#ff0000" stroke-width="2"/>
+                        <text x="65" y="22" text-anchor="middle" fill="#ff0000" font-size="10" font-weight="600">YouTube API</text>
+                        <text x="65" y="38" text-anchor="middle" fill="#9aa0a6" font-size="9">영상 모니터링</text>
+                    </g>
+
+                    <!-- 화살표 4 (TTS로) -->
+                    <path d="M 450 280 L 520 400" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+                    <!-- GPT-SoVITS -->
+                    <g transform="translate(530, 380)">
+                        <rect width="130" height="60" rx="6" fill="#1a1a2e" stroke="#9c27b0" stroke-width="2"/>
+                        <text x="65" y="25" text-anchor="middle" fill="#9c27b0" font-size="10" font-weight="600">GPT-SoVITS</text>
+                        <text x="65" y="42" text-anchor="middle" fill="#9aa0a6" font-size="9">AI 음성 합성</text>
+                    </g>
+
+                    <!-- 화살표 마커 정의 -->
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+                        </marker>
+                    </defs>
+
+                    <!-- 범례 -->
+                    <g transform="translate(700, 100)">
+                        <text x="0" y="0" fill="#94a3b8" font-size="11" font-weight="600">데이터 흐름</text>
+                        <line x1="0" y1="20" x2="40" y2="20" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        <text x="50" y="24" fill="#94a3b8" font-size="9">비동기 요청</text>
+                    </g>
+                </svg>
+            </div>
+
+            <div class="architecture-features">
+                <div class="arch-feature">
+                    <h4>다계층 구조 (Layered Architecture)</h4>
+                    <p>Commands - Views - Services - Config 계층 분리로 관심사 분리 및 유지보수성 확보</p>
+                </div>
+                <div class="arch-feature">
+                    <h4>비동기 처리 (Async-First)</h4>
+                    <p>asyncio 기반 모든 API 호출 동시 처리. 9개 API 병렬 호출로 초기화 시간 단축</p>
+                </div>
+                <div class="arch-feature">
+                    <h4>하이브리드 스토리지</h4>
+                    <p>GCS 우선 + 로컬 백업 폴백 전략. 5초 캐시로 성능 최적화</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 주요 기능 -->
+        <section id="features" class="section">
+            <h2>주요 기능</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                    <h3>/전적 [닉네임]</h3>
+                    <p>사용자 게임 통계 조회 - MMR, 티어, 승률, KDA, 최근 전적 등</p>
+                    <div class="feature-tech">Dak.gg API + Eternal Return API</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </div>
+                    <h3>/통계 [티어] [기간]</h3>
+                    <p>캐릭터별 통계 조회 - 승률, 픽률, 평균 순위 등 티어/기간별 필터링</p>
+                    <div class="feature-tech">비동기 데이터 캐싱</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                            <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <h3>YouTube 알림</h3>
+                    <p>5분 단위 신규 영상 감지. 쇼츠/정규 영상 구분하여 다른 캐릭터로 알림</p>
+                    <div class="feature-tech">YouTube Data API v3 + Task Loop</div>
+                </div>
+                <div class="feature-card accent">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                        </svg>
+                    </div>
+                    <h3>AI 음성 합성 (TTS)</h3>
+                    <p>GPT-SoVITS 기반 캐릭터 음성 합성. 참조 음성으로 실시간 TTS 생성</p>
+                    <div class="feature-tech">GPT-SoVITS + pydub 오디오 처리</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 웹 패널 -->
+        <section id="web-panel" class="section">
+            <h2>웹 패널 (Full-Stack)</h2>
+            <p class="section-desc">Discord 봇 관리를 위한 웹 대시보드. Discord와 동일한 UI로 서버/채널/메시지를 관리할 수 있습니다.</p>
+
+            <div class="webpanel-features">
+                <div class="webpanel-card">
+                    <h3>Discord OAuth2 인증</h3>
+                    <p>Discord 계정으로 로그인하여 봇이 속한 서버에 접근. OWNER_ID 기반 접근 제어로 보안 확보.</p>
+                    <div class="feature-tech">Flask Session + OAuth2</div>
+                </div>
+                <div class="webpanel-card">
+                    <h3>실시간 Discord Gateway</h3>
+                    <p>discord.py Gateway를 통한 실시간 이벤트 수신. 멤버 온라인 상태, 새 메시지 실시간 반영.</p>
+                    <div class="feature-tech">Discord Gateway + Intents</div>
+                </div>
+                <div class="webpanel-card">
+                    <h3>메시지 전송 & 임베드</h3>
+                    <p>웹에서 직접 메시지 전송. 임베드 빌더로 리치 메시지 작성 가능.</p>
+                    <div class="feature-tech">Discord API v10</div>
+                </div>
+                <div class="webpanel-card accent">
+                    <h3>Electron 데스크톱 앱</h3>
+                    <p>웹 패널을 데스크톱 앱으로 패키징. 자동 업데이트, 스플래시 화면 구현.</p>
+                    <div class="feature-tech">Electron + electron-builder</div>
+                </div>
+            </div>
+
+            <div class="webpanel-arch">
+                <h3>웹 패널 아키텍처</h3>
+                <div class="arch-flow">
+                    <div class="arch-box">React 19 + TypeScript<br><small>Vite + Tailwind CSS</small></div>
+                    <div class="arch-arrow">-></div>
+                    <div class="arch-box">Flask API<br><small>REST Endpoints</small></div>
+                    <div class="arch-arrow">-></div>
+                    <div class="arch-box">Discord Gateway<br><small>실시간 이벤트</small></div>
+                    <div class="arch-arrow">-></div>
+                    <div class="arch-box">Discord API<br><small>서버/채널/메시지</small></div>
+                </div>
+            </div>
+
+            <!-- 스크린샷 placeholder -->
+            <div class="screenshots-grid" style="margin-top: 24px;">
+                <div class="screenshot-placeholder">
+                    <div class="placeholder-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                        <span>웹 패널 메인 화면</span>
+                        <small>screenshots/webpanel_main.png</small>
+                    </div>
+                </div>
+                <div class="screenshot-placeholder">
+                    <div class="placeholder-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                        <span>임베드 빌더</span>
+                        <small>screenshots/embed_builder.png</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 코드 하이라이트 -->
+        <section id="code-highlights" class="section">
+            <h2>코드 하이라이트</h2>
+
+            <!-- 코드 1: GCS 하이브리드 스토리지 -->
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-title">GCS 하이브리드 스토리지 시스템</span>
+                    <span class="code-file">run/core/config.py</span>
+                </div>
+                <div class="code-description">
+                    <p><strong>문제:</strong> Cloud Run의 일시적 스토리지 한계로 상태 유지 불가</p>
+                    <p><strong>해결:</strong> GCS를 주 저장소로, 로컬을 백업으로 사용하는 하이브리드 전략. 5초 캐시로 성능 최적화</p>
+                </div>
+                <pre><code class="language-python"># 설정 캐시 (성능 개선)
+settings_cache = None
+cache_timestamp = 0
+CACHE_DURATION = 5  # 5초 캐시
+
+def load_settings():
+    """GCS 또는 로컬 백업에서 설정 파일을 로드합니다. (GCS 우선)"""
+    global settings_cache, cache_timestamp
+
+    current_time = time.time()
+
+    # 캐시된 설정이 있고 아직 유효하면 사용
+    if settings_cache is not None and (current_time - cache_timestamp) < CACHE_DURATION:
+        return settings_cache.copy()
+
+    # 1순위: GCS에서 로드
+    client = get_gcs_client()
+    if client:
+        try:
+            bucket = client.bucket(GCS_BUCKET)
+            blob = bucket.blob(GCS_KEY)
+            settings = json.loads(blob.download_as_text())
+            settings_cache = settings.copy()
+            cache_timestamp = current_time
+            return settings
+        except Exception as e:
+            print(f"[경고] GCS 로드 실패: {e}")
+
+    # 2순위: 로컬 백업 파일에서 로드 (GCS 실패 시 폴백)
+    if os.path.exists(backup_file):
+        with open(backup_file, 'r', encoding='utf-8') as f:
+            settings = json.load(f)
+        return settings
+
+    # 모두 실패 시 기본 구조 반환
+    return {"guilds": {}, "users": {}, "global": {}}</code></pre>
+            </div>
+
+            <!-- 코드 2: 비동기 병렬 API 호출 -->
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-title">비동기 병렬 API 호출</span>
+                    <span class="code-file">run/services/eternal_return/api_client.py</span>
+                </div>
+                <div class="code-description">
+                    <p><strong>특징:</strong> 9개의 서로 다른 API를 동시에 호출하여 초기화 시간 단축</p>
+                    <p><strong>기술:</strong> asyncio.gather()로 병렬 처리, aiohttp.ClientSession으로 커넥션 풀링</p>
+                </div>
+                <pre><code class="language-python">async def initialize_game_data():
+    """게임 데이터 초기화 - 9개 API 병렬 호출"""
+    timeout = aiohttp.ClientTimeout(total=15)
+    async with aiohttp.ClientSession(headers=API_HEADERS, timeout=timeout) as session:
+        # 9개 API를 동시에 호출
+        tasks = {
+            'current_season': session.get("https://er.dakgg.io/api/v0/current-season"),
+            'seasons': session.get(f"{DAKGG_API_BASE}/data/seasons?hl=ko"),
+            'characters': session.get(f"{DAKGG_API_BASE}/data/characters?hl=ko"),
+            'tiers': session.get(f"{DAKGG_API_BASE}/data/tiers?hl=ko"),
+            'items': session.get(f"{DAKGG_API_BASE}/data/items?hl=ko"),
+            'masteries': session.get(f"{DAKGG_API_BASE}/data/masteries?hl=ko"),
+            'trait_skills': session.get(f"{DAKGG_API_BASE}/data/trait-skills?hl=ko"),
+            'tactical_skills': session.get(f"{DAKGG_API_BASE}/data/tactical-skills?hl=ko"),
+            'weathers': session.get(f"{DAKGG_API_BASE}/data/weathers?hl=ko")
+        }
+
+        # 모든 응답을 동시에 대기
+        responses = await asyncio.gather(*tasks.values(), return_exceptions=True)
+
+        # 각 응답 처리
+        for key, response in zip(tasks.keys(), responses):
+            if isinstance(response, Exception):
+                print(f"[오류] {key} API 호출 실패: {response}")
+                continue
+            data = await response.json()
+            # 데이터 캐시에 저장...</code></pre>
+            </div>
+
+            <!-- 코드 3: GPT-SoVITS TTS -->
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-title">GPT-SoVITS 음성 합성</span>
+                    <span class="code-file">run/services/tts/gpt_sovits_service.py</span>
+                </div>
+                <div class="code-description">
+                    <p><strong>기능:</strong> 캐릭터별 참조 음성을 기반으로 텍스트를 음성으로 변환</p>
+                    <p><strong>AI 요소:</strong> GPT-SoVITS 모델을 활용한 Zero-shot Voice Cloning</p>
+                </div>
+                <pre><code class="language-python">class GPTSoVITSService:
+    """GPT-SoVITS API 클라이언트 - 캐릭터 음성 합성"""
+
+    def __init__(self, reference_audio_dir="assets/reference_audio", api_url="http://localhost:9880"):
+        # 캐릭터별 참조 오디오 설정
+        self.reference_audio_config = {
+            "debi": {
+                "audio_path": "debi_reference.wav",
+                "text": "세상에는 말이야 너희가 상상도 못할것들이 오고간다고",
+                "language": "ko"
+            },
+            "marlene": {
+                "audio_path": "marlene_reference.wav",
+                "text": "포기하던가 아니면 끝까지 발악하던가",
+                "language": "ko"
+            }
+        }
+
+    async def text_to_speech(self, text: str, speaker: str = "debi") -> str:
+        """텍스트를 음성으로 변환"""
+        ref_config = self.reference_audio_config.get(speaker.lower())
+
+        # API 요청 데이터 구성
+        request_data = {
+            "text": text,
+            "text_lang": "ko",
+            "ref_audio_path": ref_config["audio_path"],
+            "prompt_text": ref_config["text"],
+            "prompt_lang": ref_config["language"],
+            "top_k": 15,
+            "top_p": 1.0,
+            "temperature": 1.0
+        }
+
+        # GPT-SoVITS API 서버에 TTS 요청
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"{self.api_url}/tts", json=request_data) as resp:
+                audio_data = await resp.read()
+                # 음성 파일 저장 및 반환...</code></pre>
+            </div>
+        </section>
+
+        <!-- 스크린샷 -->
+        <section id="screenshots" class="section">
+            <h2>스크린샷</h2>
+            <p class="screenshots-note">* 아래 영역에 실제 봇 스크린샷을 추가해주세요</p>
+            <div class="screenshots-grid">
+                <div class="screenshot-placeholder">
+                    <div class="placeholder-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                        <span>/전적 명령어 결과</span>
+                        <small>screenshots/stats.png</small>
+                    </div>
+                </div>
+                <div class="screenshot-placeholder">
+                    <div class="placeholder-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                        <span>/통계 명령어 결과</span>
+                        <small>screenshots/character_stats.png</small>
+                    </div>
+                </div>
+                <div class="screenshot-placeholder">
+                    <div class="placeholder-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                        <span>유튜브 알림</span>
+                        <small>screenshots/youtube_alert.png</small>
+                    </div>
+                </div>
+                <div class="screenshot-placeholder">
+                    <div class="placeholder-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                        <span>/설정 화면</span>
+                        <small>screenshots/settings.png</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 배포 환경 -->
+        <section id="deployment" class="section">
+            <h2>배포 환경</h2>
+            <div class="deployment-info">
+                <div class="deploy-item">
+                    <span class="deploy-label">플랫폼</span>
+                    <span class="deploy-value">Google Cloud Platform (GCP)</span>
+                </div>
+                <div class="deploy-item">
+                    <span class="deploy-label">컴퓨팅</span>
+                    <span class="deploy-value">Compute Engine VM + Docker</span>
+                </div>
+                <div class="deploy-item">
+                    <span class="deploy-label">스토리지</span>
+                    <span class="deploy-value">Cloud Storage (웹 패널 데이터)</span>
+                </div>
+                <div class="deploy-item">
+                    <span class="deploy-label">데스크톱 앱</span>
+                    <span class="deploy-value">Electron (macOS/Windows/Linux)</span>
+                </div>
+                <div class="deploy-item">
+                    <span class="deploy-label">리전</span>
+                    <span class="deploy-value">asia-northeast3 (서울)</span>
+                </div>
+                <div class="deploy-item">
+                    <span class="deploy-label">자동 업데이트</span>
+                    <span class="deploy-value">electron-updater (GitHub Releases)</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="footer">
+        <div class="container">
+            <p>데비 & 마를렌 Discord Bot Portfolio</p>
+            <p class="footer-sub">Vision & Multimodal AI Engineer 인턴 지원용</p>
+        </div>
+    </footer>
+</body>
+</html>

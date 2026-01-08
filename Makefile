@@ -109,6 +109,6 @@ start-vm:
 
 # 로컬에서 봇 테스트 (VM 봇 자동 중지)
 test-local: stop-vm
-	@echo "🧪 로컬 봇 시작 중..."
-	@echo "⚠️  테스트 종료 후 'make start-vm'을 실행하세요!"
-	@python3 main.py
+	@echo "로컬 봇 시작 중... (venv 자동 활성화)"
+	@echo "테스트 종료 후 'make start-vm'을 실행하세요!"
+	@bash -c "source venv/bin/activate && python3 main.py"

@@ -51,6 +51,7 @@ temp/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+nul
 
 # 봇 관련 데이터
 bot_data/

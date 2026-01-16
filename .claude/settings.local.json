@@ -5,7 +5,18 @@
       "Bash(xattr -cr:*)",
       "Bash(xattr:*)",
       "Bash(npm install:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(python -m src.data_pipeline.wiki_crawler:*)",
+      "Bash(python build_index.py:*)",
+      "Bash(pip show:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(pip install:*)",
+      "Bash(python demo_search.py:*)",
+      "Bash(python api.py:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(curl:*)",
+      "Bash(ping:*)",
+      "Bash(start http://localhost:8000)"
     ]
   },
   "enableAllProjectMcpServers": true,

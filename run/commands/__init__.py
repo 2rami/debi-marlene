@@ -12,6 +12,7 @@ from run.commands.feedback import setup_feedback_command
 from run.commands.voice import setup_voice_commands
 from run.commands.online import setup_online_command
 from run.commands.recommend import setup_recommend_command
+from run.commands.music import setup_music_commands
 
 
 async def register_all_commands(bot):
@@ -29,6 +30,7 @@ async def register_all_commands(bot):
     await setup_voice_commands(bot)
     await setup_online_command(bot)
     await setup_recommend_command(bot)
+    await setup_music_commands(bot)
 
     print("[완료] 모든 명령어 등록 완료")
 
@@ -43,4 +45,5 @@ __all__ = [
     'setup_voice_commands',
     'setup_online_command',
     'setup_recommend_command',
+    'setup_music_commands',
 ]

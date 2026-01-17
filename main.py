@@ -7,6 +7,12 @@
 import sys
 import os
 import asyncio
+import io
+
+# Windows 콘솔 UTF-8 설정
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 from run.core.bot import bot
 from run.core import config

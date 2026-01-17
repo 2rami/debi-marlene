@@ -16,7 +16,16 @@
       "Bash(timeout /t 5 /nobreak)",
       "Bash(curl:*)",
       "Bash(ping:*)",
-      "Bash(start http://localhost:8000)"
+      "Bash(start http://localhost:8000)",
+      "Bash(docker info:*)",
+      "Bash(gcloud compute ssh debi-marlene-bot --zone=asia-northeast3-a --tunnel-through-iap --command=\"gcloud auth configure-docker asia-northeast3-docker.pkg.dev --quiet && docker stop debi-marlene 2>/dev/null; docker rm debi-marlene 2>/dev/null; docker pull asia-northeast3-docker.pkg.dev/ironic-objectivist-465713-a6/debi-marlene/debi-marlene:latest && docker run -d --name debi-marlene -p 5001:5001 -p 8080:8080 --restart unless-stopped asia-northeast3-docker.pkg.dev/ironic-objectivist-465713-a6/debi-marlene/debi-marlene:latest\")",
+      "Bash(gcloud compute config-ssh:*)",
+      "Bash(ssh:*)",
+      "Bash(gcloud compute scp:*)",
+      "Bash(docker build:*)",
+      "Bash(docker save:*)",
+      "Bash(gzip:*)",
+      "Bash(scp:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

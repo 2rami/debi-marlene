@@ -21,6 +21,48 @@ OUTPUT_DIR = Path(__file__).parent / "dataset"
 API_BASE = "https://er.dakgg.io/api/v1"
 
 
+def has_batchim(word: str) -> bool:
+    """한글 단어의 마지막 글자에 받침이 있는지 확인"""
+    if not word:
+        return False
+    last_char = word[-1]
+    # 한글 유니코드 범위 확인
+    if '가' <= last_char <= '힣':
+        # 받침 유무 계산: (ord(char) - 0xAC00) % 28
+        return (ord(last_char) - 0xAC00) % 28 != 0
+    return False
+
+
+def add_josa(word: str, josa_type: str = "이야") -> str:
+    """단어에 맞는 조사 붙이기
+
+    josa_type:
+        "이야/야" -> 받침O: 이야, 받침X: 야
+        "이/가" -> 받침O: 이, 받침X: 가
+        "을/를" -> 받침O: 을, 받침X: 를
+        "은/는" -> 받침O: 은, 받침X: 는
+    """
+    if has_batchim(word):
+        if josa_type == "이야":
+            return f"{word}이야"
+        elif josa_type == "이/가":
+            return f"{word}이"
+        elif josa_type == "을/를":
+            return f"{word}을"
+        elif josa_type == "은/는":
+            return f"{word}은"
+    else:
+        if josa_type == "이야":
+            return f"{word}야"
+        elif josa_type == "이/가":
+            return f"{word}가"
+        elif josa_type == "을/를":
+            return f"{word}를"
+        elif josa_type == "은/는":
+            return f"{word}는"
+    return word
+
+
 def fetch_api_data(endpoint: str) -> Dict:
     """DAK.GG API에서 데이터 가져오기"""
     url = f"{API_BASE}{endpoint}"
@@ -120,10 +162,10 @@ def generate_item_answer(item: Dict) -> str:
     tooltip = item.get("tooltip", "")
     parsed = parse_item_tooltip(tooltip)
 
-    answer_parts = [f"{name}."]
+    answer_parts = [f"{add_josa(name, '이야')}."]
 
     if parsed["grade"] and parsed["type"]:
-        answer_parts.append(f"{parsed['grade']} 등급 {parsed['type']}야.")
+        answer_parts.append(f"{parsed['grade']} 등급 {add_josa(parsed['type'], '이야')}.")
 
     if parsed["stats"]:
         stats_str = ", ".join(parsed["stats"][:5])  # 최대 5개 스탯
@@ -139,7 +181,7 @@ def generate_character_answer(char: Dict) -> str:
     masteries = char.get("masteries", [])
     archetypes = char.get("charArcheTypes", [])
 
-    answer_parts = [f"{name}야."]
+    answer_parts = [f"{add_josa(name, '이야')}."]
 
     # 역할 추가
     role_map = {
@@ -196,7 +238,7 @@ def generate_trait_answer(trait: Dict) -> str:
     import re
     clean_tooltip = re.sub(r'<[^>]+>', '', tooltip)
 
-    answer_parts = [f"{name} 특성이야."]
+    answer_parts = [f"{name} {add_josa('특성', '이야')}."]
 
     # 그룹 정보 추가
     group_map = {
@@ -238,11 +280,115 @@ def create_conversation(image_path: str, question: str, answer: str) -> Dict:
 
 
 # =============================================================================
+# Tool Use 패턴 데이터
+# =============================================================================
+
+TOOL_USE_ITEM_QUESTIONS = [
+    "이 아이템 스탯 알려줘",
+    "이거 능력치가 어떻게 돼?",
+    "이 아이템 정보 좀",
+]
+
+TOOL_USE_CHAR_QUESTIONS = [
+    "이 캐릭터 스탯 알려줘",
+    "이 캐릭터 기본 능력치 어때?",
+]
+
+
+def generate_tool_use_item_conversation(item: Dict, image_path: str) -> Dict:
+    """Tool Use 패턴이 포함된 아이템 대화 생성"""
+    name = item.get("name", "알 수 없음")
+    tooltip = item.get("tooltip", "")
+    parsed = parse_item_tooltip(tooltip)
+
+    # 도구 호출 결과 시뮬레이션
+    tool_result = {
+        "name": name,
+        "grade": parsed.get("grade", ""),
+        "type": parsed.get("type", ""),
+        "stats": parsed.get("stats", [])[:5]
+    }
+
+    question = random.choice(TOOL_USE_ITEM_QUESTIONS)
+
+    # 첫 번째 응답: 도구 호출
+    first_response = f"{add_josa(name, '이야')}! 최신 스탯 확인해볼게. [TOOL_CALL: get_item_stats(\"{name}\")]"
+
+    # 도구 결과 후 최종 응답
+    stats_str = ", ".join(tool_result["stats"]) if tool_result["stats"] else "스탯 정보 없음"
+    final_response = f"{tool_result['grade']} 등급 {add_josa(tool_result['type'], '이야')}. 스탯은 {stats_str}!"
+
+    return {
+        "id": f"tool_{Path(image_path).stem}_{hash(question) % 10000}",
+        "image": image_path,
+        "conversations": [
+            {"from": "human", "value": f"<image>\n{question}"},
+            {"from": "gpt", "value": first_response},
+            {"from": "tool", "value": json.dumps(tool_result, ensure_ascii=False)},
+            {"from": "gpt", "value": final_response}
+        ]
+    }
+
+
+def generate_tool_use_char_conversation(char: Dict, image_path: str) -> Dict:
+    """Tool Use 패턴이 포함된 캐릭터 대화 생성"""
+    name = char.get("name", "알 수 없음")
+    masteries = char.get("masteries", [])
+    archetypes = char.get("charArcheTypes", [])
+
+    # 무기 한글화
+    weapon_map = {
+        "Pistol": "권총", "AssaultRifle": "돌격소총", "SniperRifle": "저격소총",
+        "TwoHandSword": "양손검", "Axe": "도끼", "Hammer": "망치",
+        "Bat": "배트", "Whip": "채찍", "Glove": "글러브",
+        "Dagger": "단검", "DualSword": "쌍검", "Spear": "창",
+    }
+    weapons_kr = [weapon_map.get(m, m) for m in masteries[:2]]
+
+    # 역할 한글화
+    role_map = {
+        "Mage": "마법사", "Marksman": "원거리 딜러", "Fighter": "전사",
+        "Tank": "탱커", "Support": "서포터", "Assassin": "암살자",
+    }
+    roles_kr = [role_map.get(a, a) for a in archetypes if a in role_map]
+
+    tool_result = {
+        "name": name,
+        "roles": roles_kr,
+        "weapons": weapons_kr,
+        "hp": char.get("maxHp", 0),
+        "attack": char.get("attackPower", 0),
+        "defense": char.get("defense", 0),
+    }
+
+    question = random.choice(TOOL_USE_CHAR_QUESTIONS)
+
+    first_response = f"{add_josa(name, '이야')}! 스탯 확인해볼게. [TOOL_CALL: get_character_stats(\"{name}\")]"
+
+    role_str = "/".join(tool_result["roles"]) if tool_result["roles"] else "역할 정보 없음"
+    weapon_str = ", ".join(tool_result["weapons"]) if tool_result["weapons"] else "무기 정보 없음"
+    final_response = f"{role_str} 역할이고, {weapon_str} 쓰는 캐릭터야. 기본 체력 {tool_result['hp']}, 공격력 {tool_result['attack']}!"
+
+    return {
+        "id": f"tool_{Path(image_path).stem}_{hash(question) % 10000}",
+        "image": image_path,
+        "conversations": [
+            {"from": "human", "value": f"<image>\n{question}"},
+            {"from": "gpt", "value": first_response},
+            {"from": "tool", "value": json.dumps(tool_result, ensure_ascii=False)},
+            {"from": "gpt", "value": final_response}
+        ]
+    }
+
+
+# =============================================================================
 # 메타 인식 & 캐릭터 로어 데이터
 # =============================================================================
 
 def generate_meta_conversations() -> List[Dict]:
     """메타 인식(4의 벽) 대화 데이터 생성"""
+
+    # 답변해야 하는 질문들
     meta_data = [
         {
             "question": "너 누구야?",
@@ -274,7 +420,23 @@ def generate_meta_conversations() -> List[Dict]:
         },
     ]
 
+    # 무시해야 하는 질문들 (이터널리턴 무관)
+    ignore_data = [
+        "오늘 날씨 어때?",
+        "점심 뭐 먹을까?",
+        "안녕하세요",
+        "ㅋㅋㅋㅋ",
+        "ㄱㅅ",
+        "고마워",
+        "너 AI야?",
+        "파이썬 코드 짜줘",
+        "롤 티어가 뭐야?",
+        "넥슨 게임 추천해줘",
+    ]
+
     conversations = []
+
+    # 답변해야 하는 메타 대화
     for item in meta_data:
         conversations.append({
             "id": f"meta_{hash(item['question']) % 10000}",
@@ -282,6 +444,17 @@ def generate_meta_conversations() -> List[Dict]:
             "conversations": [
                 {"from": "human", "value": item["question"]},
                 {"from": "gpt", "value": item["answer"]}
+            ]
+        })
+
+    # 무시해야 하는 대화 (답변하지 않음)
+    for question in ignore_data:
+        conversations.append({
+            "id": f"ignore_{hash(question) % 10000}",
+            "image": None,
+            "conversations": [
+                {"from": "human", "value": question},
+                {"from": "gpt", "value": "[SKIP]"}  # 무시 신호
             ]
         })
 
@@ -328,6 +501,20 @@ def main():
 
     print(f"  -> 아이템 대화 {item_count}개 생성")
 
+    # 1-2. 아이템 Tool Use 데이터 (일부만)
+    print("\n[1-2/5] 아이템 Tool Use 데이터 생성 중...")
+    tool_item_count = 0
+    for item in random.sample(items, min(300, len(items))):  # 300개만 Tool Use
+        item_id = item.get("id")
+        image_file = items_dir / f"{item_id}.png"
+        if image_file.exists():
+            conv = generate_tool_use_item_conversation(
+                item, str(image_file.relative_to(BASE_DIR))
+            )
+            all_conversations.append(conv)
+            tool_item_count += 1
+    print(f"  -> Tool Use 아이템 대화 {tool_item_count}개 생성")
+
     # 2. 캐릭터 데이터
     print("\n[2/4] 캐릭터 데이터 처리 중...")
     characters = get_characters_data()
@@ -352,6 +539,20 @@ def main():
                 char_count += 1
 
     print(f"  -> 캐릭터 대화 {char_count}개 생성")
+
+    # 2-2. 캐릭터 Tool Use 데이터
+    print("\n[2-2/5] 캐릭터 Tool Use 데이터 생성 중...")
+    tool_char_count = 0
+    for char in characters:
+        key = char.get("key", "")
+        image_file = chars_dir / f"{key}.png"
+        if image_file.exists():
+            conv = generate_tool_use_char_conversation(
+                char, str(image_file.relative_to(BASE_DIR))
+            )
+            all_conversations.append(conv)
+            tool_char_count += 1
+    print(f"  -> Tool Use 캐릭터 대화 {tool_char_count}개 생성")
 
     # 3. 특성 데이터
     print("\n[3/4] 특성 데이터 처리 중...")
@@ -378,11 +579,11 @@ def main():
 
     print(f"  -> 특성 대화 {trait_count}개 생성")
 
-    # 4. 메타 인식 & 캐릭터 로어
-    print("\n[4/4] 메타 인식 데이터 추가 중...")
+    # 4. 메타 인식 & 캐릭터 로어 & 무시 패턴
+    print("\n[4/5] 메타 인식 & 무시 패턴 데이터 추가 중...")
     meta_conversations = generate_meta_conversations()
     all_conversations.extend(meta_conversations)
-    print(f"  -> 메타 대화 {len(meta_conversations)}개 생성")
+    print(f"  -> 메타/무시 대화 {len(meta_conversations)}개 생성")
 
     # 데이터 섞기
     random.shuffle(all_conversations)
@@ -400,10 +601,12 @@ def main():
 
     # 통계 출력
     print("\n[통계]")
-    print(f"  - 아이템 관련: {item_count}개")
-    print(f"  - 캐릭터 관련: {char_count}개")
+    print(f"  - 아이템 기본: {item_count}개")
+    print(f"  - 아이템 Tool Use: {tool_item_count}개")
+    print(f"  - 캐릭터 기본: {char_count}개")
+    print(f"  - 캐릭터 Tool Use: {tool_char_count}개")
     print(f"  - 특성 관련: {trait_count}개")
-    print(f"  - 메타/로어: {len(meta_conversations)}개")
+    print(f"  - 메타/로어/무시: {len(meta_conversations)}개 (답변 7개, 무시 10개)")
 
 
 if __name__ == "__main__":

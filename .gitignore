@@ -122,11 +122,4 @@ docker-compose.override.yml
 *.cache
 
 # TTS 관련
-assets/voices/*.wav
-assets/voices/*.mp3
-assets/models/**/*.pth
-assets/models/**/*.json
-assets/models/**/*.onnx
-!assets/models/**/.gitkeep
-/tmp/tts_audio/
-/tmp/voice_models/
+Debi&Marlene_KOR

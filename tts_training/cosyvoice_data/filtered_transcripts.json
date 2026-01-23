@@ -1,0 +1,2576 @@
+[
+  {
+    "character": "Debi",
+    "file": "Debi_accelerationLine_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_accelerationLine_1_01.wav",
+    "text": "따라올 수 있지!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_airSupply_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_airSupply_2_01.wav",
+    "text": "줄 거면 좀 쉽게 열리게 만들면 덧나?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_airSupply_3_011.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_airSupply_3_011.wav",
+    "text": "찾던 거 있어?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_battleAreaEntrance_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_battleAreaEntrance_1_01.wav",
+    "text": "이딴거로 전장이니 뭐니 소란 떨면 안 창피한가?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_battleAreaWin_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_battleAreaWin_1_01_01.wav",
+    "text": "나한텐 일상이었어"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_bonfire_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_bonfire_1_01_01.wav",
+    "text": "한숨 돌렸다 가자고~ 시간은 충분하니까"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_bonfire_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_bonfire_2_01_01.wav",
+    "text": "쉬는 것도 중요하지~"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_box_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_box_2_01.wav",
+    "text": "뒤져보면 뭐든 나오겠지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_callRemoteDrone_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_callRemoteDrone_2_01_01.wav",
+    "text": "그냥 이걸로 다 시키면 안 돼?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_callTransferConsole_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_callTransferConsole_2_01_01.wav",
+    "text": "그냥 뺏는 게 낫지 않아?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_cctv_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_cctv_1_01.wav",
+    "text": "첫 번째 규칙, 어두운 곳을 믿지 말 것"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_cobaltImminentWin_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_cobaltImminentWin_1_01.wav",
+    "text": "우릴 만난 게 네 인생 최고의 실수다!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_cobaltkilldrone_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_cobaltkilldrone_1_01.wav",
+    "text": "아 왠파리가"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_cobaltOccupation_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_cobaltOccupation_1_01_01.wav",
+    "text": "알고 있다구!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_collect_brunch_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_collect_brunch_1_01_01.wav",
+    "text": "너랑 잘 맞는 무기네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_collect_fishRiver_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_collect_fishRiver_1_01.wav",
+    "text": "그냥 던지기만 하면 되는 거 아니야?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_collect_flower_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_collect_flower_1_01_01.wav",
+    "text": "이런건 취미가 아닌데..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_collect_stone_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_collect_stone_1_01_01.wav",
+    "text": "방금 건 좀 웃겼다"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_collect_water_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_collect_water_1_01_01.wav",
+    "text": "잘난척은"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_completeFullRoute_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_completeFullRoute_1_01_01.wav",
+    "text": "하아... 드디어 끝났네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_completeRoute1_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_completeRoute1_1_01_01.wav",
+    "text": "하... 이걸 언제다 만드냐..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_completeRoute2_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_completeRoute2_1_01_01.wav",
+    "text": "아, 지겨워"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_completeRoute3_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_completeRoute3_1_01_01.wav",
+    "text": "늙어 죽겠네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftEpic_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftEpic_1_01_01.wav",
+    "text": "이야, 이거 물건인데?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftEpic_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftEpic_2_01_01.wav",
+    "text": "봐봐, 더 잘할 수 있다고 그랬지?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftEpic_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftEpic_3_01_01.wav",
+    "text": "어때?!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftEpic_3_01_012.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftEpic_3_01_012.wav",
+    "text": "귀여운 구석이 없어요 하여튼"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftLegend_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftLegend_1_01_01.wav",
+    "text": "질 것 같은 기분이... 안드는데?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftLegend_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftLegend_2_01_01.wav",
+    "text": "멀리도 보시네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftLegend_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftLegend_3_01_01.wav",
+    "text": "좀 더 기뻐해도 된다고"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftRare_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftRare_1_01_01.wav",
+    "text": "잘 안되네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftRare_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftRare_3_01_01.wav",
+    "text": "뭐, 다음에는 더 잘할 수 있겠지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftUncommon_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftUncommon_1_01_01.wav",
+    "text": "이거 쓸 순 있겠지?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftUncommon_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftUncommon_2_01_01.wav",
+    "text": "조금만 더 손보면 될 것 같은데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_craftUncommon_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_craftUncommon_3_01_01.wav",
+    "text": "더 투자해도 되지 않았나"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_decompositionLegend_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_decompositionLegend_1_01_01.wav",
+    "text": "마음에 들었는데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_endPlay_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_endPlay_1_01.wav",
+    "text": "말도... 안돼..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_endPlay_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_endPlay_3_01.wav",
+    "text": "체면이..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_escapeAnotherTeam_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_escapeAnotherTeam_1_01.wav",
+    "text": "누가 먼저 탈출했나본데 쉽게 가긴 큰일났네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_escapeBattleMarina_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_escapeBattleMarina_1_01_01.wav",
+    "text": "어... 세상에 쉬운 건 없다 이거지?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_escapeMoveMarina_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_escapeMoveMarina_1_01_01.wav",
+    "text": "아무도 없나?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_exitSuccess_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_exitSuccess_1_01.wav",
+    "text": "힘 뺄 필요도 없고 좋네! 아쉽긴 하지만"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_exitSuccess_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_exitSuccess_3_01.wav",
+    "text": "시시해서 먼저 나간다 니들끼리 잘 굴러봐"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_findCorpsEnemyKill_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_findCorpsEnemyKill_1_01.wav",
+    "text": "뭐야, 나만 쏙 빼놓고 시작한 거야?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_finishEnemyTeam_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_finishEnemyTeam_1_01.wav",
+    "text": "팀워크가 뭔지 이제 알겠지?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_firstMeetAlly_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_firstMeetAlly_1_01.wav",
+    "text": "동생한테 친구가 생겨서 언니는 기뻐"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_firstMeetAlly_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_firstMeetAlly_3_01_01.wav",
+    "text": "알아서 잘하겠지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_firstMove_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_firstMove_1_01_01.wav",
+    "text": "딱 붙어있어, 해결은 내가 할 테니까"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_firstMove_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_firstMove_2_01_01.wav",
+    "text": "우린 떨어지면 죽거든"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_firstMove_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_firstMove_3_01_01.wav",
+    "text": "난 이때가 제일 신나더라!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_getRskill_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_getRskill_1_01_01.wav",
+    "text": "어금니 꽉 물어라"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_good_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_good_1_01.wav",
+    "text": "오~ 꽤하잖아!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_hacking_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_hacking_1_01_01.wav",
+    "text": "자신 있는 분야는 따로 있는데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_hacking_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_hacking_2_01_01.wav",
+    "text": "아, 듬직하기도 해라"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_hacking_lost_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_hacking_lost_1_01_01.wav",
+    "text": "뭐? 끝이라고?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_halfSubjectInGame_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_halfSubjectInGame_1_01_01.wav",
+    "text": "벌써 절반밖에 안 남았다고?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_highlyPlaced_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_highlyPlaced_2_01.wav",
+    "text": "아니, 아직 더 할 수 있다니까?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_highRankInGame_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_highRankInGame_1_01.wav",
+    "text": "좋아! 이대로만 가자고!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_hyperloop_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_hyperloop_1_01.wav",
+    "text": "또타게? 울렁거려서 별론데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_item_Burgundy 47_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_item_Burgundy 47_01_01.wav",
+    "text": "가끔 난 네가 제일 무서워"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_item_Close Helm_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_item_Close Helm_01_01.wav",
+    "text": "이거 앞이 보이기나 해?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_item_Leather Jacket_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_item_Leather Jacket_01.wav",
+    "text": "흐흥, 어울리지 않아"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_item_Rocker's Jacket_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_item_Rocker's Jacket_01_01.wav",
+    "text": "아가야, 이런 게 패션이란거란다"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_item_Running Shoes_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_item_Running Shoes_01_01.wav",
+    "text": "심플한 게 최고야"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_item_Vital Sign Sensor_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_item_Vital Sign Sensor_01_01.wav",
+    "text": "심박수가 빠른데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_joke_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_joke_1_01_01.wav",
+    "text": "웃긴 얘기 해 줄까?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_joke_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_joke_2_01_01.wav",
+    "text": "아무거나 만지지 마~~ 생각 좀 해~~"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_joke_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_joke_3_01_01.wav",
+    "text": "하. 하나도 안 똑같은데?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_joke_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_joke_4_01_01.wav",
+    "text": "다 들린다"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_kill10Player_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_kill10Player_1_01_01.wav",
+    "text": "그게 니가 진 이유다"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_kill11Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_kill11Player_1_01.wav",
+    "text": "쓸데없는 동작이 너무 많아"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_kill12Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_kill12Player_1_01.wav",
+    "text": "이제 슬슬 재롱도 지겨워지는데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_kill14Player_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_kill14Player_1_01_01.wav",
+    "text": "누가 더 많이 잡았는지 내기할까?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_kill1Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_kill1Player_1_01.wav",
+    "text": "아직도 안 죽었었네? 운도 좋아"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_kill2Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_kill2Player_1_01.wav",
+    "text": "귀여워 죽겠네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_kill4Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_kill4Player_1_01.wav",
+    "text": "너넨 진짜 안되겠다"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_kill5Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_kill5Player_1_01.wav",
+    "text": "발전이 없냐 발전이!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_kill7Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_kill7Player_1_01.wav",
+    "text": "눈치가 없으면 죽어야지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_kill9Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_kill9Player_1_01.wav",
+    "text": "야 야야 야 죽었냐?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_killAlpha_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_killAlpha_1_01.wav",
+    "text": "깡통 안에 뭐가 들어있나 볼까?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_KilledBy(대상에 따라 다름)_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_KilledBy(대상에 따라 다름)_01_01.wav",
+    "text": "두고 보자!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_killedByDoppelganger_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_killedByDoppelganger_1_01.wav",
+    "text": "너... 누구야?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_killedCommon_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_killedCommon_1_01.wav",
+    "text": "머리 울려..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_killedCommon_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_killedCommon_3_01.wav",
+    "text": "아직 움직일 수..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_killMonster_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_killMonster_2_01.wav",
+    "text": "마음에 안 드는 짓만 골라 시키네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_killMutant_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_killMutant_1_01.wav",
+    "text": "별의별 짓을 다 하는구만"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_killMutant_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_killMutant_3_01.wav",
+    "text": "이런 거 불법 아니야? 막 해도 돼?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_killWickleline_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_killWickleline_1_01.wav",
+    "text": "박사를 잡았어! 이제 우리가 제일 강한 건가?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_lobby_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_lobby_1_01.wav",
+    "text": "흥... 시간 끌지 말고 들어와!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_loopAlly_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_loopAlly_1_01_01.wav",
+    "text": "동생이 하나 더 생긴 기분인데?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_loopAlly_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_loopAlly_2_01_01.wav",
+    "text": "많이 컸네, 내 동생"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_lootCorpsSelfKill_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_lootCorpsSelfKill_1_01.wav",
+    "text": "제 주인 찾았다 생각해"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_lost_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_lost_1_01_01.wav",
+    "text": "이 정도밖에 못하는 거야?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_lost_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_lost_2_01_01.wav",
+    "text": "누구한테 하는 말일까?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_makeDrink_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_makeDrink_2_01.wav",
+    "text": "오, 이거 맛있겠는데?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_makeFood_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_makeFood_1_01_01.wav",
+    "text": "손재주는 내가 더 좋았지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_makeFood_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_makeFood_2_01.wav",
+    "text": "그래도 음식같이 생기긴 했네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_markAlpha_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_markAlpha_1_01.wav",
+    "text": "알파가 있네? 먼저 칠까?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_markBloodSample_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_markBloodSample_1_01.wav",
+    "text": "혈액팩이 있어! 보기 드문 거 아니야?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_markHyperloop_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_markHyperloop_1_01.wav",
+    "text": "멀리 갈 거면 편하게 가자구"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_markMeteorite_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_markMeteorite_1_01.wav",
+    "text": "운석이다!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_markMoonstone_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_markMoonstone_1_01.wav",
+    "text": "문스톤, 필요한 사람 있어?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_markSupplyBox_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_markSupplyBox_1_01_01.wav",
+    "text": "확인하는 게 좋을까?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_markTransferConsle_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_markTransferConsle_1_01_01.wav",
+    "text": "뭐 좀 사려고 하는데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_meetAlpha_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_meetAlpha_2_01.wav",
+    "text": "뭐야, 누가 여기에 깡통을 두고 갔네?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_meetWickleline_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_meetWickleline_2_01.wav",
+    "text": "뭔 실험을 했길래 몰골이 그 모양이실까?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInAlley_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInAlley_1_01_01.wav",
+    "text": "뭐야, 이 눈물나게 익숙한 광경은?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInAlley_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInAlley_3_01.wav",
+    "text": "여러 명 상대하기에 이만한 곳이 없지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInArchery_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInArchery_1_01.wav",
+    "text": "비겁하게 뒤에서 까불대는 게 뭐가 좋다고!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInArchery_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInArchery_2_01_01.wav",
+    "text": "비겁한 거야"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInArchery_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInArchery_3_01_01.wav",
+    "text": "그거 들기만 해봐"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInArchery_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInArchery_4_01.wav",
+    "text": "총이든 활이든 낭만 하나 없다니까"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInCemetery_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInCemetery_1_01.wav",
+    "text": "하, 꼴에 묘지가 있네?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInCemetery_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInCemetery_3_01_01.wav",
+    "text": "그 좋은 곳이란데 나는 못 가겠지?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInChurch_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInChurch_1_01_01.wav",
+    "text": "짜증나는 기억이 떠올랐어"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInChurch_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInChurch_3_01.wav",
+    "text": "눈먼교리만큼 답도 없는 무식이 또 없지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInFactory_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInFactory_1_01.wav",
+    "text": "흠... 구린 냄새가 난단 말이지..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInFactory_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInFactory_3_01_01.wav",
+    "text": "콜록콜록(기침) 아 뭔 먼지가!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInFireStation_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInFireStation_2_01.wav",
+    "text": "참 나, 있을 건 다 있네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInForest_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInForest_1_01.wav",
+    "text": "짐승 소리, 바람 소리 밤만 되면 미칠 지경이었지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInForest_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInForest_2_01_01.wav",
+    "text": "그 미친놈을 그때 못 봤으면..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInForest_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInForest_3_01_01.wav",
+    "text": "사냥감에서 사냥꾼이 된 소감이 어때?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInForest_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInForest_4_01_01.wav",
+    "text": "장담하는데 절대 아니야"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInGasStation_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInGasStation_1_01.wav",
+    "text": "모든 것이 무기고 모든 곳이 전쟁터다 선배가 그랬지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInGasStation_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInGasStation_2_01_01.wav",
+    "text": "확실해!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInGasStation_2_01_012.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInGasStation_2_01_012.wav",
+    "text": "여기엔 사람이 살았었어"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInGasStation_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInGasStation_3_01_01.wav",
+    "text": "그래도 돼?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInHarbor_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInHarbor_1_01_01.wav",
+    "text": "내가 예전에 뭘 사고팔았는데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInHarbor_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInHarbor_2_01.wav",
+    "text": "세상에는 말이야 너희가 상상도 못할 것들이 오고 간다고"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInHospital_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInHospital_1_01_01.wav",
+    "text": "뭔데? 나 안 다쳤는데?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInHospital_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInHospital_2_01_01.wav",
+    "text": "왜, 들킬까봐?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInHospital_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInHospital_3_01_01.wav",
+    "text": "신세 참 많이 졌지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInHospital_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInHospital_4_01_01.wav",
+    "text": "알콜? 좋지!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInHotel_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInHotel_1_01_01.wav",
+    "text": "보통 이런 곳에 숨더라고"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInHotel_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInHotel_2_01_01.wav",
+    "text": "그냥 다 때려부수면 알아서 나오던데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInHotel_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInHotel_3_01_01.wav",
+    "text": "한숨 푹 자고 나서 할까?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInLaboratoryOutside_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInLaboratoryOutside_1_01_01.wav",
+    "text": "아 느낌이 쎄한데..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInLaboratoryOutside_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInLaboratoryOutside_3_01_01.wav",
+    "text": "어떻게 그냥 확 들어가 봐?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInLaboratory_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInLaboratory_1_01.wav",
+    "text": "여긴 급이 안 맞는데... 다른 곳 없어?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInLaboratory_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInLaboratory_3_01_01.wav",
+    "text": "이것봐라, 콧배기도 안 비추네?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInPoliceStation_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInPoliceStation_1_01.wav",
+    "text": "굳이 들어갈 필요는 없지!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInPoliceStation_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInPoliceStation_3_01_01.wav",
+    "text": "농담도 할 줄 아네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInPoliceStation_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInPoliceStation_4_01_01.wav",
+    "text": "잔소리할 시간에 움직여!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInPond_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInPond_1_01_01.wav",
+    "text": "웬일로 마음이 맞네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInPond_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInPond_2_01_01.wav",
+    "text": "물에 숨어 있는 놈은 없겠지?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInPond_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInPond_3_01_01.wav",
+    "text": "여기 뭔가... 음침하지 않아?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInSandyBeach_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInSandyBeach_1_01_01.wav",
+    "text": "이야, 수영복이라도 챙겨올 걸 그랬나?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInSandyBeach_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInSandyBeach_2_01_01.wav",
+    "text": "뭐 어때? 기분만 좋은데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInSandyBeach_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInSandyBeach_3_01_01.wav",
+    "text": "바다 본 적 있어?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInSandyBeach_3_01_012.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInSandyBeach_3_01_012.wav",
+    "text": "그럼 좀 즐겨봐"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInSandyBeach_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInSandyBeach_4_01_01.wav",
+    "text": "싸울 생각만 하는구만"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInSchool_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInSchool_1_01_01.wav",
+    "text": "애들이랑 말 섞지 마"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInSchool_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInSchool_2_01_01.wav",
+    "text": "의지할 때라고는 서로가 전부였는데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInSchool_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInSchool_3_01_01.wav",
+    "text": "만약에 우리가 평범했다면 말야"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInStream_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInStream_1_01_01.wav",
+    "text": "세수라도 할까?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInStream_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInStream_2_01_01.wav",
+    "text": "어? 개구리다!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInStream_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInStream_3_01_01.wav",
+    "text": "집 근처에, 그치?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInStream_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInStream_4_01_01.wav",
+    "text": "지금 걱정해주는 거야?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInTemple_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInTemple_1_01_01.wav",
+    "text": "알았다고 더럽게 구박하네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInTemple_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInTemple_3_01.wav",
+    "text": "뭘 이렇게 구겨넣었어? 안그래도 좁아터진 섬에"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInTemple_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInTemple_4_01.wav",
+    "text": "그래서 당신네들 신은 뭘 만들었는데?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInUptown_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInUptown_1_01.wav",
+    "text": "아무리 좋은 집이라도 그 안에 가족이 없으면 외롭더라고"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInUptown_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInUptown_3_01_01.wav",
+    "text": "다 부셔도 된단 말이지?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInUptown_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInUptown_4_01_01.wav",
+    "text": "한때는 이런 곳에서 걱정 없이 사는 게 꿈이었지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInWarehouse_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInWarehouse_2_01_01.wav",
+    "text": "이제야 말이 통하네!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInWarehouse_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInWarehouse_3_01_01.wav",
+    "text": "죽었겠지... 굶어서..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveInWarehouse_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveInWarehouse_4_01_01.wav",
+    "text": "어릴 때 기억나?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveRestrictedArea_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveRestrictedArea_1_01_01.wav",
+    "text": "응? 뭔가 이상한데?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_moveRestrictedArea_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_moveRestrictedArea_3_01.wav",
+    "text": "볼일 다 봤으면 나가자고"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_notreadyUltimate_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_notreadyUltimate_1_01.wav",
+    "text": "아직 시간이 더 필요해"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_operateRadar_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_operateRadar_1_01_01.wav",
+    "text": "어디다 적어놔야 하는 거 아니야?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_orderPing_drink_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_orderPing_drink_1_01.wav",
+    "text": "목이 타 들어가는데..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_orderPing_food_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_orderPing_food_1_01.wav",
+    "text": "아 굶는건 질색인데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_orderPing_gathering_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_orderPing_gathering_1_01.wav",
+    "text": "자 집합!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_orderPing_goal_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_orderPing_goal_1_01.wav",
+    "text": "어디부터 들릴래?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_orderPing_ok_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_orderPing_ok_1_01.wav",
+    "text": "니예니예"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_orderPing_save_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_orderPing_save_1_01.wav",
+    "text": "다 쉬었지? 그럼 다시 움직여!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_orderPing_waiting_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_orderPing_waiting_1_01.wav",
+    "text": "잠깐, 좀 수상한데?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_readyUltimate_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_readyUltimate_1_01_01.wav",
+    "text": "말만해!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_requestItem_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_requestItem_1_01.wav",
+    "text": "앞만 찾아도 안 보이는데"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_restrictedAreaCount10_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_restrictedAreaCount10_1_01.wav",
+    "text": "야, 야! 지금 남은 시간 보이지? 괜찮은 거야?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_rest_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_rest_1_01_01.wav",
+    "text": "잠깐 쉬어도 되지?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_resurrection_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_resurrection_2_01.wav",
+    "text": "하아 죽다 살아났네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_revive_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_revive_1_01_01.wav",
+    "text": "걔 얼굴 기억나?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_revive_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_revive_2_01_01.wav",
+    "text": "걔부터 찾자구"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_revive_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_revive_3_01_01.wav",
+    "text": "아 성질나 죽겠네!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_selected_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_selected_1_01_01.wav",
+    "text": "각오 단단히 해!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_skillE1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_skillE1_01_01.wav",
+    "text": "준비됐어?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_skillE3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_skillE3_01_01.wav",
+    "text": "내 차례다!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_skillE4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_skillE4_01_01.wav",
+    "text": "가볼까?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_skillPassive1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_skillPassive1_01_01.wav",
+    "text": "찾는다!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_skillPassive2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_skillPassive2_01.wav",
+    "text": "이제 좀 알겠어?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_skillQ2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_skillQ2_01.wav",
+    "text": "마음에 들어?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_skillQ3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_skillQ3_01.wav",
+    "text": "놓칠 거라 생각한 거야?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_skillQ4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_skillQ4_01.wav",
+    "text": "도망가려고"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_skillR2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_skillR2_01.wav",
+    "text": "눈 크게 뜨고 잘 보라구!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_skillR4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_skillR4_01_01.wav",
+    "text": "결판을 짓자고!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_skillW2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_skillW2_01.wav",
+    "text": "이야압!"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_sorry_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_sorry_1_01.wav",
+    "text": "미안해서 어쩌나"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_surrender_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_surrender_1_01.wav",
+    "text": "그냥 서로 갈 길 가자, 어?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_surrender_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_surrender_2_01.wav",
+    "text": "나라고 아무한테나 시비 거는 건 아니라고"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_targetOn_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_targetOn_1_01.wav",
+    "text": "저거, 우리편으론 안 보이지?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_taunt_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_taunt_1_01.wav",
+    "text": "설마 둘이서 덤비다니 비겁하다 이런 말이라도 하려고?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_taunt_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_taunt_2_01_01.wav",
+    "text": "셋줄게, 도망쳐봐"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_taunt_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_taunt_4_01_01.wav",
+    "text": "그럼 난 쉬고 있을게"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_taunt_Adriana_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_taunt_Adriana_01.wav",
+    "text": "그런 눈 많이 봤지 그래서 너는 뭘 잃었는데?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_taunt_Hyunwoo_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_taunt_Hyunwoo_01_01.wav",
+    "text": "아, 이 동네 애들은 왜 이렇게 싸가지가 없지?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_taunt_Isol _01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_taunt_Isol _01.wav",
+    "text": "요즘은 학교에서 총 쏘는 법도 알려주나?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_taunt_Lenox_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_taunt_Lenox_01.wav",
+    "text": "도망쳐 나오니까 마음이 편한가 봐? 얼굴에서 빛이 나네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_taunt_Piolo_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_taunt_Piolo_01.wav",
+    "text": "실력은 좋은데 앞뒤로 꽉 막혔네 좀... 허름해 보이기도 하고"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_thanks_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_thanks_1_01.wav",
+    "text": "이쁜 짓도 할 줄 아네?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_trap_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_trap_1_01.wav",
+    "text": "당해본 사람만큼 잘 아는 사람은 없지"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_trap_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_trap_2_01_01.wav",
+    "text": "흠... 안 내키는데..."
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_victory_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_victory_2_01.wav",
+    "text": "뭐, 이렇게 될 줄 알고 있었잖아?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_weaponskill1_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_weaponskill1_1_01.wav",
+    "text": "이제 좀 쓸만하겠네"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_weaponskill1_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_weaponskill1_2_01.wav",
+    "text": "손에 착착 감기는 게 마음에 드는데?"
+  },
+  {
+    "character": "Debi",
+    "file": "Debi_weaponskill1_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Debi\\Debi_weaponskill1_3_01.wav",
+    "text": "이제 진짜 조심해야 될 거다"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_accelerationLine_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_accelerationLine_2_01.wav",
+    "text": "전술적인 장치네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_airSupply_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_airSupply_1_01.wav",
+    "text": "필요한 게 있었으면 좋겠는데"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_airSupply_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_airSupply_3_01.wav",
+    "text": "기다려봐"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_battleAreaWin_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_battleAreaWin_1_01_01.wav",
+    "text": "한 발 앞섰네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_bonfire_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_bonfire_1_01_01.wav",
+    "text": "잠깐만이야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_bonfire_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_bonfire_2_01_01.wav",
+    "text": "휴식도 타이밍이 중요해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_box_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_box_1_01.wav",
+    "text": "가방 같은 게 있으면 좋을 텐데"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_box_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_box_3_01.wav",
+    "text": "이건 쓸 수 있겠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_callRemoteDrone_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_callRemoteDrone_1_01.wav",
+    "text": "남은 크레딧이 얼마인지 확인해봐야겠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_callRemoteDrone_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_callRemoteDrone_2_01_01.wav",
+    "text": "생각 없이 살아서 좋겠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_callTransferConsole_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_callTransferConsole_1_01.wav",
+    "text": "어디서 오는지 알아내면..."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_callTransferConsole_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_callTransferConsole_2_01_01.wav",
+    "text": "하... 사고회로가 어떻게 된 건지..."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_cctv_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_cctv_2_01.wav",
+    "text": "시야는 많은 것을 제공하지"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_cobaltImminentLose_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_cobaltImminentLose_1_01.wav",
+    "text": "포기하던가 아니면 끝까지 발악하던가"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_cobaltkilldrone_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_cobaltkilldrone_2_01.wav",
+    "text": "이거론 턱도 없이 부족해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_cobaltOccupation_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_cobaltOccupation_1_01_01.wav",
+    "text": "우위를 유지해야 해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_collect_brunch_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_collect_brunch_1_01_01.wav",
+    "text": "안 웃겨"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_collect_fishSea_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_collect_fishSea_1_01.wav",
+    "text": "포인트에 정확히 던져야 해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_collect_flower_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_collect_flower_1_01_01.wav",
+    "text": "마찬가지야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_collect_potato_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_collect_potato_1_01.wav",
+    "text": "비상시는 항상 미리 준비해 두는 거야."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_collect_stone_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_collect_stone_1_01_01.wav",
+    "text": "친구들 보러 왔어?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_collect_water_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_collect_water_1_01_01.wav",
+    "text": "식수 확보는 중요해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_completeFullRoute_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_completeFullRoute_1_01_01.wav",
+    "text": "이제 시작인거야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_completeRoute1_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_completeRoute1_1_01_01.wav",
+    "text": "징징대지 마"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_completeRoute2_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_completeRoute2_1_01_01.wav",
+    "text": "맨몸으로 싸우는 것보다는 나아"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_completeRoute3_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_completeRoute3_1_01_01.wav",
+    "text": "신중히 만들어야 해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_craftEpic_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_craftEpic_1_01_01.wav",
+    "text": "확실히 쓸만하겠네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_craftEpic_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_craftEpic_2_01_01.wav",
+    "text": "거짓말은 아니네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_craftEpic_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_craftEpic_3_01_01.wav",
+    "text": "당연한 결과야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_craftLegend_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_craftLegend_1_01_01.wav",
+    "text": "이제, 준비는 끝났어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_craftLegend_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_craftLegend_2_01_01.wav",
+    "text": "생각하던 대로 나와줬네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_craftLegend_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_craftLegend_3_01_01.wav",
+    "text": "우위를 가질 확률이 높아졌어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_craftRare_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_craftRare_1_01_01.wav",
+    "text": "아직 숙련도가 부족해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_craftRare_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_craftRare_3_01_01.wav",
+    "text": "사고방식이 틀렸어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_craftUncommon_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_craftUncommon_1_01_01.wav",
+    "text": "어딘가에는 쓰이겠지"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_craftUncommon_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_craftUncommon_2_01_01.wav",
+    "text": "그럴 시간 없어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_craftUncommon_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_craftUncommon_3_01_01.wav",
+    "text": "최소한의 효율인가?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_decompositionLegend_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_decompositionLegend_1_01_01.wav",
+    "text": "뭐야? 울어?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_endPlay_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_endPlay_2_01.wav",
+    "text": "계획이 다른데?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_escapeBattleMarina_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_escapeBattleMarina_1_01_01.wav",
+    "text": "시간 없어 빨리 끝내"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_escapeCompleteKit_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_escapeCompleteKit_1_01.wav",
+    "text": "본질은 싸움이 아니야. 잊어선 안 돼."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_escapeMoveMarina_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_escapeMoveMarina_1_01_01.wav",
+    "text": "끝까지 경계 풀지 마"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_exitSuccess_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_exitSuccess_2_01.wav",
+    "text": "소모값이 적은 방법이라 만족스럽네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_firstMeetAlly_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_firstMeetAlly_2_01.wav",
+    "text": "그쪽은 덜 멍청했으면 좋겠는데"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_firstMeetAlly_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_firstMeetAlly_3_01_01.wav",
+    "text": "실수는 용납하네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_firstMove_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_firstMove_2_01_01.wav",
+    "text": "말그대로"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_firstMove_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_firstMove_3_01_01.wav",
+    "text": "하... 머리가 아파오기 시작하네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_getRskill_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_getRskill_1_01_01.wav",
+    "text": "함께 싸울 준비가 됐어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_hacking_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_hacking_1_01_01.wav",
+    "text": "그래서 내가 있잖아"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_hacking_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_hacking_2_01_01.wav",
+    "text": "쉽지 않다고 했지 못한다고는 안 했어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_hacking_lost_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_hacking_lost_1_01_01.wav",
+    "text": "어디서부터 예측이 틀렸지?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_halfSubjectInGame_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_halfSubjectInGame_1_01_01.wav",
+    "text": "아직 절반이나 남은 거야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_highlyPlaced_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_highlyPlaced_1_01.wav",
+    "text": "계산에 조금 착오가 있었나?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_hyperloop_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_hyperloop_2_01.wav",
+    "text": "매스껍지만 않으면 자주 쓸텐데..."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_installCamera_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_installCamera_1_01.wav",
+    "text": "도움이 될 거야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_item_Burgundy 47_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_item_Burgundy 47_01_01.wav",
+    "text": "피가 묻어도 모르겠네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_item_Close Helm_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_item_Close Helm_01_01.wav",
+    "text": "쓰나 안 쓰나 똑같을 텐데"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_item_Rocker's Jacket_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_item_Rocker's Jacket_01_01.wav",
+    "text": "비효율적이야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_item_Running Shoes_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_item_Running Shoes_01_01.wav",
+    "text": "움직이기도 좋고"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_item_Vital Sign Sensor_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_item_Vital Sign Sensor_01_01.wav",
+    "text": "뭐가 그렇게 무서워?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_joke_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_joke_1_01_01.wav",
+    "text": "아니..."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_joke_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_joke_2_01_01.wav",
+    "text": "뭐 하는 거야 지금?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_joke_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_joke_3_01_01.wav",
+    "text": "이것도 부술래 저것도 부술래"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_joke_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_joke_4_01_01.wav",
+    "text": "너무 이성적이라고? 너도 저런 언니 둬봐"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_kill10Player_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_kill10Player_1_01_01.wav",
+    "text": "우리를 둘이라고 생각한 것"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_kill13Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_kill13Player_1_01.wav",
+    "text": "멍청한 건지 용감한 건지 구분이 안 되는데"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_kill1Player_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_kill1Player_2_01.wav",
+    "text": "형편 없네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_kill3Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_kill3Player_1_01.wav",
+    "text": "망설임은 적일 뿐"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_kill6Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_kill6Player_1_01.wav",
+    "text": "아픈 줄도 모르고 갔겠지"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_kill8Player_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_kill8Player_1_01.wav",
+    "text": "감정에 앞서면 이렇게 되는 거야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_KilledBy(대상에 따라 다름)_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_KilledBy(대상에 따라 다름)_01_01.wav",
+    "text": "다음에는..."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_killedCommon_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_killedCommon_2_01.wav",
+    "text": "끝인가?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_killMonster_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_killMonster_1_01.wav",
+    "text": "변수가 생길 일을 없앨 뿐이야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_killMonster_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_killMonster_3_01.wav",
+    "text": "낭비할 감정 같은 거 없어 시간은 더 없고"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_killMutant_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_killMutant_2_01.wav",
+    "text": "비슷한 처지일지도"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_killOmega_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_killOmega_1_01.wav",
+    "text": "손해보진 않았네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_lobby_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_lobby_2_01.wav",
+    "text": "그래봤자 헛수고겠지만..."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_loopAlly_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_loopAlly_1_01_01.wav",
+    "text": "무슨 뜻이지?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_loopAlly_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_loopAlly_2_01_01.wav",
+    "text": "멍청이가 하나 더 있네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_lootCorpsEnemyKill_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_lootCorpsEnemyKill_1_01.wav",
+    "text": "필요한 것만 챙겨서 빠지자"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_lost_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_lost_1_01_01.wav",
+    "text": "실망인데..."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_lost_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_lost_2_01_01.wav",
+    "text": "파트너를 잘못 골랐나?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_lowerRankInGame_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_lowerRankInGame_1_01.wav",
+    "text": "상대적으로 불리해 다른 전략이 필요할지도"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_makeDrink_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_makeDrink_1_01.wav",
+    "text": "시간이 있을 때 미리 만들어둬야 해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_makeFood_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_makeFood_1_01_01.wav",
+    "text": "뭐... 그런 셈쳐"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markbattleArea_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markbattleArea_1_01.wav",
+    "text": "전장에서 나오는 보상이 필요해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markEnemySubject_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markEnemySubject_1_01.wav",
+    "text": "적 발견"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markForceCore_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markForceCore_1_01.wav",
+    "text": "여기 포스코어, 가져가는 게 좋겠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markItem_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markItem_1_01.wav",
+    "text": "필요한 게 이거야?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markMonster_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markMonster_1_01.wav",
+    "text": "여기 뭔가 얻을 수 있을지도"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markMythril_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markMythril_1_01.wav",
+    "text": "미스릴이 있어. 활용도가 높은 재료야."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markOmega_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markOmega_1_01.wav",
+    "text": "오메가는 저기에 있어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markSercurityConsole_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markSercurityConsole_1_01.wav",
+    "text": "가장 가까운 사람이 누구지?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markSupplyBox_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markSupplyBox_1_01_01.wav",
+    "text": "비어있을지도 몰라"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markTransferConsle_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markTransferConsle_1_01_01.wav",
+    "text": "돈은 있고?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markTreeOfLife_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markTreeOfLife_1_01.wav",
+    "text": "생명의 나무야. 필요한 사람이 많을 것 같은데."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_markWickleline_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_markWickleline_1_01.wav",
+    "text": "박사가 나타났어. 어떻게 할 거야?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_meetOmega_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_meetOmega_2_01.wav",
+    "text": "네가 가진 게 필요해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInAlley_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInAlley_1_01_01.wav",
+    "text": "아예 여기서 살지 그래"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInAlley_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInAlley_2_01.wav",
+    "text": "전술적으로 불리한 곳이야. 벗어나야겠어."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInAlley_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInAlley_4_01.wav",
+    "text": "시야가 막혀 매복이 있을 수도"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInArchery_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInArchery_2_01_01.wav",
+    "text": "활과 화살, 전략적인 무기야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInArchery_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInArchery_3_01_01.wav",
+    "text": "후... 무기를 바꿔야 하나"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInCemetery_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInCemetery_2_01.wav",
+    "text": "죽으면 끝인거야 아무것도 없어 위선자들"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInCemetery_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInCemetery_3_01_01.wav",
+    "text": "그걸 믿어?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInCemetery_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInCemetery_4_01.wav",
+    "text": "쉽게 편해질 생각 따위 없어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInChurch_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInChurch_1_01_01.wav",
+    "text": "마찬가지야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInChurch_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInChurch_2_01.wav",
+    "text": "덕분에 머리가 차분해졌어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInChurch_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInChurch_4_01.wav",
+    "text": "차라리 나 자신을 믿겠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInFactory_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInFactory_2_01.wav",
+    "text": "기계를 보면 대충 뭘 만들었는지 알 수 있어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInFactory_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInFactory_3_01_01.wav",
+    "text": "보폭을 줄여"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInFactory_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInFactory_4_01.wav",
+    "text": "기계가 돌아가지 않는다면 무슨 소용이지?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInFireStation_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInFireStation_1_01.wav",
+    "text": "사이렌 소리는 지겹도록 들었어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInFireStation_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInFireStation_3_01.wav",
+    "text": "지나치게 인위적인데"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInFireStation_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInFireStation_4_01.wav",
+    "text": "구호물품? 바라지도 않아"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInForest_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInForest_2_01_01.wav",
+    "text": "우리도 지금 여기 없겠지"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInForest_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInForest_3_01_01.wav",
+    "text": "유쾌하지만은 않네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInForest_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInForest_4_01_01.wav",
+    "text": "도망치는 게 더 나았을까?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInGasStation_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInGasStation_3_01_01.wav",
+    "text": "할 말 있으면 빨리 해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInGasStation_3_01_012.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInGasStation_3_01_012.wav",
+    "text": "아니다, 하지마"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInGasStation_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInGasStation_4_01.wav",
+    "text": "오래 있기 불안한 장소야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInHarbor_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInHarbor_1_01_01.wav",
+    "text": "알고 싶지 않아"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInHarbor_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInHarbor_3_01.wav",
+    "text": "파도소리에 발소리가 묻혀. 조심해."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInHarbor_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInHarbor_4_01.wav",
+    "text": "후각도 무뎌지는군"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInHospital_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInHospital_1_01_01.wav",
+    "text": "미리 데뷔해 두자는 거지"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInHospital_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInHospital_2_01_01.wav",
+    "text": "병원엔 많이 안 갔어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInHospital_2_01_012.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInHospital_2_01_012.wav",
+    "text": "다칠 일이 없었으니까"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInHospital_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInHospital_3_01_01.wav",
+    "text": "자랑이다"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInHospital_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInHospital_4_01_01.wav",
+    "text": "알콜이 보이면 말해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInHotel_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInHotel_2_01_01.wav",
+    "text": "숨을 곳이 많아 주의해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInHotel_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInHotel_3_01_01.wav",
+    "text": "헛소리 좀 그만해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInHotel_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInHotel_4_01.wav",
+    "text": "이전엔 평범한 섬이었던 건가?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInLaboratoryOutside_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInLaboratoryOutside_1_01_01.wav",
+    "text": "안 좋은 예감은 보통 맞지"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInLaboratoryOutside_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInLaboratoryOutside_2_01.wav",
+    "text": "이질적인 장소... 여기가 틀림없네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInLaboratoryOutside_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInLaboratoryOutside_3_01_01.wav",
+    "text": "아니, 잠깐 기다려"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInLaboratoryOutside_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInLaboratoryOutside_4_01.wav",
+    "text": "우리 발소리가 너무 크게 들리는데?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInLaboratory_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInLaboratory_2_01.wav",
+    "text": "계약에 추가할 항목이 있는데"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInLaboratory_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInLaboratory_3_01_01.wav",
+    "text": "숨기는 게 있는 거지"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInLaboratory_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInLaboratory_4_01.wav",
+    "text": "비워져 있는 건가? 역시..."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInPoliceStation_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInPoliceStation_2_01.wav",
+    "text": "무기 같은 걸 찾을 수 있을지도"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInPoliceStation_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInPoliceStation_3_01_01.wav",
+    "text": "괜찮아? 얼굴이 창백한데"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInPoliceStation_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInPoliceStation_4_01_01.wav",
+    "text": "저번처럼 혼자 날 뛰면"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInPond_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInPond_1_01_01.wav",
+    "text": "축축해서 짜증나"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInPond_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInPond_2_01_01.wav",
+    "text": "찔러 보던가"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInPond_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInPond_4_01.wav",
+    "text": "수질이 별론데 마실 순 없겠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInSandyBeach_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInSandyBeach_1_01_01.wav",
+    "text": "제발 조용히... 하... 됐다"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInSandyBeach_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInSandyBeach_2_01_01.wav",
+    "text": "모래가 신경 쓰이는데"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInSandyBeach_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInSandyBeach_3_01_01.wav",
+    "text": "실제로 보는 건 처음이야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInSandyBeach_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInSandyBeach_4_01_01.wav",
+    "text": "기동전은 안되겠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInSchool_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInSchool_1_01_01.wav",
+    "text": "무조건 짧게 말해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInSchool_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInSchool_2_01_01.wav",
+    "text": "지금이랑 비슷하네"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInSchool_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInSchool_3_01_01.wav",
+    "text": "만약은 없어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInSchool_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInSchool_4_01.wav",
+    "text": "즐거운 기억이 없기에 더 그리울 수도"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInStream_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInStream_1_01_01.wav",
+    "text": "좋은 생각이야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInStream_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInStream_3_01_01.wav",
+    "text": "이만한 개울이 있었어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInStream_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInStream_4_01_01.wav",
+    "text": "바닥이 미끄러우니 조심해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInTemple_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInTemple_1_01_01.wav",
+    "text": "막 건들지 마"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInTemple_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInTemple_2_01.wav",
+    "text": "현실을 직시해 누군가의 도움을 바라지 마"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInUptown_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInUptown_2_01.wav",
+    "text": "어디까지나 수단일 뿐이지 목적이 되면 안돼"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInUptown_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInUptown_3_01_01.wav",
+    "text": "관리가 전혀 안 돼 있어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInUptown_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInUptown_4_01_01.wav",
+    "text": "꿈도 크네..."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInWarehouse_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInWarehouse_1_01.wav",
+    "text": "어릴 땐 그냥 울기만 했지"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInWarehouse_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInWarehouse_2_01_01.wav",
+    "text": "더 이상 누구의 말도 듣지 않겠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInWarehouse_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInWarehouse_3_01_01.wav",
+    "text": "그 아이가 도와주지 않았다면..."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveInWarehouse_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveInWarehouse_4_01_01.wav",
+    "text": "안 날 수가 없지, 너무 끔찍해서"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveRestrictedArea_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveRestrictedArea_1_01_01.wav",
+    "text": "나갈 때가 됐던 거지"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_moveRestrictedArea_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_moveRestrictedArea_2_01.wav",
+    "text": "우회할 곳을 찾아야겠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_operateRadar_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_operateRadar_1_01_01.wav",
+    "text": "괜찮아, 다 외웠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_orderPing_drink_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_orderPing_drink_1_01.wav",
+    "text": "물이 필요해. 누가 다 마셔버려서"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_orderPing_food_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_orderPing_food_1_01.wav",
+    "text": "칼로리가 높은게 필요해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_orderPing_gathering_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_orderPing_gathering_1_01.wav",
+    "text": "이곳엔 모여!"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_orderPing_goal_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_orderPing_goal_1_01.wav",
+    "text": "가야할 곳을 말해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_orderPing_save_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_orderPing_save_1_01.wav",
+    "text": "일어나, 아직 쉴 때가 아니야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_orderPing_waiting_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_orderPing_waiting_1_01.wav",
+    "text": "잠깐 멈춰"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_readyUltimate_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_readyUltimate_1_01_01.wav",
+    "text": "준비는 됐어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_restrictedAreaStart_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_restrictedAreaStart_1_01.wav",
+    "text": "마지막 금지 구역이야. 미리 자리를 잡는 것도 괜찮겠지."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_rest_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_rest_1_01_01.wav",
+    "text": "긴장 늦추지 마"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_resurrection_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_resurrection_1_01.wav",
+    "text": "재정비를 해야겠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_resurrection_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_resurrection_3_01.wav",
+    "text": "혼자 할 수 있었어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_revive_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_revive_1_01_01.wav",
+    "text": "걱정 마, 확실히 기억해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_revive_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_revive_2_01_01.wav",
+    "text": "이번엔 안져."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_revive_3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_revive_3_01_01.wav",
+    "text": "분노는 시야를 가릴 뿐이야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_selected_1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_selected_1_01_01.wav",
+    "text": "우린 붙어있을 때 최강이니까"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_skillE1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_skillE1_01_01.wav",
+    "text": "보여줄게"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_skillPassive1_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_skillPassive1_01_01.wav",
+    "text": "추적하고"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_skillPassive3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_skillPassive3_01.wav",
+    "text": "빗나갈 리 없어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_skillQ2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_skillQ2_01.wav",
+    "text": "도망갈 수 없어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_skillQ3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_skillQ3_01.wav",
+    "text": "헛수고야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_skillQ4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_skillQ4_01.wav",
+    "text": "움직이지 마"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_skillR1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_skillR1_01.wav",
+    "text": "더 이상 기회는 없어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_skillR3_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_skillR3_01_01.wav",
+    "text": "준비됐지?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_skillR4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_skillR4_01_01.wav",
+    "text": "피할 수 없어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_sorry_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_sorry_1_01.wav",
+    "text": "계산에 착오가 있었어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_surrender_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_surrender_3_01.wav",
+    "text": "무의미한 싸움은 안 해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_surrender_4_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_surrender_4_01.wav",
+    "text": "상대할 이유가 없어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_targetOn_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_targetOn_2_01.wav",
+    "text": "방해하지 마"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_targetOn_2_02.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_targetOn_2_02.wav",
+    "text": "방해하지 마"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_taunt_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_taunt_3_01.wav",
+    "text": "큰 소리 내지 마, 약해 보이니까"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_taunt_4_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_taunt_4_01_01.wav",
+    "text": "혼자 해도 되겠어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_taunt_Adela_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_taunt_Adela_01.wav",
+    "text": "전에 못 끝낸 체스, 지금 끝나자."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_taunt_Estelle_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_taunt_Estelle_01.wav",
+    "text": "누굴 지키려거든 본인부터 강해지는 게 어때?"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_taunt_Hart_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_taunt_Hart_01.wav",
+    "text": "허황된 이상은 좌절감만 증폭시킬 뿐이야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_taunt_Hyunwoo_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_taunt_Hyunwoo_01_01.wav",
+    "text": "그럴 수밖에..."
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_taunt_Tazia_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_taunt_Tazia_01.wav",
+    "text": "예술에 대한 열정은 알겠는데 그 집착은 이해 못 하겠군"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_taunt_Yuki_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_taunt_Yuki_01.wav",
+    "text": "니가 든 검 점점 무거워질 거야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_thanks_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_thanks_1_01.wav",
+    "text": "도움이 됐어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_trap_2_01_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_trap_2_01_01.wav",
+    "text": "되도록 효과적인 곳에 설치해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_useEMP_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_useEMP_1_01.wav",
+    "text": "빛은 많은 걸 제공하지"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_victory_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_victory_1_01.wav",
+    "text": "최적의 방법을 도출한 결과일 뿐이야"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_weaponskill1_1_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_weaponskill1_1_01.wav",
+    "text": "아직 미숙해"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_weaponskill1_2_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_weaponskill1_2_01.wav",
+    "text": "얼추 감은 잡았어"
+  },
+  {
+    "character": "Marlene",
+    "file": "Marlene_weaponskill1_3_01.wav",
+    "path": "C:\\Users\\2rami\\Desktop\\KASA\\debi-marlene\\Debi&Marlene_KOR\\Marlene\\Marlene_weaponskill1_3_01.wav",
+    "text": "변수는 없었어 우리가 제일 강할 뿐"
+  }
+]

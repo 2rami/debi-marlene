@@ -12,7 +12,6 @@ import os
 import hashlib
 
 from run.services.tts import TTSService, AudioPlayer
-from run.services.tts.gpt_sovits_service import GPTSoVITSService
 from run.core.config import load_settings, save_settings
 from run.utils.command_logger import log_command_usage
 
@@ -41,8 +40,8 @@ async def get_tts_service(character: str = "default") -> TTSService:
     if character in tts_services:
         return tts_services[character]
 
-    # GPT-SoVITS 사용
-    logger.info(f"GPT-SoVITS TTS 사용 ({character})")
+    # CosyVoice3 사용
+    logger.info(f"CosyVoice3 TTS 사용 ({character})")
     tts_service = TTSService(speaker=character)
 
     await tts_service.initialize()
@@ -203,9 +202,12 @@ async def setup_voice_commands(bot):
         채널: discord.TextChannel
     ):
         """TTS로 읽어줄 채널을 설정합니다."""
+        # 즉시 defer (3초 타임아웃 방지)
+        await interaction.response.defer(ephemeral=True)
+
         try:
             if not interaction.guild:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "이 명령어는 서버에서만 사용할 수 있어요!",
                     ephemeral=True
                 )
@@ -213,14 +215,11 @@ async def setup_voice_commands(bot):
 
             # 관리자 권한 체크
             if not interaction.user.guild_permissions.administrator:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "이 명령어는 서버 관리자만 사용할 수 있어요!",
                     ephemeral=True
                 )
                 return
-
-            # 즉시 defer (GCS 통신 전에)
-            await interaction.response.defer(ephemeral=True)
 
             # 명령어 사용 로깅
             await log_command_usage(
@@ -253,16 +252,13 @@ async def setup_voice_commands(bot):
 
         except Exception as e:
             logger.error(f"읽기채널설정 명령어 오류: {e}")
-            if not interaction.response.is_done():
-                await interaction.response.send_message(
-                    f"오류가 발생했어요: {str(e)}",
-                    ephemeral=True
-                )
-            else:
+            try:
                 await interaction.followup.send(
                     f"오류가 발생했어요: {str(e)}",
                     ephemeral=True
                 )
+            except:
+                pass
 
     @bot.tree.command(name="음성설정", description="TTS 음성을 설정합니다 (데비, 마를렌, 교대)")
     @app_commands.describe(음성="사용할 음성 선택")
@@ -277,9 +273,12 @@ async def setup_voice_commands(bot):
         음성: app_commands.Choice[str]
     ):
         """TTS 음성을 설정합니다."""
+        # 즉시 defer (3초 타임아웃 방지)
+        await interaction.response.defer(ephemeral=True)
+
         try:
             if not interaction.guild:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "이 명령어는 서버에서만 사용할 수 있어요!",
                     ephemeral=True
                 )
@@ -287,14 +286,11 @@ async def setup_voice_commands(bot):
 
             # 관리자 권한 체크
             if not interaction.user.guild_permissions.administrator:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "이 명령어는 서버 관리자만 사용할 수 있어요!",
                     ephemeral=True
                 )
                 return
-
-            # 즉시 defer
-            await interaction.response.defer(ephemeral=True)
 
             # 명령어 사용 로깅
             await log_command_usage(
@@ -338,16 +334,13 @@ async def setup_voice_commands(bot):
 
         except Exception as e:
             logger.error(f"음성설정 명령어 오류: {e}")
-            if not interaction.response.is_done():
-                await interaction.response.send_message(
-                    f"오류가 발생했어요: {str(e)}",
-                    ephemeral=True
-                )
-            else:
+            try:
                 await interaction.followup.send(
                     f"오류가 발생했어요: {str(e)}",
                     ephemeral=True
                 )
+            except:
+                pass
 
     @bot.tree.command(name="읽기채널해제", description="TTS 채널 설정을 해제합니다")
     @app_commands.default_permissions(administrator=True)
@@ -504,7 +497,8 @@ async def handle_tts_message(message: discord.Message):
                     text_hash = hashlib.md5(f"{word}_mixed_{i}".encode()).hexdigest()[:8]
                     mixed_path = os.path.join("/tmp/tts_audio", f"mixed_{text_hash}.wav")
 
-                    mixed_audio = GPTSoVITSService.mix_audio_files(
+                    from run.services.tts.cosyvoice_service import mix_audio_files
+                    mixed_audio = mix_audio_files(
                         [debi_audio, marlene_audio],
                         mixed_path
                     )
@@ -518,7 +512,8 @@ async def handle_tts_message(message: discord.Message):
             message_hash = hashlib.md5(message.content.encode()).hexdigest()[:8]
             final_path = os.path.join("/tmp/tts_audio", f"final_{message_hash}.wav")
 
-            final_audio = GPTSoVITSService.concatenate_audio_files(
+            from run.services.tts.cosyvoice_service import concatenate_audio_files
+            final_audio = concatenate_audio_files(
                 audio_segments,
                 final_path
             )

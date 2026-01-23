@@ -25,7 +25,22 @@
       "Bash(docker build:*)",
       "Bash(docker save:*)",
       "Bash(gzip:*)",
-      "Bash(scp:*)"
+      "Bash(scp:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(python:*)",
+      "Bash(powershell -Command \"Test-Path ''c:\\\\Users\\\\2rami\\\\Desktop\\\\KASA\\\\debi-marlene\\\\.venv\\\\Scripts\\\\python.exe''\")",
+      "Bash(powershell -Command \"Get-ChildItem ''c:\\\\Users\\\\2rami\\\\Desktop\\\\KASA\\\\debi-marlene\\\\'' -Directory | Select-Object Name\")",
+      "Bash(powershell:*)",
+      "Bash(dir \"c:\\\\Users\\\\2rami\\\\Desktop\\\\KASA\\\\CosyVoice\\\\pretrained_models\\\\Fun-CosyVoice3-0.5B\" /T:W)",
+      "Bash(ls:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(git clone:*)",
+      "Bash(conda run:*)",
+      "Bash(conda activate:*)",
+      "Bash(conda install:*)",
+      "Bash(c:/Users/2rami/Desktop/KASA/debi-marlene/tts_training/Style-Bert-VITS2/venv/Scripts/pip install:*)",
+      "Bash(docker --version:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

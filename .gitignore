@@ -122,4 +122,5 @@ docker-compose.override.yml
 *.cache
 
 # TTS 관련
-Debi&Marlene_KOR
+Debi&Marlene_KOR/
+Debi&Marlene_KOR.zip

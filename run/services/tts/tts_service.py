@@ -1,8 +1,11 @@
 """
-TTS 서비스: CosyVoice3 또는 Qwen3-TTS 사용
+TTS 서비스: Qwen3-TTS 사용
 
 데비&마를렌 음성으로 TTS를 제공합니다.
-로컬 GPU 환경에서만 작동합니다.
+
+엔진 종류:
+- qwen3_api: Qwen3-TTS FastAPI 서버 (권장)
+- qwen3: Qwen3-TTS 로컬 모델
 """
 
 import os
@@ -11,16 +14,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# 환경변수로 TTS 엔진 선택 (cosyvoice 또는 qwen3)
-TTS_ENGINE = os.environ.get("TTS_ENGINE", "cosyvoice")
+# 환경변수로 TTS 엔진 선택 (qwen3_api / qwen3)
+TTS_ENGINE = os.environ.get("TTS_ENGINE", "qwen3_api")
 
 
 class TTSService:
     """
     TTS 엔진 클래스
 
-    CosyVoice3 또는 Qwen3-TTS를 사용합니다.
-    환경변수 TTS_ENGINE으로 선택 (cosyvoice / qwen3)
+    Qwen3-TTS를 사용합니다.
+    환경변수 TTS_ENGINE으로 선택 (qwen3_api / qwen3)
     """
 
     def __init__(
@@ -39,7 +42,7 @@ class TTSService:
             config_path: 설정 파일 경로 (사용 안 함, 하위 호환용)
             default_model: 언어 코드 (기본값: 'ko')
             speaker: 화자 이름 (debi, marlene)
-            engine: TTS 엔진 (cosyvoice / qwen3)
+            engine: TTS 엔진 (qwen3_api / qwen3)
         """
         self.language = default_model
         self.temp_dir = "/tmp/tts_audio"
@@ -55,16 +58,18 @@ class TTSService:
         if self.tts_backend is not None:
             return
 
-        if self.engine == "qwen3":
+        if self.engine == "qwen3_api":
+            # API 서버 사용 (권장)
+            from .qwen3_tts_client import Qwen3TTSClient
+            self.tts_backend = Qwen3TTSClient()
+            await self.tts_backend.initialize()
+            logger.info("Qwen3-TTS API 클라이언트 초기화 완료")
+        else:
+            # 로컬 모델 직접 로드
             from .qwen3_tts_service import Qwen3TTSService
             self.tts_backend = Qwen3TTSService()
             await self.tts_backend.initialize()
-            logger.info("Qwen3-TTS 초기화 완료")
-        else:
-            from .cosyvoice_service import CosyVoiceService
-            self.tts_backend = CosyVoiceService()
-            await self.tts_backend.initialize()
-            logger.info("CosyVoice3 초기화 완료")
+            logger.info("Qwen3-TTS 로컬 모델 초기화 완료")
 
     async def text_to_speech(
         self,

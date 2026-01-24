@@ -124,3 +124,13 @@ docker-compose.override.yml
 # TTS 관련
 Debi&Marlene_KOR/
 Debi&Marlene_KOR.zip
+
+# TTS 모델 파일 (용량이 큼)
+*.safetensors
+checkpoint-epoch-*/
+tests/qwen3_tts_test/output/
+
+# Fish Speech 학습 데이터
+tts_training/fish_speech_data/
+tts_training/fish_speech_data.zip
+tts_training/Fish_Speech_Finetune.ipynb

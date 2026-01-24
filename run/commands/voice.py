@@ -40,8 +40,8 @@ async def get_tts_service(character: str = "default") -> TTSService:
     if character in tts_services:
         return tts_services[character]
 
-    # CosyVoice3 사용
-    logger.info(f"CosyVoice3 TTS 사용 ({character})")
+    # Qwen3-TTS 사용
+    logger.info(f"Qwen3-TTS 사용 ({character})")
     tts_service = TTSService(speaker=character)
 
     await tts_service.initialize()
@@ -497,7 +497,7 @@ async def handle_tts_message(message: discord.Message):
                     text_hash = hashlib.md5(f"{word}_mixed_{i}".encode()).hexdigest()[:8]
                     mixed_path = os.path.join("/tmp/tts_audio", f"mixed_{text_hash}.wav")
 
-                    from run.services.tts.cosyvoice_service import mix_audio_files
+                    from run.services.tts.audio_utils import mix_audio_files
                     mixed_audio = mix_audio_files(
                         [debi_audio, marlene_audio],
                         mixed_path
@@ -512,7 +512,7 @@ async def handle_tts_message(message: discord.Message):
             message_hash = hashlib.md5(message.content.encode()).hexdigest()[:8]
             final_path = os.path.join("/tmp/tts_audio", f"final_{message_hash}.wav")
 
-            from run.services.tts.cosyvoice_service import concatenate_audio_files
+            from run.services.tts.audio_utils import concatenate_audio_files
             final_audio = concatenate_audio_files(
                 audio_segments,
                 final_path

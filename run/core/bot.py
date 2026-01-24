@@ -249,15 +249,15 @@ async def on_ready():
     print(f"[정보] 현재 {guild_count}개 서버에 연결되었습니다, 총 {total_members}명 사용자", flush=True)
     sys.stdout.flush()
 
-    # CosyVoice3 TTS 모델 미리 로드
+    # Qwen3-TTS API 클라이언트 초기화
     try:
-        print("[TTS] CosyVoice3 모델 로드 시작...", flush=True)
+        print("[TTS] Qwen3-TTS 초기화 시작...", flush=True)
         from run.commands.voice import get_tts_service
         await get_tts_service("debi")
         await get_tts_service("marlene")
-        print("[TTS] CosyVoice3 모델 로드 완료! (Debi, Marlene)", flush=True)
+        print("[TTS] Qwen3-TTS 초기화 완료! (Debi, Marlene)", flush=True)
     except Exception as e:
-        print(f"[TTS] CosyVoice3 모델 로드 실패: {e}", flush=True)
+        print(f"[TTS] Qwen3-TTS 초기화 실패: {e}", flush=True)
 
     # settings.json에 기존 서버들의 이름 정보를 한 번에 업데이트
 

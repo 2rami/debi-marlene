@@ -39,7 +39,8 @@
       "Bash(conda run:*)",
       "Bash(conda activate:*)",
       "Bash(conda install:*)",
-      "Bash(docker --version:*)"
+      "Bash(docker --version:*)",
+      "Bash(modal app logs:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -16,17 +16,17 @@ if sys.platform == 'win32':
 
 from run.core.bot import bot
 from run.core import config
-from run.commands import register_all_commands
+from run.cogs import setup_all_cogs
 
 
 async def setup():
-    """봇 초기화 및 명령어 등록"""
+    """봇 초기화 및 Cog 등록"""
     # 삭제된 서버 정리
     print("[정리] 삭제된 서버 정리 시작...", flush=True)
     config.cleanup_removed_servers()
 
-    # 모든 명령어 등록
-    await register_all_commands(bot)
+    # 모든 Cog 등록
+    await setup_all_cogs(bot)
 
 
 def run_bot():

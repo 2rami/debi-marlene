@@ -18,6 +18,7 @@ from run.commands.music import setup_music_commands
 async def register_all_commands(bot):
     """
     모든 명령어를 봇에 등록합니다.
+    (레거시 - Cog 사용을 권장합니다)
 
     Args:
         bot: Discord 봇 인스턴스

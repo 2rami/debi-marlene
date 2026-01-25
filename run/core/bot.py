@@ -252,7 +252,7 @@ async def on_ready():
     # Qwen3-TTS API 클라이언트 초기화
     try:
         print("[TTS] Qwen3-TTS 초기화 시작...", flush=True)
-        from run.commands.voice import get_tts_service
+        from run.cogs.voice import get_tts_service
         await get_tts_service("debi")
         await get_tts_service("marlene")
         print("[TTS] Qwen3-TTS 초기화 완료! (Debi, Marlene)", flush=True)
@@ -521,7 +521,7 @@ async def on_message(message):
     # TTS 메시지 처리 (서버 메시지만)
     if message.guild:
         try:
-            from run.commands.voice import handle_tts_message
+            from run.cogs.voice import handle_tts_message
             await handle_tts_message(message)
         except Exception as e:
             import logging

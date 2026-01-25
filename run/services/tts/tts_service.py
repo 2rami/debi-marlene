@@ -4,7 +4,8 @@ TTS 서비스: Qwen3-TTS 사용
 데비&마를렌 음성으로 TTS를 제공합니다.
 
 엔진 종류:
-- qwen3_api: Qwen3-TTS FastAPI 서버 (권장)
+- modal: Modal Serverless TTS (권장, Flash Attention)
+- qwen3_api: Qwen3-TTS FastAPI 서버 (로컬)
 - qwen3: Qwen3-TTS 로컬 모델
 """
 
@@ -14,8 +15,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# 환경변수로 TTS 엔진 선택 (qwen3_api / qwen3)
-TTS_ENGINE = os.environ.get("TTS_ENGINE", "qwen3_api")
+# 환경변수로 TTS 엔진 선택 (modal / qwen3_api / qwen3)
+TTS_ENGINE = os.environ.get("TTS_ENGINE", "modal")
 
 
 class TTSService:
@@ -58,8 +59,14 @@ class TTSService:
         if self.tts_backend is not None:
             return
 
-        if self.engine == "qwen3_api":
-            # API 서버 사용 (권장)
+        if self.engine == "modal":
+            # Modal Serverless TTS (권장)
+            from .modal_tts_client import ModalTTSClient
+            self.tts_backend = ModalTTSClient()
+            await self.tts_backend.initialize()
+            logger.info("Modal TTS 클라이언트 초기화 완료")
+        elif self.engine == "qwen3_api":
+            # 로컬 API 서버 사용
             from .qwen3_tts_client import Qwen3TTSClient
             self.tts_backend = Qwen3TTSClient()
             await self.tts_backend.initialize()

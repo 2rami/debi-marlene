@@ -68,7 +68,7 @@ start:
 		--command="docker pull $(IMAGE_TAG) && docker image prune -f"
 	@echo "🚀 컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker run -d --name $(CONTAINER_NAME) -p 5001:5001 -p 8080:8080 --restart unless-stopped $(IMAGE_TAG)"
+		--command="docker run -d --name $(CONTAINER_NAME) -p 5001:5001 -p 8080:8080 --env-file $(VM_PATH)/.env --restart unless-stopped $(IMAGE_TAG)"
 	@echo "✅ 시작 완료"
 
 # 컨테이너 로그 확인

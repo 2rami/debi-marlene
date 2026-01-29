@@ -1,0 +1,188 @@
+"""
+TTS 텍스트 전처리
+
+한글 자음 조합 인터넷 용어, 이모티콘 등을 읽을 수 있는 형태로 변환합니다.
+효과음 감지 기능도 포함합니다.
+"""
+
+import re
+from typing import List, Dict, Any
+
+# 자음 조합 인터넷 용어 (순서 중요: 긴 패턴 먼저)
+JAMO_SLANG = {
+    # 3글자 이상
+    "ㅋㅋㅋ": "크크크",
+    "ㅎㅎㅎ": "흐흐흐",
+    "ㄱㄱㄱ": "고고고",
+    "ㅇㅇㅇ": "응응응",
+    # 2글자 조합
+    "ㄱㄱ": "고고",
+    "ㅎㅎ": "흐흐",
+    "ㅋㅋ": "크크",
+    "ㅅㅅ": "샷샷",
+    "ㄲㅂ": "까비",
+    "ㅇㅎ": "아하",
+    "ㅇㅇ": "응응",
+    "ㄴㄴ": "노노",
+    "ㅈㅈ": "지지",
+    "ㄷㄷ": "덜덜",
+    "ㅂㅂ": "바바",
+    "ㅊㅊ": "추추",
+    "ㅌㅌ": "ㅌㅌ",
+    "ㄱㅅ": "감사",
+    "ㅅㄱ": "수고",
+    "ㅈㅅ": "죄송",
+    "ㄱㄷ": "기다",
+    "ㄱㅊ": "괜찮",
+    "ㅇㅋ": "오케이",
+    "ㅎㅇ": "하이",
+    "ㅂㅇ": "바이",
+    "ㅁㅊ": "미친",
+    "ㅇㄷ": "어디",
+    "ㄹㅇ": "리얼",
+    "ㅈㄹ": "지랄",
+    "ㄱㅇ": "개이득",
+    "ㅁㄹ": "몰라",
+    "ㅇㅈ": "인정",
+    "ㄴㅇ": "노잼",
+    # 단일 자음 (문장 끝에서)
+    "ㅋ": "크",
+    "ㅎ": "흐",
+    "ㅇ": "응",
+}
+
+# 모음 반복 패턴
+MOUM_PATTERNS = {
+    "ㅠㅠ": "흑흑",
+    "ㅜㅜ": "흑흑",
+    "ㅠㅠㅠ": "흑흑흑",
+    "ㅜㅜㅜ": "흑흑흑",
+}
+
+
+def preprocess_text_for_tts(text: str) -> str:
+    """
+    TTS용 텍스트 전처리
+
+    Args:
+        text: 원본 텍스트
+
+    Returns:
+        TTS가 읽을 수 있는 형태로 변환된 텍스트
+    """
+    if not text:
+        return text
+
+    result = text
+
+    # 1. 모음 패턴 먼저 (긴 것부터)
+    for pattern, replacement in sorted(MOUM_PATTERNS.items(), key=lambda x: -len(x[0])):
+        result = result.replace(pattern, replacement)
+
+    # 2. 자음 조합 변환 (긴 패턴부터 처리)
+    # ㅋㅋㅋㅋ 같은 연속 패턴 처리
+    result = re.sub(r"ㅋ{4,}", lambda m: "크" * len(m.group()), result)
+    result = re.sub(r"ㅎ{4,}", lambda m: "흐" * len(m.group()), result)
+    result = re.sub(r"ㄱ{4,}", lambda m: "고" * len(m.group()), result)
+    result = re.sub(r"ㅇ{4,}", lambda m: "응" * len(m.group()), result)
+
+    # 3. 정의된 자음 조합 변환 (긴 것부터)
+    for pattern, replacement in sorted(JAMO_SLANG.items(), key=lambda x: -len(x[0])):
+        result = result.replace(pattern, replacement)
+
+    # 4. URL 제거 또는 "링크"로 대체
+    result = re.sub(r"https?://\S+", "링크", result)
+
+    # 5. 멘션 처리 (<@123456> → "")
+    result = re.sub(r"<@!?\d+>", "", result)
+
+    # 6. 채널 멘션 처리 (<#123456> → "")
+    result = re.sub(r"<#\d+>", "", result)
+
+    # 7. 역할 멘션 처리 (<@&123456> → "")
+    result = re.sub(r"<@&\d+>", "", result)
+
+    # 8. 커스텀 이모지 처리 (<:name:123456> → "")
+    result = re.sub(r"<a?:\w+:\d+>", "", result)
+
+    # 9. 연속 공백 정리
+    result = re.sub(r"\s+", " ", result).strip()
+
+    return result
+
+
+# 효과음 트리거 패턴
+SFX_PATTERNS = {
+    r"ㅋ{6,}": "laugh",  # ㅋㅋㅋㅋㅋㅋ 이상 → 웃음
+    r"ㅎ{6,}": "laugh",  # ㅎㅎㅎㅎㅎㅎ 이상 → 웃음
+    r"꺄르륵": "laugh",  # 꺄르륵 → 웃음
+    r"으악": "die",      # 으악 → 비명
+    r"흐앗": "attack",   # 흐앗 → 기합
+}
+
+
+def extract_segments_with_sfx(text: str) -> List[Dict[str, Any]]:
+    """
+    텍스트에서 효과음이 필요한 부분을 분리합니다.
+
+    Args:
+        text: 원본 텍스트
+
+    Returns:
+        세그먼트 리스트. 각 세그먼트는 다음 형식:
+        - {"type": "text", "content": "텍스트"}
+        - {"type": "sfx", "name": "laugh"}
+
+    예시:
+        "안녕 ㅋㅋㅋㅋㅋㅋㅋ 반가워" →
+        [
+            {"type": "text", "content": "안녕"},
+            {"type": "sfx", "name": "laugh"},
+            {"type": "text", "content": "반가워"}
+        ]
+    """
+    if not text:
+        return []
+
+    segments = []
+    remaining = text
+
+    # 모든 효과음 패턴을 합쳐서 찾기
+    combined_pattern = "|".join(f"({p})" for p in SFX_PATTERNS.keys())
+
+    while remaining:
+        match = re.search(combined_pattern, remaining)
+
+        if not match:
+            # 더 이상 효과음 없음 → 남은 텍스트 추가
+            cleaned = remaining.strip()
+            if cleaned:
+                segments.append({"type": "text", "content": cleaned})
+            break
+
+        # 효과음 앞의 텍스트
+        before = remaining[:match.start()].strip()
+        if before:
+            segments.append({"type": "text", "content": before})
+
+        # 어떤 효과음인지 확인
+        matched_text = match.group()
+        sfx_name = None
+        for pattern, name in SFX_PATTERNS.items():
+            if re.match(pattern, matched_text):
+                sfx_name = name
+                break
+
+        if sfx_name:
+            segments.append({"type": "sfx", "name": sfx_name})
+
+        # 나머지 텍스트로 진행
+        remaining = remaining[match.end():]
+
+    return segments
+
+
+def has_sfx_triggers(text: str) -> bool:
+    """텍스트에 효과음 트리거가 있는지 확인합니다."""
+    combined_pattern = "|".join(SFX_PATTERNS.keys())
+    return bool(re.search(combined_pattern, text))

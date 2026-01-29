@@ -13,6 +13,8 @@ import os
 from typing import Optional
 import logging
 
+from .text_preprocessor import preprocess_text_for_tts
+
 logger = logging.getLogger(__name__)
 
 # 환경변수로 TTS 엔진 선택 (modal / qwen3_api / qwen3)
@@ -96,8 +98,13 @@ class TTSService:
         if not self.tts_backend:
             raise RuntimeError("TTS 서비스가 초기화되지 않았습니다. initialize()를 먼저 호출하세요.")
 
+        # 텍스트 전처리 (ㅋㅋ → 크크, ㄱㄱ → 고고 등)
+        processed_text = preprocess_text_for_tts(text)
+        if processed_text != text:
+            logger.info(f"텍스트 전처리: '{text}' -> '{processed_text}'")
+
         return await self.tts_backend.text_to_speech(
-            text=text,
+            text=processed_text,
             speaker=self.speaker,
             language=self.language,
             output_path=output_path

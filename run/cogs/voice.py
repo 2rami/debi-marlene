@@ -11,12 +11,17 @@ from typing import Optional
 import logging
 import os
 import hashlib
+import random
 
 from run.services.tts import TTSService, AudioPlayer
+from run.services.tts.text_preprocessor import extract_segments_with_sfx, has_sfx_triggers
 from run.core.config import load_settings, save_settings
 from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
+
+# 효과음 파일 경로
+SFX_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "sfx")
 
 # 전역 인스턴스
 audio_player: Optional[AudioPlayer] = None
@@ -38,6 +43,28 @@ async def get_tts_service(character: str = "default") -> TTSService:
     tts_services[character] = tts_service
 
     return tts_service
+
+
+def get_random_sfx(sfx_name: str, character: str = "debi") -> Optional[str]:
+    """랜덤 효과음 파일 경로를 반환합니다."""
+    sfx_character_dir = os.path.join(SFX_DIR, character)
+
+    if not os.path.exists(sfx_character_dir):
+        logger.warning(f"효과음 폴더 없음: {sfx_character_dir}")
+        return None
+
+    # 효과음 이름에 맞는 파일 찾기
+    sfx_files = [
+        f for f in os.listdir(sfx_character_dir)
+        if sfx_name in f.lower() and f.endswith(".wav")
+    ]
+
+    if not sfx_files:
+        logger.warning(f"{character}의 {sfx_name} 효과음 파일 없음")
+        return None
+
+    selected = random.choice(sfx_files)
+    return os.path.join(sfx_character_dir, selected)
 
 
 async def initialize_audio_player():
@@ -236,12 +263,11 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
             except:
                 pass
 
-    @app_commands.command(name="목소리", description="TTS 음성을 설정합니다 (데비/마를렌/교대)")
+    @app_commands.command(name="목소리", description="TTS 음성을 설정합니다 (데비/마를렌)")
     @app_commands.describe(음성="사용할 음성 선택")
     @app_commands.choices(음성=[
         app_commands.Choice(name="데비", value="debi"),
         app_commands.Choice(name="마를렌", value="marlene"),
-        app_commands.Choice(name="교대 (데비+마를렌)", value="alternate"),
     ])
     @app_commands.default_permissions(administrator=True)
     async def set_tts_voice(
@@ -287,19 +313,9 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
             settings["guilds"][guild_id]["tts_voice"] = 음성.value
             save_settings(settings)
 
-            if 음성.value == "alternate":
-                description = (
-                    "교대 모드가 설정되었어요!\n\n"
-                    "1번째 단어: 데비\n"
-                    "2번째 단어: 마를렌\n"
-                    "3번째 이후: 데비 + 마를렌 동시에"
-                )
-            else:
-                description = f"{음성.name} 목소리로 메시지를 읽어드릴게요!"
-
             embed = discord.Embed(
                 title="TTS 음성 설정 완료",
-                description=description,
+                description=f"{음성.name} 목소리로 메시지를 읽어드릴게요!",
                 color=0x7289DA
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
@@ -394,74 +410,51 @@ async def handle_tts_message(message: discord.Message):
         if not message.content.strip():
             return
 
-        tts_voice = guild_settings.get("tts_voice", "alternate")
+        tts_voice = guild_settings.get("tts_voice", "debi")
 
-        if tts_voice in ["debi", "marlene"]:
-            logger.info(f"TTS 단일 목소리 모드: {tts_voice}")
+        # alternate가 설정된 경우 debi로 대체 (교대 모드 제거됨)
+        if tts_voice not in ["debi", "marlene"]:
+            tts_voice = "debi"
 
+        logger.info(f"TTS 목소리: {tts_voice}")
+
+        # 효과음 트리거 확인 (ㅋ 6개 이상 등)
+        if has_sfx_triggers(message.content):
+            segments = extract_segments_with_sfx(message.content)
+            logger.info(f"효과음 감지됨. 세그먼트: {len(segments)}개")
+
+            audio_segments = []
+            for seg in segments:
+                if seg["type"] == "text" and seg["content"].strip():
+                    tts_service = await get_tts_service(tts_voice)
+                    audio_path = await tts_service.text_to_speech(text=seg["content"])
+                    audio_segments.append(audio_path)
+                elif seg["type"] == "sfx":
+                    sfx_path = get_random_sfx(seg["name"], tts_voice)
+                    if sfx_path:
+                        audio_segments.append(sfx_path)
+                        logger.info(f"효과음 추가: {seg['name']} -> {os.path.basename(sfx_path)}")
+
+            # 세그먼트 이어붙이기
+            if len(audio_segments) == 1:
+                await audio_player.play_audio(guild_id, audio_segments[0])
+            elif len(audio_segments) > 1:
+                message_hash = hashlib.md5(message.content.encode()).hexdigest()[:8]
+                final_path = os.path.join("/tmp/tts_audio", f"sfx_{message_hash}.wav")
+
+                from run.services.tts.audio_utils import concatenate_audio_files
+                final_audio = concatenate_audio_files(audio_segments, final_path)
+                await audio_player.play_audio(guild_id, final_audio)
+
+            logger.info("TTS + 효과음 재생 완료")
+        else:
+            # 효과음 없음 - 일반 TTS
             tts_service = await get_tts_service(tts_voice)
             audio_path = await tts_service.text_to_speech(text=message.content)
 
             logger.info(f"TTS 변환 완료: {audio_path}")
             await audio_player.play_audio(guild_id, audio_path)
-            logger.info("TTS 단일 목소리 재생 완료")
-
-        else:
-            logger.info("TTS 교대 모드: 데비와 마를렌 교대로 말하기")
-
-            words = message.content.strip().split()
-            logger.info(f"TTS 교대 말하기: {len(words)}개 단어 처리")
-
-            audio_segments = []
-
-            for i, word in enumerate(words):
-                if i == 0:
-                    logger.info(f"[{i}] 데비: {word}")
-                    tts_service = await get_tts_service("debi")
-                    audio_path = await tts_service.text_to_speech(text=word)
-                    audio_segments.append(audio_path)
-
-                elif i == 1:
-                    logger.info(f"[{i}] 마를렌: {word}")
-                    tts_service = await get_tts_service("marlene")
-                    audio_path = await tts_service.text_to_speech(text=word)
-                    audio_segments.append(audio_path)
-
-                else:
-                    logger.info(f"[{i}] 데비 + 마를렌 동시: {word}")
-
-                    debi_service = await get_tts_service("debi")
-                    debi_audio = await debi_service.text_to_speech(text=word)
-
-                    marlene_service = await get_tts_service("marlene")
-                    marlene_audio = await marlene_service.text_to_speech(text=word)
-
-                    text_hash = hashlib.md5(f"{word}_mixed_{i}".encode()).hexdigest()[:8]
-                    mixed_path = os.path.join("/tmp/tts_audio", f"mixed_{text_hash}.wav")
-
-                    from run.services.tts.audio_utils import mix_audio_files
-                    mixed_audio = mix_audio_files(
-                        [debi_audio, marlene_audio],
-                        mixed_path
-                    )
-
-                    logger.info(f"TTS 믹싱 완료: {mixed_audio}")
-                    audio_segments.append(mixed_audio)
-
-            logger.info(f"총 {len(audio_segments)}개 오디오 세그먼트 이어붙이기 시작")
-
-            message_hash = hashlib.md5(message.content.encode()).hexdigest()[:8]
-            final_path = os.path.join("/tmp/tts_audio", f"final_{message_hash}.wav")
-
-            from run.services.tts.audio_utils import concatenate_audio_files
-            final_audio = concatenate_audio_files(
-                audio_segments,
-                final_path
-            )
-
-            logger.info(f"최종 오디오 생성 완료: {final_audio}")
-            await audio_player.play_audio(guild_id, final_audio)
-            logger.info("TTS 교대 말하기 처리 완료")
+            logger.info("TTS 재생 완료")
 
     except Exception as e:
         logger.error(f"TTS 메시지 처리 오류: {e}")

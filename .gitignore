@@ -124,6 +124,7 @@ docker-compose.override.yml
 # TTS 관련
 Debi&Marlene_KOR/
 Debi&Marlene_KOR.zip
+debi_tts_data.zip
 
 # TTS 모델 파일 (용량이 큼)
 *.safetensors

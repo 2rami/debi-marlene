@@ -2,6 +2,7 @@
 음악 플레이어
 
 서버별 음악 재생을 관리하는 MusicPlayer와 전역 관리자 MusicManager를 제공합니다.
+공유 VoiceManager를 사용하여 TTS와 동일한 voice_client를 공유합니다.
 """
 
 import asyncio
@@ -15,6 +16,7 @@ from typing import Optional, Dict, List
 import discord
 
 from run.services.music.youtube_extractor import Song, YouTubeExtractor
+from run.services.voice_manager import voice_manager, AudioType
 
 logger = logging.getLogger(__name__)
 
@@ -39,51 +41,50 @@ def find_ffmpeg() -> str:
 FFMPEG_PATH = find_ffmpeg()
 logger.info(f"Music ffmpeg 경로: {FFMPEG_PATH}")
 
-# FFmpeg 스트리밍 옵션
+# FFmpeg 스트리밍 옵션 (YouTube 403 방지를 위한 헤더 포함)
 FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"',
     'options': '-vn'
 }
 
 
 class MusicPlayer:
-    """서버별 음악 플레이어"""
+    """서버별 음악 플레이어 (VoiceManager 사용)"""
 
     def __init__(self, guild_id: str):
         self.guild_id = guild_id
         self.queue: deque[Song] = deque()
         self.current: Optional[Song] = None
-        self.voice_client: Optional[discord.VoiceClient] = None
         self.is_playing: bool = False
         self._play_next_event = asyncio.Event()
 
     async def join(self, channel: discord.VoiceChannel) -> bool:
         """음성 채널에 입장합니다."""
-        try:
-            if self.voice_client and self.voice_client.is_connected():
-                await self.voice_client.move_to(channel)
-            else:
-                self.voice_client = await channel.connect()
+        success = await voice_manager.join(channel)
+        if success:
             logger.info(f"[Music] 음성 채널 입장: {channel.name}")
-            return True
-        except Exception as e:
-            logger.error(f"[Music] 음성 채널 입장 실패: {e}")
-            return False
+        return success
 
     async def leave(self) -> bool:
         """음성 채널에서 퇴장합니다."""
         try:
-            if self.voice_client:
-                if self.voice_client.is_playing():
-                    self.voice_client.stop()
-                await self.voice_client.disconnect()
-                self.voice_client = None
+            # 재생 중지
+            vc = voice_manager.get_voice_client(self.guild_id)
+            if vc and vc.is_playing():
+                vc.stop()
 
+            # 상태 정리
             self.queue.clear()
             self.current = None
             self.is_playing = False
-            logger.info(f"[Music] 음성 채널 퇴장: {self.guild_id}")
-            return True
+            voice_manager.clear_music_state(self.guild_id)
+
+            # 연결 해제
+            success = await voice_manager.leave(self.guild_id)
+            if success:
+                logger.info(f"[Music] 음성 채널 퇴장: {self.guild_id}")
+            return success
+
         except Exception as e:
             logger.error(f"[Music] 음성 채널 퇴장 실패: {e}")
             return False
@@ -111,17 +112,18 @@ class MusicPlayer:
         while self.queue:
             self.current = self.queue.popleft()
 
-            if not self.voice_client or not self.voice_client.is_connected():
+            vc = voice_manager.get_voice_client(self.guild_id)
+            if not vc or not vc.is_connected():
                 break
 
-            # 스트림 URL 갱신 (만료 방지)
-            if not self.current.stream_url:
-                new_url = await YouTubeExtractor.refresh_stream_url(self.current)
-                if new_url:
-                    self.current.stream_url = new_url
-                else:
-                    logger.error(f"[Music] 스트림 URL 갱신 실패: {self.current.title}")
-                    continue
+            # 스트림 URL 갱신 (만료된 URL 사용 방지 - 항상 갱신)
+            new_url = await YouTubeExtractor.refresh_stream_url(self.current)
+            if new_url:
+                self.current.stream_url = new_url
+                logger.info(f"[Music] 스트림 URL 갱신 완료: {self.current.title}")
+            else:
+                logger.error(f"[Music] 스트림 URL 갱신 실패: {self.current.title}")
+                continue
 
             try:
                 audio_source = discord.FFmpegPCMAudio(
@@ -137,7 +139,10 @@ class MusicPlayer:
                         logger.error(f"[Music] 재생 오류: {error}")
                     self._play_next_event.set()
 
-                self.voice_client.play(audio_source, after=after_play)
+                # 음악 재생 상태 설정
+                voice_manager.set_music_playing(self.guild_id)
+
+                vc.play(audio_source, after=after_play)
                 logger.info(f"[Music] 재생 시작: {self.current.title}")
 
                 # 재생 완료 대기
@@ -149,20 +154,24 @@ class MusicPlayer:
 
         self.current = None
         self.is_playing = False
+        voice_manager.clear_music_state(self.guild_id)
 
     async def skip(self) -> Optional[Song]:
         """현재 곡을 건너뜁니다."""
         skipped = self.current
-        if self.voice_client and self.voice_client.is_playing():
-            self.voice_client.stop()
+        vc = voice_manager.get_voice_client(self.guild_id)
+        if vc and vc.is_playing():
+            vc.stop()
         return skipped
 
     async def stop(self):
         """재생을 정지하고 대기열을 비웁니다."""
         self.queue.clear()
-        if self.voice_client and self.voice_client.is_playing():
-            self.voice_client.stop()
+        vc = voice_manager.get_voice_client(self.guild_id)
+        if vc and vc.is_playing():
+            vc.stop()
         self.current = None
+        voice_manager.clear_music_state(self.guild_id)
 
     def get_queue(self) -> List[Song]:
         """대기열 목록을 반환합니다."""
@@ -170,7 +179,7 @@ class MusicPlayer:
 
     def is_connected(self) -> bool:
         """음성 채널 연결 여부"""
-        return self.voice_client is not None and self.voice_client.is_connected()
+        return voice_manager.is_connected(self.guild_id)
 
 
 class MusicManager:

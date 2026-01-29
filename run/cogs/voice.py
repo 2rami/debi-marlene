@@ -392,6 +392,8 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
 # 메시지 이벤트 핸들러
 async def handle_tts_message(message: discord.Message):
     """메시지를 TTS로 읽어줍니다."""
+    from run.services.voice_manager import voice_manager
+
     if message.author.bot:
         return
 
@@ -400,8 +402,16 @@ async def handle_tts_message(message: discord.Message):
 
     guild_id = str(message.guild.id)
 
-    if not audio_player or not audio_player.is_connected(guild_id):
+    # 음성 채널에 연결되어 있는지 확인 (TTS 또는 음악으로 연결)
+    if not voice_manager.is_connected(guild_id):
         return
+
+    # 음악 재생 중이면 TTS 건너뛰기
+    if voice_manager.is_music_playing(guild_id):
+        return
+
+    # audio_player가 없으면 초기화
+    await initialize_audio_player()
 
     # 설정 확인 (락 전에 빠르게)
     settings = load_settings()

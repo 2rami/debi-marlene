@@ -7,11 +7,12 @@ TTS 관련 명령어: 음성입장, 음성퇴장, 음성설정, 읽기채널설�
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional
+from typing import Optional, Dict
 import logging
 import os
 import hashlib
 import random
+import asyncio
 
 from run.services.tts import TTSService, AudioPlayer
 from run.services.tts.text_preprocessor import extract_segments_with_sfx, has_sfx_triggers
@@ -28,6 +29,9 @@ audio_player: Optional[AudioPlayer] = None
 
 # 캐릭터별 TTS 서비스 캐시
 tts_services: dict = {}
+
+# 서버별 TTS 처리 락 (메시지 순서 보장)
+tts_locks: Dict[str, asyncio.Lock] = {}
 
 
 async def get_tts_service(character: str = "default") -> TTSService:
@@ -385,7 +389,7 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
             )
 
 
-# 메시지 이벤트 핸들러 (기존 코드 유지)
+# 메시지 이벤트 핸들러
 async def handle_tts_message(message: discord.Message):
     """메시지를 TTS로 읽어줍니다."""
     if message.author.bot:
@@ -399,65 +403,71 @@ async def handle_tts_message(message: discord.Message):
     if not audio_player or not audio_player.is_connected(guild_id):
         return
 
-    try:
-        settings = load_settings()
-        guild_settings = settings.get("guilds", {}).get(guild_id, {})
+    # 설정 확인 (락 전에 빠르게)
+    settings = load_settings()
+    guild_settings = settings.get("guilds", {}).get(guild_id, {})
 
-        tts_channel_id = guild_settings.get("tts_channel_id")
-        if tts_channel_id and str(message.channel.id) != tts_channel_id:
-            return
+    tts_channel_id = guild_settings.get("tts_channel_id")
+    if tts_channel_id and str(message.channel.id) != tts_channel_id:
+        return
 
-        if not message.content.strip():
-            return
+    if not message.content.strip():
+        return
 
-        tts_voice = guild_settings.get("tts_voice", "debi")
+    # 서버별 락 획득 (메시지 순서 보장)
+    if guild_id not in tts_locks:
+        tts_locks[guild_id] = asyncio.Lock()
 
-        # alternate가 설정된 경우 debi로 대체 (교대 모드 제거됨)
-        if tts_voice not in ["debi", "marlene"]:
-            tts_voice = "debi"
+    async with tts_locks[guild_id]:
+        try:
+            tts_voice = guild_settings.get("tts_voice", "debi")
 
-        logger.info(f"TTS 목소리: {tts_voice}")
+            # alternate가 설정된 경우 debi로 대체 (교대 모드 제거됨)
+            if tts_voice not in ["debi", "marlene"]:
+                tts_voice = "debi"
 
-        # 효과음 트리거 확인 (ㅋ 6개 이상 등)
-        if has_sfx_triggers(message.content):
-            segments = extract_segments_with_sfx(message.content)
-            logger.info(f"효과음 감지됨. 세그먼트: {len(segments)}개")
+            logger.info(f"TTS 목소리: {tts_voice}")
 
-            audio_segments = []
-            for seg in segments:
-                if seg["type"] == "text" and seg["content"].strip():
-                    tts_service = await get_tts_service(tts_voice)
-                    audio_path = await tts_service.text_to_speech(text=seg["content"])
-                    audio_segments.append(audio_path)
-                elif seg["type"] == "sfx":
-                    sfx_path = get_random_sfx(seg["name"], tts_voice)
-                    if sfx_path:
-                        audio_segments.append(sfx_path)
-                        logger.info(f"효과음 추가: {seg['name']} -> {os.path.basename(sfx_path)}")
+            # 효과음 트리거 확인 (ㅋ 6개 이상 등)
+            if has_sfx_triggers(message.content):
+                segments = extract_segments_with_sfx(message.content)
+                logger.info(f"효과음 감지됨. 세그먼트: {len(segments)}개")
 
-            # 세그먼트 이어붙이기
-            if len(audio_segments) == 1:
-                await audio_player.play_audio(guild_id, audio_segments[0])
-            elif len(audio_segments) > 1:
-                message_hash = hashlib.md5(message.content.encode()).hexdigest()[:8]
-                final_path = os.path.join("/tmp/tts_audio", f"sfx_{message_hash}.wav")
+                audio_segments = []
+                for seg in segments:
+                    if seg["type"] == "text" and seg["content"].strip():
+                        tts_service = await get_tts_service(tts_voice)
+                        audio_path = await tts_service.text_to_speech(text=seg["content"])
+                        audio_segments.append(audio_path)
+                    elif seg["type"] == "sfx":
+                        sfx_path = get_random_sfx(seg["name"], tts_voice)
+                        if sfx_path:
+                            audio_segments.append(sfx_path)
+                            logger.info(f"효과음 추가: {seg['name']} -> {os.path.basename(sfx_path)}")
 
-                from run.services.tts.audio_utils import concatenate_audio_files
-                final_audio = concatenate_audio_files(audio_segments, final_path)
-                await audio_player.play_audio(guild_id, final_audio)
+                # 세그먼트 이어붙이기
+                if len(audio_segments) == 1:
+                    await audio_player.play_audio(guild_id, audio_segments[0])
+                elif len(audio_segments) > 1:
+                    message_hash = hashlib.md5(message.content.encode()).hexdigest()[:8]
+                    final_path = os.path.join("/tmp/tts_audio", f"sfx_{message_hash}.wav")
 
-            logger.info("TTS + 효과음 재생 완료")
-        else:
-            # 효과음 없음 - 일반 TTS
-            tts_service = await get_tts_service(tts_voice)
-            audio_path = await tts_service.text_to_speech(text=message.content)
+                    from run.services.tts.audio_utils import concatenate_audio_files
+                    final_audio = concatenate_audio_files(audio_segments, final_path)
+                    await audio_player.play_audio(guild_id, final_audio)
 
-            logger.info(f"TTS 변환 완료: {audio_path}")
-            await audio_player.play_audio(guild_id, audio_path)
-            logger.info("TTS 재생 완료")
+                logger.info("TTS + 효과음 재생 완료")
+            else:
+                # 효과음 없음 - 일반 TTS
+                tts_service = await get_tts_service(tts_voice)
+                audio_path = await tts_service.text_to_speech(text=message.content)
 
-    except Exception as e:
-        logger.error(f"TTS 메시지 처리 오류: {e}")
+                logger.info(f"TTS 변환 완료: {audio_path}")
+                await audio_player.play_audio(guild_id, audio_path)
+                logger.info("TTS 재생 완료")
+
+        except Exception as e:
+            logger.error(f"TTS 메시지 처리 오류: {e}")
 
 
 async def setup(bot: commands.Bot):

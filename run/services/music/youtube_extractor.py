@@ -44,6 +44,11 @@ class YouTubeExtractor:
         'logtostderr': False,
         'no_color': True,
         'noprogress': True,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['ios', 'android'],
+            }
+        },
     }
 
     @classmethod

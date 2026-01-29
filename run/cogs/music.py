@@ -22,17 +22,6 @@ from run.utils.command_logger import log_command_usage
 logger = logging.getLogger(__name__)
 
 
-def is_tts_using_voice(guild_id: str) -> bool:
-    """TTS가 음성 채널을 사용 중인지 확인합니다."""
-    try:
-        from run.cogs.voice import audio_player
-        if audio_player and audio_player.is_connected(guild_id):
-            return True
-    except:
-        pass
-    return False
-
-
 class MusicCog(commands.GroupCog, group_name="음악"):
     """음악 재생 관련 명령어"""
 
@@ -60,13 +49,6 @@ class MusicCog(commands.GroupCog, group_name="음악"):
                 return
 
             guild_id = str(interaction.guild.id)
-
-            if is_tts_using_voice(guild_id):
-                await interaction.response.send_message(
-                    "TTS 기능이 사용 중이에요. `/음성 퇴장` 후에 사용해주세요!",
-                    ephemeral=True
-                )
-                return
 
             await interaction.response.defer()
 

@@ -5,57 +5,63 @@
 ## 주요 기능
 
 ### 전적 검색
+- `/이터널리턴 전적 <닉네임>` - 유저 전적 조회 (MMR, 티어, 승률)
+- `/이터널리턴 통계 [티어] [기간]` - 캐릭터별 통계 조회 (승률, 픽률, 평균 순위)
 
-- `/전적 <닉네임>`: 유저 전적 조회 (MMR, 티어, 승률)
-- `/통계 [티어] [기간]`: 캐릭터별 통계 조회 (승률, 픽률, 평균 순위)
+### 음성 채널 (TTS)
+- `/음성 입장` - 봇이 음성 채널에 입장
+- `/음성 퇴장` - 봇이 음성 채널에서 퇴장
+- `/음성설정 <채널>` - TTS 사용 채널 지정
+- 데비/마를렌 캐릭터 목소리로 채팅을 읽어줌 (AI 음성 합성)
+
+### 음악 재생
+- `/음악 재생 <URL/검색어>` - YouTube 음악 재생
+- `/음악 스킵` - 다음 곡으로 넘기기
+- `/음악 정지` - 재생 중지
 
 ### 유튜브 알림
+- 이터널리턴 공식 YouTube 새 영상 자동 알림 (5분마다 체크)
+- `/유튜브 알림 <받기/안받기>` - 개인 DM 알림 설정
+- `/설정` - [관리자] 서버 알림 채널 설정
 
-- **자동 알림**: 이터널리턴 공식 YouTube 새 영상 자동 알림 (5분마다 체크)
-- `/설정`: [관리자] 서버의 유튜브 알림 채널 설정
-- `/유튜브알림 <받기>`: 개인 DM으로 유튜브 알림 받기/해제
-- `/유튜브테스트`: [관리자] 유튜브 알림 수동 테스트
-
-### 피드백
-
-- `/피드백 <내용>`: 봇 개발자에게 피드백 전송
+### 기타
+- `/피드백 <내용>` - 봇 개발자에게 피드백 전송
 
 ## 프로젝트 구조
 
 ```
 debi-marlene/
-├── main.py                         # 봇 실행 진입점
-├── run/                            # 봇 핵심 모듈
-│   ├── commands/                   # 슬래시 명령어
-│   │   ├── stats.py                # /전적 명령어
-│   │   ├── character.py            # /통계 명령어
-│   │   ├── settings.py             # /설정 명령어
-│   │   ├── youtube.py              # /유튜브알림, /유튜브테스트 명령어
-│   │   ├── feedback.py             # /피드백 명령어
-│   │   └── voice.py                # 음성 채널 명령어 (비활성화)
-│   ├── core/                       # 핵심 시스템
-│   │   ├── bot.py                  # Discord 봇 로직
-│   │   └── config.py               # GCS 설정 관리
-│   ├── services/                   # 외부 서비스 연동
-│   │   ├── eternal_return/         # 이터널리턴 API
-│   │   │   ├── api_client.py       # API 클라이언트
-│   │   │   └── graph_generator.py  # MMR 그래프 생성
-│   │   ├── tts/                    # TTS 서비스
-│   │   └── youtube_service.py      # 유튜브 알림 서비스
-│   ├── utils/                      # 유틸리티
-│   │   ├── command_logger.py       # 명령어 사용 로깅
-│   │   ├── embeds.py               # Discord 임베드 헬퍼
-│   │   └── emoji_utils.py          # 이모지 관리
-│   └── views/                      # UI 포맷팅
-│       ├── character_view.py       # 캐릭터 통계 UI
-│       ├── settings_view.py        # 설정 UI
-│       ├── stats_view.py           # 전적 검색 UI
-│       └── welcome_view.py         # 환영 메시지 UI
-├── assets/                         # 이미지 및 정적 자원
-├── requirements.txt                # Python 의존성
-├── Dockerfile                      # Docker 이미지
-├── CLAUDE.md                       # 개발 가이드
-└── README.md                       # 프로젝트 문서
+├── main.py                      # 봇 실행 진입점
+├── run/
+│   ├── core/
+│   │   ├── bot.py               # Discord 봇 로직
+│   │   └── config.py            # GCS 설정 관리
+│   ├── cogs/                    # 명령어 모듈
+│   │   ├── eternal_return.py    # 전적/통계 명령어
+│   │   ├── voice.py             # 음성 채널 (TTS)
+│   │   ├── music.py             # 음악 재생
+│   │   ├── youtube.py           # 유튜브 알림
+│   │   ├── settings.py          # 서버 설정
+│   │   └── utility.py           # 피드백 등
+│   ├── services/
+│   │   ├── eternal_return/      # 이터널리턴 API
+│   │   │   ├── api_client.py    # Dak.gg API 클라이언트
+│   │   │   └── graph_generator.py
+│   │   ├── tts/                 # TTS 서비스
+│   │   │   ├── tts_service.py   # TTS 엔진 추상화
+│   │   │   ├── modal_tts_client.py
+│   │   │   └── qwen3_tts_client.py
+│   │   ├── music/               # 음악 재생
+│   │   └── youtube_service.py   # 유튜브 알림
+│   ├── utils/
+│   │   ├── command_logger.py
+│   │   ├── embeds.py
+│   │   └── emoji_utils.py
+│   └── views/                   # UI 컴포넌트
+├── webpanel/                    # 웹 대시보드 (Electron)
+├── requirements.txt
+├── Dockerfile
+└── CLAUDE.md                    # 개발/배포 가이드
 ```
 
 ## 로컬 개발
@@ -79,19 +85,34 @@ python3 main.py
 ### 필요한 환경 변수
 
 ```
-DISCORD_TOKEN: Discord 봇 토큰
-CLAUDE_API_KEY: Anthropic Claude API 키
-YOUTUBE_API_KEY: YouTube Data API 키
-EternalReturn_API_KEY: 이터널리턴 API 키
-OWNER_ID: 봇 소유자 Discord ID
+DISCORD_TOKEN       # Discord 봇 토큰
+YOUTUBE_API_KEY     # YouTube Data API 키
+OWNER_ID            # 봇 소유자 Discord ID
+TTS_ENGINE          # TTS 엔진 선택 (modal / qwen3_api / qwen3)
 ```
 
 ## 기술 스택
 
 - **언어**: Python 3.11+
 - **프레임워크**: discord.py
-- **AI**: Anthropic Claude API
+- **TTS**: Qwen3-TTS (커스텀 음성 모델)
+- **API**: Dak.gg (전적), YouTube Data API
 - **클라우드**: Google Cloud Platform (Cloud Run, Cloud Storage)
-- **API**: 이터널리턴 API, YouTube Data API
+
+## 배포
+
+GCP Cloud Run에 배포됩니다. 자세한 내용은 [CLAUDE.md](CLAUDE.md) 참고.
+
+```bash
+# Docker 빌드
+docker build --platform linux/amd64 -t gcr.io/[PROJECT_ID]/debi-marlene-bot:v1 .
+
+# Cloud Run 배포
+gcloud run deploy debi-marlene-bot \
+  --image gcr.io/[PROJECT_ID]/debi-marlene-bot:v1 \
+  --region asia-northeast3
+```
+
+---
 
 > 이 봇은 이터널리턴의 데비&마를렌 캐릭터를 테마로 제작되었습니다.

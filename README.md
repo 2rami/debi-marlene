@@ -101,7 +101,7 @@ TTS_ENGINE          # TTS 엔진 선택 (modal / qwen3_api / qwen3)
 
 ## 배포
 
-GCP Cloud Run에 배포됩니다. 자세한 내용은 [CLAUDE.md](CLAUDE.md) 참고.
+GCP VM에 배포됩니다. 자세한 내용은 [CLAUDE.md](CLAUDE.md) 참고.
 
 ```bash
 # Docker 빌드

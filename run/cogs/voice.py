@@ -113,6 +113,8 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
                 user_name=interaction.user.display_name or interaction.user.name,
                 guild_id=interaction.guild.id if interaction.guild else None,
                 guild_name=interaction.guild.name if interaction.guild else None,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
                 args={}
             )
 
@@ -176,6 +178,8 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
                 user_name=interaction.user.display_name or interaction.user.name,
                 guild_id=interaction.guild.id if interaction.guild else None,
                 guild_name=interaction.guild.name if interaction.guild else None,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
                 args={}
             )
 
@@ -236,6 +240,8 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
                 user_name=interaction.user.display_name or interaction.user.name,
                 guild_id=interaction.guild.id if interaction.guild else None,
                 guild_name=interaction.guild.name if interaction.guild else None,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
                 args={"채널": 채널.name}
             )
 
@@ -303,6 +309,8 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
                 user_name=interaction.user.display_name or interaction.user.name,
                 guild_id=interaction.guild.id if interaction.guild else None,
                 guild_name=interaction.guild.name if interaction.guild else None,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
                 args={"음성": 음성.name}
             )
 
@@ -359,6 +367,8 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
                 user_name=interaction.user.display_name or interaction.user.name,
                 guild_id=interaction.guild.id if interaction.guild else None,
                 guild_name=interaction.guild.name if interaction.guild else None,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
                 args={}
             )
 

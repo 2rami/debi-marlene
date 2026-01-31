@@ -32,6 +32,8 @@ async def setup_character_command(bot):
             user_name=interaction.user.display_name or interaction.user.name,
             guild_id=interaction.guild.id if interaction.guild else None,
             guild_name=interaction.guild.name if interaction.guild else None,
+            channel_id=interaction.channel_id,
+            channel_name=interaction.channel.name if interaction.channel else None,
             args={}
         )
 

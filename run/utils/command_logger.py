@@ -14,6 +14,8 @@ async def log_command_usage(
     user_name: str,
     guild_id: Optional[int] = None,
     guild_name: Optional[str] = None,
+    channel_id: Optional[int] = None,
+    channel_name: Optional[str] = None,
     args: Optional[Dict[str, Any]] = None
 ):
     """
@@ -25,6 +27,8 @@ async def log_command_usage(
         user_name: 사용자 이름
         guild_id: 서버 ID (DM일 경우 None)
         guild_name: 서버 이름 (DM일 경우 None)
+        channel_id: 채널 ID (DM일 경우 None)
+        channel_name: 채널 이름 (DM일 경우 None)
         args: 명령어 인자 (dict 형식)
     """
     try:
@@ -36,6 +40,8 @@ async def log_command_usage(
             "user_name": user_name,
             "guild_id": str(guild_id) if guild_id else None,
             "guild_name": guild_name,
+            "channel_id": str(channel_id) if channel_id else None,
+            "channel_name": channel_name,
             "timestamp": datetime.now().isoformat(),
             "args": args or {}
         }

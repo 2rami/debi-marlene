@@ -39,6 +39,8 @@ async def setup_feedback_command(bot):
             user_name=interaction.user.display_name or interaction.user.name,
             guild_id=interaction.guild.id if interaction.guild else None,
             guild_name=interaction.guild.name if interaction.guild else None,
+            channel_id=interaction.channel_id,
+            channel_name=interaction.channel.name if interaction.channel else None,
             args={"내용": 내용[:50] + "..." if len(내용) > 50 else 내용}  # 내용은 50자까지만 로깅
         )
 

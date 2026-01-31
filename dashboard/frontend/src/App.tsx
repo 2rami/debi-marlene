@@ -1,0 +1,33 @@
+import { Routes, Route } from 'react-router-dom'
+import { AuthProvider } from './contexts/AuthContext'
+import Landing from './pages/Landing'
+import Dashboard from './pages/Dashboard'
+import ServerManagement from './pages/ServerManagement'
+import Premium from './pages/Premium'
+import PaymentSuccess from './pages/PaymentSuccess'
+import PaymentFail from './pages/PaymentFail'
+import ProtectedRoute from './components/auth/ProtectedRoute'
+
+function App() {
+  return (
+    <AuthProvider>
+      <div className="min-h-screen bg-discord-darkest">
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/fail" element={<PaymentFail />} />
+
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/servers/:guildId" element={<ServerManagement />} />
+            <Route path="/premium" element={<Premium />} />
+          </Route>
+        </Routes>
+      </div>
+    </AuthProvider>
+  )
+}
+
+export default App

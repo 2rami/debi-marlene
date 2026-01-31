@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+@theme {
+  /* Discord Colors */
+  --color-discord-darkest: #0f0f0f;
+  --color-discord-darker: #1a1a1a;
+  --color-discord-dark: #2a2a2a;
+  --color-discord-light: #3a3a3a;
+  --color-discord-text: #ffffff;
+  --color-discord-muted: #72767d;
+  --color-discord-blurple: #5865f2;
+  --color-discord-green: #57f287;
+  --color-discord-yellow: #fee75c;
+  --color-discord-red: #ed4245;
+
+  /* Debi Colors (Cyan) */
+  --color-debi-50: #ecfeff;
+  --color-debi-100: #cffafe;
+  --color-debi-200: #a5f3fc;
+  --color-debi-300: #67e8f9;
+  --color-debi-400: #22d3ee;
+  --color-debi-500: #06b6d4;
+  --color-debi-600: #0891b2;
+  --color-debi-700: #0e7490;
+  --color-debi-800: #155e75;
+  --color-debi-900: #164e63;
+  --color-debi-primary: #00c7ce;
+
+  /* Marlene Colors (Pink) */
+  --color-marlene-50: #fdf2f8;
+  --color-marlene-100: #fce7f3;
+  --color-marlene-200: #fbcfe8;
+  --color-marlene-300: #f9a8d4;
+  --color-marlene-400: #f472b6;
+  --color-marlene-500: #ec4899;
+  --color-marlene-600: #db2777;
+  --color-marlene-700: #be185d;
+  --color-marlene-800: #9d174d;
+  --color-marlene-900: #831843;
+  --color-marlene-primary: #f472b6;
+}
+
+/* Base Styles */
+body {
+  background-color: var(--color-discord-darkest);
+  color: var(--color-discord-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-discord-darker);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-discord-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-discord-muted);
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--color-debi-primary), var(--color-marlene-primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Gradient Border */
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--color-debi-primary), var(--color-marlene-primary));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Button Hover Effects */
+.btn-gradient {
+  background: linear-gradient(135deg, var(--color-debi-primary), var(--color-marlene-primary));
+  transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 199, 206, 0.3);
+}
+
+/* Card Glow Effect */
+.card-glow {
+  transition: box-shadow 0.3s ease;
+}
+
+.card-glow:hover {
+  box-shadow: 0 0 30px rgba(0, 199, 206, 0.2);
+}
+
+/* Animation Keyframes */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 199, 206, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(244, 114, 182, 0.3); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}

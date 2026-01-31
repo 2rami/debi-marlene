@@ -680,12 +680,12 @@ def load_command_logs(filters=None):
                 end = datetime.fromisoformat(filters["end_date"])
                 logs = [log for log in logs if datetime.fromisoformat(log["timestamp"]) <= end]
 
-            # 개수 제한
-            if filters.get("limit"):
-                logs = logs[:filters["limit"]]
-
-        # 최신순 정렬 (타임스탬프 기준 내림차순)
+        # 최신순 정렬 (타임스탬프 기준 내림차순) - limit 적용 전에 정렬해야 함
         logs.sort(key=lambda x: x["timestamp"], reverse=True)
+
+        # 개수 제한 (정렬 후 적용)
+        if filters and filters.get("limit"):
+            logs = logs[:filters["limit"]]
 
         return logs
 

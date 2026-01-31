@@ -58,6 +58,8 @@ class MusicCog(commands.GroupCog, group_name="음악"):
                 user_name=interaction.user.display_name or interaction.user.name,
                 guild_id=interaction.guild.id,
                 guild_name=interaction.guild.name,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
                 args={"검색어": 검색어}
             )
 
@@ -128,6 +130,8 @@ class MusicCog(commands.GroupCog, group_name="음악"):
                 user_name=interaction.user.display_name or interaction.user.name,
                 guild_id=interaction.guild.id,
                 guild_name=interaction.guild.name,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
                 args={}
             )
 
@@ -181,6 +185,8 @@ class MusicCog(commands.GroupCog, group_name="음악"):
                 user_name=interaction.user.display_name or interaction.user.name,
                 guild_id=interaction.guild.id,
                 guild_name=interaction.guild.name,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
                 args={}
             )
 
@@ -228,6 +234,8 @@ class MusicCog(commands.GroupCog, group_name="음악"):
                 user_name=interaction.user.display_name or interaction.user.name,
                 guild_id=interaction.guild.id,
                 guild_name=interaction.guild.name,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
                 args={}
             )
 

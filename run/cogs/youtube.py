@@ -29,6 +29,8 @@ class YoutubeCog(commands.GroupCog, group_name="유튜브"):
                 user_name=interaction.user.display_name or interaction.user.name,
                 guild_id=interaction.guild.id if interaction.guild else None,
                 guild_name=interaction.guild.name if interaction.guild else None,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
                 args={"받기": 받기}
             )
 
@@ -74,6 +76,8 @@ class YoutubeCog(commands.GroupCog, group_name="유튜브"):
             user_name=interaction.user.display_name or interaction.user.name,
             guild_id=interaction.guild.id if interaction.guild else None,
             guild_name=interaction.guild.name if interaction.guild else None,
+            channel_id=interaction.channel_id,
+            channel_name=interaction.channel.name if interaction.channel else None,
             args={}
         )
 

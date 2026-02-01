@@ -40,7 +40,12 @@
       "Bash(conda activate:*)",
       "Bash(conda install:*)",
       "Bash(docker --version:*)",
-      "Bash(modal app logs:*)"
+      "Bash(modal app logs:*)",
+      "Bash(npx skills find web development react)",
+      "Bash(npx skills:*)",
+      "Bash(modal deploy:*)",
+      "Bash(gcloud compute ssh debi-marlene-bot --zone=asia-northeast3-a --command=\"docker restart nginx-webpanel webpanel-backend && sleep 2 && docker ps\")",
+      "Bash(gcloud compute ssh:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

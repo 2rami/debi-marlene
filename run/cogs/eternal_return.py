@@ -60,7 +60,7 @@ class EternalReturnCog(commands.GroupCog, group_name="이터널리턴"):
             guild_id=interaction.guild.id if interaction.guild else None,
             guild_name=interaction.guild.name if interaction.guild else None,
             channel_id=interaction.channel_id,
-            channel_name=interaction.channel.name if interaction.channel else None,
+            channel_name=getattr(interaction.channel, 'name', None) if interaction.channel else None,
             args={"닉네임": 닉네임}
         )
 
@@ -129,7 +129,7 @@ class EternalReturnCog(commands.GroupCog, group_name="이터널리턴"):
             guild_id=interaction.guild.id if interaction.guild else None,
             guild_name=interaction.guild.name if interaction.guild else None,
             channel_id=interaction.channel_id,
-            channel_name=interaction.channel.name if interaction.channel else None,
+            channel_name=getattr(interaction.channel, 'name', None) if interaction.channel else None,
             args={}
         )
 
@@ -172,7 +172,7 @@ class EternalReturnCog(commands.GroupCog, group_name="이터널리턴"):
             guild_id=interaction.guild.id if interaction.guild else None,
             guild_name=interaction.guild.name if interaction.guild else None,
             channel_id=interaction.channel_id,
-            channel_name=interaction.channel.name if interaction.channel else None,
+            channel_name=getattr(interaction.channel, 'name', None) if interaction.channel else None,
             args={"티어": 티어}
         )
 
@@ -272,7 +272,7 @@ class EternalReturnCog(commands.GroupCog, group_name="이터널리턴"):
             guild_id=interaction.guild.id if interaction.guild else None,
             guild_name=interaction.guild.name if interaction.guild else None,
             channel_id=interaction.channel_id,
-            channel_name=interaction.channel.name if interaction.channel else None,
+            channel_name=getattr(interaction.channel, 'name', None) if interaction.channel else None,
             args={}
         )
 

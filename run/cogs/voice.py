@@ -448,6 +448,13 @@ async def handle_tts_message(message: discord.Message):
 
             logger.info(f"TTS 목소리: {tts_voice}")
 
+            # 메타데이터 (Modal 로깅용)
+            meta = {
+                "guild_name": message.guild.name if message.guild else None,
+                "channel_name": message.channel.name if hasattr(message.channel, 'name') else None,
+                "user_name": message.author.display_name or message.author.name
+            }
+
             # 효과음 트리거 확인 (ㅋ 6개 이상 등)
             if has_sfx_triggers(message.content):
                 segments = extract_segments_with_sfx(message.content)
@@ -457,7 +464,7 @@ async def handle_tts_message(message: discord.Message):
                 for seg in segments:
                     if seg["type"] == "text" and seg["content"].strip():
                         tts_service = await get_tts_service(tts_voice)
-                        audio_path = await tts_service.text_to_speech(text=seg["content"])
+                        audio_path = await tts_service.text_to_speech(text=seg["content"], **meta)
                         audio_segments.append(audio_path)
                     elif seg["type"] == "sfx":
                         sfx_path = get_random_sfx(seg["name"], tts_voice)
@@ -480,7 +487,7 @@ async def handle_tts_message(message: discord.Message):
             else:
                 # 효과음 없음 - 일반 TTS
                 tts_service = await get_tts_service(tts_voice)
-                audio_path = await tts_service.text_to_speech(text=message.content)
+                audio_path = await tts_service.text_to_speech(text=message.content, **meta)
 
                 logger.info(f"TTS 변환 완료: {audio_path}")
                 await audio_player.play_audio(guild_id, audio_path)

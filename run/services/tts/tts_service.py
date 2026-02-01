@@ -83,7 +83,10 @@ class TTSService:
     async def text_to_speech(
         self,
         text: str,
-        output_path: Optional[str] = None
+        output_path: Optional[str] = None,
+        guild_name: Optional[str] = None,
+        channel_name: Optional[str] = None,
+        user_name: Optional[str] = None
     ) -> str:
         """
         텍스트를 음성으로 변환합니다.
@@ -91,6 +94,9 @@ class TTSService:
         Args:
             text: 변환할 텍스트
             output_path: 저장할 파일 경로 (없으면 자동 생성)
+            guild_name: 서버 이름 (로깅용)
+            channel_name: 채널 이름 (로깅용)
+            user_name: 유저 이름 (로깅용)
 
         Returns:
             생성된 음성 파일의 경로
@@ -107,7 +113,10 @@ class TTSService:
             text=processed_text,
             speaker=self.speaker,
             language=self.language,
-            output_path=output_path
+            output_path=output_path,
+            guild_name=guild_name,
+            channel_name=channel_name,
+            user_name=user_name
         )
 
     def cleanup_temp_files(self):

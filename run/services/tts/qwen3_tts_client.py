@@ -68,7 +68,8 @@ class Qwen3TTSClient:
         text: str,
         speaker: str = "debi",
         language: str = "ko",
-        output_path: Optional[str] = None
+        output_path: Optional[str] = None,
+        **kwargs  # guild_name, channel_name, user_name 등 (로컬에서는 무시)
     ) -> str:
         """
         텍스트를 음성으로 변환
@@ -78,6 +79,7 @@ class Qwen3TTSClient:
             speaker: 화자 이름 (debi, marlene)
             language: 언어 코드 (사용 안 함, 호환용)
             output_path: 저장할 파일 경로
+            **kwargs: 추가 메타데이터 (로컬에서는 무시)
 
         Returns:
             생성된 음성 파일 경로

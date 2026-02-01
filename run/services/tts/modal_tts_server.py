@@ -147,6 +147,14 @@ class TTSModel:
         text = request.get("text", "")
         speaker = request.get("speaker", "debi")
 
+        # 메타데이터 (로깅용)
+        guild_name = request.get("guild_name", "알수없음")
+        channel_name = request.get("channel_name", "알수없음")
+        user_name = request.get("user_name", "알수없음")
+
+        # 요청 로깅
+        print(f"[TTS 요청] 서버: {guild_name} | 채널: {channel_name} | 유저: {user_name} | 텍스트: {text[:50]}{'...' if len(text) > 50 else ''}")
+
         if not text.strip():
             return {"error": "Text is empty"}
 

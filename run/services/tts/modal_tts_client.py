@@ -94,7 +94,10 @@ class ModalTTSClient:
         speaker: str = "debi",
         language: str = "ko",
         output_path: Optional[str] = None,
-        max_retries: int = 2
+        max_retries: int = 2,
+        guild_name: Optional[str] = None,
+        channel_name: Optional[str] = None,
+        user_name: Optional[str] = None
     ) -> str:
         """
         텍스트를 음성으로 변환
@@ -105,6 +108,9 @@ class ModalTTSClient:
             language: 언어 코드 (사용 안 함, 호환용)
             output_path: 저장할 파일 경로
             max_retries: 최대 재시도 횟수 (cold start 대응)
+            guild_name: 서버 이름 (로깅용)
+            channel_name: 채널 이름 (로깅용)
+            user_name: 유저 이름 (로깅용)
 
         Returns:
             생성된 음성 파일 경로
@@ -120,11 +126,20 @@ class ModalTTSClient:
         session = await self._get_session()
         last_error = None
 
+        # 요청 페이로드 (메타데이터 포함)
+        payload = {
+            "text": text,
+            "speaker": speaker,
+            "guild_name": guild_name,
+            "channel_name": channel_name,
+            "user_name": user_name
+        }
+
         for attempt in range(max_retries + 1):
             try:
                 async with session.post(
                     self.api_url,
-                    json={"text": text, "speaker": speaker}
+                    json=payload
                 ) as response:
                     if response.status == 200:
                         content_type = response.headers.get("content-type", "")

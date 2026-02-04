@@ -8,6 +8,8 @@ import EmbedBuilder from '../components/server/EmbedBuilder'
 import LogSettings from '../components/server/LogSettings'
 import PollGiveaway from '../components/server/PollGiveaway'
 import StickyMessage from '../components/server/StickyMessage'
+import ServerStats from '../components/server/ServerStats'
+import OnboardingSettings from '../components/server/OnboardingSettings'
 
 interface ServerSettings {
   id: string
@@ -160,6 +162,7 @@ export default function ServerManagement() {
               }}
               channels={channels}
               saving={saving}
+              guildId={guildId!}
               onSave={(features) => saveSettings(features as Partial<ServerSettings['features']>)}
             />
           )}
@@ -242,6 +245,12 @@ export default function ServerManagement() {
 
           {/* 고정 메시지 */}
           {activeTab === 'sticky' && <StickyMessage channels={channels} guildId={guildId!} />}
+
+          {/* 통계 */}
+          {activeTab === 'stats' && <ServerStats guildId={guildId!} />}
+
+          {/* 온보딩 */}
+          {activeTab === 'onboarding' && <OnboardingSettings guildId={guildId!} />}
 
           {/* 자동응답 */}
           {activeTab === 'autoresponse' && (

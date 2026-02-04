@@ -69,12 +69,23 @@ def get_guild_features(guild_id):
     # 대시보드 기능 설정 (dashboard_features 키에 저장)
     features = guild_settings.get('dashboard_features', {})
 
-    # 기본값과 병합
+    # 봇에서 설정한 값 가져오기
+    announcement_channel_id = guild_settings.get('ANNOUNCEMENT_CHANNEL_ID')
+    tts_channel_id = guild_settings.get('tts_channel_id')
+
+    # 기본값과 병합 (봇에서 설정한 채널이 있으면 enabled: True)
     default_features = {
-        'announcement': {'enabled': False, 'channelId': guild_settings.get('ANNOUNCEMENT_CHANNEL_ID')},
+        'announcement': {
+            'enabled': bool(announcement_channel_id),
+            'channelId': announcement_channel_id
+        },
         'welcome': {'enabled': False, 'channelId': None, 'message': '', 'imageEnabled': False},
         'goodbye': {'enabled': False, 'channelId': None, 'message': '', 'imageEnabled': False},
-        'tts': {'enabled': False, 'channelId': None, 'character': 'debi'},
+        'tts': {
+            'enabled': bool(tts_channel_id),
+            'channelId': tts_channel_id,
+            'character': 'debi'
+        },
         'autoresponse': {'enabled': False, 'rules': []},
         'filter': {'enabled': False, 'action': 'delete', 'words': []},
         'moderation': {'enabled': False, 'warnThreshold': 3},
@@ -124,9 +135,20 @@ def save_guild_features(guild_id, features):
     for key, value in features.items():
         settings['guilds'][guild_id_str]['dashboard_features'][key] = value
 
-    # 공지 채널은 기존 형식으로도 저장 (봇 호환성)
-    if 'announcement' in features and features['announcement'].get('channelId'):
-        settings['guilds'][guild_id_str]['ANNOUNCEMENT_CHANNEL_ID'] = features['announcement']['channelId']
+    # 봇 호환성: 봇이 사용하는 키에도 저장
+    # 공지 채널
+    if 'announcement' in features:
+        if features['announcement'].get('channelId') and features['announcement'].get('enabled'):
+            settings['guilds'][guild_id_str]['ANNOUNCEMENT_CHANNEL_ID'] = features['announcement']['channelId']
+        elif not features['announcement'].get('enabled'):
+            settings['guilds'][guild_id_str]['ANNOUNCEMENT_CHANNEL_ID'] = None
+
+    # TTS 채널
+    if 'tts' in features:
+        if features['tts'].get('channelId') and features['tts'].get('enabled'):
+            settings['guilds'][guild_id_str]['tts_channel_id'] = features['tts']['channelId']
+        elif not features['tts'].get('enabled'):
+            settings['guilds'][guild_id_str].pop('tts_channel_id', None)
 
     return save_gcs_settings(settings)
 
@@ -628,3 +650,409 @@ def delete_sticky_message(guild_id, sticky_id):
             return jsonify({'success': True})
 
     return jsonify({'error': 'Failed to delete'}), 500
+
+
+# ============== 환영/작별 이미지 ==============
+@servers_bp.route('/servers/<guild_id>/welcome-image', methods=['POST'])
+@admin_required
+def upload_welcome_image(guild_id):
+    """환영/작별 배경 이미지 업로드"""
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file'}), 400
+
+    file = request.files['image']
+    image_type = request.form.get('type', 'welcome')  # welcome or goodbye
+
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    # 파일 크기 체크 (3MB)
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+
+    if size > 3 * 1024 * 1024:
+        return jsonify({'error': 'File too large (max 3MB)'}), 400
+
+    # 확장자 체크
+    allowed_extensions = {'png', 'jpg', 'jpeg'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in allowed_extensions:
+        return jsonify({'error': 'Invalid file type (png, jpg, jpeg only)'}), 400
+
+    try:
+        client = get_gcs_client()
+        if not client:
+            return jsonify({'error': 'Storage not available'}), 500
+
+        bucket = client.bucket(GCS_BUCKET)
+        blob_name = f'welcome_images/{guild_id}_{image_type}_bg.png'
+        blob = bucket.blob(blob_name)
+
+        # 이미지 저장
+        blob.upload_from_file(file, content_type='image/png')
+
+        # 공개 URL 생성
+        image_url = f'https://storage.googleapis.com/{GCS_BUCKET}/{blob_name}'
+
+        return jsonify({'success': True, 'url': image_url})
+
+    except Exception as e:
+        logger.error(f'이미지 업로드 실패: {e}')
+        return jsonify({'error': 'Upload failed'}), 500
+
+
+@servers_bp.route('/servers/<guild_id>/welcome-image', methods=['DELETE'])
+@admin_required
+def delete_welcome_image(guild_id):
+    """환영/작별 배경 이미지 삭제"""
+    image_type = request.args.get('type', 'welcome')
+
+    try:
+        client = get_gcs_client()
+        if not client:
+            return jsonify({'error': 'Storage not available'}), 500
+
+        bucket = client.bucket(GCS_BUCKET)
+        blob_name = f'welcome_images/{guild_id}_{image_type}_bg.png'
+        blob = bucket.blob(blob_name)
+
+        if blob.exists():
+            blob.delete()
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        logger.error(f'이미지 삭제 실패: {e}')
+        return jsonify({'error': 'Delete failed'}), 500
+
+
+@servers_bp.route('/servers/<guild_id>/welcome-image-config', methods=['PATCH'])
+@admin_required
+def update_welcome_image_config(guild_id):
+    """환영/작별 이미지 설정 업데이트 (위치, 크기, 색상 등)"""
+    data = request.json
+    image_type = data.get('type', 'welcome')
+    config = data.get('config', {})
+
+    settings = load_gcs_settings()
+    guild_id_str = str(guild_id)
+
+    if 'guilds' not in settings:
+        settings['guilds'] = {}
+    if guild_id_str not in settings['guilds']:
+        settings['guilds'][guild_id_str] = {}
+    if 'dashboard_features' not in settings['guilds'][guild_id_str]:
+        settings['guilds'][guild_id_str]['dashboard_features'] = {}
+
+    config_key = f'{image_type}_image_config'
+    settings['guilds'][guild_id_str]['dashboard_features'][config_key] = config
+
+    if save_gcs_settings(settings):
+        return jsonify({'success': True})
+    else:
+        return jsonify({'error': 'Failed to save'}), 500
+
+
+@servers_bp.route('/servers/<guild_id>/welcome-preview', methods=['POST'])
+@admin_required
+def preview_welcome_image(guild_id):
+    """환영 이미지 미리보기 생성"""
+    import sys
+    import os
+
+    # 봇 모듈 경로 추가
+    bot_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+    if bot_path not in sys.path:
+        sys.path.insert(0, bot_path)
+
+    try:
+        import asyncio
+        from run.services.welcome import WelcomeImageGenerator
+
+        data = request.json
+        config = data.get('config', {})
+        is_welcome = data.get('type', 'welcome') == 'welcome'
+
+        # 배경 이미지 가져오기
+        background = None
+        try:
+            client = get_gcs_client()
+            if client:
+                bucket = client.bucket(GCS_BUCKET)
+                image_type = 'welcome' if is_welcome else 'goodbye'
+                blob_name = f'welcome_images/{guild_id}_{image_type}_bg.png'
+                blob = bucket.blob(blob_name)
+                if blob.exists():
+                    background = blob.download_as_bytes()
+        except Exception as e:
+            logger.warning(f'배경 이미지 로드 실패: {e}')
+
+        # 이미지 생성
+        generator = WelcomeImageGenerator()
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            image_bytes = loop.run_until_complete(generator.generate(
+                user_name='예시 유저',
+                user_avatar_url='https://cdn.discordapp.com/embed/avatars/0.png',
+                server_name='예시 서버',
+                member_count=100,
+                is_welcome=is_welcome,
+                config=config,
+                background_image=background,
+            ))
+        finally:
+            loop.close()
+
+        import base64
+        image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+
+        return jsonify({
+            'success': True,
+            'image': f'data:image/png;base64,{image_base64}'
+        })
+
+    except Exception as e:
+        logger.error(f'미리보기 생성 실패: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== 서버 통계 ==============
+@servers_bp.route('/servers/<guild_id>/stats')
+@admin_required
+def get_server_stats(guild_id):
+    """서버 통계 조회"""
+    settings = load_gcs_settings()
+    guild_settings = settings.get('guilds', {}).get(str(guild_id), {})
+    stats = guild_settings.get('stats', {
+        'daily': {},
+        'members': {},
+        'logs': []
+    })
+
+    # 일별 통계를 날짜순으로 정렬
+    daily_sorted = sorted(stats.get('daily', {}).items())
+
+    # 멤버 통계 (상위 20명)
+    members = stats.get('members', {})
+    top_members = sorted(
+        [{'id': k, **v} for k, v in members.items()],
+        key=lambda x: x.get('messages', 0),
+        reverse=True
+    )[:20]
+
+    return jsonify({
+        'daily': [{'date': k, **v} for k, v in daily_sorted],
+        'topMembers': top_members,
+        'logs': stats.get('logs', [])[-100:]  # 최근 100개
+    })
+
+
+@servers_bp.route('/servers/<guild_id>/stats/logs')
+@admin_required
+def get_server_logs(guild_id):
+    """서버 활동 로그 조회"""
+    settings = load_gcs_settings()
+    guild_settings = settings.get('guilds', {}).get(str(guild_id), {})
+    stats = guild_settings.get('stats', {})
+
+    log_type = request.args.get('type')  # join, leave, role_add, role_remove, message_delete, message_edit
+    user_id = request.args.get('user_id')
+    limit = int(request.args.get('limit', 100))
+
+    logs = stats.get('logs', [])
+
+    # 필터링
+    if log_type:
+        logs = [l for l in logs if l.get('type') == log_type]
+    if user_id:
+        logs = [l for l in logs if l.get('user_id') == user_id]
+
+    # 최신순 정렬
+    logs = sorted(logs, key=lambda x: x.get('timestamp', ''), reverse=True)[:limit]
+
+    return jsonify({'logs': logs})
+
+
+@servers_bp.route('/servers/<guild_id>/stats/member/<user_id>')
+@admin_required
+def get_member_stats(guild_id, user_id):
+    """특정 멤버 통계 조회"""
+    settings = load_gcs_settings()
+    guild_settings = settings.get('guilds', {}).get(str(guild_id), {})
+    stats = guild_settings.get('stats', {})
+
+    # 멤버 정보
+    member_stats = stats.get('members', {}).get(user_id, {'messages': 0, 'name': ''})
+
+    # 해당 멤버의 로그
+    logs = [l for l in stats.get('logs', []) if l.get('user_id') == user_id]
+    logs = sorted(logs, key=lambda x: x.get('timestamp', ''), reverse=True)[:50]
+
+    return jsonify({
+        'member': member_stats,
+        'logs': logs
+    })
+
+
+# ============== 온보딩 ==============
+@servers_bp.route('/servers/<guild_id>/onboarding')
+@admin_required
+def get_onboarding(guild_id):
+    """서버 온보딩 설정 조회"""
+    # Discord API로 온보딩 설정 가져오기
+    response = discord_bot_request(f'/guilds/{guild_id}/onboarding')
+
+    if response.ok:
+        onboarding = response.json()
+        return jsonify({
+            'enabled': onboarding.get('enabled', False),
+            'mode': onboarding.get('mode', 0),  # 0=DEFAULT, 1=ADVANCED
+            'prompts': onboarding.get('prompts', []),
+            'defaultChannelIds': onboarding.get('default_channel_ids', []),
+        })
+    elif response.status_code == 404:
+        # 온보딩이 설정되지 않은 서버
+        return jsonify({
+            'enabled': False,
+            'mode': 0,
+            'prompts': [],
+            'defaultChannelIds': [],
+        })
+    else:
+        logger.error(f'온보딩 조회 실패: {response.text}')
+        return jsonify({'error': 'Failed to get onboarding'}), 500
+
+
+@servers_bp.route('/servers/<guild_id>/onboarding', methods=['PUT'])
+@admin_required
+def update_onboarding(guild_id):
+    """서버 온보딩 설정 수정"""
+    data = request.json
+
+    # Discord API 형식으로 변환
+    payload = {
+        'enabled': data.get('enabled', False),
+        'mode': data.get('mode', 0),
+        'prompts': data.get('prompts', []),
+        'default_channel_ids': data.get('defaultChannelIds', []),
+    }
+
+    response = discord_bot_request(
+        f'/guilds/{guild_id}/onboarding',
+        method='PUT',
+        data=payload
+    )
+
+    if response.ok:
+        return jsonify({'success': True})
+    else:
+        error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+        logger.error(f'온보딩 수정 실패: {response.text}')
+        return jsonify({
+            'error': error_data.get('message', 'Failed to update onboarding'),
+            'code': error_data.get('code')
+        }), response.status_code
+
+
+@servers_bp.route('/servers/<guild_id>/onboarding/prompts', methods=['POST'])
+@admin_required
+def add_onboarding_prompt(guild_id):
+    """온보딩 프롬프트(질문) 추가"""
+    data = request.json
+
+    # 현재 온보딩 설정 가져오기
+    response = discord_bot_request(f'/guilds/{guild_id}/onboarding')
+    if not response.ok:
+        return jsonify({'error': 'Failed to get current onboarding'}), 500
+
+    onboarding = response.json()
+    prompts = onboarding.get('prompts', [])
+
+    # 새 프롬프트 추가
+    new_prompt = {
+        'type': data.get('type', 0),  # 0=MULTIPLE_CHOICE, 1=DROPDOWN
+        'title': data.get('title', ''),
+        'single_select': data.get('singleSelect', True),
+        'required': data.get('required', True),
+        'in_onboarding': True,
+        'options': data.get('options', [])
+    }
+    prompts.append(new_prompt)
+
+    # 업데이트
+    payload = {
+        'enabled': onboarding.get('enabled', False),
+        'mode': onboarding.get('mode', 0),
+        'prompts': prompts,
+        'default_channel_ids': onboarding.get('default_channel_ids', []),
+    }
+
+    update_response = discord_bot_request(
+        f'/guilds/{guild_id}/onboarding',
+        method='PUT',
+        data=payload
+    )
+
+    if update_response.ok:
+        return jsonify({'success': True})
+    else:
+        logger.error(f'프롬프트 추가 실패: {update_response.text}')
+        return jsonify({'error': 'Failed to add prompt'}), 500
+
+
+@servers_bp.route('/servers/<guild_id>/onboarding/prompts/<prompt_id>', methods=['DELETE'])
+@admin_required
+def delete_onboarding_prompt(guild_id, prompt_id):
+    """온보딩 프롬프트(질문) 삭제"""
+    # 현재 온보딩 설정 가져오기
+    response = discord_bot_request(f'/guilds/{guild_id}/onboarding')
+    if not response.ok:
+        return jsonify({'error': 'Failed to get current onboarding'}), 500
+
+    onboarding = response.json()
+    prompts = onboarding.get('prompts', [])
+
+    # 해당 프롬프트 제거
+    prompts = [p for p in prompts if str(p.get('id')) != str(prompt_id)]
+
+    # 업데이트
+    payload = {
+        'enabled': onboarding.get('enabled', False),
+        'mode': onboarding.get('mode', 0),
+        'prompts': prompts,
+        'default_channel_ids': onboarding.get('default_channel_ids', []),
+    }
+
+    update_response = discord_bot_request(
+        f'/guilds/{guild_id}/onboarding',
+        method='PUT',
+        data=payload
+    )
+
+    if update_response.ok:
+        return jsonify({'success': True})
+    else:
+        logger.error(f'프롬프트 삭제 실패: {update_response.text}')
+        return jsonify({'error': 'Failed to delete prompt'}), 500
+
+
+@servers_bp.route('/servers/<guild_id>/community-check')
+@admin_required
+def check_community_status(guild_id):
+    """서버의 커뮤니티 기능 활성화 여부 확인"""
+    response = discord_bot_request(f'/guilds/{guild_id}')
+    if not response.ok:
+        return jsonify({'error': 'Failed to get guild info'}), 500
+
+    guild = response.json()
+    features = guild.get('features', [])
+
+    return jsonify({
+        'isCommunity': 'COMMUNITY' in features,
+        'features': features
+    })

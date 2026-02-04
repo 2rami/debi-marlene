@@ -43,11 +43,25 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'GET' })
   }
 
-  async post<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, body?: unknown, options?: { headers?: Record<string, string> }): Promise<ApiResponse<T>> {
+    const isFormData = body instanceof FormData
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
+      headers: isFormData ? {} : options?.headers,
     })
+  }
+
+  async postFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+    const url = `${this.baseUrl}${endpoint}`
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || 'API request failed')
+    return { data, status: response.status }
   }
 
   async patch<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {

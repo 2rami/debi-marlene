@@ -10,6 +10,8 @@ from run.cogs.music import MusicCog
 from run.cogs.youtube import YoutubeCog
 from run.cogs.settings import SettingsCog
 from run.cogs.utility import UtilityCog
+from run.cogs.welcome import WelcomeCog
+from run.cogs.stats import StatsCog
 
 
 async def setup_all_cogs(bot):
@@ -20,6 +22,8 @@ async def setup_all_cogs(bot):
     await bot.add_cog(YoutubeCog(bot))
     await bot.add_cog(SettingsCog(bot))
     await bot.add_cog(UtilityCog(bot))
+    await bot.add_cog(WelcomeCog(bot))
+    await bot.add_cog(StatsCog(bot))
 
     print("[완료] 모든 Cog 등록 완료")
 
@@ -32,4 +36,6 @@ __all__ = [
     'YoutubeCog',
     'SettingsCog',
     'UtilityCog',
+    'WelcomeCog',
+    'StatsCog',
 ]

@@ -45,7 +45,9 @@
       "Bash(npx skills:*)",
       "Bash(modal deploy:*)",
       "Bash(gcloud compute ssh debi-marlene-bot --zone=asia-northeast3-a --command=\"docker restart nginx-webpanel webpanel-backend && sleep 2 && docker ps\")",
-      "Bash(gcloud compute ssh:*)"
+      "Bash(gcloud compute ssh:*)",
+      "WebFetch(domain:skills.sh)",
+      "Bash(tmux list-windows:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
@@ -54,6 +56,6 @@
   ],
   "sandbox": {
     "enabled": true,
-    "autoAllowBashIfSandboxed": false
+    "autoAllowBashIfSandboxed": true
   }
 }

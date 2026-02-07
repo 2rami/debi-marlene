@@ -339,7 +339,8 @@ async def on_ready():
 
     # 서버 정보 정기 업데이트 태스크 시작
     try:
-        update_server_info_periodic.start()
+        if not update_server_info_periodic.is_running():
+            update_server_info_periodic.start()
         sys.stdout.flush()
     except Exception as e:
         print(f"[경고] 서버 정보 업데이트 태스크 시작 실패: {e}", flush=True)
@@ -359,10 +360,12 @@ async def on_ready():
 
         youtube_service.set_bot_instance(bot)
         await youtube_service.initialize_youtube()
-        youtube_service.check_new_videos.start()
+        if not youtube_service.check_new_videos.is_running():
+            youtube_service.check_new_videos.start()
 
         # 정기적 서버 수 로깅 태스크 시작
-        periodic_guild_logging.start()
+        if not periodic_guild_logging.is_running():
+            periodic_guild_logging.start()
 
         # 이모지 맵 로드
         from run.utils.emoji_utils import load_emoji_map, EmojiAutoUpdater
@@ -376,12 +379,11 @@ async def on_ready():
         sys.stdout.flush()
 
     except Exception as e:
-        print(f"[오류] CRITICAL: 데이터 초기화 중 봇 시작 실패: {e}", flush=True)
+        print(f"[오류] 데이터 초기화 중 일부 실패 (봇은 계속 실행): {e}", flush=True)
         sys.stdout.flush()
         import traceback
         traceback.print_exc()
         sys.stdout.flush()
-        await bot.close()
 
 
 @bot.event

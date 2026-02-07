@@ -47,13 +47,15 @@
       "Bash(gcloud compute ssh debi-marlene-bot --zone=asia-northeast3-a --command=\"docker restart nginx-webpanel webpanel-backend && sleep 2 && docker ps\")",
       "Bash(gcloud compute ssh:*)",
       "WebFetch(domain:skills.sh)",
-      "Bash(tmux list-windows:*)"
+      "Bash(tmux list-windows:*)",
+      "Bash(gcloud compute instances list:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "chrome-devtools"
   ],
+  "outputStyle": "Explanatory",
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true

@@ -45,6 +45,9 @@ class AudioType(Enum):
     MUSIC = "music"
 
 
+IDLE_TIMEOUT_SECONDS = 300  # 5분
+
+
 class VoiceManager:
     """
     서버별 음성 연결 관리자
@@ -83,6 +86,9 @@ class VoiceManager:
         # 서버별 락 (동시 접근 방지)
         self.locks: Dict[str, asyncio.Lock] = {}
 
+        # 서버별 idle 타이머 태스크
+        self.idle_tasks: Dict[str, asyncio.Task] = {}
+
         self._initialized = True
         logger.info("VoiceManager 초기화 완료")
 
@@ -118,6 +124,8 @@ class VoiceManager:
 
     async def leave(self, guild_id: str) -> bool:
         """음성 채널에서 퇴장합니다."""
+        self.cancel_idle_timer(guild_id)
+
         async with self._get_lock(guild_id):
             try:
                 if guild_id in self.voice_clients:
@@ -235,6 +243,51 @@ class VoiceManager:
         """음악 상태를 초기화합니다."""
         if self.current_type.get(guild_id) == AudioType.MUSIC:
             self.current_type[guild_id] = None
+
+    def start_idle_timer(self, guild_id: str):
+        """봇 혼자 남았을 때 idle 타이머를 시작합니다."""
+        self.cancel_idle_timer(guild_id)
+        self.idle_tasks[guild_id] = asyncio.create_task(
+            self._idle_disconnect(guild_id)
+        )
+        logger.info(f"idle 타이머 시작: {guild_id} ({IDLE_TIMEOUT_SECONDS}초)")
+
+    def cancel_idle_timer(self, guild_id: str):
+        """idle 타이머를 취소합니다."""
+        task = self.idle_tasks.pop(guild_id, None)
+        if task and not task.done():
+            task.cancel()
+            logger.info(f"idle 타이머 취소: {guild_id}")
+
+    async def _idle_disconnect(self, guild_id: str):
+        """idle 대기 후 자동 퇴장합니다."""
+        try:
+            await asyncio.sleep(IDLE_TIMEOUT_SECONDS)
+
+            # 타이머 만료 - 아직 연결되어 있고 혼자인지 재확인
+            vc = self.voice_clients.get(guild_id)
+            if not vc or not vc.is_connected():
+                return
+
+            non_bot_members = [m for m in vc.channel.members if not m.bot]
+            if non_bot_members:
+                return
+
+            logger.info(f"idle 타이머 만료, 자동 퇴장: {guild_id}")
+
+            # MusicManager 정리 (순환 import 방지를 위해 여기서 import)
+            from run.services.music.music_player import MusicManager
+            if MusicManager.has_player(guild_id):
+                await MusicManager.remove_player(guild_id)
+            else:
+                await self.leave(guild_id)
+
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"idle 자동 퇴장 실패: {e}")
+        finally:
+            self.idle_tasks.pop(guild_id, None)
 
 
 # 싱글톤 인스턴스

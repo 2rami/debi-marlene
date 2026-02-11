@@ -513,6 +513,34 @@ async def on_guild_remove(guild: discord.Guild):
 
 
 @bot.event
+async def on_voice_state_update(member, before, after):
+    """음성 채널 상태 변경 시 - 봇 혼자 남으면 idle 타이머 시작"""
+    from run.services.voice_manager import voice_manager
+
+    # 봇 자신의 상태 변경은 무시
+    if member.id == bot.user.id:
+        return
+
+    # 사용자가 봇이 있는 채널에서 나간 경우 (퇴장 또는 다른 채널로 이동)
+    if before.channel and before.channel != after.channel:
+        guild_id = str(before.channel.guild.id)
+        vc = voice_manager.get_voice_client(guild_id)
+
+        if vc and vc.is_connected() and vc.channel.id == before.channel.id:
+            non_bot_members = [m for m in before.channel.members if not m.bot]
+            if not non_bot_members:
+                voice_manager.start_idle_timer(guild_id)
+
+    # 사용자가 봇이 있는 채널에 들어온 경우 (입장 또는 다른 채널에서 이동)
+    if after.channel and after.channel != before.channel:
+        guild_id = str(after.channel.guild.id)
+        vc = voice_manager.get_voice_client(guild_id)
+
+        if vc and vc.is_connected() and vc.channel.id == after.channel.id:
+            voice_manager.cancel_idle_timer(guild_id)
+
+
+@bot.event
 async def on_message(message):
     """메시지 수신 시"""
     # 봇 자신의 메시지는 무시

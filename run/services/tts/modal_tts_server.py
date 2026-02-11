@@ -47,7 +47,7 @@ volume = modal.Volume.from_name("tts-model-cache", create_if_missing=True)
 
 # HuggingFace 모델 ID
 HUGGINGFACE_MODELS = {
-    "debi": "2R4mi/qwen3-tts-debi",
+    "debi": "2R4mi/qwen3-tts-debi-light",
     "marlene": "2R4mi/qwen3-tts-marlene",
 }
 

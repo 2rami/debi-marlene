@@ -106,17 +106,21 @@ class GameDataCache:
         return '일반'
     
     def get_weapon_image_url(self, weapon_id: int) -> Optional[str]:
-        """무기 ID로 이미지 URL을 반환합니다 (CDN 직접 생성)."""
-        if weapon_id:
-            # CDN URL 직접 생성 (메인 화면 방식)
-            return f"https://cdn.dak.gg/assets/er/game-assets/8.4.0/Ico_Mastery_{weapon_id}.png"
+        """무기 ID로 이미지 URL을 반환합니다."""
+        mastery = self.masteries.get(weapon_id)
+        if mastery:
+            icon_url = mastery.get('iconUrl')
+            if icon_url:
+                return f"https:{icon_url}" if icon_url.startswith('//') else icon_url
         return None
-    
+
     def get_trait_image_url(self, trait_id: int) -> Optional[str]:
-        """특성 ID로 이미지 URL을 반환합니다 (CDN 직접 생성)."""
-        if trait_id:
-            # CDN URL 직접 생성 (메인 화면 방식)
-            return f"https://cdn.dak.gg/assets/er/game-assets/8.4.0/TraitIcon_{trait_id}.png"
+        """특성 ID로 이미지 URL을 반환합니다."""
+        trait = self.trait_skills.get(trait_id)
+        if trait:
+            image_url = trait.get('imageUrl')
+            if image_url:
+                return f"https:{image_url}" if image_url.startswith('//') else image_url
         return None
 
     def get_tactical_skill_key(self, tactical_skill_id: int) -> Optional[str]:

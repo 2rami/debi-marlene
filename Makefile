@@ -193,16 +193,28 @@ deploy-webpanel-frontend:
 		--command="rm -rf ~/webpanel-dist/* && mv ~/webpanel-upload/* ~/webpanel-dist/ && rmdir ~/webpanel-upload && docker exec nginx-webpanel nginx -s reload"
 	@echo "웹패널 프론트엔드 배포 완료"
 
-# 웹패널 백엔드 VM 배포
+# 웹패널 백엔드 VM 배포 (Docker 이미지 리빌드 방식)
 deploy-webpanel-backend:
-	@echo "[1/3] 백엔드를 VM에 업로드 중..."
-	@gcloud compute scp --recurse webpanel/backend/* $(VM_NAME):~/webpanel-backend-upload/ --zone=$(ZONE)
-	@echo "[2/3] 컨테이너에 복사 중..."
+	@echo "[1/4] 빌드 파일 패키징 중..."
+	@rm -rf /tmp/claude/wb-build && mkdir -p /tmp/claude/wb-build/run
+	@cp webpanel/Dockerfile.backend /tmp/claude/wb-build/
+	@cp webpanel/requirements.txt /tmp/claude/wb-build/
+	@cp webpanel/gcs-credentials.json /tmp/claude/wb-build/
+	@cp -r webpanel/backend /tmp/claude/wb-build/backend
+	@cp run/__init__.py /tmp/claude/wb-build/run/
+	@cp -r run/core /tmp/claude/wb-build/run/core
+	@tar -czf /tmp/claude/wb-build.tar.gz -C /tmp/claude/wb-build .
+	@echo "[2/4] VM에 업로드 + Docker 이미지 빌드 중..."
+	@gcloud compute scp /tmp/claude/wb-build.tar.gz $(VM_NAME):~/wb-build.tar.gz --zone=$(ZONE)
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker cp ~/webpanel-backend-upload/. webpanel-backend:/app/ && rm -rf ~/webpanel-backend-upload"
-	@echo "[3/3] 백엔드 재시작 중..."
+		--command="mkdir -p ~/wb-build && tar -xzf ~/wb-build.tar.gz -C ~/wb-build && cd ~/wb-build && docker build -f Dockerfile.backend -t webpanel-backend:latest . && rm -rf ~/wb-build ~/wb-build.tar.gz"
+	@echo "[3/4] 컨테이너 교체 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker restart webpanel-backend"
+		--command="docker stop webpanel-backend 2>/dev/null || true && docker rm webpanel-backend 2>/dev/null || true && docker run -d --name webpanel-backend -p 8080:8080 --env-file ~/debi-marlene/.env --restart unless-stopped webpanel-backend:latest"
+	@echo "[4/4] 정리 중..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker image prune -f"
+	@rm -rf /tmp/claude/wb-build /tmp/claude/wb-build.tar.gz
 	@echo "웹패널 백엔드 배포 완료"
 
 # 웹패널 백엔드 로그

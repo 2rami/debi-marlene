@@ -12,6 +12,7 @@ from run.cogs.settings import SettingsCog
 from run.cogs.utility import UtilityCog
 from run.cogs.welcome import WelcomeCog
 from run.cogs.stats import StatsCog
+from run.cogs.quiz import QuizCog
 
 
 async def setup_all_cogs(bot):
@@ -24,6 +25,7 @@ async def setup_all_cogs(bot):
     await bot.add_cog(UtilityCog(bot))
     await bot.add_cog(WelcomeCog(bot))
     await bot.add_cog(StatsCog(bot))
+    await bot.add_cog(QuizCog(bot))
 
     print("[완료] 모든 Cog 등록 완료")
 
@@ -38,4 +40,5 @@ __all__ = [
     'UtilityCog',
     'WelcomeCog',
     'StatsCog',
+    'QuizCog',
 ]

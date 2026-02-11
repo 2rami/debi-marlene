@@ -48,7 +48,9 @@
       "Bash(gcloud compute ssh:*)",
       "WebFetch(domain:skills.sh)",
       "Bash(tmux list-windows:*)",
-      "Bash(gcloud compute instances list:*)"
+      "Bash(gcloud compute instances list:*)",
+      "WebFetch(domain:cdn.dak.gg)",
+      "WebFetch(domain:er.dakgg.io)"
     ]
   },
   "enableAllProjectMcpServers": true,

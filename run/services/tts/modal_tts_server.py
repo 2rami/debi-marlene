@@ -57,7 +57,7 @@ HUGGINGFACE_MODELS = {
     gpu="T4",  # T4가 가장 저렴 (약 $0.000164/초), A10G는 더 빠름
     timeout=300,
     volumes={"/cache": volume},
-    scaledown_window=60,  # 1분간 요청 없으면 종료 (비용 절약)
+    scaledown_window=300,  # 5분간 요청 없으면 종료 (cold start 빈도 감소)
 )
 class TTSModel:
     """Qwen3-TTS 모델 클래스"""

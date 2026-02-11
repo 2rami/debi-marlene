@@ -1,10 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
+import { LogOut } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { motion, useScroll, useMotionValueEvent } from 'framer-motion'
 import { useState } from 'react'
 
 export default function Header() {
-  const { user, login } = useAuth()
+  const { user, login, logout } = useAuth()
   const location = useLocation()
   const { scrollY } = useScroll()
   const [isScrolled, setIsScrolled] = useState(false)
@@ -27,8 +28,8 @@ export default function Header() {
   return (
     <motion.header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
-          ? 'bg-discord-darker/80 backdrop-blur-lg border-b border-discord-light/10 shadow-lg'
-          : 'bg-transparent border-transparent'
+        ? 'bg-discord-darker/80 backdrop-blur-lg border-b border-discord-light/10 shadow-lg'
+        : 'bg-transparent border-transparent'
         }`}
       initial={{ y: -100 }}
       animate={{ y: 0 }}
@@ -56,8 +57,8 @@ export default function Header() {
               key={link.href}
               to={link.href}
               className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${isActive(link.href)
-                  ? 'bg-white/10 text-white shadow-sm'
-                  : 'text-gray-300 hover:text-white hover:bg-white/5'
+                ? 'bg-white/10 text-white shadow-sm'
+                : 'text-gray-300 hover:text-white hover:bg-white/5'
                 }`}
             >
               {link.label}
@@ -68,25 +69,34 @@ export default function Header() {
         {/* Auth Button */}
         <div className="flex items-center gap-4">
           {user ? (
-            <Link
-              to="/dashboard"
-              className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all hover:scale-105 group"
-            >
-              {user.avatar ? (
-                <img
-                  src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=32`}
-                  alt={user.username}
-                  className="w-8 h-8 rounded-full border-2 border-transparent group-hover:border-debi-primary transition-colors"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white">
-                  {user.username.charAt(0)}
-                </div>
-              )}
-              <span className="text-sm font-semibold text-white/90 hidden sm:block">
-                Dashboard
-              </span>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all hover:scale-105 group"
+              >
+                {user.avatar ? (
+                  <img
+                    src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=32`}
+                    alt={user.username}
+                    className="w-8 h-8 rounded-full border-2 border-transparent group-hover:border-debi-primary transition-colors"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white">
+                    {user.username.charAt(0)}
+                  </div>
+                )}
+                <span className="text-sm font-semibold text-white/90 hidden sm:block">
+                  Dashboard
+                </span>
+              </Link>
+              <button
+                onClick={logout}
+                className="p-2 rounded-full bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 border border-white/10 transition-all hover:scale-105"
+                title="로그아웃"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
           ) : (
             <button
               onClick={login}

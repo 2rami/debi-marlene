@@ -64,6 +64,13 @@ class ApiClient {
     return { data, status: response.status }
   }
 
+  async put<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: body ? JSON.stringify(body) : undefined,
+    })
+  }
+
   async patch<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PATCH',

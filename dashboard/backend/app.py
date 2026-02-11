@@ -29,7 +29,7 @@ app.secret_key = os.getenv('SECRET_KEY', 'debi-marlene-dashboard-secret-key')
 
 # Session configuration
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = False  # True in production with HTTPS
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLASK_ENV') != 'development'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 # CORS configuration
@@ -39,7 +39,7 @@ CORS(app,
          'http://localhost:3001',
          'http://localhost:3002',
          'http://localhost:5173',
-         'https://dashboard.debi-marlene.com',
+         'https://debimarlene.com',
      ],
      supports_credentials=True)
 

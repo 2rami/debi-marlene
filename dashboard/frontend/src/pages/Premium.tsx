@@ -10,19 +10,19 @@ export default function Premium() {
   const plans = [
     {
       id: 'monthly' as const,
-      name: '월간 프리미엄',
+      name: '월간 후원',
       price: 9900,
       period: '월',
-      description: '매월 자동 결제',
-      features: ['TTS (음성 읽기) 기능', '우선 지원', '프리미엄 배지'],
+      description: '매월 자동 후원',
+      features: ['TTS (음성 읽기) 기능', '우선 지원', '후원자 배지'],
     },
     {
       id: 'yearly' as const,
-      name: '연간 프리미엄',
+      name: '연간 후원',
       price: 99000,
       period: '년',
       description: '16% 할인 적용',
-      features: ['TTS (음성 읽기) 기능', '우선 지원', '프리미엄 배지', '2개월 무료'],
+      features: ['TTS (음성 읽기) 기능', '우선 지원', '후원자 배지', '2개월 무료'],
       badge: '인기',
     },
   ]
@@ -50,7 +50,7 @@ export default function Premium() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-3xl font-bold mb-4">
-              <span className="gradient-text">프리미엄</span>으로 업그레이드
+              <span className="gradient-text">프리미엄 후원</span>으로 업그레이드
             </h1>
             <p className="text-discord-muted">
               TTS 기능으로 채팅을 음성으로 들어보세요
@@ -71,7 +71,7 @@ export default function Premium() {
                     프리미엄 활성화됨
                   </h2>
                   <p className="text-discord-muted">
-                    {user.premium.plan === 'monthly' ? '월간' : '연간'} 구독 중
+                    {user.premium.plan === 'monthly' ? '월간' : '연간'} 후원 중
                     {user.premium.expiresAt && (
                       <> · 만료: {new Date(user.premium.expiresAt).toLocaleDateString('ko-KR')}</>
                     )}
@@ -87,11 +87,10 @@ export default function Premium() {
               {plans.map(plan => (
                 <div
                   key={plan.id}
-                  className={`relative rounded-2xl p-8 transition-all ${
-                    plan.badge
+                  className={`relative rounded-2xl p-8 transition-all ${plan.badge
                       ? 'bg-gradient-to-br from-debi-primary/20 to-marlene-primary/20 border-2 border-debi-primary/50'
                       : 'bg-discord-dark border border-discord-light/20 hover:border-discord-light/40'
-                  }`}
+                    }`}
                 >
                   {plan.badge && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-debi-primary to-marlene-primary rounded-full text-xs font-semibold text-white">
@@ -127,13 +126,12 @@ export default function Premium() {
                   <button
                     onClick={() => handleSubscribe(plan.id)}
                     disabled={loading && selectedPlan === plan.id}
-                    className={`w-full py-3 rounded-lg font-semibold transition-all disabled:opacity-50 ${
-                      plan.badge
+                    className={`w-full py-3 rounded-lg font-semibold transition-all disabled:opacity-50 ${plan.badge
                         ? 'btn-gradient text-white'
                         : 'bg-discord-light text-discord-text hover:bg-discord-muted/20'
-                    }`}
+                      }`}
                   >
-                    {loading && selectedPlan === plan.id ? '처리 중...' : '구독하기'}
+                    {loading && selectedPlan === plan.id ? '처리 중...' : '후원하기'}
                   </button>
                 </div>
               ))}

@@ -233,6 +233,66 @@ def extract_segments_with_sfx(text: str) -> List[Dict[str, Any]]:
     return segments
 
 
+def split_text_for_tts(text: str, max_chars: int = 20, min_chars: int = 3) -> List[str]:
+    """
+    TTS용 텍스트를 자연스러운 구간으로 분할합니다.
+
+    분할 우선순위: 문장 끝(.!?~) > 쉼표(,) > 공백 > 강제 분할
+    """
+    if not text or len(text) <= max_chars:
+        return [text] if text and text.strip() else []
+
+    chunks = []
+
+    # 1단계: 문장 끝에서 분할
+    sentences = re.split(r'(?<=[.!?~])\s*', text)
+    sentences = [s for s in sentences if s.strip()]
+
+    for sentence in sentences:
+        if len(sentence) <= max_chars:
+            chunks.append(sentence)
+            continue
+
+        # 2단계: 쉼표에서 분할
+        clauses = re.split(r'(?<=,)\s*', sentence)
+        clauses = [c for c in clauses if c.strip()]
+
+        for clause in clauses:
+            if len(clause) <= max_chars:
+                chunks.append(clause)
+                continue
+
+            # 3단계: 공백에서 분할
+            words = clause.split(' ')
+            current = ""
+            for word in words:
+                if current and len(current) + 1 + len(word) > max_chars:
+                    if current.strip():
+                        chunks.append(current.strip())
+                    current = word
+                else:
+                    current = current + " " + word if current else word
+
+            if current.strip():
+                # 4단계: 강제 분할 (공백 없는 긴 텍스트)
+                remaining = current.strip()
+                while len(remaining) > max_chars:
+                    chunks.append(remaining[:max_chars])
+                    remaining = remaining[max_chars:]
+                if remaining:
+                    chunks.append(remaining)
+
+    # 짧은 청크는 이전 청크에 병합
+    merged = []
+    for chunk in chunks:
+        if merged and len(chunk) < min_chars:
+            merged[-1] = merged[-1] + " " + chunk
+        else:
+            merged.append(chunk)
+
+    return [c for c in merged if c.strip()]
+
+
 def has_sfx_triggers(text: str) -> bool:
     """텍스트에 효과음 트리거가 있는지 확인합니다."""
     combined_pattern = "|".join(SFX_PATTERNS.keys())

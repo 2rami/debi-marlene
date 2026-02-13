@@ -190,7 +190,7 @@ deploy-webpanel-frontend:
 	@gcloud compute scp --recurse webpanel/dist/* $(VM_NAME):~/webpanel-upload/ --zone=$(ZONE)
 	@echo "[3/3] VM에서 배포 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="rm -rf ~/webpanel-dist/* && mv ~/webpanel-upload/* ~/webpanel-dist/ && rmdir ~/webpanel-upload && docker exec nginx-webpanel nginx -s reload"
+		--command="rm -rf ~/debi-marlene/webpanel/dist/* && mv ~/webpanel-upload/* ~/debi-marlene/webpanel/dist/ && rmdir ~/webpanel-upload && docker exec nginx-proxy nginx -s reload"
 	@echo "웹패널 프론트엔드 배포 완료"
 
 # 웹패널 백엔드 VM 배포 (Docker 이미지 리빌드 방식)

@@ -167,7 +167,7 @@ class VoiceManager:
         """TTS가 음악을 끼어들기 중인지 확인합니다."""
         return self.tts_interrupting.get(guild_id, False)
 
-    async def play_tts(self, guild_id: str, audio_path: str) -> bool:
+    async def play_tts(self, guild_id: str, audio_path: str, suppress_music_restart: bool = False) -> bool:
         """
         TTS 오디오를 재생합니다. (음악보다 우선)
 
@@ -211,8 +211,8 @@ class VoiceManager:
             self.current_type[guild_id] = None
             self.tts_interrupting[guild_id] = False
 
-            # TTS 완료 후 음악 재시작
-            if was_music_playing:
+            # TTS 완료 후 음악 재시작 (청크 모드에서는 마지막 청크만)
+            if was_music_playing and not suppress_music_restart:
                 callback = self.music_restart_callbacks.get(guild_id)
                 if callback:
                     logger.info("음악 재시작 콜백 호출")
@@ -277,7 +277,7 @@ class VoiceManager:
 
             # 퇴장 알림
             try:
-                await vc.channel.send("아무도 없어서 나갑니다.", delete_after=10)
+                await vc.channel.send("음성채널에 아무도 없어서 나갈게!")
             except Exception:
                 pass
 

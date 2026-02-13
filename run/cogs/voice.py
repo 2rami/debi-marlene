@@ -15,7 +15,7 @@ import random
 import asyncio
 
 from run.services.tts import TTSService, AudioPlayer
-from run.services.tts.text_preprocessor import extract_segments_with_sfx, has_sfx_triggers
+from run.services.tts.text_preprocessor import extract_segments_with_sfx, has_sfx_triggers, preprocess_text_for_tts, split_text_for_tts
 from run.core.config import load_settings, save_settings
 from run.utils.command_logger import log_command_usage
 
@@ -503,10 +503,18 @@ async def handle_tts_message(message: discord.Message):
                     logger.info(f"긴 문장 간단 응답 재생: {short_msg}")
                 else:
                     tts_service = await get_tts_service(tts_voice)
-                    audio_path = await tts_service.text_to_speech(text=message.content, **meta)
+                    processed_text = preprocess_text_for_tts(message.content)
+                    chunks = split_text_for_tts(processed_text)
 
-                    logger.info(f"TTS 변환 완료: {audio_path}")
-                    await audio_player.play_audio(guild_id, audio_path)
+                    if len(chunks) <= 1:
+                        # 짧은 메시지: 기존 방식
+                        audio_path = await tts_service.text_to_speech(text=processed_text, **meta)
+                        logger.info(f"TTS 변환 완료: {audio_path}")
+                        await audio_player.play_audio(guild_id, audio_path)
+                    else:
+                        # 긴 메시지: 파이프라인 방식 (생성과 재생 동시 진행)
+                        logger.info(f"청크 TTS 시작: {len(chunks)}개 청크")
+                        await audio_player.play_chunked(guild_id, chunks, tts_service, meta)
                     logger.info("TTS 재생 완료")
 
         except Exception as e:

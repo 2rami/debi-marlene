@@ -113,6 +113,58 @@ class AudioPlayer:
 
         self.is_playing[guild_id] = False
 
+    async def play_chunked(self, guild_id: str, chunks: list, tts_service, meta: dict):
+        """
+        텍스트 청크를 생성과 재생을 동시에 처리합니다.
+
+        Producer: 청크별 TTS 생성 -> asyncio.Queue에 추가
+        Consumer: Queue에서 꺼내서 순차 재생
+        """
+        if not voice_manager.is_connected(guild_id):
+            return
+
+        audio_queue = asyncio.Queue()
+        producer_done = asyncio.Event()
+
+        async def producer():
+            try:
+                for chunk in chunks:
+                    if not chunk.strip():
+                        continue
+                    if not voice_manager.is_connected(guild_id):
+                        break
+                    audio_path = await tts_service.text_to_speech(text=chunk, **meta)
+                    await audio_queue.put(audio_path)
+            except Exception as e:
+                logger.error(f"[TTS] 청크 생성 실패: {e}")
+            finally:
+                producer_done.set()
+                await audio_queue.put(None)
+
+        async def consumer():
+            while True:
+                audio_path = await audio_queue.get()
+                if audio_path is None:
+                    break
+                if not voice_manager.is_connected(guild_id):
+                    break
+                try:
+                    # 마지막 청크인지 확인: producer 완료 + 큐 비어있음
+                    is_last = producer_done.is_set() and audio_queue.empty()
+                    await voice_manager.play_tts(
+                        guild_id, audio_path,
+                        suppress_music_restart=not is_last
+                    )
+                    await asyncio.sleep(0.05)
+                except Exception as e:
+                    logger.error(f"[TTS] 청크 재생 실패: {e}")
+
+        self.is_playing[guild_id] = True
+        try:
+            await asyncio.gather(producer(), consumer())
+        finally:
+            self.is_playing[guild_id] = False
+
     def get_current_channel(self, guild_id: str) -> Optional[discord.VoiceChannel]:
         """현재 연결된 음성 채널을 가져옵니다."""
         vc = voice_manager.get_voice_client(guild_id)

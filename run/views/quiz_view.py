@@ -321,3 +321,53 @@ class SongSubmitView(discord.ui.View):
                 self.modal = None
             await asyncio.sleep(0.5)
         return None
+
+
+# -- 스킵 투표 View --
+
+class SongSkipView(discord.ui.View):
+    """노래 퀴즈 스킵 투표 View - 음성 채널 전원이 눌러야 스킵"""
+
+    def __init__(self, guild_id: str, member_count: int):
+        super().__init__(timeout=None)
+        self.guild_id = guild_id
+        self.voted_users: set = set()
+        self._skip_event = asyncio.Event()
+
+        self.skip_btn = discord.ui.Button(
+            label=f"스킵 (0/{member_count})",
+            style=discord.ButtonStyle.secondary,
+        )
+        self.skip_btn.callback = self._on_skip
+        self.add_item(self.skip_btn)
+
+    def _get_voice_members(self) -> set:
+        from run.services.voice_manager import voice_manager
+        vc = voice_manager.get_voice_client(self.guild_id)
+        if not vc or not vc.is_connected():
+            return set()
+        return {m.id for m in vc.channel.members if not m.bot}
+
+    async def _on_skip(self, interaction: discord.Interaction):
+        required = self._get_voice_members()
+        if interaction.user.id not in required:
+            await interaction.response.send_message(
+                "음성 채널 참여자만 투표할 수 있습니다.", ephemeral=True
+            )
+            return
+
+        if interaction.user.id in self.voted_users:
+            await interaction.response.send_message(
+                "이미 투표했습니다.", ephemeral=True
+            )
+            return
+
+        self.voted_users.add(interaction.user.id)
+        voted_count = len(self.voted_users & required)
+        required_count = len(required)
+        self.skip_btn.label = f"스킵 ({voted_count}/{required_count})"
+
+        if voted_count >= required_count:
+            self._skip_event.set()
+
+        await interaction.response.edit_message(view=self)

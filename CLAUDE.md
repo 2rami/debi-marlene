@@ -14,8 +14,8 @@ dashboard/
   backend/              # Flask API (port 8081), Discord OAuth2 인증
   frontend/             # React + Vite + Tailwind (port 3002)
 webpanel/
-  backend/              # Flask API (port 8080), Discord API 연동
-  src/                  # Electron + React 프론트엔드 (port 5173)
+  backend/              # Flask API (VM port 8080), Discord API 연동
+  src/                  # React 프론트엔드 (로컬 port 5173)
 ```
 
 ## 진입점
@@ -30,8 +30,9 @@ webpanel/
 ## 기술 스택
 
 - **봇**: Python, discord.py 2.6.4, anthropic (Claude AI), google-cloud-storage
-- **TTS**: GPT-SoVITS API (port 9880, GPU 필요)
+- **TTS**: Modal Serverless + Qwen3-TTS-0.6B (파인튜닝 모델, T4 GPU)
 - **대시보드**: Flask + React 19 + TypeScript + Vite + Tailwind 4
+- **웹패널**: Flask (VM 8080) + React
 - **결제**: TossPayments SDK
 - **인프라**: GCP Compute Engine VM (asia-northeast3-a), Artifact Registry
 
@@ -85,7 +86,24 @@ make status      # VM/컨테이너 상태
 - **VM**: `debi-marlene-bot` (GCP Compute Engine, asia-northeast3-a)
 - **Registry**: `asia-northeast3-docker.pkg.dev/ironic-objectivist-465713-a6/debi-marlene`
 - **Storage**: GCS `debi-marlene-settings` 버킷 (봇 설정/DM 채널 저장)
-- **포트**: 봇 API 5001, 대시보드 8080, TTS API 9880
+- **Modal TTS**: `2R4mi/qwen3-tts-debi-light` (0.6B), `2R4mi/qwen3-tts-marlene` (1.7B)
+
+### 포트 할당
+
+| 서비스 | VM 포트 | 로컬 개발 포트 | 설명 |
+|--------|---------|----------------|------|
+| 봇 (Discord) | - | - | 포트 노출 없음 |
+| 봇 내부 API | 5001 | 5001 | (사용 안 함, 레거시) |
+| Dashboard Backend | 8081 | 8081 | Discord OAuth2 인증 |
+| Dashboard Frontend | 3080 (nginx) | 3002 | React UI |
+| Webpanel Backend | 8080 | 8080 | Discord API 연동 |
+| Webpanel Frontend | (번들됨) | 5173 | React 개발 서버 |
+| Modal TTS API | - | - | Serverless (외부 URL) |
+
+**포트 충돌 방지:**
+- 봇 컨테이너는 5001만 바인딩 (8080 제거됨)
+- webpanel-backend가 8080 사용
+- 봇과 webpanel은 동시 실행 가능
 
 ## GCS 인증
 

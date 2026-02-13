@@ -54,7 +54,7 @@ HUGGINGFACE_MODELS = {
 
 @app.cls(
     image=image,
-    gpu="A10G",  # A10G: T4보다 3-4배 빠름 (약 $0.0006/초)
+    gpu="A10G",  # A10G: 0.6B 모델 최적 가성비 ($0.000306/초, ~$1.10/h)
     timeout=300,
     volumes={"/cache": volume},
     scaledown_window=300,  # 5분간 요청 없으면 종료 (cold start 빈도 감소)
@@ -70,7 +70,9 @@ class TTSModel:
         from huggingface_hub import snapshot_download
 
         self.device = "cuda"
-        self.dtype = torch.bfloat16
+        # INT8 양자화를 위해 None으로 설정 (load_in_8bit와 함께 사용)
+        self.dtype = None
+        self.use_8bit = True  # 8bit 양자화 활성화
 
         # Flash Attention 사용 가능 여부 확인
         try:
@@ -106,13 +108,18 @@ class TTSModel:
                 print(f"Cache files for {speaker}: {cache_files}")
 
                 print(f"Loading model for {speaker}: {cache_path}")
-                self.models[speaker] = Qwen3TTSModel.from_pretrained(
+
+                # 순수 bfloat16 (양자화 없음)
+                import torch
+                model = Qwen3TTSModel.from_pretrained(
                     cache_path,
                     device_map=self.device,
-                    dtype=self.dtype,
+                    dtype=torch.bfloat16,
                     attn_implementation=self.attn_impl,
                 )
-                print(f"Model loaded for {speaker}")
+
+                self.models[speaker] = model
+                print(f"Model loaded for {speaker} (bfloat16)")
 
             except Exception as e:
                 import traceback
@@ -130,7 +137,18 @@ class TTSModel:
             raise ValueError(f"Speaker not found: {speaker}. Available: {list(self.models.keys())}")
 
         model = self.models[speaker]
-        wavs, sr = model.generate_custom_voice(text=text, speaker=speaker)
+
+        # 속도 최적화 파라미터
+        # - max_new_tokens: 기본값 4096을 512로 제한 (짧은 문장에 충분)
+        # - temperature: 0.6으로 낮춤 (더 결정적, 빠름)
+        # - do_sample: False (greedy decoding, 샘플링보다 2배 빠름)
+        wavs, sr = model.generate_custom_voice(
+            text=text,
+            speaker=speaker,
+            max_new_tokens=512,
+            temperature=0.6,
+            do_sample=False,
+        )
 
         # WAV 바이트로 변환
         buffer = io.BytesIO()

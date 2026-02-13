@@ -275,6 +275,12 @@ class VoiceManager:
 
             logger.info(f"idle 타이머 만료, 자동 퇴장: {guild_id}")
 
+            # 퇴장 알림
+            try:
+                await vc.channel.send("아무도 없어서 나갑니다.", delete_after=10)
+            except Exception:
+                pass
+
             # MusicManager 정리 (순환 import 방지를 위해 여기서 import)
             from run.services.music.music_player import MusicManager
             if MusicManager.has_player(guild_id):

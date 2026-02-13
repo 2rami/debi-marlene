@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # 포트 노출
-EXPOSE 5001 8080
+EXPOSE 5001
 
 # 봇 실행
 CMD ["python", "main.py"]

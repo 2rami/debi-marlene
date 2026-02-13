@@ -18,7 +18,7 @@ from discord.ext import commands
 from run.services.quiz.quiz_manager import QuizManager
 from run.services.quiz.er_quiz import generate_er_question
 from run.services.quiz.song_quiz import (
-    SongQuiz, SongEntry, check_answer, is_skip_command, get_hint,
+    SongQuiz, SongEntry, check_answer, get_title_hint, get_artist_hint,
     ANSWER_TIMEOUT, HINT_DELAY,
 )
 from run.services.voice_manager import voice_manager
@@ -32,10 +32,13 @@ from run.views.quiz_view import (
     create_result_embed,
     ERQuizView,
     SongSubmitView,
+    SongSkipView,
 )
 from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
+
+SECOND_HINT_REMAINING = 5  # 2차 힌트: 종료 5초 전
 
 
 class QuizCog(commands.GroupCog, group_name="퀴즈"):
@@ -44,6 +47,155 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         super().__init__()
+
+    # ---------- 공통 노래 답변 루프 ----------
+
+    async def _song_answer_loop(
+        self,
+        channel: discord.abc.Messageable,
+        session,
+        song: SongEntry,
+        stream_info: str,
+        question_num: int,
+        total: int,
+        guild_id: str,
+        exclude_user_id: int = None,
+    ):
+        """노래 퀴즈 한 문제의 재생, 힌트, 답변, 스킵을 처리합니다."""
+
+        # 스킵 버튼 (음성 채널 전원 투표)
+        vc = voice_manager.get_voice_client(guild_id)
+        member_count = max(1, len([m for m in vc.channel.members if not m.bot])) if vc else 1
+        skip_view = SongSkipView(guild_id, member_count)
+
+        # 문제 Embed + 스킵 버튼 전송
+        embed = create_song_question_embed(question_num, total)
+        question_msg = await channel.send(embed=embed, view=skip_view)
+
+        # 클립 재생
+        play_task = asyncio.create_task(
+            SongQuiz.play_clip(guild_id, stream_info, 180)
+        )
+
+        answered = False
+        title_answered = False
+        artist_answered = False
+
+        # 2단계 힌트
+        async def send_hints():
+            # 1차: 제목 초성 (HINT_DELAY초 후)
+            await asyncio.sleep(HINT_DELAY)
+            if not answered and session.is_active and not title_answered:
+                h = get_title_hint(song.title)
+                await channel.send(embed=create_song_question_embed(
+                    question_num, total, hint=f"제목: {h}"
+                ))
+
+            # 2차: 가수 (종료 5초 전)
+            second_delay = ANSWER_TIMEOUT - HINT_DELAY - SECOND_HINT_REMAINING
+            await asyncio.sleep(second_delay)
+            if not answered and session.is_active and not artist_answered:
+                await channel.send(embed=create_song_question_embed(
+                    question_num, total, hint=get_artist_hint(song)
+                ))
+
+        hint_task = asyncio.create_task(send_hints())
+
+        # 정답 판정 (스킵은 버튼으로만)
+        def msg_check(msg: discord.Message) -> bool:
+            if msg.channel.id != session.channel_id or msg.author.bot:
+                return False
+            if exclude_user_id and msg.author.id == exclude_user_id:
+                return False
+            result = check_answer(msg.content, song)
+            if result == "title" and not title_answered:
+                return True
+            if result == "artist" and not artist_answered:
+                return True
+            return False
+
+        remaining_timeout = ANSWER_TIMEOUT
+        skipped = False
+        skip_wait = asyncio.create_task(skip_view._skip_event.wait())
+
+        while not answered and session.is_active:
+            start_time = time.monotonic()
+            msg_wait = asyncio.create_task(
+                self.bot.wait_for('message', check=msg_check, timeout=remaining_timeout)
+            )
+
+            done, _ = await asyncio.wait(
+                {msg_wait, skip_wait}, return_when=asyncio.FIRST_COMPLETED
+            )
+
+            # 스킵 투표 완료
+            if skip_wait in done:
+                msg_wait.cancel()
+                try:
+                    await msg_wait
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    pass
+                skipped = True
+                answered = True
+                break
+
+            # 메시지 수신 또는 타임아웃
+            try:
+                msg = msg_wait.result()
+            except asyncio.TimeoutError:
+                answered = True
+                break
+
+            elapsed = time.monotonic() - start_time
+            remaining_timeout = max(1, remaining_timeout - elapsed)
+
+            result = check_answer(msg.content, song)
+            if result == "title" and not title_answered:
+                title_answered = True
+                session.add_title_score(msg.author.id)
+                await channel.send(embed=create_correct_embed(
+                    song.title, msg.author.display_name, detail="제목 정답!"
+                ))
+            elif result == "artist" and not artist_answered:
+                artist_answered = True
+                session.add_artist_score(msg.author.id)
+                await channel.send(embed=create_correct_embed(
+                    song.artist, msg.author.display_name, detail="가수 정답!"
+                ))
+
+            if title_answered and artist_answered:
+                answered = True
+
+        # 정리
+        if not skip_wait.done():
+            skip_wait.cancel()
+        hint_task.cancel()
+        SongQuiz.stop_playback(guild_id)
+        play_task.cancel()
+
+        # 스킵 버튼 비활성화
+        for item in skip_view.children:
+            item.disabled = True
+        try:
+            await question_msg.edit(view=skip_view)
+        except Exception:
+            pass
+
+        # 결과 Embed
+        if skipped:
+            await channel.send(embed=create_skip_embed(f"{song.title} - {song.artist}"))
+        elif not (title_answered and artist_answered):
+            parts = []
+            if not title_answered:
+                parts.append(f"제목: {song.title}")
+            if not artist_answered:
+                parts.append(f"가수: {song.artist}")
+            await channel.send(embed=create_timeout_embed(
+                f"{song.title} - {song.artist}",
+                missed=", ".join(parts) if parts else None,
+            ))
+
+        await asyncio.sleep(3)
 
     # ---------- /퀴즈 노래 ----------
 
@@ -101,13 +253,13 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             return
 
         session = QuizManager.start_session(guild_id, interaction.channel_id, "song", total)
-        song_quiz = SongQuiz(guild_id, total)
+        song_quiz_instance = SongQuiz(guild_id, total)
 
         start_embed = discord.Embed(
             title="노래 맞추기 시작!",
             description=(
                 f"총 {total}문제 | 채팅으로 제목 또는 가수를 입력하세요\n"
-                "제목/가수 점수가 따로 집계됩니다. '스킵'으로 넘기기 가능"
+                "제목/가수 점수가 따로 집계됩니다"
             ),
             color=0x1DB954,
         )
@@ -121,122 +273,19 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 break
 
             session.current_question = i + 1
-            song = song_quiz.pick_song()
+            song = song_quiz_instance.pick_song()
             if not song:
                 await channel.send("곡 데이터를 불러올 수 없습니다.")
                 break
 
-            # YouTube 검색
             stream_info = await SongQuiz.get_stream_url(song, interaction.guild.me)
             if not stream_info:
                 await channel.send(f"[{i + 1}/{total}] 곡을 검색할 수 없어 건너뜁니다.")
                 continue
 
-            # 문제 Embed 전송
-            embed = create_song_question_embed(i + 1, total)
-            await channel.send(embed=embed)
-
-            # 클립 재생 (비동기 - 재생 중에 정답 감시)
-            play_task = asyncio.create_task(
-                SongQuiz.play_clip(guild_id, stream_info, 180)
+            await self._song_answer_loop(
+                channel, session, song, stream_info, i + 1, total, guild_id
             )
-
-            # 정답 감시
-            answered = False
-            hint_sent = False
-            title_answered = False
-            artist_answered = False
-
-            async def send_hint():
-                nonlocal hint_sent
-                await asyncio.sleep(HINT_DELAY)
-                if not answered and session.is_active:
-                    hint_sent = True
-                    hint_text = get_hint(song)
-                    hint_embed = create_song_question_embed(i + 1, total, hint=hint_text)
-                    await channel.send(embed=hint_embed)
-
-            hint_task = asyncio.create_task(send_hint())
-
-            def msg_check(msg: discord.Message) -> bool:
-                if msg.channel.id != session.channel_id:
-                    return False
-                if msg.author.bot:
-                    return False
-                if is_skip_command(msg.content):
-                    return True
-                result = check_answer(msg.content, song)
-                if result == "title" and not title_answered:
-                    return True
-                if result == "artist" and not artist_answered:
-                    return True
-                return False
-
-            # 제목과 가수 모두 맞힐 때까지 또는 타임아웃까지 반복
-            remaining_timeout = ANSWER_TIMEOUT
-            skipped = False
-
-            while not answered and session.is_active:
-                try:
-                    start_time = time.monotonic()
-                    msg = await self.bot.wait_for(
-                        'message', check=msg_check, timeout=remaining_timeout
-                    )
-                    elapsed = time.monotonic() - start_time
-                    remaining_timeout = max(1, remaining_timeout - elapsed)
-
-                    # 스킵 처리
-                    if is_skip_command(msg.content):
-                        answered = True
-                        skipped = True
-                        break
-
-                    result = check_answer(msg.content, song)
-                    answer_str = f"{song.title} - {song.artist}"
-
-                    if result == "title" and not title_answered:
-                        title_answered = True
-                        session.add_title_score(msg.author.id)
-                        embed = create_correct_embed(
-                            song.title, msg.author.display_name,
-                            detail="제목 정답!"
-                        )
-                        await channel.send(embed=embed)
-                    elif result == "artist" and not artist_answered:
-                        artist_answered = True
-                        session.add_artist_score(msg.author.id)
-                        embed = create_correct_embed(
-                            song.artist, msg.author.display_name,
-                            detail="가수 정답!"
-                        )
-                        await channel.send(embed=embed)
-
-                    if title_answered and artist_answered:
-                        answered = True
-
-                except asyncio.TimeoutError:
-                    answered = True
-
-            hint_task.cancel()
-            SongQuiz.stop_playback(guild_id)
-            play_task.cancel()
-
-            if skipped:
-                embed = create_skip_embed(f"{song.title} - {song.artist}")
-                await channel.send(embed=embed)
-            elif not (title_answered and artist_answered):
-                parts = []
-                if not title_answered:
-                    parts.append(f"제목: {song.title}")
-                if not artist_answered:
-                    parts.append(f"가수: {song.artist}")
-                embed = create_timeout_embed(
-                    f"{song.title} - {song.artist}",
-                    missed=", ".join(parts) if parts else None,
-                )
-                await channel.send(embed=embed)
-
-            await asyncio.sleep(3)
 
         # 결과 표시
         final_session = QuizManager.end_session(guild_id)
@@ -249,9 +298,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 interaction.guild,
             )
             await channel.send(embed=embed)
-
-        # 음성 채널 퇴장
-        await voice_manager.leave(guild_id)
 
     # ---------- /퀴즈 이터널리턴 ----------
 
@@ -319,17 +365,14 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 await channel.send(f"[{i + 1}/{total}] 문제 생성에 실패하여 건너뜁니다.")
                 continue
 
-            # 문제 Embed + 버튼
             embed = create_er_question_embed(
                 i + 1, total, question.question_text, question.image_url
             )
             view = ERQuizView(question.choices, question.correct_index)
             msg = await channel.send(embed=embed, view=view)
 
-            # 응답 대기
             result = await view.wait_for_answer()
 
-            # 버튼 비활성화
             for item in view.children:
                 item.disabled = True
             try:
@@ -352,7 +395,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             await channel.send(embed=embed)
             await asyncio.sleep(3)
 
-        # 결과 표시
         final_session = QuizManager.end_session(guild_id)
         if final_session:
             embed = create_result_embed(
@@ -410,7 +452,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             args={"문제수": total},
         )
 
-        # 음성 채널 입장
         success = await voice_manager.join(host.voice.channel)
         if not success:
             await interaction.followup.send("음성 채널 입장에 실패했습니다.", ephemeral=True)
@@ -424,7 +465,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             description=(
                 f"출제자: **{host.display_name}** | 총 {total}문제\n"
                 "출제자가 곡을 등록하면 나머지가 맞추는 방식입니다.\n"
-                "제목/가수 점수가 따로 집계됩니다. '스킵'으로 넘기기 가능"
+                "제목/가수 점수가 따로 집계됩니다"
             ),
             color=0xFF9B00,
         )
@@ -446,10 +487,8 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             )
             prompt_msg = await channel.send(embed=prompt_embed, view=submit_view)
 
-            # 출제자 입력 대기
             modal = await submit_view.wait_for_song()
 
-            # 버튼 비활성화
             for item in submit_view.children:
                 item.disabled = True
             try:
@@ -466,117 +505,15 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 query=modal.search_query.value.strip(),
             )
 
-            # YouTube 검색
             stream_info = await SongQuiz.get_stream_url(song, interaction.guild.me)
             if not stream_info:
                 await channel.send(f"[{i + 1}/{total}] 곡을 검색할 수 없어 건너뜁니다.")
                 continue
 
-            # 문제 Embed 전송
-            embed = create_song_question_embed(i + 1, total)
-            await channel.send(embed=embed)
-
-            # 클립 재생
-            play_task = asyncio.create_task(
-                SongQuiz.play_clip(guild_id, stream_info, 180)
+            await self._song_answer_loop(
+                channel, session, song, stream_info, i + 1, total, guild_id,
+                exclude_user_id=host.id,
             )
-
-            # 정답 감시 (출제자 제외)
-            answered = False
-            hint_sent = False
-            title_answered = False
-            artist_answered = False
-
-            async def send_hint():
-                nonlocal hint_sent
-                await asyncio.sleep(HINT_DELAY)
-                if not answered and session.is_active:
-                    hint_sent = True
-                    hint_text = get_hint(song)
-                    hint_embed = create_song_question_embed(i + 1, total, hint=hint_text)
-                    await channel.send(embed=hint_embed)
-
-            hint_task = asyncio.create_task(send_hint())
-
-            def msg_check(msg: discord.Message) -> bool:
-                if msg.channel.id != session.channel_id:
-                    return False
-                if msg.author.bot:
-                    return False
-                # 출제자 본인은 정답 입력 불가 (스킵만 가능)
-                if msg.author.id == host.id:
-                    return is_skip_command(msg.content)
-                if is_skip_command(msg.content):
-                    return True
-                result = check_answer(msg.content, song)
-                if result == "title" and not title_answered:
-                    return True
-                if result == "artist" and not artist_answered:
-                    return True
-                return False
-
-            remaining_timeout = ANSWER_TIMEOUT
-            skipped = False
-
-            while not answered and session.is_active:
-                try:
-                    start_time = time.monotonic()
-                    msg = await self.bot.wait_for(
-                        'message', check=msg_check, timeout=remaining_timeout
-                    )
-                    elapsed = time.monotonic() - start_time
-                    remaining_timeout = max(1, remaining_timeout - elapsed)
-
-                    if is_skip_command(msg.content):
-                        answered = True
-                        skipped = True
-                        break
-
-                    result = check_answer(msg.content, song)
-
-                    if result == "title" and not title_answered:
-                        title_answered = True
-                        session.add_title_score(msg.author.id)
-                        embed = create_correct_embed(
-                            song.title, msg.author.display_name,
-                            detail="제목 정답!"
-                        )
-                        await channel.send(embed=embed)
-                    elif result == "artist" and not artist_answered:
-                        artist_answered = True
-                        session.add_artist_score(msg.author.id)
-                        embed = create_correct_embed(
-                            song.artist, msg.author.display_name,
-                            detail="가수 정답!"
-                        )
-                        await channel.send(embed=embed)
-
-                    if title_answered and artist_answered:
-                        answered = True
-
-                except asyncio.TimeoutError:
-                    answered = True
-
-            hint_task.cancel()
-            SongQuiz.stop_playback(guild_id)
-            play_task.cancel()
-
-            if skipped:
-                embed = create_skip_embed(f"{song.title} - {song.artist}")
-                await channel.send(embed=embed)
-            elif not (title_answered and artist_answered):
-                parts = []
-                if not title_answered:
-                    parts.append(f"제목: {song.title}")
-                if not artist_answered:
-                    parts.append(f"가수: {song.artist}")
-                embed = create_timeout_embed(
-                    f"{song.title} - {song.artist}",
-                    missed=", ".join(parts) if parts else None,
-                )
-                await channel.send(embed=embed)
-
-            await asyncio.sleep(3)
 
         # 결과 표시
         final_session = QuizManager.end_session(guild_id)
@@ -589,9 +526,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 interaction.guild,
             )
             await channel.send(embed=embed)
-
-        # 음성 채널 퇴장
-        await voice_manager.leave(guild_id)
 
     # ---------- /퀴즈 중지 ----------
 
@@ -614,13 +548,10 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
 
         await interaction.response.defer()
 
-        # 세션 종료
         final_session = QuizManager.end_session(guild_id)
 
-        # 노래 퀴즈면 재생 중지 + 음성 퇴장
         if session.quiz_type == "song":
             SongQuiz.stop_playback(guild_id)
-            await voice_manager.leave(guild_id)
 
         if final_session and final_session.scores:
             if session.quiz_type == "song":

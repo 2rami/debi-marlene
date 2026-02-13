@@ -486,12 +486,28 @@ async def handle_tts_message(message: discord.Message):
                 logger.info("TTS + 효과음 재생 완료")
             else:
                 # 효과음 없음 - 일반 TTS
-                tts_service = await get_tts_service(tts_voice)
-                audio_path = await tts_service.text_to_speech(text=message.content, **meta)
+                # 300자 이상이면 "너무 길어서 못 읽겠어요" 메시지 재생
+                if len(message.content) > 300:
+                    import random
+                    logger.info(f"긴 문장 감지 ({len(message.content)}자) - 간단 응답")
+                    tts_service = await get_tts_service(tts_voice)
+                    short_msgs = [
+                        "너무 길어서 못 읽겠어요.",
+                        "힘들어서 못 말하겠어.",
+                        "이건 좀 길어요.",
+                        "요약 부탁드려요."
+                    ]
+                    short_msg = random.choice(short_msgs)
+                    audio_path = await tts_service.text_to_speech(text=short_msg, **meta)
+                    await audio_player.play_audio(guild_id, audio_path)
+                    logger.info(f"긴 문장 간단 응답 재생: {short_msg}")
+                else:
+                    tts_service = await get_tts_service(tts_voice)
+                    audio_path = await tts_service.text_to_speech(text=message.content, **meta)
 
-                logger.info(f"TTS 변환 완료: {audio_path}")
-                await audio_player.play_audio(guild_id, audio_path)
-                logger.info("TTS 재생 완료")
+                    logger.info(f"TTS 변환 완료: {audio_path}")
+                    await audio_player.play_audio(guild_id, audio_path)
+                    logger.info("TTS 재생 완료")
 
         except Exception as e:
             logger.error(f"TTS 메시지 처리 오류: {e}")

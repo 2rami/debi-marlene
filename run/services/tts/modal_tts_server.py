@@ -54,7 +54,7 @@ HUGGINGFACE_MODELS = {
 
 @app.cls(
     image=image,
-    gpu="T4",  # T4가 가장 저렴 (약 $0.000164/초), A10G는 더 빠름
+    gpu="A10G",  # A10G: T4보다 3-4배 빠름 (약 $0.0006/초)
     timeout=300,
     volumes={"/cache": volume},
     scaledown_window=300,  # 5분간 요청 없으면 종료 (cold start 빈도 감소)
@@ -159,7 +159,7 @@ class TTSModel:
             return {"error": "Text is empty"}
 
         if len(text) > 500:
-            return {"error": "Text too long (max 500 chars)"}
+            text = text[:500]
 
         try:
             audio_bytes, sr = self._generate_internal(text, speaker)

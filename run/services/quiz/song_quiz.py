@@ -27,6 +27,11 @@ SIMILARITY_THRESHOLD = 0.7  # 유사도 기준
 
 SKIP_KEYWORDS = {"스킵", "넘기기", "skip", "pass", "넘겨"}
 
+CHOSUNG_LIST = [
+    'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ',
+    'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ',
+]
+
 
 @dataclass
 class SongEntry:
@@ -146,8 +151,28 @@ def is_correct_answer(user_input: str, song: SongEntry) -> bool:
     return check_answer(user_input, song) is not None
 
 
-def get_hint(song: SongEntry) -> str:
-    """힌트를 생성합니다."""
+def get_title_hint(title: str) -> str:
+    """제목 초성 힌트 (한글: 초성, 영어: 첫글자 + 밑줄)"""
+    words = title.split(' ')
+    hints = []
+    for word in words:
+        if not word:
+            continue
+        word_hint = []
+        for j, char in enumerate(word):
+            if '가' <= char <= '힣':
+                index = (ord(char) - 0xAC00) // (21 * 28)
+                word_hint.append(CHOSUNG_LIST[index])
+            elif char.isalpha():
+                word_hint.append(char.upper() if j == 0 else '_')
+            else:
+                word_hint.append(char)
+        hints.append(''.join(word_hint))
+    return ' '.join(hints)
+
+
+def get_artist_hint(song: SongEntry) -> str:
+    """가수 힌트 (첫 글자 + 밑줄)"""
     artist = song.artist
     if len(artist) > 1:
         return f"가수: {artist[0]}{'_' * (len(artist) - 1)}"

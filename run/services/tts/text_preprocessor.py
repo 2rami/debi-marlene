@@ -8,6 +8,54 @@ TTS 텍스트 전처리
 import re
 from typing import List, Dict, Any
 
+
+def number_to_korean(num: int) -> str:
+    """숫자를 한글로 변환"""
+    if num == 0:
+        return "영"
+
+    units = ["", "만", "억", "조"]
+    digits = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
+    positions = ["", "십", "백", "천"]
+
+    if num < 0:
+        return "마이너스 " + number_to_korean(-num)
+
+    result = []
+    unit_idx = 0
+
+    while num > 0:
+        part = num % 10000
+        if part > 0:
+            part_str = ""
+            for i, pos in enumerate(positions):
+                digit = part % 10
+                if digit > 0:
+                    if i > 0 and digit == 1:
+                        part_str = pos + part_str
+                    else:
+                        part_str = digits[digit] + pos + part_str
+                part //= 10
+            result.append(part_str + units[unit_idx])
+        num //= 10000
+        unit_idx += 1
+
+    return "".join(reversed(result))
+
+
+def convert_numbers_to_korean(text: str) -> str:
+    """텍스트 내 숫자를 한글로 변환"""
+    def replace_number(match):
+        num_str = match.group()
+        try:
+            num = int(num_str)
+            return number_to_korean(num)
+        except:
+            return num_str
+
+    # 숫자 패턴 찾아서 변환 (연속된 숫자만)
+    return re.sub(r'\d+', replace_number, text)
+
 # 자음 조합 인터넷 용어 (순서 중요: 긴 패턴 먼저)
 JAMO_SLANG = {
     # 3글자 이상
@@ -105,7 +153,10 @@ def preprocess_text_for_tts(text: str) -> str:
     # 8. 커스텀 이모지 처리 (<:name:123456> → "")
     result = re.sub(r"<a?:\w+:\d+>", "", result)
 
-    # 9. 연속 공백 정리
+    # 9. 숫자를 한글로 변환
+    result = convert_numbers_to_korean(result)
+
+    # 10. 연속 공백 정리
     result = re.sub(r"\s+", " ", result).strip()
 
     return result

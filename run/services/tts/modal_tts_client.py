@@ -48,9 +48,9 @@ class ModalTTSClient:
 
         # Cold start 대응: 긴 타임아웃
         self.timeout = aiohttp.ClientTimeout(
-            total=120,  # 전체 120초 (cold start 포함)
+            total=180,  # 전체 180초 (cold start + 긴 문장 대응)
             connect=30,
-            sock_read=90
+            sock_read=150
         )
 
         os.makedirs(self.temp_dir, exist_ok=True)
@@ -117,6 +117,10 @@ class ModalTTSClient:
         """
         if not self.api_url:
             raise RuntimeError("Modal API URL이 설정되지 않음 (MODAL_TTS_API_URL)")
+
+        # 500자 초과 시 자르기
+        if len(text) > 500:
+            text = text[:500]
 
         # 출력 파일 경로 생성
         if output_path is None:

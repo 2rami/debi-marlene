@@ -50,7 +50,10 @@
       "Bash(tmux list-windows:*)",
       "Bash(gcloud compute instances list:*)",
       "WebFetch(domain:cdn.dak.gg)",
-      "WebFetch(domain:er.dakgg.io)"
+      "WebFetch(domain:er.dakgg.io)",
+      "WebFetch(domain:formulae.brew.sh)",
+      "WebFetch(domain:eu-central-1-1.aws.cloud2.influxdata.com)",
+      "WebFetch(domain:goenho0613--qwen3-tts-server-ttsmodel-health.modal.run)"
     ]
   },
   "enableAllProjectMcpServers": true,

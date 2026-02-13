@@ -18,9 +18,9 @@ import AnimatedSection from '../components/common/AnimatedSection'
 import GreetingPreview from '../components/landing/GreetingPreview'
 
 // Images
-const HERO_SKY = '/src/assets/images/hero-sky.jpg'
-const HERO_MAIN = '/src/assets/images/hero-main.png'
-const HERO_BIKE = '/src/assets/images/hero-bike.jpg'
+import HERO_SKY from '../assets/images/hero-sky.jpg'
+import HERO_MAIN from '../assets/images/hero-main.png'
+import HERO_BIKE from '../assets/images/hero-bike.jpg'
 
 interface BotStats {
   users: number
@@ -68,7 +68,7 @@ export default function Landing() {
     {
       title: 'TTS (음성 읽기)',
       description: '텍스트 채널의 메시지를 음성 채널에서 읽어줍니다. 데비와 마를렌 두 가지 음성을 지원합니다.',
-      highlights: ['커스텀 TTS 음성', '채널별 설정', '프리미엄 기능'],
+      highlights: ['커스텀 TTS 음성', '채널별 설정', '후원 전용 기능'],
       icon: <Bot className="w-8 h-8" />,
       color: "from-blue-500/20 to-cyan-500/20 text-cyan-400"
     },
@@ -106,21 +106,21 @@ export default function Landing() {
       highlighted: false,
     },
     {
-      name: '프리미엄',
+      name: '후원',
       price: '9,900',
       period: '/월',
       description: 'TTS 기능 포함',
-      features: ['무료 기능 전부', 'TTS (음성 읽기)', '우선 지원', '프리미엄 배지'],
-      cta: '프리미엄 시작하기',
+      features: ['무료 기능 전부', 'TTS (음성 읽기)', '우선 지원', '후원자 배지'],
+      cta: '후원하고 혜택받기',
       highlighted: true,
     },
     {
-      name: '연간 프리미엄',
+      name: '연간 후원',
       price: '99,000',
       period: '/년',
       description: '2개월 할인',
-      features: ['프리미엄 기능 전부', '연간 결제 할인', '16% 할인 적용'],
-      cta: '연간 구독하기',
+      features: ['후원 혜택 전부', '연간 후원 할인', '16% 할인 적용'],
+      cta: '연간 후원하기',
       highlighted: false,
     },
   ]
@@ -306,15 +306,15 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* Pricing Section (Renamed to Donation) */}
       <section className="py-32 bg-discord-darkest">
         <div className="max-w-7xl mx-auto px-6">
           <AnimatedSection className="text-center mb-20">
             <h2 className="text-3xl md:text-5xl font-bold mb-6">
-              <span className="gradient-text">합리적인 요금제</span>
+              <span className="gradient-text">개발자 후원</span>
             </h2>
             <p className="text-discord-muted text-lg">
-              필요한 기능에 맞춰 최적의 플랜을 선택하세요
+              데비&마를렌의 지속적인 개발을 위해 후원해주세요
             </p>
           </AnimatedSection>
 

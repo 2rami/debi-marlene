@@ -169,7 +169,7 @@ start-dashboard:
 		--command="docker pull $(DASHBOARD_IMAGE_TAG) && docker image prune -f"
 	@echo "대시보드 컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker run -d --name $(DASHBOARD_CONTAINER) -p 80:80 --env-file ~/dashboard.env --restart unless-stopped $(DASHBOARD_IMAGE_TAG)"
+		--command="docker run -d --name $(DASHBOARD_CONTAINER) --network dashboard-net -p 3080:80 --env-file ~/dashboard.env --restart unless-stopped $(DASHBOARD_IMAGE_TAG)"
 	@echo "대시보드 시작 완료"
 
 # 대시보드 로그

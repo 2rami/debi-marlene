@@ -1,10 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { RefreshCw, Download, Sparkles } from 'lucide-react'
-
-// 이미지 경로는 실제 프로젝트 구조에 맞게 조정 필요
-// 지금은 task.md에서 이동시킨 경로를 가정
-const PREVIEW_BG = '/src/assets/images/feature-bg.jpg'
+import PREVIEW_BG from '../../assets/images/feature-bg.jpg'
 
 export default function GreetingPreview() {
     const [nickname, setNickname] = useState('여행하는 데비')

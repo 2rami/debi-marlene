@@ -121,6 +121,9 @@ docker-compose.override.yml
 .cache/
 *.cache
 
+# YouTube 쿠키 (민감 데이터)
+cookies.txt
+
 # TTS 관련
 Debi&Marlene_KOR/
 Debi&Marlene_KOR.zip

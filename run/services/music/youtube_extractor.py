@@ -6,6 +6,7 @@ yt-dlp를 사용하여 YouTube에서 오디오 스트림 URL을 추출합니다.
 
 import asyncio
 import logging
+import os
 from dataclasses import dataclass
 from typing import Optional
 import discord
@@ -33,23 +34,31 @@ class Song:
 class YouTubeExtractor:
     """YouTube에서 오디오 정보를 추출하는 클래스"""
 
-    YDL_OPTIONS = {
-        'format': 'bestaudio/best',
-        'noplaylist': True,
-        'quiet': True,
-        'no_warnings': True,
-        'extract_flat': False,
-        'nocheckcertificate': True,
-        'ignoreerrors': False,
-        'logtostderr': False,
-        'no_color': True,
-        'noprogress': True,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['ios', 'android'],
-            }
-        },
-    }
+    COOKIE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'cookies.txt')
+
+    @classmethod
+    def _get_options(cls) -> dict:
+        opts = {
+            'format': 'bestaudio/best',
+            'noplaylist': True,
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': False,
+            'nocheckcertificate': True,
+            'ignoreerrors': False,
+            'logtostderr': False,
+            'no_color': True,
+            'noprogress': True,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['ios', 'android'],
+                }
+            },
+        }
+        cookie_path = os.path.abspath(cls.COOKIE_PATH)
+        if os.path.exists(cookie_path):
+            opts['cookiefile'] = cookie_path
+        return opts
 
     @classmethod
     async def extract_info(
@@ -110,7 +119,7 @@ class YouTubeExtractor:
     def _extract_with_ytdlp(cls, query: str) -> Optional[dict]:
         """yt-dlp로 정보 추출 (동기 함수)"""
         try:
-            with yt_dlp.YoutubeDL(cls.YDL_OPTIONS) as ydl:
+            with yt_dlp.YoutubeDL(cls._get_options()) as ydl:
                 return ydl.extract_info(query, download=False)
         except Exception as e:
             logger.error(f"yt-dlp 추출 오류: {e}")

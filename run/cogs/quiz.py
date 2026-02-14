@@ -117,6 +117,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
         remaining_timeout = ANSWER_TIMEOUT
         skipped = False
         skip_wait = asyncio.create_task(skip_view._skip_event.wait())
+        stop_wait = asyncio.create_task(session._stop_event.wait())
 
         while not answered and session.is_active:
             start_time = time.monotonic()
@@ -125,8 +126,17 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             )
 
             done, _ = await asyncio.wait(
-                {msg_wait, skip_wait}, return_when=asyncio.FIRST_COMPLETED
+                {msg_wait, skip_wait, stop_wait}, return_when=asyncio.FIRST_COMPLETED
             )
+
+            # 중지 명령
+            if stop_wait in done:
+                msg_wait.cancel()
+                try:
+                    await msg_wait
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    pass
+                break
 
             # 스킵 투표 완료
             if skip_wait in done:
@@ -167,6 +177,8 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 answered = True
 
         # 정리
+        if not stop_wait.done():
+            stop_wait.cancel()
         if not skip_wait.done():
             skip_wait.cancel()
         hint_task.cancel()
@@ -181,7 +193,9 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
         except Exception:
             pass
 
-        # 결과 Embed
+        # 결과 Embed (중지 시에는 표시하지 않음)
+        if not session.is_active:
+            return
         if skipped:
             await channel.send(embed=create_skip_embed(f"{song.title} - {song.artist}"))
         elif not (title_answered and artist_answered):
@@ -371,7 +385,29 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             view = ERQuizView(question.choices, question.correct_index)
             msg = await channel.send(embed=embed, view=view)
 
-            result = await view.wait_for_answer()
+            # wait_for_answer와 stop_event를 경쟁
+            answer_task = asyncio.create_task(view.wait_for_answer())
+            stop_task = asyncio.create_task(session._stop_event.wait())
+            done, _ = await asyncio.wait(
+                {answer_task, stop_task}, return_when=asyncio.FIRST_COMPLETED
+            )
+            if stop_task in done:
+                answer_task.cancel()
+                try:
+                    await answer_task
+                except asyncio.CancelledError:
+                    pass
+                # 버튼 비활성화 후 break
+                for item in view.children:
+                    item.disabled = True
+                try:
+                    await msg.edit(view=view)
+                except Exception:
+                    pass
+                break
+            if not stop_task.done():
+                stop_task.cancel()
+            result = answer_task.result()
 
             for item in view.children:
                 item.disabled = True
@@ -487,7 +523,30 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             )
             prompt_msg = await channel.send(embed=prompt_embed, view=submit_view)
 
-            modal = await submit_view.wait_for_song()
+            # wait_for_song과 stop_event를 경쟁
+            song_task = asyncio.create_task(submit_view.wait_for_song())
+            stop_task = asyncio.create_task(session._stop_event.wait())
+            done, _ = await asyncio.wait(
+                {song_task, stop_task}, return_when=asyncio.FIRST_COMPLETED
+            )
+            if stop_task in done:
+                song_task.cancel()
+                submit_view.cancelled = True
+                submit_view.stop()
+                try:
+                    await song_task
+                except asyncio.CancelledError:
+                    pass
+                for item in submit_view.children:
+                    item.disabled = True
+                try:
+                    await prompt_msg.edit(view=submit_view)
+                except Exception:
+                    pass
+                break
+            if not stop_task.done():
+                stop_task.cancel()
+            modal = song_task.result()
 
             for item in submit_view.children:
                 item.disabled = True

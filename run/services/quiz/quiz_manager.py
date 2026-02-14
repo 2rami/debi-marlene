@@ -4,6 +4,7 @@
 서버별 퀴즈 세션을 관리합니다.
 """
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Optional, Dict
@@ -23,6 +24,7 @@ class QuizSession:
     title_scores: Dict[int, int] = field(default_factory=dict)
     artist_scores: Dict[int, int] = field(default_factory=dict)
     is_active: bool = True
+    _stop_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
 
     def add_score(self, user_id: int, points: int = 1):
         """유저 점수를 추가합니다."""
@@ -73,6 +75,7 @@ class QuizManager:
         session = cls._sessions.pop(guild_id, None)
         if session:
             session.is_active = False
+            session._stop_event.set()
             logger.info(f"퀴즈 세션 종료: {guild_id}")
         return session
 

@@ -529,10 +529,15 @@ async def on_voice_state_update(member, before, after):
         if vc and vc.is_connected() and vc.channel.id == before.channel.id:
             non_bot_members = [m for m in before.channel.members if not m.bot]
             if not non_bot_members:
-                # 퀴즈 진행 중이면 idle 타이머 시작하지 않음
+                # 퀴즈 진행 중이면 자동 종료
                 from run.services.quiz.quiz_manager import QuizManager
-                if not QuizManager.has_active_session(guild_id):
-                    voice_manager.start_idle_timer(guild_id)
+                if QuizManager.has_active_session(guild_id):
+                    from run.services.quiz.song_quiz import SongQuiz
+                    session = QuizManager.get_session(guild_id)
+                    if session and session.quiz_type == "song":
+                        SongQuiz.stop_playback(guild_id)
+                    QuizManager.end_session(guild_id)
+                voice_manager.start_idle_timer(guild_id)
 
     # 사용자가 봇이 있는 채널에 들어온 경우 (입장 또는 다른 채널에서 이동)
     if after.channel and after.channel != before.channel:

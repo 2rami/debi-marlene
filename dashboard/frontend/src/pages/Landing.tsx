@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import AnimatedSection from '../components/common/AnimatedSection'
 import GreetingPreview from '../components/landing/GreetingPreview'
+import DonationModal from '../components/common/DonationModal'
 
 // Images
 import HERO_SKY from '../assets/images/hero-sky.jpg'
@@ -34,6 +35,7 @@ export default function Landing() {
   const navigate = useNavigate()
   const [stats, setStats] = useState<BotStats>({ users: 0, servers: 0, commands: 17 })
   const [botClientId, setBotClientId] = useState<string | null>(null)
+  const [isDonationModalOpen, setIsDonationModalOpen] = useState(false)
 
   const { scrollY } = useScroll()
   const y1 = useTransform(scrollY, [0, 500], [0, 150])
@@ -96,30 +98,14 @@ export default function Landing() {
     },
   ]
 
-  const pricingPlans = [
-    {
-      name: '무료',
-      price: '0',
-      period: '',
-      description: '모든 기본 기능 무료',
-      features: ['이터널리턴 전적 검색', '유튜브 알림', '음악 재생', '서버 관리'],
-      cta: '무료로 시작하기',
-      highlighted: false,
-    },
-    {
-      name: '후원',
-      price: '자유',
-      period: '',
-      description: '개발자 응원하기',
-      features: ['원하는 금액으로 후원', '서버 운영비 지원', '기능 개발 응원'],
-      cta: '후원하기',
-      highlighted: true,
-    },
-  ]
-
   return (
     <div className="min-h-screen bg-discord-darkest overflow-x-hidden selection:bg-debi-primary/30 selection:text-white">
       <Header />
+
+      <DonationModal
+        isOpen={isDonationModalOpen}
+        onClose={() => setIsDonationModalOpen(false)}
+      />
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
@@ -298,73 +284,63 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Pricing Section (Renamed to Donation) */}
-      <section className="py-32 bg-discord-darkest">
-        <div className="max-w-7xl mx-auto px-6">
-          <AnimatedSection className="text-center mb-20">
+      {/* New Donation Section */}
+      <section className="py-32 bg-discord-darkest relative overflow-hidden">
+        {/* Background Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-debi-primary/10 blur-[120px] rounded-full pointer-events-none" />
+
+        <div className="max-w-4xl mx-auto px-6 relative z-10">
+          <AnimatedSection className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold mb-6">
-              <span className="gradient-text">개발자 후원</span>
+              <span className="gradient-text">함께 만들어가는 데비&마를렌</span>
             </h2>
-            <p className="text-discord-muted text-lg">
-              데비&마를렌의 지속적인 개발을 위해 후원해주세요
+            <p className="text-discord-muted text-lg max-w-2xl mx-auto">
+              여러분의 소중한 후원은 안정적인 서버 운영과 더 나은 기능을 개발하는 데 큰 힘이 됩니다.
+              작은 정성이라도 감사히 받겠습니다! 🙇‍♂️
             </p>
           </AnimatedSection>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto px-4">
-            {pricingPlans.map((plan, index) => (
-              <AnimatedSection key={index} delay={index * 0.1}>
-                <div
-                  className={`relative rounded-3xl p-8 h-full flex flex-col ${plan.highlighted
-                    ? 'bg-gradient-to-b from-discord-dark to-discord-darker border-2 border-debi-primary/50 shadow-[0_0_50px_rgba(var(--debi-primary),0.1)]'
-                    : 'bg-discord-dark border border-discord-light/10 hover:border-discord-light/30 transition-colors'
-                    }`}
-                >
-                  {plan.highlighted && (
-                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-6 py-2 bg-gradient-to-r from-debi-primary to-marlene-primary rounded-full text-sm font-bold text-white shadow-lg">
-                      BEST CHOICE
-                    </div>
-                  )}
+          <AnimatedSection delay={0.2}>
+            <div className="bg-gradient-to-br from-discord-dark to-discord-darker rounded-[40px] p-8 md:p-12 border border-white/5 shadow-2xl relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-debi-primary/5 to-marlene-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                  <h3 className="text-2xl font-bold text-white mb-2">
-                    {plan.name}
+              <div className="flex flex-col md:flex-row items-center justify-between gap-10 relative z-10">
+                <div className="flex-1 text-center md:text-left">
+                  <div className="inline-block px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-debi-primary text-sm font-semibold mb-6">
+                    ☕ 개발자에게 커피 한 잔
+                  </div>
+                  <h3 className="text-3xl font-bold text-white mb-4">
+                    따뜻한 마음을 전해주세요
                   </h3>
-                  <p className="text-discord-muted text-sm mb-6 pb-6 border-b border-white/5">
-                    {plan.description}
+                  <p className="text-gray-400 leading-relaxed mb-8">
+                    후원해주신 모든 분들께는 감사의 마음을 담아<br className="hidden md:block" />
+                    <span className="text-white font-semibold">특별한 후원자 배지</span>와 <span className="text-white font-semibold">우선 지원 혜택</span>을 드립니다.
                   </p>
 
-                  <div className="mb-8">
-                    <span className="text-5xl font-black text-white">
-                      {plan.price}
-                    </span>
-                    {plan.price !== '자유' && (
-                      <span className="text-discord-muted text-lg font-medium ml-1">원{plan.period}</span>
-                    )}
-                  </div>
-
-                  <ul className="space-y-4 mb-10 flex-1">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-3 text-sm group">
-                        <div className={`p-1 rounded-full ${plan.highlighted ? 'bg-debi-primary/20 text-debi-primary' : 'bg-gray-800 text-gray-400'} mt-0.5`}>
-                          <Check className="w-3 h-3" />
-                        </div>
-                        <span className="text-gray-300 group-hover:text-white transition-colors">{feature}</span>
-                      </li>
+                  <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+                    {['서버 운영 비용', '새로운 기능 개발', '쾌적한 서비스 유지'].map((tag, idx) => (
+                      <span key={idx} className="flex items-center gap-2 text-sm text-gray-500 bg-black/20 px-3 py-2 rounded-lg">
+                        <Check className="w-3 h-3 text-debi-primary" />
+                        {tag}
+                      </span>
                     ))}
-                  </ul>
-
-                  <button
-                    onClick={handleDashboard}
-                    className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${plan.highlighted
-                      ? 'btn-gradient text-white hover:opacity-90 shadow-lg hover:shadow-debi-primary/25'
-                      : 'bg-white/5 text-white hover:bg-white/10'
-                      }`}
-                  >
-                    {plan.cta}
-                  </button>
+                  </div>
                 </div>
-              </AnimatedSection>
-            ))}
-          </div>
+
+                <div className="w-full md:w-auto flex flex-col items-center gap-4">
+                  <button
+                    onClick={() => setIsDonationModalOpen(true)}
+                    className="w-full md:w-auto px-12 py-5 rounded-2xl bg-gradient-to-r from-debi-primary to-marlene-primary text-white text-xl font-bold shadow-lg shadow-debi-primary/25 hover:shadow-debi-primary/40 hover:scale-105 active:scale-95 transition-all duration-300"
+                  >
+                    후원하기
+                  </button>
+                  <p className="text-xs text-discord-muted">
+                    * 언제든지 취소할 수 있는 자율 후원입니다
+                  </p>
+                </div>
+              </div>
+            </div>
+          </AnimatedSection>
         </div>
       </section>
 

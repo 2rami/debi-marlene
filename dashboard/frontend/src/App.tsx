@@ -19,6 +19,7 @@ function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/commands" element={<Commands />} />
           <Route path="/docs" element={<Docs />} />
+          <Route path="/premium" element={<Premium />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/fail" element={<PaymentFail />} />
 
@@ -26,7 +27,6 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/servers/:guildId" element={<ServerManagement />} />
-            <Route path="/premium" element={<Premium />} />
           </Route>
         </Routes>
       </div>

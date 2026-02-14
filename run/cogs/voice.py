@@ -456,6 +456,7 @@ async def handle_tts_message(message: discord.Message):
             }
 
             # 효과음 트리거 확인 (ㅋ 6개 이상 등)
+            sfx_handled = False
             if has_sfx_triggers(message.content):
                 segments = extract_segments_with_sfx(message.content)
                 logger.info(f"효과음 감지됨. 세그먼트: {len(segments)}개")
@@ -475,6 +476,7 @@ async def handle_tts_message(message: discord.Message):
                 # 세그먼트 이어붙이기
                 if len(audio_segments) == 1:
                     await audio_player.play_audio(guild_id, audio_segments[0])
+                    sfx_handled = True
                 elif len(audio_segments) > 1:
                     message_hash = hashlib.md5(message.content.encode()).hexdigest()[:8]
                     final_path = os.path.join("/tmp/tts_audio", f"sfx_{message_hash}.wav")
@@ -482,9 +484,14 @@ async def handle_tts_message(message: discord.Message):
                     from run.services.tts.audio_utils import concatenate_audio_files
                     final_audio = concatenate_audio_files(audio_segments, final_path)
                     await audio_player.play_audio(guild_id, final_audio)
+                    sfx_handled = True
 
-                logger.info("TTS + 효과음 재생 완료")
-            else:
+                if sfx_handled:
+                    logger.info("TTS + 효과음 재생 완료")
+                else:
+                    logger.warning(f"효과음 파일 없음, 일반 TTS로 폴백: {message.content}")
+
+            if not sfx_handled:
                 # 효과음 없음 - 일반 TTS
                 # 300자 이상이면 "너무 길어서 못 읽겠어요" 메시지 재생
                 if len(message.content) > 300:

@@ -21,6 +21,7 @@ import GreetingPreview from '../components/landing/GreetingPreview'
 import HERO_SKY from '../assets/images/hero-sky.jpg'
 import HERO_MAIN from '../assets/images/hero-main.png'
 import HERO_BIKE from '../assets/images/hero-bike.jpg'
+import FEATURE_BG from '../assets/images/feature-bg.jpg'
 
 interface BotStats {
   users: number
@@ -100,28 +101,19 @@ export default function Landing() {
       name: '무료',
       price: '0',
       period: '',
-      description: '기본 서버 관리 기능',
-      features: ['이터널리턴 전적 검색', '유튜브 알림', '음악 재생', '피드백 보내기'],
+      description: '모든 기본 기능 무료',
+      features: ['이터널리턴 전적 검색', '유튜브 알림', '음악 재생', '서버 관리'],
       cta: '무료로 시작하기',
       highlighted: false,
     },
     {
       name: '후원',
-      price: '9,900',
-      period: '/월',
-      description: 'TTS 기능 포함',
-      features: ['무료 기능 전부', 'TTS (음성 읽기)', '우선 지원', '후원자 배지'],
-      cta: '후원하고 혜택받기',
+      price: '자유',
+      period: '',
+      description: '개발자 응원하기',
+      features: ['원하는 금액으로 후원', '서버 운영비 지원', '기능 개발 응원'],
+      cta: '후원하기',
       highlighted: true,
-    },
-    {
-      name: '연간 후원',
-      price: '99,000',
-      period: '/년',
-      description: '2개월 할인',
-      features: ['후원 혜택 전부', '연간 후원 할인', '16% 할인 적용'],
-      cta: '연간 후원하기',
-      highlighted: false,
     },
   ]
 
@@ -205,7 +197,7 @@ export default function Landing() {
 
       {/* Greeting Preview Section */}
       <section className="py-24 relative overflow-hidden bg-discord-dark">
-        <div className="absolute inset-0 bg-[url('/src/assets/images/feature-bg.jpg')] bg-cover bg-center opacity-5" />
+        <div className="absolute inset-0 bg-cover bg-center opacity-5" style={{ backgroundImage: `url(${FEATURE_BG})` }} />
         <div className="relative max-w-7xl mx-auto px-6">
           <AnimatedSection className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold mb-6">
@@ -318,7 +310,7 @@ export default function Landing() {
             </p>
           </AnimatedSection>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto px-4">
+          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto px-4">
             {pricingPlans.map((plan, index) => (
               <AnimatedSection key={index} delay={index * 0.1}>
                 <div
@@ -344,7 +336,9 @@ export default function Landing() {
                     <span className="text-5xl font-black text-white">
                       {plan.price}
                     </span>
-                    <span className="text-discord-muted text-lg font-medium ml-1">원{plan.period}</span>
+                    {plan.price !== '자유' && (
+                      <span className="text-discord-muted text-lg font-medium ml-1">원{plan.period}</span>
+                    )}
                   </div>
 
                   <ul className="space-y-4 mb-10 flex-1">

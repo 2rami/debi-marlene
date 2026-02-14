@@ -98,7 +98,7 @@ export default function DashboardLayout({ children }: Props) {
                   location.pathname === '/premium' ? 'text-white' : 'text-discord-muted hover:text-white'
                 }`}
               >
-                프리미엄
+                후원
               </Link>
 
               {/* Divider */}

@@ -15,6 +15,7 @@ DASHBOARD_IMAGE_TAG = $(REGISTRY)/$(DASHBOARD_CONTAINER):latest
 
 .PHONY: help deploy build-local push-image restart stop start logs status clean test-local stop-vm start-vm
 .PHONY: deploy-dashboard build-dashboard push-dashboard start-dashboard stop-dashboard restart-dashboard logs-dashboard
+.PHONY: deploy-dashboard-frontend deploy-dashboard-backend
 .PHONY: deploy-webpanel-frontend deploy-webpanel-backend logs-webpanel
 
 # 기본 명령어 (make 입력 시 도움말 표시)
@@ -34,11 +35,13 @@ help:
 	@echo "  make status        - VM 및 컨테이너 상태 확인"
 	@echo ""
 	@echo "  [Dashboard]"
-	@echo "  make deploy-dashboard   - 대시보드 배포 (빌드 + Push + 시작)"
-	@echo "  make stop-dashboard     - 대시보드 중지"
-	@echo "  make start-dashboard    - 대시보드 시작"
-	@echo "  make restart-dashboard  - 대시보드 재시작"
-	@echo "  make logs-dashboard     - 대시보드 로그 확인"
+	@echo "  make deploy-dashboard            - 대시보드 전체 배포 (Docker 이미지 재빌드)"
+	@echo "  make deploy-dashboard-frontend   - 프론트엔드만 빌드 + VM 배포"
+	@echo "  make deploy-dashboard-backend    - 백엔드만 VM 배포"
+	@echo "  make stop-dashboard              - 대시보드 중지"
+	@echo "  make start-dashboard             - 대시보드 시작"
+	@echo "  make restart-dashboard           - 대시보드 재시작"
+	@echo "  make logs-dashboard              - 대시보드 로그 확인"
 	@echo ""
 	@echo "  [Webpanel]"
 	@echo "  make deploy-webpanel-frontend  - 웹패널 프론트엔드 빌드 + VM 배포"
@@ -177,6 +180,29 @@ logs-dashboard:
 	@echo "대시보드 로그 (Ctrl+C로 종료):"
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker logs -f $(DASHBOARD_CONTAINER)"
+
+# 대시보드 프론트엔드만 배포 (Docker 재빌드 없이 빠른 배포)
+deploy-dashboard-frontend:
+	@echo "[1/3] 프론트엔드 빌드 중..."
+	@cd dashboard/frontend && npm run build
+	@echo "[2/3] dist를 VM에 업로드 중..."
+	@gcloud compute scp --recurse dashboard/frontend/dist/* $(VM_NAME):~/dashboard-upload/ --zone=$(ZONE)
+	@echo "[3/3] 컨테이너에 복사 + nginx 리로드..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker cp ~/dashboard-upload/. $(DASHBOARD_CONTAINER):/var/www/dashboard/ && docker exec $(DASHBOARD_CONTAINER) nginx -s reload && rm -rf ~/dashboard-upload"
+	@echo "대시보드 프론트엔드 배포 완료"
+
+# 대시보드 백엔드만 배포 (Docker 재빌드 없이 빠른 배포)
+deploy-dashboard-backend:
+	@echo "[1/3] 백엔드 파일을 VM에 업로드 중..."
+	@gcloud compute scp --recurse dashboard/backend $(VM_NAME):~/dashboard-backend-upload --zone=$(ZONE)
+	@echo "[2/3] 컨테이너에 복사..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker cp ~/dashboard-backend-upload/. $(DASHBOARD_CONTAINER):/app/backend/ && rm -rf ~/dashboard-backend-upload"
+	@echo "[3/3] gunicorn 재시작..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker exec $(DASHBOARD_CONTAINER) supervisorctl restart gunicorn"
+	@echo "대시보드 백엔드 배포 완료"
 
 # ============================================================
 # Webpanel 배포

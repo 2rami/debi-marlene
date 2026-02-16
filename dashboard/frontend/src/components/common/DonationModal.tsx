@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, CreditCard, MessageCircle, Copy, ExternalLink, RefreshCw } from 'lucide-react'
+import { X, CreditCard, MessageCircle, Copy, ExternalLink } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 
 // Images

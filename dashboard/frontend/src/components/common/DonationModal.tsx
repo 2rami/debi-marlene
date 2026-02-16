@@ -1,26 +1,33 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Coffee, Pizza, Zap, Heart, X } from 'lucide-react'
+import { X, CreditCard, MessageCircle, Copy, ExternalLink, RefreshCw } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 
-const DONATION_TIERS = [
-    { amount: 1000, icon: Coffee, label: '캔커피', desc: '카페인 충전!' },
-    { amount: 3000, icon: Zap, label: '에너지드링크', desc: '코딩 불태우기' },
-    { amount: 5000, icon: Pizza, label: '조각피자', desc: '든든한 간식' },
-    { amount: 10000, icon: Heart, label: '치킨 한마리', desc: '최고의 응원' },
-]
+// Images
+import KAKAO_QR from '../../assets/images/kakao-qr.jpg'
 
 interface DonationModalProps {
     isOpen: boolean
     onClose: () => void
 }
 
+const PRESET_AMOUNTS = [1000, 3000, 5000, 10000, 30000, 50000]
+
 export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
+    const [activeTab, setActiveTab] = useState<'toss' | 'kakao'>('toss')
     const [amount, setAmount] = useState<number>(3000)
     const [customAmount, setCustomAmount] = useState('')
     const [isCustom, setIsCustom] = useState(false)
-    const [loading, setLoading] = useState(false)
 
-    const handleTierSelect = (value: number) => {
+    // Toss Bank Info
+    const TOSS_BANK_ACCOUNT = '1000-4242-1882'
+
+    // KakaoPay URL
+    // 기본 링크: https://qr.kakaopay.com/281006011000009859887675
+    // 금액 지정 시도: ?money={amount} (작동 여부 확인 필요)
+    const KAKAO_PAY_LINK = 'https://qr.kakaopay.com/281006011000009859887675'
+
+    const handleAmountSelect = (value: number) => {
         setAmount(value)
         setIsCustom(false)
         setCustomAmount('')
@@ -37,21 +44,19 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
         setIsCustom(true)
     }
 
-    const handleDonate = async () => {
-        if (amount < 100) return
-        setLoading(true)
+    const getTossLink = () => {
+        // supertoss://send?bank=토스뱅크&accountNo=100042421882&amount=3000
+        return `supertoss://send?bank=토스뱅크&accountNo=${TOSS_BANK_ACCOUNT.replace(/-/g, '')}&amount=${amount}`
+    }
 
-        try {
-            // TODO: Toss Payments integration
-            console.log('Donation started:', amount)
-            // Simulate delay
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            onClose()
-        } catch (error) {
-            console.error('Donation error:', error)
-        } finally {
-            setLoading(false)
-        }
+    const getKakaoLink = () => {
+        // 시도: 금액 파라미터 추가
+        return `${KAKAO_PAY_LINK}${amount > 0 ? `?money=${amount}` : ''}`
+    }
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text)
+        alert('복사되었습니다!')
     }
 
     return (
@@ -70,7 +75,7 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative w-full max-w-2xl bg-[#0f0f0f] rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
+                        className="relative w-full max-w-md bg-[#1a1b1e] rounded-3xl border border-white/10 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
                     >
                         {/* Close Button */}
                         <button
@@ -80,91 +85,180 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
                             <X size={24} />
                         </button>
 
-                        <div className="p-8">
-                            <div className="text-center mb-8">
-                                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-debi-primary to-marlene-primary mb-2">
-                                    개발자 응원하기
+                        <div className="p-6 md:p-8">
+                            <div className="text-center mb-6">
+                                <h2 className="text-2xl font-bold text-white mb-2">
+                                    개발자 후원하기
                                 </h2>
                                 <p className="text-gray-400 text-sm">
-                                    데비&마를렌이 더 열심히 일할 수 있도록 간식을 선물해주세요! 🧁
+                                    따뜻한 커피 한 잔은 큰 힘이 됩니다 ☕
                                 </p>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                                {DONATION_TIERS.map((tier) => (
-                                    <motion.button
-                                        key={tier.amount}
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={() => handleTierSelect(tier.amount)}
-                                        className={`relative flex flex-col items-center p-3 rounded-2xl border transition-all duration-300 ${amount === tier.amount && !isCustom
-                                                ? 'bg-gradient-to-br from-debi-primary/20 to-marlene-primary/20 border-debi-primary/50 ring-2 ring-debi-primary/20'
-                                                : 'bg-[#1a1b1e] border-white/5 hover:border-white/10 hover:bg-[#202225]'
-                                            }`}
-                                    >
-                                        <div className={`p-2 rounded-full mb-2 ${amount === tier.amount && !isCustom
-                                                ? 'bg-gradient-to-br from-debi-primary to-marlene-primary text-white shadow-lg'
-                                                : 'bg-white/5 text-gray-400'
-                                            }`}>
-                                            <tier.icon size={20} />
-                                        </div>
-                                        <div className="font-bold text-white text-sm mb-0.5">{tier.label}</div>
-                                        <div className="text-[10px] text-debi-primary font-medium mb-0.5">
-                                            {tier.amount.toLocaleString()}원
-                                        </div>
-                                        <div className="text-[9px] text-gray-500">{tier.desc}</div>
-                                    </motion.button>
-                                ))}
-                            </div>
-
-                            <div className="bg-[#1a1b1e] rounded-2xl p-6 border border-white/5">
-                                <div className="flex flex-col md:flex-row items-center gap-6">
-                                    <div className="w-full md:w-1/2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">
-                                            직접 입력하기
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                value={isCustom ? customAmount : ''}
-                                                onChange={(e) => handleCustomChange(e.target.value)}
-                                                onFocus={() => {
-                                                    setIsCustom(true)
-                                                    setCustomAmount(amount > 0 ? String(amount) : '')
-                                                }}
-                                                placeholder="금액을 입력하세요"
-                                                className="w-full bg-[#0f0f0f] text-white px-4 py-3 rounded-xl border border-white/10 focus:border-debi-primary focus:ring-1 focus:ring-debi-primary outline-none transition-all font-medium placeholder-gray-600"
-                                            />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">
-                                                KRW
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="w-full md:w-1/2 flex flex-col items-center">
-                                        <div className="text-center mb-3">
-                                            <span className="text-gray-400 text-xs">보내실 금액</span>
-                                            <div className="text-2xl font-bold text-white">
-                                                {amount.toLocaleString()}
-                                                <span className="text-base text-debi-primary ml-1">원</span>
-                                            </div>
-                                        </div>
-
+                            {/* Amount Selection */}
+                            <div className="mb-6">
+                                <div className="grid grid-cols-3 gap-2 mb-3">
+                                    {PRESET_AMOUNTS.map((amt) => (
                                         <button
-                                            onClick={handleDonate}
-                                            disabled={loading || amount < 100}
-                                            className="w-full py-3 rounded-xl font-bold text-white shadow-lg shadow-debi-primary/20 bg-gradient-to-r from-debi-primary to-marlene-primary hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                            key={amt}
+                                            onClick={() => handleAmountSelect(amt)}
+                                            className={`py-2 rounded-xl text-sm font-medium transition-all ${amount === amt && !isCustom
+                                                    ? 'bg-white text-black font-bold shadow-lg'
+                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                                                }`}
                                         >
-                                            {loading ? '처리 중...' : '후원하기 🎁'}
+                                            {amt.toLocaleString()}원
                                         </button>
-                                    </div>
+                                    ))}
+                                </div>
+
+                                {/* Custom Amount Input */}
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={isCustom ? customAmount : ''}
+                                        onChange={(e) => handleCustomChange(e.target.value)}
+                                        onFocus={() => {
+                                            setIsCustom(true)
+                                            setCustomAmount(amount > 0 ? String(amount) : '')
+                                        }}
+                                        placeholder="직접 입력"
+                                        className={`w-full bg-[#0f0f0f] px-4 py-3 rounded-xl border outline-none transition-all font-medium text-center ${isCustom
+                                                ? 'border-debi-primary text-white ring-1 ring-debi-primary'
+                                                : 'border-white/10 text-gray-400 hover:border-white/20'
+                                            }`}
+                                    />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">KRW</span>
                                 </div>
                             </div>
 
-                            <p className="text-center text-[10px] text-gray-600 mt-6">
-                                후원금은 서버 운영비와 개발자의 커피값으로 소중하게 사용됩니다.<br />
-                                항상 응원해 주셔서 감사합니다! 🙇‍♂️
-                            </p>
+                            {/* Tabs */}
+                            <div className="flex bg-black/20 p-1 rounded-xl mb-6">
+                                <button
+                                    onClick={() => setActiveTab('toss')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'toss'
+                                            ? 'bg-blue-500 text-white shadow-lg'
+                                            : 'text-gray-400 hover:text-white'
+                                        }`}
+                                >
+                                    <CreditCard size={16} />
+                                    Toss
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('kakao')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'kakao'
+                                            ? 'bg-yellow-400 text-black shadow-lg'
+                                            : 'text-gray-400 hover:text-white'
+                                        }`}
+                                >
+                                    <MessageCircle size={16} />
+                                    KakaoPay
+                                </button>
+                            </div>
+
+                            {/* QR Code Display */}
+                            <div className="bg-white rounded-2xl p-6 mb-6 aspect-square flex flex-col items-center justify-center overflow-hidden relative group">
+                                <AnimatePresence mode="wait">
+                                    {/* Toss Bank Dynamic QR */}
+                                    {activeTab === 'toss' ? (
+                                        <motion.div
+                                            key="toss"
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.9 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="flex flex-col items-center w-full h-full"
+                                        >
+                                            {/* Dynamic QR Code for encoded URL */}
+                                            <QRCodeSVG
+                                                value={getTossLink()}
+                                                size={200}
+                                                level="H"
+                                                includeMargin={true}
+                                            />
+                                            <p className="mt-4 text-sm font-bold text-blue-600">
+                                                {amount.toLocaleString()}원 보내기
+                                            </p>
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            key="kakao"
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.9 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="flex flex-col items-center w-full h-full"
+                                        >
+                                            {/* Try Dynamic Link QR first (may not work deep link without scheme), 
+                          fallback to static image if needed, but here we try encoding the link */}
+                                            <QRCodeSVG
+                                                value={getKakaoLink()}
+                                                size={200}
+                                                level="H"
+                                                includeMargin={true}
+                                                imageSettings={{
+                                                    src: KAKAO_QR,
+                                                    x: undefined,
+                                                    y: undefined,
+                                                    height: 40,
+                                                    width: 40,
+                                                    excavate: true,
+                                                }}
+                                            />
+                                            <p className="mt-4 text-sm font-bold text-yellow-600">
+                                                {amount.toLocaleString()}원 보내기
+                                            </p>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* Scan Instruction Overlay */}
+                                <div className="absolute inset-0 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                    <p className="text-gray-800 font-bold text-sm">
+                                        카메라로 스캔하여 송금하기
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="space-y-3">
+                                {activeTab === 'toss' ? (
+                                    <>
+                                        <a
+                                            href={getTossLink()}
+                                            className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-blue-500/20"
+                                        >
+                                            <ExternalLink size={18} />
+                                            토스 앱으로 열기
+                                        </a>
+                                        <button
+                                            onClick={() => copyToClipboard(TOSS_BANK_ACCOUNT)}
+                                            className="w-full py-3.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-medium flex items-center justify-center gap-2 transition-colors border border-white/5"
+                                        >
+                                            <Copy size={18} />
+                                            계좌번호 복사하기 ({TOSS_BANK_ACCOUNT})
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <a
+                                            href={getKakaoLink()}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-full py-3.5 rounded-xl bg-[#FAE100] hover:bg-[#FADB00] text-[#371D1E] font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-yellow-500/20"
+                                        >
+                                            <ExternalLink size={18} />
+                                            카카오페이 열기
+                                        </a>
+                                    </>
+                                )}
+                            </div>
+
+                            <div className="mt-6 text-center">
+                                <p className="text-xs text-gray-600 bg-white/5 rounded-lg py-2 px-3 inline-block">
+                                    QR 코드를 스캔하거나 앱 열기 버튼을 눌러주세요
+                                </p>
+                            </div>
                         </div>
                     </motion.div>
                 </div>

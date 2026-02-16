@@ -34,6 +34,7 @@ from run.views.quiz_view import (
     SongSubmitView,
     SongSkipView,
 )
+from run.services.quiz.quiz_storage import save_quiz_result, update_leaderboard_names
 from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
@@ -301,7 +302,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 channel, session, song, stream_info, i + 1, total, guild_id
             )
 
-        # 결과 표시
+        # 결과 표시 + 저장
         final_session = QuizManager.end_session(guild_id)
         if final_session:
             embed = create_song_result_embed(
@@ -312,6 +313,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 interaction.guild,
             )
             await channel.send(embed=embed)
+            self._save_result(guild_id, final_session, interaction.guild)
 
     # ---------- /퀴즈 이터널리턴 ----------
 
@@ -437,6 +439,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 final_session.scores, final_session.total_questions, interaction.guild
             )
             await channel.send(embed=embed)
+            self._save_result(guild_id, final_session, interaction.guild)
 
     # ---------- /퀴즈 노래출제 ----------
 
@@ -574,7 +577,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 exclude_user_id=host.id,
             )
 
-        # 결과 표시
+        # 결과 표시 + 저장
         final_session = QuizManager.end_session(guild_id)
         if final_session:
             embed = create_song_result_embed(
@@ -585,6 +588,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 interaction.guild,
             )
             await channel.send(embed=embed)
+            self._save_result(guild_id, final_session, interaction.guild)
 
     # ---------- /퀴즈 중지 ----------
 
@@ -626,8 +630,29 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                     final_session.scores, final_session.current_question, interaction.guild
                 )
             await interaction.followup.send(content="퀴즈가 중단되었습니다.", embed=embed)
+            self._save_result(guild_id, final_session, interaction.guild)
         else:
             await interaction.followup.send("퀴즈가 중단되었습니다.")
+
+    # ---------- 결과 저장 헬퍼 ----------
+
+    @staticmethod
+    def _save_result(guild_id: str, session, guild: discord.Guild):
+        """퀴즈 결과를 GCS에 비동기로 저장합니다."""
+        if not session.scores:
+            return
+        try:
+            save_quiz_result(guild_id, session)
+            # 리더보드에 닉네임 업데이트
+            members = {}
+            for user_id in session.scores:
+                member = guild.get_member(user_id)
+                if member:
+                    members[user_id] = member.display_name
+            if members:
+                update_leaderboard_names(guild_id, members)
+        except Exception as e:
+            logger.error(f"퀴즈 결과 저장 중 오류: {e}")
 
 
 async def setup(bot: commands.Bot):

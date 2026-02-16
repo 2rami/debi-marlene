@@ -41,8 +41,8 @@ class SongEntry:
     aliases: Optional[List[str]] = None  # 아티스트/제목 대체 이름 (한글 등)
 
 
-# 내장 곡 목록 (초기 데이터)
-SONG_LIST: List[SongEntry] = [
+# 내장 곡 목록 (GCS에 곡이 없을 때 폴백용)
+DEFAULT_SONG_LIST: List[SongEntry] = [
     # K-pop
     SongEntry("Ditto", "NewJeans", "NewJeans Ditto", ["뉴진스"]),
     SongEntry("Super Shy", "NewJeans", "NewJeans Super Shy", ["뉴진스", "슈퍼샤이"]),
@@ -92,6 +92,24 @@ SONG_LIST: List[SongEntry] = [
     SongEntry("Espresso", "Sabrina Carpenter", "Sabrina Carpenter Espresso", ["사브리나카펜터"]),
     SongEntry("Greedy", "Tate McRae", "Tate McRae Greedy", ["테이트맥레이"]),
 ]
+
+
+def get_song_list() -> List[SongEntry]:
+    """GCS에서 곡 목록을 로드합니다. 없으면 기본 목록 사용."""
+    from run.services.quiz.quiz_storage import load_song_list
+
+    gcs_songs = load_song_list()
+    if gcs_songs:
+        return [
+            SongEntry(
+                title=s["title"],
+                artist=s["artist"],
+                query=s["query"],
+                aliases=s.get("aliases"),
+            )
+            for s in gcs_songs
+        ]
+    return DEFAULT_SONG_LIST
 
 
 def _normalize(text: str) -> str:
@@ -186,18 +204,18 @@ class SongQuiz:
         self.guild_id = guild_id
         self.total_questions = total_questions
         self._used_indices: set = set()
+        self._song_list: List[SongEntry] = get_song_list()
 
     def pick_song(self) -> Optional[SongEntry]:
         """중복 없이 랜덤 곡을 선택합니다."""
-        available = [i for i in range(len(SONG_LIST)) if i not in self._used_indices]
+        available = [i for i in range(len(self._song_list)) if i not in self._used_indices]
         if not available:
-            # 전부 사용했으면 리셋
             self._used_indices.clear()
-            available = list(range(len(SONG_LIST)))
+            available = list(range(len(self._song_list)))
 
         idx = random.choice(available)
         self._used_indices.add(idx)
-        return SONG_LIST[idx]
+        return self._song_list[idx]
 
     @staticmethod
     async def get_stream_url(song: SongEntry, bot_user: discord.Member) -> Optional[str]:

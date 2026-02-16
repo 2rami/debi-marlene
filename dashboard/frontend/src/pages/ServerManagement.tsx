@@ -10,6 +10,7 @@ import PollGiveaway from '../components/server/PollGiveaway'
 import StickyMessage from '../components/server/StickyMessage'
 import ServerStats from '../components/server/ServerStats'
 import OnboardingSettings from '../components/server/OnboardingSettings'
+import QuizDashboard from '../components/server/QuizDashboard'
 
 interface ServerSettings {
   id: string
@@ -245,6 +246,9 @@ export default function ServerManagement() {
 
           {/* 고정 메시지 */}
           {activeTab === 'sticky' && <StickyMessage channels={channels} guildId={guildId!} />}
+
+          {/* 퀴즈 */}
+          {activeTab === 'quiz' && <QuizDashboard guildId={guildId!} />}
 
           {/* 통계 */}
           {activeTab === 'stats' && <ServerStats guildId={guildId!} />}

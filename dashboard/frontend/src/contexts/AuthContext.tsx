@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { api } from '../services/api'
 
 interface User {
@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       const response = await api.get<{ user: User }>('/auth/me')
       if (response.data.user) {
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       setUser(null)
     }
-  }
+  }, [])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -51,7 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = () => {
-    // Redirect to Discord OAuth
     const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID
     const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/callback`)
     const scope = encodeURIComponent('identify email guilds')

@@ -8,6 +8,7 @@ import PaymentSuccess from './pages/PaymentSuccess'
 import PaymentFail from './pages/PaymentFail'
 import Commands from './pages/Commands'
 import Docs from './pages/Docs'
+import AuthCallback from './pages/AuthCallback'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Landing />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/commands" element={<Commands />} />
           <Route path="/docs" element={<Docs />} />
           <Route path="/premium" element={<Premium />} />

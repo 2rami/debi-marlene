@@ -5,7 +5,7 @@ Discord OAuth2 Authentication Routes
 import os
 import logging
 import requests
-from flask import Blueprint, redirect, request, session, jsonify, url_for
+from flask import Blueprint, redirect, request, session, jsonify
 
 logger = logging.getLogger(__name__)
 
@@ -35,19 +35,35 @@ def discord_login():
 
 @auth_bp.route('/callback')
 def discord_callback():
-    """Handle Discord OAuth2 callback"""
+    """Handle Discord OAuth2 callback (server-side fallback)"""
     code = request.args.get('code')
     error = request.args.get('error')
 
-    if error:
-        logger.error(f'Discord OAuth error: {error}')
+    if error or not code:
         return redirect(f'{FRONTEND_URL}/?error=oauth_failed')
 
-    if not code:
-        return redirect(f'{FRONTEND_URL}/?error=no_code')
+    success = _exchange_and_login(code)
+    if success:
+        return redirect(f'{FRONTEND_URL}/dashboard')
+    return redirect(f'{FRONTEND_URL}/?error=oauth_failed')
 
+@auth_bp.route('/exchange', methods=['POST'])
+def exchange_code():
+    """Exchange OAuth2 code for tokens and create session"""
+    data = request.get_json()
+    if not data or not data.get('code'):
+        return jsonify({'error': 'Missing code'}), 400
+
+    code = data['code']
+    if _exchange_and_login(code):
+        return jsonify({'success': True})
+    return jsonify({'error': 'OAuth failed'}), 500
+
+def _exchange_and_login(code):
+    """Shared OAuth token exchange and session creation logic"""
     try:
         # Exchange code for tokens
+        logger.info(f'Token exchange: redirect_uri={DISCORD_REDIRECT_URI}')
         token_response = requests.post(
             f'{DISCORD_API_URL}/oauth2/token',
             data={
@@ -59,6 +75,8 @@ def discord_callback():
             },
             headers={'Content-Type': 'application/x-www-form-urlencoded'}
         )
+        if token_response.status_code != 200:
+            logger.error(f'Token exchange failed: {token_response.status_code} {token_response.text}')
         token_response.raise_for_status()
         tokens = token_response.json()
 
@@ -83,7 +101,7 @@ def discord_callback():
         # Filter guilds where user has admin permission
         admin_guilds = [
             g['id'] for g in guilds_data
-            if (int(g.get('permissions', 0)) & 0x8) == 0x8  # ADMINISTRATOR permission
+            if (int(g.get('permissions', 0)) & 0x8) == 0x8
         ]
 
         # Store in session
@@ -97,11 +115,11 @@ def discord_callback():
         }
 
         logger.info(f'User {user_data["username"]} logged in')
-        return redirect(f'{FRONTEND_URL}/dashboard')
+        return True
 
     except requests.RequestException as e:
         logger.error(f'Discord OAuth request failed: {e}')
-        return redirect(f'{FRONTEND_URL}/?error=oauth_failed')
+        return False
 
 @auth_bp.route('/me')
 def get_current_user():
@@ -111,7 +129,6 @@ def get_current_user():
     if not user:
         return jsonify({'user': None}), 200
 
-    # TODO: Get premium status from Firestore
     premium_status = {
         'isActive': False,
         'plan': None,

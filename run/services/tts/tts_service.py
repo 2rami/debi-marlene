@@ -1,10 +1,11 @@
 """
-TTS 서비스: Qwen3-TTS 사용
+TTS 서비스
 
 데비&마를렌 음성으로 TTS를 제공합니다.
 
 엔진 종류:
-- modal: Modal Serverless TTS (권장, Flash Attention)
+- edgetts_rvc: edge-tts + RVC v2 (권장, 빠름)
+- modal: Modal Serverless Qwen3-TTS (Flash Attention)
 - qwen3_api: Qwen3-TTS FastAPI 서버 (로컬)
 - qwen3: Qwen3-TTS 로컬 모델
 """
@@ -61,8 +62,20 @@ class TTSService:
         if self.tts_backend is not None:
             return
 
-        if self.engine == "modal":
-            # Modal Serverless TTS (권장)
+        if self.engine == "edgetts":
+            # edge-tts 단독 (RVC 없이, GPU 불필요)
+            from .edgetts_client import EdgeTTSClient
+            self.tts_backend = EdgeTTSClient()
+            await self.tts_backend.initialize()
+            logger.info("EdgeTTS 클라이언트 초기화 완료")
+        elif self.engine == "edgetts_rvc":
+            # edge-tts + RVC v2 (권장, 빠름)
+            from .edgetts_rvc_client import EdgeTTSRVCClient
+            self.tts_backend = EdgeTTSRVCClient()
+            await self.tts_backend.initialize()
+            logger.info("EdgeTTS+RVC 클라이언트 초기화 완료")
+        elif self.engine == "modal":
+            # Modal Serverless Qwen3-TTS
             from .modal_tts_client import ModalTTSClient
             self.tts_backend = ModalTTSClient()
             await self.tts_backend.initialize()

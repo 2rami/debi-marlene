@@ -20,6 +20,7 @@ psutil==5.9.8
 PyNaCl==1.5.0
 yt-dlp>=2024.1.0
 gTTS==2.5.1
+edge-tts>=7.0.0
 pydub==0.25.1
 # TTS>=0.22.0  # Coqui TTS - removed (using GPT-SoVITS)
 # openai-whisper  # removed (not needed)

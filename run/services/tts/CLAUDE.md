@@ -14,4 +14,22 @@
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
 | #1244 | 11:48 AM | 🟣 | CosyVoice3 Modal Deployment Completed Successfully | ~386 |
+
+### Feb 19, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #1449 | 7:44 PM | 🔵 | TTS Service Architecture - Multi-Engine Support with Modal Default | ~402 |
+| #1404 | 4:08 PM | 🔵 | TTS service architecture supports three engine modes with modal as default | ~472 |
+| #1402 | " | 🔵 | Modal TTS Client Implementation for Discord Bot | ~463 |
+
+### Feb 21, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #1713 | 8:52 PM | 🔵 | TTS Service Architecture Supports Multiple Engine Backends | ~421 |
+| #1654 | 8:17 PM | ✅ | Enhanced error response with traceback in EdgeTTS-RVC server | ~317 |
+| #1653 | 8:16 PM | 🔵 | EdgeTTS-RVC pipeline uses model.infer_file for voice conversion with f0_up_key pitch control | ~458 |
+| #1648 | 8:13 PM | 🔵 | EdgeTTS+RVC hybrid TTS pipeline implementation reviewed | ~490 |
+| #1618 | 7:42 PM | 🔵 | EdgeTTS + RVC Voice Conversion Pipeline Architecture | ~175 |
 </claude-mem-context>

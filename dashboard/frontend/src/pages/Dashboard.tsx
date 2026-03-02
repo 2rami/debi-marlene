@@ -16,6 +16,27 @@ import {
 } from 'lucide-react'
 import AnimatedSection from '../components/common/AnimatedSection'
 
+const getServerAcronym = (name: string) => {
+  const acronym = name.split(/\s+/).map(w => w[0]).join('').substring(0, 3).toUpperCase()
+  return acronym || name.substring(0, 2).toUpperCase()
+}
+
+const getServerGradient = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const gradients = [
+    'from-rose-500 to-pink-500',
+    'from-blue-500 to-cyan-500',
+    'from-emerald-500 to-teal-500',
+    'from-violet-500 to-purple-500',
+    'from-amber-500 to-orange-500',
+    'from-indigo-500 to-blue-500',
+  ]
+  return gradients[Math.abs(hash) % gradients.length];
+}
+
 interface Server {
   id: string
   name: string
@@ -100,10 +121,10 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    Premium Active
+                    후원 활성화
                     <span className="px-2 py-0.5 rounded-full bg-debi-primary/20 text-debi-primary text-xs font-mono border border-debi-primary/20">PRO</span>
                   </h3>
-                  <p className="text-discord-muted text-sm">모든 프리미엄 기능을 제한 없이 이용할 수 있습니다.</p>
+                  <p className="text-discord-muted text-sm">모든 후원자 전용 기능을 제한 없이 이용할 수 있습니다.</p>
                 </div>
               </div>
               {/* Background glow */}
@@ -117,15 +138,15 @@ export default function Dashboard() {
                     <ShieldAlert className="w-6 h-6 text-gray-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white">Free Plan</h3>
-                    <p className="text-discord-muted text-sm">TTS 등 고급 기능을 사용하려면 업그레이드가 필요합니다.</p>
+                    <h3 className="text-lg font-bold text-white">기본 플랜</h3>
+                    <p className="text-discord-muted text-sm">TTS 등 고급 기능을 사용하시려면 후원이 필요합니다.</p>
                   </div>
                 </div>
                 <Link
                   to="/premium"
                   className="px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium text-sm border border-white/5 transition-all flex items-center gap-2 group/btn"
                 >
-                  업그레이드
+                  후원하기
                   <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-0.5 transition-transform" />
                 </Link>
               </div>
@@ -149,11 +170,11 @@ export default function Dashboard() {
                         <img
                           src={`https://cdn.discordapp.com/icons/${server.id}/${server.icon}.png?size=128`}
                           alt={server.name}
-                          className="w-16 h-16 rounded-2xl shadow-lg"
+                          className="w-16 h-16 rounded-2xl shadow-lg object-cover"
                         />
                       ) : (
-                        <div className="w-16 h-16 rounded-2xl bg-discord-light/10 flex items-center justify-center text-2xl font-bold text-discord-muted border border-white/5">
-                          {server.name.charAt(0)}
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-lg bg-gradient-to-br ${getServerGradient(server.name)}`}>
+                          {getServerAcronym(server.name)}
                         </div>
                       )}
                       <div className="p-2 rounded-lg bg-green-500/10 text-green-400 border border-green-500/10">
@@ -175,19 +196,19 @@ export default function Dashboard() {
               ) : (
                 <div className="h-full relative group">
                   <div className="relative h-full bg-discord-dark/20 border border-discord-light/5 rounded-2xl p-5 hover:bg-discord-dark/30 transition-colors">
-                    <div className="flex items-start justify-between mb-4 opacity-50">
+                    <div className="flex items-start justify-between mb-4 opacity-70">
                       {server.icon ? (
                         <img
                           src={`https://cdn.discordapp.com/icons/${server.id}/${server.icon}.png?size=128`}
                           alt={server.name}
-                          className="w-16 h-16 rounded-2xl grayscale"
+                          className="w-16 h-16 rounded-2xl grayscale object-cover"
                         />
                       ) : (
-                        <div className="w-16 h-16 rounded-2xl bg-discord-light/5 flex items-center justify-center text-2xl font-bold text-discord-muted/50 border border-white/5">
-                          {server.name.charAt(0)}
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold text-white/50 grayscale bg-gradient-to-br ${getServerGradient(server.name)}`}>
+                          {getServerAcronym(server.name)}
                         </div>
                       )}
-                      <div className="p-2 rounded-lg bg-white/5 text-gray-500">
+                      <div className="p-2 rounded-lg bg-white/5 text-gray-400">
                         <Plus className="w-5 h-5" />
                       </div>
                     </div>

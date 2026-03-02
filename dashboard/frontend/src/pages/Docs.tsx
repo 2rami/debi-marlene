@@ -166,7 +166,7 @@ export default function Docs() {
             </h2>
             <p className="text-lg text-discord-muted leading-relaxed">
               채팅을 치면 봇이 음성으로 읽어주는 TTS 기능을 제공합니다.
-              데비와 마를렌의 생생한 목소리로 대화를 즐겨보세요! (프리미엄 기능)
+              데비와 마를렌의 생생한 목소리로 대화를 즐겨보세요! (후원자 전용 기능)
             </p>
           </div>
 

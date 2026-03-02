@@ -8,7 +8,6 @@ from run.commands.stats import setup_stats_command
 from run.commands.character import setup_character_command
 from run.commands.settings import setup_settings_command
 from run.commands.youtube import setup_youtube_commands
-from run.commands.feedback import setup_feedback_command
 from run.commands.voice import setup_voice_commands
 from run.commands.online import setup_online_command
 from run.commands.recommend import setup_recommend_command
@@ -27,7 +26,6 @@ async def register_all_commands(bot):
     await setup_character_command(bot)
     await setup_settings_command(bot)
     await setup_youtube_commands(bot)
-    await setup_feedback_command(bot)
     await setup_voice_commands(bot)
     await setup_online_command(bot)
     await setup_recommend_command(bot)
@@ -42,7 +40,6 @@ __all__ = [
     'setup_character_command',
     'setup_settings_command',
     'setup_youtube_commands',
-    'setup_feedback_command',
     'setup_voice_commands',
     'setup_online_command',
     'setup_recommend_command',

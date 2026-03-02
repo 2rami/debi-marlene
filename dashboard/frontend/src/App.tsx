@@ -8,6 +8,7 @@ import PaymentSuccess from './pages/PaymentSuccess'
 import PaymentFail from './pages/PaymentFail'
 import Commands from './pages/Commands'
 import Docs from './pages/Docs'
+import Terms from './pages/Terms'
 import AuthCallback from './pages/AuthCallback'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
@@ -24,6 +25,7 @@ function App() {
           <Route path="/premium" element={<Premium />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/fail" element={<PaymentFail />} />
+          <Route path="/terms" element={<Terms />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>

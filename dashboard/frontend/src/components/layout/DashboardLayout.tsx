@@ -1,7 +1,29 @@
 import { useState, useEffect } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { useLocation, useParams, Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { api } from '../../services/api'
+import featureBg from '../../assets/images/feature-bg.jpg'
+
+const getServerAcronym = (name: string) => {
+  const acronym = name.split(/\s+/).map(w => w[0]).join('').substring(0, 3).toUpperCase()
+  return acronym || name.substring(0, 2).toUpperCase()
+}
+
+const getServerGradient = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const gradients = [
+    'from-rose-500 to-pink-500',
+    'from-blue-500 to-cyan-500',
+    'from-emerald-500 to-teal-500',
+    'from-violet-500 to-purple-500',
+    'from-amber-500 to-orange-500',
+    'from-indigo-500 to-blue-500',
+  ]
+  return gradients[Math.abs(hash) % gradients.length];
+}
 
 interface Server {
   id: string
@@ -61,8 +83,8 @@ export default function DashboardLayout({ children }: Props) {
           <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-debi-primary to-marlene-primary flex items-center justify-center">
-                <span className="text-white font-bold text-lg">D</span>
+              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg">
+                <img src={featureBg} alt="Debi & Marlene Logo" className="w-full h-full object-cover" />
               </div>
               <span className="text-white font-semibold text-lg">Debi & Marlene</span>
             </Link>
@@ -71,33 +93,29 @@ export default function DashboardLayout({ children }: Props) {
             <nav className="flex items-center gap-6">
               <Link
                 to="/"
-                className={`text-sm font-medium transition-colors ${
-                  location.pathname === '/' ? 'text-white' : 'text-discord-muted hover:text-white'
-                }`}
+                className={`text-sm font-medium transition-colors ${location.pathname === '/' ? 'text-white' : 'text-discord-muted hover:text-white'
+                  }`}
               >
                 홈
               </Link>
               <Link
                 to="/commands"
-                className={`text-sm font-medium transition-colors ${
-                  location.pathname === '/commands' ? 'text-white' : 'text-discord-muted hover:text-white'
-                }`}
+                className={`text-sm font-medium transition-colors ${location.pathname === '/commands' ? 'text-white' : 'text-discord-muted hover:text-white'
+                  }`}
               >
                 명령어
               </Link>
               <Link
                 to="/docs"
-                className={`text-sm font-medium transition-colors ${
-                  location.pathname === '/docs' ? 'text-white' : 'text-discord-muted hover:text-white'
-                }`}
+                className={`text-sm font-medium transition-colors ${location.pathname === '/docs' ? 'text-white' : 'text-discord-muted hover:text-white'
+                  }`}
               >
                 문서
               </Link>
               <Link
                 to="/premium"
-                className={`text-sm font-medium transition-colors ${
-                  location.pathname === '/premium' ? 'text-white' : 'text-discord-muted hover:text-white'
-                }`}
+                className={`text-sm font-medium transition-colors ${location.pathname === '/premium' ? 'text-white' : 'text-discord-muted hover:text-white'
+                  }`}
               >
                 후원
               </Link>
@@ -108,9 +126,8 @@ export default function DashboardLayout({ children }: Props) {
               {/* Dashboard Link */}
               <Link
                 to="/dashboard"
-                className={`text-sm font-medium transition-colors ${
-                  location.pathname === '/dashboard' ? 'text-debi-primary' : 'text-discord-muted hover:text-white'
-                }`}
+                className={`text-sm font-medium transition-colors ${location.pathname === '/dashboard' ? 'text-debi-primary' : 'text-discord-muted hover:text-white'
+                  }`}
               >
                 대시보드
               </Link>
@@ -153,11 +170,9 @@ export default function DashboardLayout({ children }: Props) {
         {/* Home Button */}
         <Link
           to="/"
-          className="w-12 h-12 rounded-2xl bg-discord-dark hover:bg-debi-primary hover:rounded-xl flex items-center justify-center transition-all group relative"
+          className="w-12 h-12 rounded-2xl bg-discord-dark hover:rounded-xl transition-all group relative overflow-hidden flex items-center justify-center p-0.5"
         >
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-debi-primary to-marlene-primary group-hover:rounded-xl flex items-center justify-center transition-all">
-            <span className="text-white font-bold text-xl">D</span>
-          </div>
+          <img src={featureBg} alt="Home" className="w-full h-full object-cover rounded-[14px] group-hover:rounded-[10px] transition-all" />
           {/* Tooltip */}
           <div className="absolute left-full ml-4 px-3 py-2 bg-discord-darkest rounded-md text-white text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg">
             홈
@@ -188,11 +203,10 @@ export default function DashboardLayout({ children }: Props) {
           <Link
             key={server.id}
             to={`/servers/${server.id}`}
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group relative ${
-              guildId === server.id
-                ? 'rounded-xl'
-                : 'hover:rounded-xl'
-            }`}
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group relative ${guildId === server.id
+              ? 'rounded-xl'
+              : 'hover:rounded-xl'
+              }`}
           >
             {/* Active Indicator */}
             {guildId === server.id && (
@@ -203,15 +217,13 @@ export default function DashboardLayout({ children }: Props) {
               <img
                 src={`https://cdn.discordapp.com/icons/${server.id}/${server.icon}.png?size=96`}
                 alt={server.name}
-                className={`w-12 h-12 transition-all ${
-                  guildId === server.id ? 'rounded-xl' : 'rounded-2xl hover:rounded-xl'
-                }`}
+                className={`w-12 h-12 object-cover transition-all ${guildId === server.id ? 'rounded-xl shadow-lg border-2 border-white/20' : 'rounded-2xl hover:rounded-xl'
+                  }`}
               />
             ) : (
-              <div className={`w-12 h-12 bg-discord-dark flex items-center justify-center text-white font-medium transition-all ${
-                guildId === server.id ? 'rounded-xl bg-debi-primary' : 'rounded-2xl hover:rounded-xl hover:bg-debi-primary'
-              }`}>
-                {server.name.charAt(0)}
+              <div className={`w-12 h-12 flex items-center justify-center text-white font-bold text-sm transition-all bg-gradient-to-br ${getServerGradient(server.name)} ${guildId === server.id ? 'rounded-xl shadow-lg border-2 border-white/20' : 'rounded-2xl hover:rounded-xl opacity-90 hover:opacity-100'
+                }`}>
+                {getServerAcronym(server.name)}
               </div>
             )}
 
@@ -241,11 +253,10 @@ export default function DashboardLayout({ children }: Props) {
             <Link
               key={item.id}
               to={`/servers/${guildId}?tab=${item.id}`}
-              className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors ${
-                currentTab === item.id
-                  ? 'bg-discord-light/20 text-white'
-                  : 'text-discord-muted hover:text-white hover:bg-discord-light/10'
-              }`}
+              className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors ${currentTab === item.id
+                ? 'bg-discord-light/20 text-white'
+                : 'text-discord-muted hover:text-white hover:bg-discord-light/10'
+                }`}
             >
               <svg className="w-5 h-5 text-discord-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
@@ -256,15 +267,17 @@ export default function DashboardLayout({ children }: Props) {
         </div>
 
         {/* User Panel */}
-        <div className="h-[52px] px-2 bg-discord-darkest/50 flex items-center gap-2">
+        <div className="h-[52px] px-2 bg-discord-darkest/50 flex items-center gap-3">
           <img
             src={user?.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64` : '/default-avatar.png'}
             alt={user?.username}
             className="w-8 h-8 rounded-full"
           />
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex flex-col justify-center">
             <p className="text-sm font-medium text-white truncate">{user?.username}</p>
-            <p className="text-xs text-discord-muted">{user?.premium?.isActive ? 'Premium' : 'Free'}</p>
+            {user?.premium?.isActive && (
+              <p className="text-[10px] text-debi-primary font-medium mt-0.5">후원자</p>
+            )}
           </div>
           <button
             onClick={logout}

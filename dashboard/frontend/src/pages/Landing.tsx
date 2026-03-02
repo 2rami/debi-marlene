@@ -350,8 +350,8 @@ export default function Landing() {
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-debi-primary to-marlene-primary flex items-center justify-center text-white font-bold">
-                  DM
+                <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg object-cover">
+                  <img src={FEATURE_BG} alt="Debi & Marlene Logo" className="w-full h-full object-cover" />
                 </div>
                 <span className="font-bold text-xl text-white">Debi & Marlene</span>
               </div>
@@ -374,8 +374,7 @@ export default function Landing() {
               <h4 className="font-bold text-white mb-6">지원 및 법적고지</h4>
               <ul className="space-y-3 text-sm">
                 <li><a href="https://discord.gg/aDemda3qC9" className="text-discord-muted hover:text-debi-primary transition-colors">공식 서포트 서버</a></li>
-                <li><Link to="/terms" className="text-discord-muted hover:text-debi-primary transition-colors">이용약관</Link></li>
-                <li><Link to="/privacy" className="text-discord-muted hover:text-debi-primary transition-colors">개인정보처리방침</Link></li>
+                <li><Link to="/terms" className="text-discord-muted hover:text-debi-primary transition-colors">이용약관 / 개인정보처리방침</Link></li>
               </ul>
             </div>
           </div>

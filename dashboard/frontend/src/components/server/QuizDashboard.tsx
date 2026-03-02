@@ -61,7 +61,7 @@ export default function QuizDashboard({ guildId }: Props) {
     try {
       const [statsRes, songsRes] = await Promise.all([
         api.get<{ leaderboard: LeaderboardEntry[]; recent_sessions: QuizSession[]; total_sessions: number }>(`/quiz/${guildId}/stats`),
-        api.get<{ songs: Song[]; count: number }>('/quiz/songs'),
+        api.get<{ songs: Song[]; count: number }>(`/quiz/${guildId}/songs`),
       ])
       setLeaderboard(statsRes.data.leaderboard)
       setSessions(statsRes.data.recent_sessions)
@@ -87,9 +87,9 @@ export default function QuizDashboard({ guildId }: Props) {
     setSaving(true)
     try {
       const aliases = newSong.aliases ? newSong.aliases.split(',').map(a => a.trim()).filter(Boolean) : []
-      await api.post('/quiz/songs', { ...newSong, aliases })
+      await api.post(`/quiz/${guildId}/songs`, { ...newSong, aliases })
       setNewSong({ title: '', artist: '', query: '', aliases: '' })
-      const res = await api.get<{ songs: Song[]; count: number }>('/quiz/songs')
+      const res = await api.get<{ songs: Song[]; count: number }>(`/quiz/${guildId}/songs`)
       setSongs(res.data.songs)
       setSongCount(res.data.count)
       showMessage('곡이 추가되었습니다.')
@@ -107,7 +107,7 @@ export default function QuizDashboard({ guildId }: Props) {
       const aliases = editSong.aliases ? editSong.aliases.split(',').map(a => a.trim()).filter(Boolean) : []
       await api.put(`/quiz/songs/${index}`, { ...editSong, aliases })
       setEditIndex(null)
-      const res = await api.get<{ songs: Song[]; count: number }>('/quiz/songs')
+      const res = await api.get<{ songs: Song[]; count: number }>(`/quiz/${guildId}/songs`)
       setSongs(res.data.songs)
       setSongCount(res.data.count)
       showMessage('곡이 수정되었습니다.')
@@ -122,7 +122,7 @@ export default function QuizDashboard({ guildId }: Props) {
     setSaving(true)
     try {
       await api.delete(`/quiz/songs/${index}`)
-      const res = await api.get<{ songs: Song[]; count: number }>('/quiz/songs')
+      const res = await api.get<{ songs: Song[]; count: number }>(`/quiz/${guildId}/songs`)
       setSongs(res.data.songs)
       setSongCount(res.data.count)
       showMessage('곡이 삭제되었습니다.')
@@ -134,14 +134,14 @@ export default function QuizDashboard({ guildId }: Props) {
   }
 
   const handleResetSongs = async () => {
-    if (!confirm('곡 목록을 기본값으로 초기화하시겠습니까?')) return
+    if (!confirm('글로벌 곡 목록에서 다시 복사하시겠습니까? 현재 서버의 곡 목록이 초기화됩니다.')) return
     setSaving(true)
     try {
       await api.post('/quiz/songs/reset')
-      const res = await api.get<{ songs: Song[]; count: number }>('/quiz/songs')
+      const res = await api.get<{ songs: Song[]; count: number }>(`/quiz/${guildId}/songs`)
       setSongs(res.data.songs)
       setSongCount(res.data.count)
-      showMessage('기본 곡 목록으로 초기화되었습니다.')
+      showMessage('글로벌 목록에서 초기화되었습니다.')
     } catch {
       showMessage('초기화에 실패했습니다.')
     } finally {
@@ -356,7 +356,7 @@ export default function QuizDashboard({ guildId }: Props) {
               disabled={saving}
               className="px-3 py-1.5 text-xs text-discord-muted border border-discord-light/20 rounded-lg hover:text-white hover:border-discord-light/40 transition-colors"
             >
-              기본값으로 초기화
+              글로벌 목록에서 초기화
             </button>
           </div>
 

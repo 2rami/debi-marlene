@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { motion, useScroll, useMotionValueEvent } from 'framer-motion'
 import { useState } from 'react'
 import PatchNotesModal from './PatchNotesModal'
+import featureBg from '../../assets/images/feature-bg.jpg'
 
 export default function Header() {
   const { user, login, logout } = useAuth()
@@ -42,10 +43,10 @@ export default function Header() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
             <div className="relative">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-debi-primary to-marlene-primary flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300">
-                <span className="text-white font-black text-lg">DM</span>
+              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg group-hover:scale-105 transition-transform duration-300">
+                <img src={featureBg} alt="Debi & Marlene 로고" className="w-full h-full object-cover" />
               </div>
-              <div className="absolute inset-0 bg-white/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-white/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
             </div>
             <span className={`font-bold text-xl transition-colors duration-300 ${isScrolled ? 'text-white' : 'text-white drop-shadow-md'
               }`}>

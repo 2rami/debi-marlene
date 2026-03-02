@@ -129,8 +129,8 @@ export default function Commands() {
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${selectedCategory === category.id
-                    ? 'bg-gradient-to-r from-debi-primary to-marlene-primary text-white shadow-lg shadow-debi-primary/25 scale-105'
-                    : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10 border border-white/5 hover:border-white/10'
+                  ? 'bg-gradient-to-r from-debi-primary to-marlene-primary text-white shadow-lg shadow-debi-primary/25 scale-105'
+                  : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10 border border-white/5 hover:border-white/10'
                   }`}
               >
                 {category.icon}
@@ -173,12 +173,7 @@ export default function Commands() {
                       {cmd.premium && (
                         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/10 text-xs font-medium">
                           <Sparkles className="w-3 h-3" />
-                          Premium
-                        </div>
-                      )}
-                      {!cmd.adminOnly && !cmd.premium && (
-                        <div className="px-2.5 py-1 rounded-lg bg-white/5 text-white/40 border border-white/5 text-xs font-medium">
-                          Basic
+                          후원자
                         </div>
                       )}
                     </div>
@@ -186,8 +181,8 @@ export default function Commands() {
                     <button
                       onClick={() => copyCommand(cmd.name)}
                       className={`p-2 rounded-lg transition-all ${copied === cmd.name
-                          ? 'bg-green-500/20 text-green-400'
-                          : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
+                        ? 'bg-green-500/20 text-green-400'
+                        : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
                         }`}
                       title={copied === cmd.name ? "복사됨!" : "명령어 복사"}
                     >

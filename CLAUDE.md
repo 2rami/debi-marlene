@@ -83,10 +83,18 @@ make status      # VM/컨테이너 상태
 
 ## 인프라
 
-- **VM**: `debi-marlene-bot` (GCP Compute Engine, asia-northeast3-a)
+- **VM**: `debi-marlene-bot` (GCP Compute Engine, asia-northeast3-a, IP: `REDACTED_IP`)
 - **Registry**: `asia-northeast3-docker.pkg.dev/ironic-objectivist-465713-a6/debi-marlene`
 - **Storage**: GCS `debi-marlene-settings` 버킷 (봇 설정/DM 채널 저장)
 - **Modal TTS**: `2R4mi/qwen3-tts-debi-light` (0.6B), `2R4mi/qwen3-tts-marlene` (1.7B)
+
+### 도메인
+
+| 도메인 | 용도 | 호스팅 |
+|--------|------|--------|
+| `debimarlene.com` | 대시보드 (메인) | GCP VM (nginx :3080) |
+| `panel.debimarlene.com` | 웹패널 | GCP VM (nginx :8080) |
+| `debi-marlene-webpanel.vercel.app` | 웹패널 (Vercel) | Vercel |
 
 ### 포트 할당
 

@@ -168,15 +168,64 @@ def update_leaderboard_names(guild_id: str, members: Dict[int, str]):
         logger.error(f"리더보드 이름 업데이트 실패: {e}")
 
 
-def load_song_list() -> Optional[List[dict]]:
-    """GCS에서 곡 목록을 로드합니다. 없으면 None 반환."""
+def load_song_list(guild_id: Optional[str] = None) -> Optional[List[dict]]:
+    """GCS에서 곡 목록을 로드합니다.
+
+    guild_id가 있으면 서버별 곡 목록을 먼저 확인하고,
+    없으면 글로벌 곡 목록을 반환합니다.
+    """
     try:
         data = load_quiz_data()
+
+        # 서버별 곡 목록 확인
+        if guild_id:
+            guild_songs = data.get("guilds", {}).get(guild_id, {}).get("songs")
+            if guild_songs:
+                return guild_songs
+
+        # 글로벌 곡 목록 폴백
         songs = data.get("songs", [])
         return songs if songs else None
     except Exception as e:
         logger.error(f"곡 목록 로드 실패: {e}")
         return None
+
+
+def load_guild_songs(guild_id: str) -> Optional[List[dict]]:
+    """서버별 곡 목록을 로드합니다. 없으면 None 반환."""
+    try:
+        data = load_quiz_data()
+        return data.get("guilds", {}).get(guild_id, {}).get("songs")
+    except Exception as e:
+        logger.error(f"서버 곡 목록 로드 실패: {e}")
+        return None
+
+
+def save_guild_songs(guild_id: str, songs: List[dict]) -> bool:
+    """서버별 곡 목록을 저장합니다."""
+    try:
+        data = load_quiz_data()
+        guilds = data.setdefault("guilds", {})
+        guild_data = guilds.setdefault(guild_id, {})
+        guild_data["songs"] = songs
+        return save_quiz_data(data)
+    except Exception as e:
+        logger.error(f"서버 곡 목록 저장 실패: {e}")
+        return False
+
+
+def init_guild_songs_from_global(guild_id: str) -> List[dict]:
+    """글로벌 곡 목록을 서버별로 복사하여 초기화합니다."""
+    import copy
+    data = load_quiz_data()
+    global_songs = data.get("songs", [])
+    guild_songs = copy.deepcopy(global_songs)
+
+    guilds = data.setdefault("guilds", {})
+    guild_data = guilds.setdefault(guild_id, {})
+    guild_data["songs"] = guild_songs
+    save_quiz_data(data)
+    return guild_songs
 
 
 def _random_id(length: int = 6) -> str:

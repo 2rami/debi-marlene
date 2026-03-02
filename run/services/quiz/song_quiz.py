@@ -94,11 +94,11 @@ DEFAULT_SONG_LIST: List[SongEntry] = [
 ]
 
 
-def get_song_list() -> List[SongEntry]:
+def get_song_list(guild_id: str = None) -> List[SongEntry]:
     """GCS에서 곡 목록을 로드합니다. 없으면 기본 목록 사용."""
     from run.services.quiz.quiz_storage import load_song_list
 
-    gcs_songs = load_song_list()
+    gcs_songs = load_song_list(guild_id)
     if gcs_songs:
         return [
             SongEntry(
@@ -204,7 +204,7 @@ class SongQuiz:
         self.guild_id = guild_id
         self.total_questions = total_questions
         self._used_indices: set = set()
-        self._song_list: List[SongEntry] = get_song_list()
+        self._song_list: List[SongEntry] = get_song_list(guild_id)
 
     def pick_song(self) -> Optional[SongEntry]:
         """중복 없이 랜덤 곡을 선택합니다."""

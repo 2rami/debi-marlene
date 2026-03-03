@@ -1,8 +1,8 @@
 """
-Modal Serverless TTS Server - Qwen3-TTS
+Modal Serverless TTS Server - Qwen3-TTS (faster-qwen3-tts)
 
-GPU가 있는 Modal 서버리스 환경에서 실행되는 TTS API입니다.
-사용할 때만 과금되므로 경제적입니다.
+faster-qwen3-tts로 CUDA Graphs + Static KV Cache 최적화.
+기존 대비 5-7x 속도 향상, 스트리밍 지원.
 
 배포:
     modal deploy modal_tts_server.py
@@ -18,28 +18,12 @@ import io
 import os
 import modal
 
-# Modal 앱 정의
 app = modal.App("qwen3-tts-server")
-
-# GPU 이미지 정의 - Flash Attention 포함 (pre-built wheel 사용)
-# torch 2.10 + CUDA 12.8 + Python 3.11 호환 wheel
-# https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/tag/v0.7.12
-FLASH_ATTN_WHEEL = (
-    "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.7.12/"
-    "flash_attn-2.7.4%2Bcu128torch2.10-cp311-cp311-linux_x86_64.whl"
-)
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("git", "ffmpeg", "sox", "libsox-dev")
-    # qwen-tts 먼저 설치 (torch 2.10.0 포함)
-    .pip_install("qwen-tts")
-    # flash_attn은 qwen-tts가 설치한 torch 2.10에 맞는 버전으로 설치
-    .pip_install(
-        FLASH_ATTN_WHEEL,
-        extra_options="--no-build-isolation",
-    )
-    .run_commands("python -c 'import flash_attn; print(f\"Flash Attention {flash_attn.__version__} installed\")'")
+    .pip_install("faster-qwen3-tts")
 )
 
 # 모델 캐시용 볼륨 (다운로드 시간 절약)
@@ -54,83 +38,73 @@ HUGGINGFACE_MODELS = {
 
 @app.cls(
     image=image,
-    gpu="A10G",  # A10G: 0.6B 모델 최적 가성비 ($0.000306/초, ~$1.10/h)
+    gpu="A10G",
     timeout=300,
     volumes={"/cache": volume},
-    scaledown_window=300,  # 5분간 요청 없으면 종료 (cold start 빈도 감소)
+    scaledown_window=300,
 )
 class TTSModel:
-    """Qwen3-TTS 모델 클래스"""
+    """Qwen3-TTS 모델 (faster-qwen3-tts CUDA Graphs 최적화)"""
 
     @modal.enter()
     def load_model(self):
-        """컨테이너 시작시 모델 로드 (한 번만 실행)"""
+        """컨테이너 시작시 모델 로드 + CUDA Graph 워밍업"""
         import torch
-        from qwen_tts import Qwen3TTSModel
+        from faster_qwen3_tts import FasterQwen3TTS
         from huggingface_hub import snapshot_download
 
-        self.device = "cuda"
-        # INT8 양자화를 위해 None으로 설정 (load_in_8bit와 함께 사용)
-        self.dtype = None
-        self.use_8bit = True  # 8bit 양자화 활성화
-
-        # Flash Attention 사용 가능 여부 확인
-        try:
-            import flash_attn
-            self.attn_impl = "flash_attention_2"
-            print("Flash Attention 2 enabled")
-        except ImportError:
-            self.attn_impl = "eager"
-            print("Using eager attention (flash_attn not available)")
+        torch.set_float32_matmul_precision("high")
 
         self.models = {}
         self.load_errors = []
 
-        # HuggingFace에서 모델 다운로드 및 로드
         for speaker, hf_repo_id in HUGGINGFACE_MODELS.items():
             try:
-                # 캐시 경로
                 cache_path = f"/cache/{speaker}"
 
-                # 캐시에 없으면 HuggingFace에서 다운로드
                 if not os.path.exists(cache_path) or not os.listdir(cache_path):
-                    print(f"Downloading {speaker} model from HuggingFace: {hf_repo_id}")
+                    print(f"Downloading {speaker}: {hf_repo_id}")
                     snapshot_download(
                         repo_id=hf_repo_id,
                         local_dir=cache_path,
                         token=os.environ.get("HF_TOKEN"),
                     )
-                    volume.commit()  # 볼륨에 저장
-                    print(f"Downloaded and cached: {cache_path}")
+                    volume.commit()
 
-                # 캐시 내용 확인
-                cache_files = os.listdir(cache_path) if os.path.exists(cache_path) else []
-                print(f"Cache files for {speaker}: {cache_files}")
+                print(f"Loading {speaker}: {cache_path}")
 
-                print(f"Loading model for {speaker}: {cache_path}")
-
-                # 순수 bfloat16 (양자화 없음)
-                import torch
-                model = Qwen3TTSModel.from_pretrained(
+                model = FasterQwen3TTS.from_pretrained(
                     cache_path,
-                    device_map=self.device,
+                    device="cuda",
                     dtype=torch.bfloat16,
-                    attn_implementation=self.attn_impl,
                 )
 
+                # CUDA Graph 캡처를 위한 워밍업 추론
+                # 첫 2-3번 추론이 느리고 (그래프 캡처), 이후부터 5-7x 빨라짐
+                print(f"Warming up {speaker} (CUDA graph capture)...")
+                for i in range(3):
+                    wavs, sr = model.generate_custom_voice(
+                        text="워밍업 테스트입니다",
+                        speaker=speaker,
+                        language="Korean",
+                        max_new_tokens=64,
+                        do_sample=False,
+                    )
+                    print(f"  warmup {i + 1}/3 done")
+
                 self.models[speaker] = model
-                print(f"Model loaded for {speaker} (bfloat16)")
+                print(f"Model ready: {speaker}")
 
             except Exception as e:
                 import traceback
                 error_msg = f"{speaker}: {str(e)}\n{traceback.format_exc()}"
-                print(f"Failed to load model: {error_msg}")
+                print(f"Failed to load: {error_msg}")
                 self.load_errors.append(error_msg)
 
         print(f"Loaded models: {list(self.models.keys())}")
 
-    def _generate_internal(self, text: str, speaker: str = "debi") -> tuple:
-        """음성 생성 (내부 메서드)"""
+    def _generate_full(self, text: str, speaker: str = "debi") -> tuple:
+        """전체 음성 생성 (non-streaming)"""
         import soundfile as sf
 
         if speaker not in self.models:
@@ -138,40 +112,50 @@ class TTSModel:
 
         model = self.models[speaker]
 
-        # 속도 최적화 파라미터
-        # - max_new_tokens: 기본값 4096을 512로 제한 (짧은 문장에 충분)
-        # - temperature: 0.6으로 낮춤 (더 결정적, 빠름)
-        # - do_sample: False (greedy decoding, 샘플링보다 2배 빠름)
         wavs, sr = model.generate_custom_voice(
             text=text,
             speaker=speaker,
+            language="Korean",
             max_new_tokens=512,
-            temperature=0.6,
             do_sample=False,
         )
 
-        # WAV 바이트로 변환
         buffer = io.BytesIO()
         sf.write(buffer, wavs[0], sr, format="WAV")
         buffer.seek(0)
 
         return buffer.read(), sr
 
+    def _generate_streaming(self, text: str, speaker: str = "debi", chunk_size: int = 8):
+        """스트리밍 음성 생성 (chunk 단위 yield)"""
+        if speaker not in self.models:
+            raise ValueError(f"Speaker not found: {speaker}. Available: {list(self.models.keys())}")
+
+        model = self.models[speaker]
+
+        for audio_chunk, sr, timing in model.generate_custom_voice_streaming(
+            text=text,
+            speaker=speaker,
+            language="Korean",
+            max_new_tokens=512,
+            do_sample=False,
+            chunk_size=chunk_size,
+        ):
+            yield audio_chunk, sr, timing
+
     @modal.fastapi_endpoint(method="POST", docs=True)
     def tts(self, request: dict):
-        """HTTP POST /tts 엔드포인트"""
+        """HTTP POST /tts - 전체 음성 반환 (기존 호환)"""
         from fastapi.responses import Response
 
         text = request.get("text", "")
         speaker = request.get("speaker", "debi")
 
-        # 메타데이터 (로깅용)
         guild_name = request.get("guild_name", "알수없음")
         channel_name = request.get("channel_name", "알수없음")
         user_name = request.get("user_name", "알수없음")
 
-        # 요청 로깅
-        print(f"[TTS 요청] 서버: {guild_name} | 채널: {channel_name} | 유저: {user_name} | 텍스트: {text[:50]}{'...' if len(text) > 50 else ''}")
+        print(f"[TTS] {guild_name} | {channel_name} | {user_name} | {text[:50]}{'...' if len(text) > 50 else ''}")
 
         if not text.strip():
             return {"error": "Text is empty"}
@@ -180,14 +164,61 @@ class TTSModel:
             text = text[:500]
 
         try:
-            audio_bytes, sr = self._generate_internal(text, speaker)
+            audio_bytes, sr = self._generate_full(text, speaker)
             return Response(
                 content=audio_bytes,
                 media_type="audio/wav",
-                headers={"X-Sample-Rate": str(sr)}
+                headers={"X-Sample-Rate": str(sr)},
             )
         except Exception as e:
             return {"error": str(e)}
+
+    @modal.fastapi_endpoint(method="POST", docs=True)
+    def tts_stream(self, request: dict):
+        """HTTP POST /tts_stream - 스트리밍 (청크 단위 전송)"""
+        import json
+        import numpy as np
+        from fastapi.responses import StreamingResponse
+
+        text = request.get("text", "")
+        speaker = request.get("speaker", "debi")
+        chunk_size = request.get("chunk_size", 8)
+
+        guild_name = request.get("guild_name", "알수없음")
+        channel_name = request.get("channel_name", "알수없음")
+        user_name = request.get("user_name", "알수없음")
+
+        print(f"[TTS Stream] {guild_name} | {channel_name} | {user_name} | {text[:50]}{'...' if len(text) > 50 else ''}")
+
+        if not text.strip():
+            return {"error": "Text is empty"}
+
+        if len(text) > 500:
+            text = text[:500]
+
+        def stream_chunks():
+            """청크를 생성하며 바로 전송"""
+            import soundfile as sf
+
+            try:
+                for audio_chunk, sr, timing in self._generate_streaming(text, speaker, chunk_size):
+                    # 각 청크를 WAV 바이트로 변환
+                    chunk_buffer = io.BytesIO()
+                    sf.write(chunk_buffer, audio_chunk, sr, format="WAV")
+                    chunk_bytes = chunk_buffer.getvalue()
+
+                    # 헤더: 청크 크기(4바이트) + 샘플레이트(4바이트) + WAV 데이터
+                    header = len(chunk_bytes).to_bytes(4, "big") + sr.to_bytes(4, "big")
+                    yield header + chunk_bytes
+
+            except Exception as e:
+                print(f"[TTS Stream Error] {e}")
+
+        return StreamingResponse(
+            stream_chunks(),
+            media_type="application/octet-stream",
+            headers={"X-Stream-Format": "chunked-wav"},
+        )
 
     @modal.fastapi_endpoint(method="GET")
     def health(self):
@@ -195,8 +226,8 @@ class TTSModel:
         return {
             "status": "running",
             "models_loaded": list(self.models.keys()),
-            "attention": self.attn_impl,
-            "errors": self.load_errors if hasattr(self, 'load_errors') else [],
+            "engine": "faster-qwen3-tts (CUDA Graphs)",
+            "errors": self.load_errors if hasattr(self, "load_errors") else [],
         }
 
 
@@ -222,7 +253,5 @@ def upload_model(local_path: str, speaker: str):
     print("Volume committed")
 
 
-# 로컬 테스트용
 if __name__ == "__main__":
-    # modal serve modal_tts_server.py 로 실행
     pass

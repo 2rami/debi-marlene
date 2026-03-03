@@ -4,7 +4,7 @@ TTS 서비스
 데비&마를렌 음성으로 TTS를 제공합니다.
 
 엔진 종류:
-- edgetts_rvc: edge-tts + RVC v2 (권장, 빠름)
+- fish: Fish-Speech OpenAudio S1-mini (권장, 빠름 + 고품질)
 - modal: Modal Serverless Qwen3-TTS (Flash Attention)
 - qwen3_api: Qwen3-TTS FastAPI 서버 (로컬)
 - qwen3: Qwen3-TTS 로컬 모델
@@ -27,7 +27,7 @@ class TTSService:
     TTS 엔진 클래스
 
     Qwen3-TTS를 사용합니다.
-    환경변수 TTS_ENGINE으로 선택 (qwen3_api / qwen3)
+    환경변수 TTS_ENGINE으로 선택 (fish / modal / qwen3_api / qwen3)
     """
 
     def __init__(
@@ -46,7 +46,7 @@ class TTSService:
             config_path: 설정 파일 경로 (사용 안 함, 하위 호환용)
             default_model: 언어 코드 (기본값: 'ko')
             speaker: 화자 이름 (debi, marlene)
-            engine: TTS 엔진 (qwen3_api / qwen3)
+            engine: TTS 엔진 (fish / modal / qwen3_api / qwen3)
         """
         self.language = default_model
         self.temp_dir = "/tmp/tts_audio"
@@ -62,18 +62,12 @@ class TTSService:
         if self.tts_backend is not None:
             return
 
-        if self.engine == "edgetts":
-            # edge-tts 단독 (RVC 없이, GPU 불필요)
-            from .edgetts_client import EdgeTTSClient
-            self.tts_backend = EdgeTTSClient()
+        if self.engine == "fish":
+            # Fish-Speech OpenAudio S1-mini (zero-shot, 빠름)
+            from .fish_tts_client import FishTTSClient
+            self.tts_backend = FishTTSClient()
             await self.tts_backend.initialize()
-            logger.info("EdgeTTS 클라이언트 초기화 완료")
-        elif self.engine == "edgetts_rvc":
-            # edge-tts + RVC v2 (권장, 빠름)
-            from .edgetts_rvc_client import EdgeTTSRVCClient
-            self.tts_backend = EdgeTTSRVCClient()
-            await self.tts_backend.initialize()
-            logger.info("EdgeTTS+RVC 클라이언트 초기화 완료")
+            logger.info("Fish-TTS 클라이언트 초기화 완료")
         elif self.engine == "modal":
             # Modal Serverless Qwen3-TTS
             from .modal_tts_client import ModalTTSClient
@@ -131,6 +125,42 @@ class TTSService:
             channel_name=channel_name,
             user_name=user_name
         )
+
+    async def text_to_speech_streaming(
+        self,
+        text: str,
+        guild_name: Optional[str] = None,
+        channel_name: Optional[str] = None,
+        user_name: Optional[str] = None,
+    ):
+        """
+        스트리밍 TTS - 오디오 청크 파일 경로를 yield.
+        Modal 엔진에서만 사용 가능. 다른 엔진은 전체 생성 후 단일 yield.
+        """
+        if not self.tts_backend:
+            raise RuntimeError("TTS 서비스가 초기화되지 않았습니다.")
+
+        processed_text = preprocess_text_for_tts(text)
+
+        # Modal 클라이언트만 스트리밍 지원
+        if self.engine == "modal" and hasattr(self.tts_backend, "text_to_speech_streaming"):
+            async for audio_path in self.tts_backend.text_to_speech_streaming(
+                text=processed_text,
+                speaker=self.speaker,
+                guild_name=guild_name,
+                channel_name=channel_name,
+                user_name=user_name,
+            ):
+                yield audio_path
+        else:
+            # 다른 엔진: 전체 생성 후 단일 yield (fallback)
+            audio_path = await self.text_to_speech(
+                text=text,
+                guild_name=guild_name,
+                channel_name=channel_name,
+                user_name=user_name,
+            )
+            yield audio_path
 
     def cleanup_temp_files(self):
         """임시 음성 파일들을 정리합니다."""

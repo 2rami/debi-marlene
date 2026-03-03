@@ -165,6 +165,34 @@ class AudioPlayer:
         finally:
             self.is_playing[guild_id] = False
 
+    async def play_streaming(self, guild_id: str, tts_service, text: str, meta: dict):
+        """
+        서버 스트리밍 TTS로 생성과 재생을 동시에 처리.
+
+        서버가 오디오 청크를 생성하면서 바로 전송하므로
+        텍스트 분할 없이도 첫 청크부터 즉시 재생 가능.
+        play_chunked와 달리 단일 HTTP 요청으로 처리.
+        """
+        if not voice_manager.is_connected(guild_id):
+            return
+
+        self.is_playing[guild_id] = True
+        try:
+            chunks_played = 0
+            async for audio_path in tts_service.text_to_speech_streaming(text=text, **meta):
+                if not voice_manager.is_connected(guild_id):
+                    break
+                try:
+                    await voice_manager.play_tts(guild_id, audio_path)
+                    chunks_played += 1
+                    await asyncio.sleep(0.05)
+                except Exception as e:
+                    logger.error(f"[TTS Stream] 청크 재생 실패: {e}")
+        except Exception as e:
+            logger.error(f"[TTS Stream] 스트리밍 실패: {e}")
+        finally:
+            self.is_playing[guild_id] = False
+
     def get_current_channel(self, guild_id: str) -> Optional[discord.VoiceChannel]:
         """현재 연결된 음성 채널을 가져옵니다."""
         vc = voice_manager.get_voice_client(guild_id)

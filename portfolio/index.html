@@ -24,7 +24,7 @@
                     <span class="stat-label">Bot + Web Panel</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-value">GPT-SoVITS</span>
+                    <span class="stat-value">Qwen3-TTS</span>
                     <span class="stat-label">AI 음성 합성</span>
                 </div>
             </div>
@@ -66,8 +66,8 @@
                     <ul>
                         <li>GCP VM + Docker 기반 인프라 설계 및 구현</li>
                         <li>다중 API 비동기 병렬 처리로 응답 속도 최적화</li>
-                        <li>GPT-SoVITS 기반 캐릭터 음성 합성 시스템 구축</li>
-                        <li>React + Flask 풀스택 웹 패널 및 Electron 데스크톱 앱 개발</li>
+                        <li>Qwen3-TTS 파인튜닝으로 캐릭터별 음성 합성 시스템 구축</li>
+                        <li>Vue.js + Flask 풀스택 웹 패널 및 Electron 데스크톱 앱 개발</li>
                     </ul>
                 </div>
             </div>
@@ -85,12 +85,12 @@
                             <span class="tech-desc">메인 언어</span>
                         </div>
                         <div class="tech-item">
-                            <span class="tech-name">discord.py</span>
+                            <span class="tech-name">discord.py 2.6</span>
                             <span class="tech-desc">Discord API 래퍼</span>
                         </div>
                         <div class="tech-item">
                             <span class="tech-name">Flask</span>
-                            <span class="tech-desc">웹 패널 API 서버</span>
+                            <span class="tech-desc">웹 패널 API</span>
                         </div>
                         <div class="tech-item">
                             <span class="tech-name">aiohttp / asyncio</span>
@@ -102,20 +102,12 @@
                     <h3>Frontend</h3>
                     <div class="tech-items">
                         <div class="tech-item">
-                            <span class="tech-name">React 19</span>
+                            <span class="tech-name">Vue.js</span>
                             <span class="tech-desc">UI 프레임워크</span>
-                        </div>
-                        <div class="tech-item">
-                            <span class="tech-name">TypeScript</span>
-                            <span class="tech-desc">타입 안전성</span>
                         </div>
                         <div class="tech-item">
                             <span class="tech-name">Vite</span>
                             <span class="tech-desc">빌드 도구</span>
-                        </div>
-                        <div class="tech-item">
-                            <span class="tech-name">Tailwind CSS</span>
-                            <span class="tech-desc">스타일링</span>
                         </div>
                     </div>
                 </div>
@@ -131,8 +123,12 @@
                             <span class="tech-desc">VM 인스턴스</span>
                         </div>
                         <div class="tech-item">
+                            <span class="tech-name">Modal</span>
+                            <span class="tech-desc">서버리스 GPU (TTS)</span>
+                        </div>
+                        <div class="tech-item">
                             <span class="tech-name">Cloud Storage</span>
-                            <span class="tech-desc">웹 패널 데이터</span>
+                            <span class="tech-desc">설정 저장</span>
                         </div>
                         <div class="tech-item">
                             <span class="tech-name">Docker</span>
@@ -144,8 +140,20 @@
                     <h3>AI / ML</h3>
                     <div class="tech-items">
                         <div class="tech-item accent">
-                            <span class="tech-name">GPT-SoVITS</span>
-                            <span class="tech-desc">음성 합성 모델</span>
+                            <span class="tech-name">Qwen3-TTS</span>
+                            <span class="tech-desc">파인튜닝 음성 합성</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">Anthropic Claude API</span>
+                            <span class="tech-desc">AI 챗봇</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">Transformers</span>
+                            <span class="tech-desc">모델 로딩</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">Matplotlib</span>
+                            <span class="tech-desc">MMR 그래프</span>
                         </div>
                         <div class="tech-item">
                             <span class="tech-name">pydub</span>
@@ -157,8 +165,8 @@
                     <h3>External APIs</h3>
                     <div class="tech-items">
                         <div class="tech-item">
-                            <span class="tech-name">Discord OAuth2</span>
-                            <span class="tech-desc">웹 패널 인증</span>
+                            <span class="tech-name">Eternal Return API</span>
+                            <span class="tech-desc">게임 데이터</span>
                         </div>
                         <div class="tech-item">
                             <span class="tech-name">Dak.gg API</span>
@@ -167,6 +175,27 @@
                         <div class="tech-item">
                             <span class="tech-name">YouTube Data API</span>
                             <span class="tech-desc">영상 모니터링</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">Discord OAuth2</span>
+                            <span class="tech-desc">웹 패널 인증</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="tech-category">
+                    <h3>Music / Audio</h3>
+                    <div class="tech-items">
+                        <div class="tech-item">
+                            <span class="tech-name">yt-dlp</span>
+                            <span class="tech-desc">YouTube 추출</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">FFmpeg</span>
+                            <span class="tech-desc">오디오 스트리밍</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-name">PyNaCl</span>
+                            <span class="tech-desc">음성 암호화</span>
                         </div>
                     </div>
                 </div>
@@ -249,11 +278,12 @@
                     <!-- 화살표 4 (TTS로) -->
                     <path d="M 450 280 L 520 400" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
 
-                    <!-- GPT-SoVITS -->
+                    <!-- Qwen3-TTS (Modal) -->
                     <g transform="translate(530, 380)">
                         <rect width="130" height="60" rx="6" fill="#1a1a2e" stroke="#9c27b0" stroke-width="2"/>
-                        <text x="65" y="25" text-anchor="middle" fill="#9c27b0" font-size="10" font-weight="600">GPT-SoVITS</text>
-                        <text x="65" y="42" text-anchor="middle" fill="#9aa0a6" font-size="9">AI 음성 합성</text>
+                        <text x="65" y="22" text-anchor="middle" fill="#9c27b0" font-size="10" font-weight="600">Qwen3-TTS</text>
+                        <text x="65" y="36" text-anchor="middle" fill="#9aa0a6" font-size="9">Modal GPU</text>
+                        <text x="65" y="50" text-anchor="middle" fill="#9aa0a6" font-size="9">음성 합성</text>
                     </g>
 
                     <!-- 화살표 마커 정의 -->
@@ -275,15 +305,19 @@
             <div class="architecture-features">
                 <div class="arch-feature">
                     <h4>다계층 구조 (Layered Architecture)</h4>
-                    <p>Commands - Views - Services - Config 계층 분리로 관심사 분리 및 유지보수성 확보</p>
+                    <p>Commands - Views - Services - Core 계층 분리로 관심사 분리 및 유지보수성 확보</p>
                 </div>
                 <div class="arch-feature">
                     <h4>비동기 처리 (Async-First)</h4>
-                    <p>asyncio 기반 모든 API 호출 동시 처리. 9개 API 병렬 호출로 초기화 시간 단축</p>
+                    <p>asyncio + aiohttp 기반 모든 API 호출 동시 처리. 9개 게임 데이터 API 병렬 호출</p>
                 </div>
                 <div class="arch-feature">
                     <h4>하이브리드 스토리지</h4>
-                    <p>GCS 우선 + 로컬 백업 폴백 전략. 5초 캐시로 성능 최적화</p>
+                    <p>GCS 우선 + 로컬 백업 폴백 전략. 5초 캐시로 API 부하 최소화</p>
+                </div>
+                <div class="arch-feature">
+                    <h4>화자별 TTS 모델</h4>
+                    <p>Qwen3-TTS 파인튜닝으로 데비/마를렌 캐릭터 음성 분리. Modal 서버리스 GPU 배포</p>
                 </div>
             </div>
         </section>
@@ -330,8 +364,18 @@
                         </svg>
                     </div>
                     <h3>AI 음성 합성 (TTS)</h3>
-                    <p>GPT-SoVITS 기반 캐릭터 음성 합성. 참조 음성으로 실시간 TTS 생성</p>
-                    <div class="feature-tech">GPT-SoVITS + pydub 오디오 처리</div>
+                    <p>Qwen3-TTS 파인튜닝 모델로 캐릭터별 음성 합성. Modal 서버리스 GPU 배포</p>
+                    <div class="feature-tech">Qwen3-TTS + Transformers + Modal</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                        </svg>
+                    </div>
+                    <h3>/음악 플레이어</h3>
+                    <p>YouTube 검색 및 음성 채널 스트리밍. 대기열, 반복, 셔플 기능</p>
+                    <div class="feature-tech">yt-dlp + FFmpeg + PyNaCl</div>
                 </div>
             </div>
         </section>
@@ -367,7 +411,7 @@
             <div class="webpanel-arch">
                 <h3>웹 패널 아키텍처</h3>
                 <div class="arch-flow">
-                    <div class="arch-box">React 19 + TypeScript<br><small>Vite + Tailwind CSS</small></div>
+                    <div class="arch-box">Vue.js<br><small>Vite 빌드</small></div>
                     <div class="arch-arrow">-></div>
                     <div class="arch-box">Flask API<br><small>REST Endpoints</small></div>
                     <div class="arch-arrow">-></div>
@@ -495,55 +539,54 @@ def load_settings():
             # 데이터 캐시에 저장...</code></pre>
             </div>
 
-            <!-- 코드 3: GPT-SoVITS TTS -->
+            <!-- 코드 3: Qwen3-TTS Modal 배포 -->
             <div class="code-block">
                 <div class="code-header">
-                    <span class="code-title">GPT-SoVITS 음성 합성</span>
-                    <span class="code-file">run/services/tts/gpt_sovits_service.py</span>
+                    <span class="code-title">Qwen3-TTS Modal 서버리스 GPU 배포</span>
+                    <span class="code-file">tts_modal_deploy.py</span>
                 </div>
                 <div class="code-description">
-                    <p><strong>기능:</strong> 캐릭터별 참조 음성을 기반으로 텍스트를 음성으로 변환</p>
-                    <p><strong>AI 요소:</strong> GPT-SoVITS 모델을 활용한 Zero-shot Voice Cloning</p>
+                    <p><strong>기능:</strong> 화자별 파인튜닝된 모델로 캐릭터 음성 합성</p>
+                    <p><strong>AI 요소:</strong> Qwen3-TTS + Transformers 기반 화자 적응 (Speaker Adaptation)</p>
+                    <p><strong>인프라:</strong> Modal 서버리스 GPU로 비용 효율적 배포 (사용한 만큼만 과금)</p>
                 </div>
-                <pre><code class="language-python">class GPTSoVITSService:
-    """GPT-SoVITS API 클라이언트 - 캐릭터 음성 합성"""
+                <pre><code class="language-python">import modal
 
-    def __init__(self, reference_audio_dir="assets/reference_audio", api_url="http://localhost:9880"):
-        # 캐릭터별 참조 오디오 설정
-        self.reference_audio_config = {
-            "debi": {
-                "audio_path": "debi_reference.wav",
-                "text": "세상에는 말이야 너희가 상상도 못할것들이 오고간다고",
-                "language": "ko"
-            },
-            "marlene": {
-                "audio_path": "marlene_reference.wav",
-                "text": "포기하던가 아니면 끝까지 발악하던가",
-                "language": "ko"
-            }
-        }
+# Modal 앱 정의
+app = modal.App("qwen3-tts")
 
-    async def text_to_speech(self, text: str, speaker: str = "debi") -> str:
+# GPU 이미지 설정
+image = modal.Image.debian_slim(python_version="3.11").pip_install(
+    "torch", "transformers", "soundfile", "qwen-tts"
+)
+
+# 화자별 파인튜닝 모델
+SPEAKER_MODELS = {
+    "debi": "checkpoint-epoch-9",      # 데비 모델
+    "marlene": "checkpoint-epoch-27"   # 마를렌 모델
+}
+
+@app.cls(gpu="T4", image=image)
+class TTSService:
+    @modal.enter()
+    def load_models(self):
+        """컨테이너 시작 시 모델 로드"""
+        from qwen_tts import Qwen3TTSModel
+        self.models = {}
+        for speaker, path in SPEAKER_MODELS.items():
+            self.models[speaker] = Qwen3TTSModel.from_pretrained(path)
+
+    @modal.method()
+    def generate(self, text: str, speaker: str = "debi") -> bytes:
         """텍스트를 음성으로 변환"""
-        ref_config = self.reference_audio_config.get(speaker.lower())
+        model = self.models[speaker]
+        wavs, sr = model.generate_custom_voice(text=text, speaker=speaker)
 
-        # API 요청 데이터 구성
-        request_data = {
-            "text": text,
-            "text_lang": "ko",
-            "ref_audio_path": ref_config["audio_path"],
-            "prompt_text": ref_config["text"],
-            "prompt_lang": ref_config["language"],
-            "top_k": 15,
-            "top_p": 1.0,
-            "temperature": 1.0
-        }
-
-        # GPT-SoVITS API 서버에 TTS 요청
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{self.api_url}/tts", json=request_data) as resp:
-                audio_data = await resp.read()
-                # 음성 파일 저장 및 반환...</code></pre>
+        # WAV 바이트로 변환
+        import io, soundfile as sf
+        buffer = io.BytesIO()
+        sf.write(buffer, wavs[0], sr, format="WAV")
+        return buffer.getvalue()</code></pre>
             </div>
         </section>
 
@@ -604,16 +647,16 @@ def load_settings():
             <h2>배포 환경</h2>
             <div class="deployment-info">
                 <div class="deploy-item">
-                    <span class="deploy-label">플랫폼</span>
-                    <span class="deploy-value">Google Cloud Platform (GCP)</span>
+                    <span class="deploy-label">봇 서버</span>
+                    <span class="deploy-value">GCP Compute Engine VM + Docker</span>
                 </div>
                 <div class="deploy-item">
-                    <span class="deploy-label">컴퓨팅</span>
-                    <span class="deploy-value">Compute Engine VM + Docker</span>
+                    <span class="deploy-label">TTS API</span>
+                    <span class="deploy-value">Modal (서버리스 GPU - T4)</span>
                 </div>
                 <div class="deploy-item">
                     <span class="deploy-label">스토리지</span>
-                    <span class="deploy-value">Cloud Storage (웹 패널 데이터)</span>
+                    <span class="deploy-value">Cloud Storage (설정 데이터)</span>
                 </div>
                 <div class="deploy-item">
                     <span class="deploy-label">데스크톱 앱</span>

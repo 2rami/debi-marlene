@@ -8,6 +8,7 @@ WORKDIR /app
 # libsndfile1: 오디오 파일 처리
 # espeak-ng: TTS 발음 엔진 (Coqui TTS 지원)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
     gcc \
     g++ \
     ffmpeg \

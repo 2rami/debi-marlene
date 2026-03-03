@@ -233,7 +233,7 @@ def extract_segments_with_sfx(text: str) -> List[Dict[str, Any]]:
     return segments
 
 
-def split_text_for_tts(text: str, max_chars: int = 20, min_chars: int = 3) -> List[str]:
+def split_text_for_tts(text: str, max_chars: int = 100, min_chars: int = 3) -> List[str]:
     """
     TTS용 텍스트를 자연스러운 구간으로 분할합니다.
 

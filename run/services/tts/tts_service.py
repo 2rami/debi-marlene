@@ -4,7 +4,8 @@ TTS 서비스
 데비&마를렌 음성으로 TTS를 제공합니다.
 
 엔진 종류:
-- fish: Fish-Speech OpenAudio S1-mini (권장, 빠름 + 고품질)
+- cosyvoice3: CosyVoice3 파인튜닝 모델 (Modal Serverless, 24kHz)
+- fish: Fish-Speech OpenAudio S1-mini (빠름 + 고품질)
 - modal: Modal Serverless Qwen3-TTS (Flash Attention)
 - qwen3_api: Qwen3-TTS FastAPI 서버 (로컬)
 - qwen3: Qwen3-TTS 로컬 모델
@@ -62,7 +63,13 @@ class TTSService:
         if self.tts_backend is not None:
             return
 
-        if self.engine == "fish":
+        if self.engine == "cosyvoice3":
+            # CosyVoice3 파인튜닝 모델 (Modal Serverless)
+            from .cosyvoice3_client import CosyVoice3Client
+            self.tts_backend = CosyVoice3Client()
+            await self.tts_backend.initialize()
+            logger.info("CosyVoice3 클라이언트 초기화 완료")
+        elif self.engine == "fish":
             # Fish-Speech OpenAudio S1-mini (zero-shot, 빠름)
             from .fish_tts_client import FishTTSClient
             self.tts_backend = FishTTSClient()
@@ -142,8 +149,8 @@ class TTSService:
 
         processed_text = preprocess_text_for_tts(text)
 
-        # Modal 클라이언트만 스트리밍 지원
-        if self.engine == "modal" and hasattr(self.tts_backend, "text_to_speech_streaming"):
+        # Modal / CosyVoice3 클라이언트 스트리밍 지원
+        if self.engine in ("modal", "cosyvoice3") and hasattr(self.tts_backend, "text_to_speech_streaming"):
             async for audio_path in self.tts_backend.text_to_speech_streaming(
                 text=processed_text,
                 speaker=self.speaker,

@@ -3,6 +3,7 @@ Modal TTS API 클라이언트
 
 Modal Serverless에서 실행되는 TTS API를 호출합니다.
 Cold start 처리 및 재시도 로직이 포함되어 있습니다.
+스트리밍 엔드포인트 지원 (tts_stream).
 """
 
 import os
@@ -10,7 +11,7 @@ import hashlib
 import logging
 import asyncio
 import aiohttp
-from typing import Optional
+from typing import Optional, AsyncGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODAL_URL = os.environ.get(
     "MODAL_TTS_API_URL",
     "https://goenho0613--qwen3-tts-server-ttsmodel-tts.modal.run"
+)
+DEFAULT_MODAL_STREAM_URL = os.environ.get(
+    "MODAL_TTS_STREAM_URL",
+    "https://goenho0613--qwen3-tts-server-ttsmodel-tts-stream.modal.run"
 )
 DEFAULT_MODAL_HEALTH_URL = os.environ.get(
     "MODAL_TTS_HEALTH_URL",
@@ -32,15 +37,9 @@ class ModalTTSClient:
     Cold start가 있을 수 있으므로 타임아웃과 재시도 처리가 포함됩니다.
     """
 
-    def __init__(self, api_url: Optional[str] = None, health_url: Optional[str] = None):
-        """
-        클라이언트 초기화
-
-        Args:
-            api_url: Modal TTS API URL
-            health_url: Modal TTS Health URL
-        """
+    def __init__(self, api_url: Optional[str] = None, stream_url: Optional[str] = None, health_url: Optional[str] = None):
         self.api_url = api_url or DEFAULT_MODAL_URL
+        self.stream_url = stream_url or DEFAULT_MODAL_STREAM_URL
         self.health_url = health_url or DEFAULT_MODAL_HEALTH_URL
         self.temp_dir = "/tmp/tts_audio"
         self.is_initialized = False
@@ -185,6 +184,75 @@ class ModalTTSClient:
                     continue
 
         raise RuntimeError(f"Modal TTS 실패: {last_error}")
+
+    async def text_to_speech_streaming(
+        self,
+        text: str,
+        speaker: str = "debi",
+        guild_name: Optional[str] = None,
+        channel_name: Optional[str] = None,
+        user_name: Optional[str] = None,
+        chunk_size: int = 8,
+    ) -> AsyncGenerator[str, None]:
+        """
+        스트리밍 TTS - 오디오 청크가 생성될 때마다 파일 경로를 yield
+
+        서버가 오디오를 청크 단위로 생성하면서 전송하므로
+        전체 생성을 기다리지 않고 첫 청크부터 바로 재생 가능.
+
+        Yields:
+            각 청크의 WAV 파일 경로
+        """
+        if not self.stream_url:
+            raise RuntimeError("Modal Stream URL이 설정되지 않음")
+
+        if len(text) > 500:
+            text = text[:500]
+
+        session = await self._get_session()
+        payload = {
+            "text": text,
+            "speaker": speaker,
+            "chunk_size": chunk_size,
+            "guild_name": guild_name,
+            "channel_name": channel_name,
+            "user_name": user_name,
+        }
+
+        chunk_index = 0
+        try:
+            async with session.post(self.stream_url, json=payload) as response:
+                if response.status != 200:
+                    error_detail = await response.text()
+                    raise RuntimeError(f"TTS 스트리밍 실패: {response.status} - {error_detail}")
+
+                buffer = b""
+                async for data in response.content.iter_any():
+                    buffer += data
+
+                    # 헤더(8바이트) + WAV 데이터로 구성된 청크 파싱
+                    while len(buffer) >= 8:
+                        chunk_len = int.from_bytes(buffer[:4], "big")
+                        total_needed = 8 + chunk_len
+                        if len(buffer) < total_needed:
+                            break
+
+                        wav_data = buffer[8:total_needed]
+                        buffer = buffer[total_needed:]
+
+                        text_hash = hashlib.md5(f"{text}{speaker}{chunk_index}".encode()).hexdigest()[:8]
+                        output_path = os.path.join(self.temp_dir, f"modal_stream_{speaker}_{text_hash}.wav")
+
+                        with open(output_path, "wb") as f:
+                            f.write(wav_data)
+
+                        chunk_index += 1
+                        yield output_path
+
+        except asyncio.TimeoutError:
+            raise RuntimeError("TTS 스트리밍 타임아웃")
+        except aiohttp.ClientError as e:
+            raise RuntimeError(f"TTS 스트리밍 연결 실패: {e}")
 
     async def warm_up(self):
         """서버 워밍업 (cold start 방지용)"""

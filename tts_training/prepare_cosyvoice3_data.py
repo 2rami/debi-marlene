@@ -176,27 +176,29 @@ def process_audio(input_path: str, output_path: str) -> bool:
 
 # 카테고리 -> 스타일 매핑 (파일명의 카테고리 부분 기준)
 STYLE_MAP = {
+    # [sad] - 죽음, 패배, 사과 (killed* 가 kill* 보다 먼저 매칭되도록 sad를 먼저 배치)
+    "sad": [
+        "sorry", "killedby", "killedcommon", "killeddoppelganger",
+        "cobaltimminentlose", "lost", "surrender",
+        "endplay",
+    ],
     # [excited] - 전투 승리, 레전드급 이벤트, 스킬, 무기, 가속
     "excited": [
-        "battlearewin", "craftlegend", "craftepic", "craftrare",
+        "battleareawin", "cobaltimminentwin",
+        "craftlegend", "craftepic", "craftrare",
         "skillq", "skillw", "skille", "skillr", "skillpassive",
         "weaponskill", "accelerationline",
         "readyultimate", "notreadyultimate",
         "getrskill", "kill", "finishenemyteam",
-        "cobaltkilldrone", "cobaloccupation",
-        "victory", "exitsucess", "taunt",
-        "completefullroute", "completeroute",
-    ],
-    # [sad] - 죽음, 패배, 사과
-    "sad": [
-        "sorry", "killedby", "killedcommon", "killeddoppelganger",
-        "cobaltimminentlose", "lost", "surrender",
+        "cobaltkilldrone", "cobaltoccupation",
+        "victory", "exitsuccess", "taunt",
     ],
     # [happy] - 긍정, 감사, 캠프파이어, 수집
     "happy": [
         "good", "thanks", "bonfire", "collect",
         "joke", "revive", "resurrection",
         "makedrink", "makefood", "rest",
+        "completefullroute", "completeroute",
     ],
     # [calm] - 나머지 전부 (이동, 핑, 정보, 일반)
 }
@@ -413,7 +415,9 @@ def build_kaldi_data(entries: list[dict], output_dir: Path):
                 f"{e['style']}{e['text_normalized']}"
             )
 
-            wav_scp.append(f"{utt_id} {out_wav}")
+            # 상대경로 사용 (Colab 등 다른 환경에서도 동작하도록)
+            wav_rel = f"wavs/{utt_id}.wav"
+            wav_scp.append(f"{utt_id} {wav_rel}")
             text_lines.append(f"{utt_id} {cosyvoice_text}")
             utt2spk.append(f"{utt_id} {speaker}")
             spk2utt_map[speaker].append(utt_id)

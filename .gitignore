@@ -138,3 +138,8 @@ tests/qwen3_tts_test/output/
 tts_training/fish_speech_data/
 tts_training/fish_speech_data.zip
 tts_training/Fish_Speech_Finetune.ipynb
+
+# CosyVoice3 학습 데이터
+tts_training/cosyvoice3_data/
+tts_training/cosyvoice3_data.zip
+tts_training/style_review.csv

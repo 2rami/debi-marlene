@@ -177,6 +177,9 @@ def add_guild_song(guild_id):
     }
     if aliases:
         song['aliases'] = [a.strip() for a in aliases if a.strip()]
+    title_aliases = body.get('title_aliases', [])
+    if title_aliases:
+        song['title_aliases'] = [a.strip() for a in title_aliases if a.strip()]
 
     songs.append(song)
     save_quiz_data(data)
@@ -212,6 +215,9 @@ def update_guild_song(guild_id, index):
     }
     if aliases:
         songs[index]['aliases'] = [a.strip() for a in aliases if a.strip()]
+    title_aliases = body.get('title_aliases', [])
+    if title_aliases:
+        songs[index]['title_aliases'] = [a.strip() for a in title_aliases if a.strip()]
 
     save_quiz_data(data)
     return jsonify({'success': True, 'song': songs[index]})

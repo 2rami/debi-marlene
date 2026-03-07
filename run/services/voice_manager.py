@@ -112,7 +112,7 @@ class VoiceManager:
                             logger.info(f"음성 채널 이동: {channel.name}")
                         return True
 
-                vc = await channel.connect()
+                vc = await channel.connect(self_deaf=True)
                 self.voice_clients[guild_id] = vc
                 self.current_type[guild_id] = None
                 logger.info(f"음성 채널 입장: {channel.name}")

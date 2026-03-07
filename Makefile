@@ -15,49 +15,84 @@ DASHBOARD_IMAGE_TAG = $(REGISTRY)/$(DASHBOARD_CONTAINER):latest
 
 .PHONY: help deploy build-local push-image restart stop start logs status clean test-local stop-vm start-vm
 .PHONY: deploy-dashboard build-dashboard push-dashboard start-dashboard stop-dashboard restart-dashboard logs-dashboard
-.PHONY: deploy-dashboard-frontend deploy-dashboard-backend
-.PHONY: deploy-webpanel-frontend deploy-webpanel-backend logs-webpanel
+.PHONY: deploy-dashboard-frontend deploy-dashboard-backend deploy-dashboard-quick
+.PHONY: deploy-webpanel-frontend deploy-webpanel-backend deploy-webpanel-quick logs-webpanel
+.PHONY: deploy-quick
 
 # 기본 명령어 (make 입력 시 도움말 표시)
 help:
 	@echo "Debi Marlene Bot - 사용 가능한 명령어:"
 	@echo ""
-	@echo "📦 배포 관련:"
-	@echo "  make deploy        - 전체 배포 (로컬 빌드 + Registry Push + 재시작)"
-	@echo "  make build-local   - 로컬에서 Docker 이미지 빌드"
-	@echo "  make push-image    - Docker 이미지를 Artifact Registry에 푸시"
+	@echo "-- 빠른 배포 (코드만 교체, Docker 리빌드 없음) --"
+	@echo "  make deploy-quick              - 봇 코드만 빠른 배포"
+	@echo "  make deploy-dashboard-quick    - 대시보드 프론트+백엔드 빠른 배포"
+	@echo "  make deploy-webpanel-quick     - 웹패널 프론트+백엔드 빠른 배포"
 	@echo ""
-	@echo "🔧 VM 제어:"
-	@echo "  make restart       - 컨테이너 재시작"
+	@echo "-- 전체 배포 (Docker 이미지 리빌드, 의존성 변경 시) --"
+	@echo "  make deploy                    - 봇 전체 배포"
+	@echo "  make deploy-dashboard          - 대시보드 전체 배포"
+	@echo "  make deploy-webpanel-backend   - 웹패널 백엔드 전체 배포"
+	@echo ""
+	@echo "-- VM 제어 --"
 	@echo "  make stop-vm       - VM 봇 중지 (로컬 테스트 전)"
 	@echo "  make start-vm      - VM 봇 시작 (로컬 테스트 후)"
-	@echo "  make logs          - 컨테이너 로그 확인"
+	@echo "  make logs          - 봇 로그"
+	@echo "  make logs-dashboard - 대시보드 로그"
+	@echo "  make logs-webpanel  - 웹패널 로그"
 	@echo "  make status        - VM 및 컨테이너 상태 확인"
 	@echo ""
-	@echo "  [Dashboard]"
-	@echo "  make deploy-dashboard            - 대시보드 전체 배포 (Docker 이미지 재빌드)"
-	@echo "  make deploy-dashboard-frontend   - 프론트엔드만 빌드 + VM 배포"
-	@echo "  make deploy-dashboard-backend    - 백엔드만 VM 배포"
-	@echo "  make stop-dashboard              - 대시보드 중지"
-	@echo "  make start-dashboard             - 대시보드 시작"
-	@echo "  make restart-dashboard           - 대시보드 재시작"
-	@echo "  make logs-dashboard              - 대시보드 로그 확인"
-	@echo ""
-	@echo "  [Webpanel]"
-	@echo "  make deploy-webpanel-frontend  - 웹패널 프론트엔드 빌드 + VM 배포"
-	@echo "  make deploy-webpanel-backend   - 웹패널 백엔드 VM 배포"
-	@echo "  make logs-webpanel             - 웹패널 백엔드 로그"
-	@echo ""
-	@echo "  [Test]"
+	@echo "-- 기타 --"
 	@echo "  make test-local    - 로컬에서 봇 실행 (VM 봇 자동 중지)"
-	@echo ""
-	@echo "  [Misc]"
 	@echo "  make clean         - 중지된 컨테이너 및 이미지 정리"
 	@echo ""
 
+# ============================================================
+# 빠른 배포 (코드만 교체, Docker 리빌드 없음)
+# ============================================================
+
+# 봇 빠른 배포
+deploy-quick:
+	@echo "[1/3] 봇 코드를 VM에 업로드 중..."
+	@tar -czf /tmp/bot-upload.tar.gz --exclude='__pycache__' --exclude='*.pyc' run/ main.py
+	@gcloud compute scp /tmp/bot-upload.tar.gz $(VM_NAME):~/bot-upload.tar.gz --zone=$(ZONE)
+	@echo "[2/3] 컨테이너에 복사 중..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="mkdir -p ~/bot-upload && tar -xzf ~/bot-upload.tar.gz -C ~/bot-upload && docker cp ~/bot-upload/run/. $(CONTAINER_NAME):/app/run/ && docker cp ~/bot-upload/main.py $(CONTAINER_NAME):/app/main.py && rm -rf ~/bot-upload ~/bot-upload.tar.gz"
+	@echo "[3/3] 컨테이너 재시작 중..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker restart $(CONTAINER_NAME)"
+	@rm -f /tmp/bot-upload.tar.gz
+	@echo "봇 빠른 배포 완료!"
+
+# 대시보드 빠른 배포 (프론트+백엔드)
+deploy-dashboard-quick: deploy-dashboard-frontend deploy-dashboard-backend
+	@echo "대시보드 빠른 배포 완료!"
+
+# 웹패널 빠른 배포 (프론트+백엔드)
+deploy-webpanel-quick: deploy-webpanel-frontend deploy-webpanel-backend-quick
+	@echo "웹패널 빠른 배포 완료!"
+
+# 웹패널 백엔드 빠른 배포 (Docker 리빌드 없이 코드만 교체)
+deploy-webpanel-backend-quick:
+	@echo "[1/3] 웹패널 백엔드 코드를 VM에 업로드 중..."
+	@tar -czf /tmp/wb-quick.tar.gz --exclude='__pycache__' --exclude='*.pyc' webpanel/backend/ run/__init__.py run/core/
+	@gcloud compute scp /tmp/wb-quick.tar.gz $(VM_NAME):~/wb-quick.tar.gz --zone=$(ZONE)
+	@echo "[2/3] 컨테이너에 복사 중..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="mkdir -p ~/wb-quick && tar -xzf ~/wb-quick.tar.gz -C ~/wb-quick && docker cp ~/wb-quick/webpanel/backend/. webpanel-backend:/app/backend/ && docker cp ~/wb-quick/run/. webpanel-backend:/app/run/ && rm -rf ~/wb-quick ~/wb-quick.tar.gz"
+	@echo "[3/3] 컨테이너 재시작 중..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker restart webpanel-backend"
+	@rm -f /tmp/wb-quick.tar.gz
+	@echo "웹패널 백엔드 빠른 배포 완료!"
+
+# ============================================================
+# 전체 배포 (Docker 이미지 리빌드, 의존성 변경 시)
+# ============================================================
+
 # 전체 배포 프로세스
 deploy: build-local push-image restart
-	@echo "✅ 배포 완료!"
+	@echo "배포 완료!"
 
 # 로컬에서 Docker 이미지 빌드
 build-local:
@@ -67,66 +102,66 @@ build-local:
 
 # Docker 이미지를 Artifact Registry에 푸시
 push-image:
-	@echo "📤 Docker 이미지를 Artifact Registry에 푸시 중..."
+	@echo "Docker 이미지를 Artifact Registry에 푸시 중..."
 	@docker push $(IMAGE_TAG)
-	@echo "✅ 푸시 완료"
+	@echo "푸시 완료"
 
 # 컨테이너 재시작
 restart: stop start
-	@echo "✅ 재시작 완료"
+	@echo "재시작 완료"
 
 # 컨테이너 중지 및 제거
 stop:
-	@echo "🛑 컨테이너 중지 중..."
+	@echo "컨테이너 중지 중..."
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker stop debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true && docker rm debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true"
-	@echo "✅ 중지 완료"
+	@echo "중지 완료"
 
 # 새 컨테이너 시작
 start:
-	@echo "📥 VM에서 최신 이미지 pull 중..."
+	@echo "VM에서 최신 이미지 pull 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker pull $(IMAGE_TAG) && docker image prune -f"
-	@echo "🚀 컨테이너 시작 중..."
+	@echo "컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env --restart unless-stopped $(IMAGE_TAG)"
-	@echo "✅ 시작 완료"
+	@echo "시작 완료"
 
 # 컨테이너 로그 확인
 logs:
-	@echo "📋 컨테이너 로그 (Ctrl+C로 종료):"
+	@echo "컨테이너 로그 (Ctrl+C로 종료):"
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker logs -f $(CONTAINER_NAME)"
 
 # VM 및 컨테이너 상태 확인
 status:
-	@echo "📊 VM 상태:"
+	@echo "VM 상태:"
 	gcloud compute instances list --filter="name=$(VM_NAME)"
 	@echo ""
-	@echo "📊 Docker 컨테이너 상태:"
+	@echo "Docker 컨테이너 상태:"
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker ps -a | grep $(CONTAINER_NAME) || echo '컨테이너 없음'"
 
 # 중지된 컨테이너 및 사용하지 않는 이미지 정리
 clean:
-	@echo "🧹 Docker 및 임시 파일 정리 중..."
+	@echo "Docker 및 임시 파일 정리 중..."
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker system prune -f && rm -rf ~/tmp && rm -f ~/$(CONTAINER_NAME).tar"
-	@echo "✅ 정리 완료"
+	@echo "정리 완료"
 
 # VM 봇만 중지 (로컬 테스트 전)
 stop-vm:
-	@echo "🛑 VM 봇 중지 중..."
+	@echo "VM 봇 중지 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker stop $(CONTAINER_NAME) 2>/dev/null || true"
-	@echo "✅ VM 봇 중지 완료 (로컬 테스트 가능)"
+	@echo "VM 봇 중지 완료 (로컬 테스트 가능)"
 
 # VM 봇만 시작 (로컬 테스트 후)
 start-vm:
-	@echo "🚀 VM 봇 시작 중..."
+	@echo "VM 봇 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker start $(CONTAINER_NAME) 2>/dev/null || echo '⚠️  컨테이너가 없습니다. make deploy를 실행하세요.'"
-	@echo "✅ VM 봇 시작 완료"
+		--command="docker start $(CONTAINER_NAME) 2>/dev/null || echo '컨테이너가 없습니다. make deploy를 실행하세요.'"
+	@echo "VM 봇 시작 완료"
 
 # 로컬에서 봇 테스트 (VM 봇 자동 중지)
 test-local: stop-vm

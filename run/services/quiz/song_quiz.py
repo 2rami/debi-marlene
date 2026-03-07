@@ -38,48 +38,49 @@ class SongEntry:
     title: str
     artist: str
     query: str  # YouTube 검색어
-    aliases: Optional[List[str]] = None  # 아티스트/제목 대체 이름 (한글 등)
+    aliases: Optional[List[str]] = None  # 가수 별칭 (한글 등)
+    title_aliases: Optional[List[str]] = None  # 제목 별칭 (한글, 약칭 등)
 
 
 # 내장 곡 목록 (GCS에 곡이 없을 때 폴백용)
 DEFAULT_SONG_LIST: List[SongEntry] = [
     # K-pop
-    SongEntry("Ditto", "NewJeans", "NewJeans Ditto", ["뉴진스"]),
-    SongEntry("Super Shy", "NewJeans", "NewJeans Super Shy", ["뉴진스", "슈퍼샤이"]),
-    SongEntry("Hype Boy", "NewJeans", "NewJeans Hype Boy", ["뉴진스", "하이프보이"]),
+    SongEntry("Ditto", "NewJeans", "NewJeans Ditto", ["뉴진스"], ["디토"]),
+    SongEntry("Super Shy", "NewJeans", "NewJeans Super Shy", ["뉴진스"], ["슈퍼샤이"]),
+    SongEntry("Hype Boy", "NewJeans", "NewJeans Hype Boy", ["뉴진스"], ["하이프보이"]),
     SongEntry("APT.", "ROSE", "ROSE APT Bruno Mars", ["로제", "브루노마스"]),
-    SongEntry("Supernova", "aespa", "aespa Supernova", ["에스파", "슈퍼노바"]),
-    SongEntry("Next Level", "aespa", "aespa Next Level", ["에스파", "넥스트레벨"]),
-    SongEntry("Love Dive", "IVE", "IVE Love Dive", ["아이브", "러브다이브"]),
-    SongEntry("HEYA", "IVE", "IVE HEYA", ["아이브", "해야"]),
-    SongEntry("Magnetic", "ILLIT", "ILLIT Magnetic", ["아일릿"]),
+    SongEntry("Supernova", "aespa", "aespa Supernova", ["에스파"], ["슈퍼노바"]),
+    SongEntry("Next Level", "aespa", "aespa Next Level", ["에스파"], ["넥스트레벨"]),
+    SongEntry("Love Dive", "IVE", "IVE Love Dive", ["아이브"], ["러브다이브"]),
+    SongEntry("HEYA", "IVE", "IVE HEYA", ["아이브"], ["해야"]),
+    SongEntry("Magnetic", "ILLIT", "ILLIT Magnetic", ["아일릿"], ["마그네틱"]),
     SongEntry("SPOT!", "ZICO", "ZICO SPOT Jennie", ["지코", "제니"]),
-    SongEntry("Butter", "BTS", "BTS Butter", ["방탄소년단", "방탄", "버터"]),
-    SongEntry("Dynamite", "BTS", "BTS Dynamite", ["방탄소년단", "방탄", "다이너마이트"]),
+    SongEntry("Butter", "BTS", "BTS Butter", ["방탄소년단", "방탄"], ["버터"]),
+    SongEntry("Dynamite", "BTS", "BTS Dynamite", ["방탄소년단", "방탄"], ["다이너마이트"]),
     SongEntry("How Sweet", "NewJeans", "NewJeans How Sweet", ["뉴진스"]),
     SongEntry("GODS", "NewJeans", "NewJeans GODS", ["뉴진스"]),
-    SongEntry("Drama", "aespa", "aespa Drama", ["에스파", "드라마"]),
-    SongEntry("Kitsch", "IVE", "IVE Kitsch", ["아이브", "키치"]),
-    SongEntry("Panorama", "IZ*ONE", "IZ*ONE Panorama", ["아이즈원", "파노라마"]),
+    SongEntry("Drama", "aespa", "aespa Drama", ["에스파"], ["드라마"]),
+    SongEntry("Kitsch", "IVE", "IVE Kitsch", ["아이브"], ["키치"]),
+    SongEntry("Panorama", "IZ*ONE", "IZ*ONE Panorama", ["아이즈원"], ["파노라마"]),
     SongEntry("Antifragile", "LE SSERAFIM", "LE SSERAFIM Antifragile", ["르세라핌"]),
     SongEntry("EASY", "LE SSERAFIM", "LE SSERAFIM EASY", ["르세라핌"]),
-    SongEntry("Queencard", "(G)I-DLE", "GIDLE Queencard", ["여자아이들", "아이들", "퀸카"]),
-    SongEntry("TOMBOY", "(G)I-DLE", "GIDLE TOMBOY", ["여자아이들", "아이들", "톰보이"]),
+    SongEntry("Queencard", "(G)I-DLE", "GIDLE Queencard", ["여자아이들", "아이들"], ["퀸카"]),
+    SongEntry("TOMBOY", "(G)I-DLE", "GIDLE TOMBOY", ["여자아이들", "아이들"], ["톰보이"]),
     SongEntry("Pink Venom", "BLACKPINK", "BLACKPINK Pink Venom", ["블랙핑크", "블핑"]),
     SongEntry("Shut Down", "BLACKPINK", "BLACKPINK Shut Down", ["블랙핑크", "블핑"]),
     SongEntry("OMG", "NewJeans", "NewJeans OMG", ["뉴진스"]),
     SongEntry("Candy", "NCT DREAM", "NCT DREAM Candy", ["엔시티드림", "엔시티"]),
     # Anime / Game OST
-    SongEntry("Idol", "YOASOBI", "YOASOBI Idol Oshi no Ko", ["요아소비", "아이돌"]),
-    SongEntry("Zankyosanka", "Aimer", "Aimer 残響散歌 Demon Slayer", ["에메", "잔향산가"]),
+    SongEntry("Idol", "YOASOBI", "YOASOBI Idol Oshi no Ko", ["요아소비"], ["아이돌"]),
+    SongEntry("Zankyosanka", "Aimer", "Aimer 残響散歌 Demon Slayer", ["에메"], ["잔향산가"]),
     SongEntry("Shinunoga E-Wa", "Fujii Kaze", "Fujii Kaze Shinunoga E-Wa", ["후지이카제", "후지카제"]),
     SongEntry("Kick Back", "Kenshi Yonezu", "Kenshi Yonezu Kick Back Chainsaw Man", ["요네즈켄시", "켄시요네즈", "요네즈 켄시"]),
-    SongEntry("Unravel", "TK from Ling tosite sigure", "TK Unravel Tokyo Ghoul", ["언라벨"]),
-    SongEntry("Gurenge", "LiSA", "LiSA Gurenge Demon Slayer", ["리사", "홍련화"]),
+    SongEntry("Unravel", "TK from Ling tosite sigure", "TK Unravel Tokyo Ghoul", None, ["언라벨"]),
+    SongEntry("Gurenge", "LiSA", "LiSA Gurenge Demon Slayer", ["리사"], ["홍련화"]),
     SongEntry("Pretender", "Official HIGE DANdism", "Official HIGE DANdism Pretender", ["히게단", "히게단디즘"]),
-    SongEntry("Cry Baby", "Official HIGE DANdism", "Official HIGE DANdism Cry Baby", ["히게단", "히게단디즘", "크라이베이비"]),
-    SongEntry("Racing into the Night", "YOASOBI", "YOASOBI 夜に駆ける", ["요아소비", "밤을달리다", "밤을 달리다", "요루니카게루"]),
-    SongEntry("Kaikai Kitan", "Eve", "Eve Kaikai Kitan Jujutsu Kaisen", ["이브", "괴괴기담"]),
+    SongEntry("Cry Baby", "Official HIGE DANdism", "Official HIGE DANdism Cry Baby", ["히게단", "히게단디즘"], ["크라이베이비"]),
+    SongEntry("Racing into the Night", "YOASOBI", "YOASOBI 夜に駆ける", ["요아소비"], ["밤을달리다", "밤을 달리다", "요루니카게루"]),
+    SongEntry("Kaikai Kitan", "Eve", "Eve Kaikai Kitan Jujutsu Kaisen", ["이브"], ["괴괴기담"]),
     # Pop
     SongEntry("Blinding Lights", "The Weeknd", "The Weeknd Blinding Lights", ["위켄드", "더위켄드"]),
     SongEntry("Shape of You", "Ed Sheeran", "Ed Sheeran Shape of You", ["에드시런"]),
@@ -106,6 +107,7 @@ def get_song_list(guild_id: str = None) -> List[SongEntry]:
                 artist=s["artist"],
                 query=s["query"],
                 aliases=s.get("aliases"),
+                title_aliases=s.get("title_aliases"),
             )
             for s in gcs_songs
         ]
@@ -151,11 +153,17 @@ def check_answer(user_input: str, song: SongEntry) -> Optional[str]:
     if _match_target(normalized, _normalize(song.title)):
         return "title"
 
+    # 제목 별칭 체크
+    if song.title_aliases:
+        for alias in song.title_aliases:
+            if _match_target(normalized, _normalize(alias)):
+                return "title"
+
     # 가수 체크
     if _match_target(normalized, _normalize(song.artist)):
         return "artist"
 
-    # 별명 체크 (제목 또는 가수 대체)
+    # 가수 별칭 체크
     if song.aliases:
         for alias in song.aliases:
             if _match_target(normalized, _normalize(alias)):

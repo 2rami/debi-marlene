@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import tasks
 from googleapiclient.discovery import build
@@ -7,6 +8,7 @@ from run.core import config
 
 youtube = None
 bot_instance = None
+_notification_lock = asyncio.Lock()
 
 def set_bot_instance(bot):
     global bot_instance
@@ -137,95 +139,102 @@ async def check_new_videos():
     if not youtube or not bot_instance:
         return
 
-    try:
-        # 1. 최신 영상 정보 가져오기
-        channel_response = youtube.channels().list(part='contentDetails', id=ETERNAL_RETURN_CHANNEL_ID).execute()
-        if not channel_response.get('items'): return
-        uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
-        playlist_response = youtube.playlistItems().list(part='snippet', playlistId=uploads_playlist_id, maxResults=10).execute()
-        if not playlist_response.get('items'): return
+    # Lock으로 동시 실행 방지 (on_ready 중복 호출 대비)
+    if _notification_lock.locked():
+        print("[유튜브] 이전 알림 작업이 아직 진행 중 - 스킵")
+        return
 
-        non_live_videos = [item for item in playlist_response['items'] if 'liveStreamingDetails' not in youtube.videos().list(part='snippet,liveStreamingDetails', id=item['snippet']['resourceId']['videoId']).execute().get('items', [{}])[0]]
-        if not non_live_videos: return
+    async with _notification_lock:
+        try:
+            # 1. 최신 영상 정보 가져오기
+            channel_response = youtube.channels().list(part='contentDetails', id=ETERNAL_RETURN_CHANNEL_ID).execute()
+            if not channel_response.get('items'): return
+            uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+            playlist_response = youtube.playlistItems().list(part='snippet', playlistId=uploads_playlist_id, maxResults=10).execute()
+            if not playlist_response.get('items'): return
 
-        latest_video = non_live_videos[0]
-        video_id = latest_video['snippet']['resourceId']['videoId']
-        snippet = latest_video['snippet']
+            non_live_videos = [item for item in playlist_response['items'] if 'liveStreamingDetails' not in youtube.videos().list(part='snippet,liveStreamingDetails', id=item['snippet']['resourceId']['videoId']).execute().get('items', [{}])[0]]
+            if not non_live_videos: return
 
-        # 2. 서버별 알림 작업을 비동기로 생성 (각 채널별 중복 체크)
-        import asyncio
-        
-        async def send_to_guild(guild, video_id, snippet):
-            """개별 서버에 알림을 보내는 비동기 함수"""
-            guild_settings = config.get_guild_settings(guild.id)
-            channel_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
-            if channel_id:
-                channel = bot_instance.get_channel(int(channel_id))
-                if channel:
-                    last_sent_id = await get_last_sent_video_id_from_channel(channel)
-                    if last_sent_id != video_id:
-                        print(f"  -> 서버 '{guild.name}' (ID: {guild.id})의 #{channel.name} (ID: {channel_id}) 채널에 새 영상 전송")
-                        await _send_notification(channel, video_id, snippet)
+            latest_video = non_live_videos[0]
+            video_id = latest_video['snippet']['resourceId']['videoId']
+            snippet = latest_video['snippet']
+
+            # 2. 전역 설정에서 이미 처리한 영상인지 확인 (빠른 스킵)
+            last_checked_id = config.get_global_setting("LAST_CHECKED_VIDEO_ID")
+            if last_checked_id == video_id:
+                return
+
+            # 3. 서버별 알림 작업을 비동기로 생성 (각 채널별 중복 체크)
+            async def send_to_guild(guild, video_id, snippet):
+                """개별 서버에 알림을 보내는 비동기 함수"""
+                guild_settings = config.get_guild_settings(guild.id)
+                channel_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
+                if channel_id:
+                    channel = bot_instance.get_channel(int(channel_id))
+                    if channel:
+                        last_sent_id = await get_last_sent_video_id_from_channel(channel)
+                        if last_sent_id != video_id:
+                            print(f"  -> 서버 '{guild.name}' (ID: {guild.id})의 #{channel.name} (ID: {channel_id}) 채널에 새 영상 전송")
+                            await _send_notification(channel, video_id, snippet)
+                        else:
+                            print(f"  -> 서버 '{guild.name}' (ID: {guild.id}): 이미 전송된 영상")
                     else:
-                        print(f"  -> 서버 '{guild.name}' (ID: {guild.id}): 이미 전송된 영상")
+                        print(f"  -> 서버 '{guild.name}' (ID: {guild.id}): 채널 ID {channel_id}를 찾을 수 없음")
                 else:
-                    print(f"  -> 서버 '{guild.name}' (ID: {guild.id}): 채널 ID {channel_id}를 찾을 수 없음")
-            else:
-                print(f"  -> 서버 '{guild.name}' (ID: {guild.id}): 공지 채널 미설정")
-        
-        async def send_to_user(user_id, video_id, snippet):
-            """개별 사용자에게 DM을 보내는 비동기 함수"""
-            try:
-                user = await bot_instance.fetch_user(user_id)
+                    print(f"  -> 서버 '{guild.name}' (ID: {guild.id}): 공지 채널 미설정")
 
-                # DM 채널 ID 확인 (GCS에 저장된 정보)
-                settings = config.load_settings()
-                user_settings = settings.get('users', {}).get(str(user_id), {})
-                dm_channel_id = user_settings.get('dm_channel_id')
+            async def send_to_user(user_id, video_id, snippet):
+                """개별 사용자에게 DM을 보내는 비동기 함수"""
+                try:
+                    user = await bot_instance.fetch_user(user_id)
 
-                # DM 채널이 있으면 중복 체크
-                if dm_channel_id:
-                    try:
-                        dm_channel = await bot_instance.fetch_channel(int(dm_channel_id))
-                        last_sent_id = await get_last_sent_video_id_from_channel(dm_channel)
-                        if last_sent_id == video_id:
-                            print(f"  -> 구독자 '{user.name}#{user.discriminator}' (ID: {user_id}): 이미 전송된 영상")
+                    # DM 채널 ID 확인 (GCS에 저장된 정보)
+                    settings = config.load_settings()
+                    user_settings = settings.get('users', {}).get(str(user_id), {})
+                    dm_channel_id = user_settings.get('dm_channel_id')
+
+                    # DM 채널이 있으면 중복 체크
+                    if dm_channel_id:
+                        try:
+                            dm_channel = await bot_instance.fetch_channel(int(dm_channel_id))
+                            last_sent_id = await get_last_sent_video_id_from_channel(dm_channel)
+                            if last_sent_id == video_id:
+                                print(f"  -> 구독자 '{user.name}#{user.discriminator}' (ID: {user_id}): 이미 전송된 영상")
+                                return
+                        except Exception as channel_error:
+                            print(f"  -> [경고] DM 채널 확인 실패 (전송 건너뜀): {channel_error}")
                             return
-                    except Exception as channel_error:
-                        print(f"  -> [경고] DM 채널 확인 실패 (새로 전송 시도): {channel_error}")
 
-                print(f"  -> 구독자 '{user.name}#{user.discriminator}' (ID: {user_id})에게 DM 전송")
-                await _send_notification(user, video_id, snippet)
-            except discord.NotFound:
-                print(f"  -> [오류] 구독자 ID({user_id})를 찾을 수 없습니다. 목록에서 제거를 고려해보세요.")
-            except Exception as e:
-                print(f"  -> [오류] 구독자 ID({user_id}) 처리 중 오류: {e}")
-        
-        # 3. 서버 채널과 개인 DM 모두 동시에 전송
-        print("- 서버 채널 및 개인 구독자 동시 알림 시작")
-        
-        # 서버 알림 작업 생성
-        guild_tasks = [send_to_guild(guild, video_id, snippet) for guild in bot_instance.guilds]
-        
-        # 개인 구독자 DM 작업 생성
-        subscribers = config.get_youtube_subscribers()
-        print(f"  총 {len(subscribers)}명의 개인 구독자, {len(bot_instance.guilds)}개 서버")
-        user_tasks = [send_to_user(user_id, video_id, snippet) for user_id in subscribers]
-        
-        # 모든 작업을 동시에 실행
-        all_tasks = guild_tasks + user_tasks
-        if all_tasks:
-            await asyncio.gather(*all_tasks, return_exceptions=True)
+                    print(f"  -> 구독자 '{user.name}#{user.discriminator}' (ID: {user_id})에게 DM 전송")
+                    await _send_notification(user, video_id, snippet)
+                except discord.NotFound:
+                    print(f"  -> [오류] 구독자 ID({user_id})를 찾을 수 없습니다. 목록에서 제거를 고려해보세요.")
+                except Exception as e:
+                    print(f"  -> [오류] 구독자 ID({user_id}) 처리 중 오류: {e}")
 
-        # 5. 마지막으로 확인한 영상 ID와 제목 저장
-        video_title = snippet.get('title', '제목 없음') if snippet else '제목 없음'
-        config.save_last_video_info(video_id, video_title)
-        print(f"[완료] 새 영상 ID({video_id}), 제목({video_title})을 전역 설정에 저장했습니다.")
+            # 4. 서버 채널과 개인 DM 모두 동시에 전송
+            print("- 서버 채널 및 개인 구독자 동시 알림 시작")
 
-    except Exception as e:
-        print(f"[오류] 유튜브 영상 확인 중 심각한 오류 발생: {e}")
-        import traceback
-        traceback.print_exc()
+            guild_tasks = [send_to_guild(guild, video_id, snippet) for guild in bot_instance.guilds]
+
+            subscribers = config.get_youtube_subscribers()
+            print(f"  총 {len(subscribers)}명의 개인 구독자, {len(bot_instance.guilds)}개 서버")
+            user_tasks = [send_to_user(user_id, video_id, snippet) for user_id in subscribers]
+
+            all_tasks = guild_tasks + user_tasks
+            if all_tasks:
+                await asyncio.gather(*all_tasks, return_exceptions=True)
+
+            # 5. 마지막으로 확인한 영상 ID와 제목 저장
+            video_title = snippet.get('title', '제목 없음') if snippet else '제목 없음'
+            config.save_last_video_info(video_id, video_title)
+            print(f"[완료] 새 영상 ID({video_id}), 제목({video_title})을 전역 설정에 저장했습니다.")
+
+        except Exception as e:
+            print(f"[오류] 유튜브 영상 확인 중 심각한 오류 발생: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 async def manual_check_new_videos():

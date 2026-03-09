@@ -42,6 +42,8 @@ gateway_dm_messages = []  # DM 메시지
 welcomed_guilds = set()
 # 환영 메시지 전송 시간을 추적 (빠른 중복 이벤트 방지)
 welcome_timestamps = {}
+# YouTube 태스크 시작 여부 (on_ready 중복 호출 방지)
+_youtube_task_started = False
 
 
 async def update_guild_data_to_gcs(guild: discord.Guild):
@@ -359,10 +361,13 @@ async def on_ready():
         await initialize_game_data()
         print("[완료] 게임 데이터 초기화 완료.", flush=True)
 
-        youtube_service.set_bot_instance(bot)
-        await youtube_service.initialize_youtube()
-        if not youtube_service.check_new_videos.is_running():
-            youtube_service.check_new_videos.start()
+        global _youtube_task_started
+        if not _youtube_task_started:
+            youtube_service.set_bot_instance(bot)
+            await youtube_service.initialize_youtube()
+            if not youtube_service.check_new_videos.is_running():
+                youtube_service.check_new_videos.start()
+            _youtube_task_started = True
 
         # 정기적 서버 수 로깅 태스크 시작
         if not periodic_guild_logging.is_running():

@@ -9,9 +9,6 @@ LLM만 파인튜닝, Flow/HiFiGAN은 프리트레인 유지.
 
 로컬 테스트:
     modal serve cosyvoice3_modal_server.py
-
-환경 변수:
-    HF_TOKEN: HuggingFace 토큰 (private repo)
 """
 
 import io
@@ -20,7 +17,8 @@ import modal
 
 app = modal.App("cosyvoice3-tts-server")
 
-# CosyVoice3 의존성이 복잡하므로 Docker 이미지 기반으로 구성
+hf_secret = modal.Secret.from_name("huggingface")
+
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install(
@@ -29,39 +27,39 @@ image = (
     )
     .pip_install(
         "torch==2.5.1", "torchaudio==2.5.1",
-        "--index-url", "https://download.pytorch.org/whl/cu121",
-    )
-    .pip_install(
-        "conformer==0.3.2",
-        "diffusers==0.32.2",
-        "hydra-core==1.3.2",
-        "HyperPyYAML==1.2.2",
-        "librosa==0.10.2.post1",
-        "lightning==2.4.0",
-        "onnxruntime-gpu==1.19.0",
-        "omegaconf==2.3.0",
-        "soundfile==0.12.1",
-        "transformers==4.48.2",
-        "huggingface_hub",
-        "numpy<2",
+        extra_index_url="https://download.pytorch.org/whl/cu121",
     )
     .run_commands(
-        # CosyVoice repo clone (추론에 필요한 코드)
+        # Colab 노트북 cell-7과 동일한 설치 순서
+        "pip install setuptools wget",
+        # ML 핵심
+        "pip install onnxruntime-gpu conformer hyperpyyaml 'protobuf>=5.26,<6'",
+        # 학습 프레임워크
+        "pip install lightning accelerate diffusers hydra-core 'transformers==4.51.3'",
+        # 오디오 + 유틸
+        "pip install soundfile librosa inflect pyarrow pydantic tiktoken more-itertools huggingface_hub pyworld",
+        # whisper (no-deps로 의존성 충돌 방지)
+        "pip install --upgrade numba",
+        "pip install openai-whisper --no-deps",
+        # 추론용 + matplotlib (Matcha-TTS utils에서 필요)
+        "pip install modelscope x_transformers einops gdown matplotlib",
+        # CosyVoice clone + Matcha-TTS (build_ext --inplace)
         "cd /opt && git clone --depth 1 https://github.com/FunAudioLLM/CosyVoice.git",
         "cd /opt/CosyVoice && git submodule update --init --recursive",
-        "cd /opt/CosyVoice/third_party/Matcha-TTS && pip install -e .",
+        "cd /opt/CosyVoice/third_party/Matcha-TTS && pip install cython && python setup.py build_ext --inplace",
+        "pip install numpy==1.26.4",
+        "pip install 'fastapi[standard]'",
+        # TensorRT for flow decoder acceleration (load_trt=True)
+        "pip install tensorrt==10.7.0 --extra-index-url https://pypi.nvidia.com",
     )
-    .env({"PYTHONPATH": "/opt/CosyVoice"})
+    .env({
+        "PYTHONPATH": "/opt/CosyVoice/third_party/Matcha-TTS:/opt/CosyVoice",
+    })
 )
 
-# 모델 캐시용 볼륨
 volume = modal.Volume.from_name("cosyvoice3-model-cache", create_if_missing=True)
 
-# HuggingFace 모델 ID (파인튜닝된 모델)
 HF_MODEL_REPO = "2R4mi/cosyvoice3-debi-marlene"
-
-# 레퍼런스 오디오 (speaker embedding 추출용)
-# Volume에 저장된 레퍼런스 wav 파일 사용
 SPEAKERS = ["debi", "marlene"]
 
 
@@ -70,6 +68,7 @@ SPEAKERS = ["debi", "marlene"]
     gpu="T4",
     timeout=300,
     volumes={"/cache": volume},
+    secrets=[hf_secret],
     scaledown_window=300,
 )
 class CosyVoice3Model:
@@ -103,7 +102,7 @@ class CosyVoice3Model:
             # CosyVoice3 모델 로드
             print(f"Loading CosyVoice3 from {model_path}")
             from cosyvoice.cli.cosyvoice import CosyVoice3
-            self.model = CosyVoice3(model_path, load_jit=False, load_trt=False)
+            self.model = CosyVoice3(model_path, load_jit=True, load_trt=False, fp16=True)
 
             # 워밍업 추론
             print("Warming up...")
@@ -142,7 +141,7 @@ class CosyVoice3Model:
         return None
 
     def _generate_full(self, text: str, speaker: str = "debi", style: str = "[calm]") -> tuple:
-        """전체 음성 생성"""
+        """전체 음성 생성 → 24kHz mono WAV (작은 크기로 빠른 전송)"""
         import torch
         import soundfile as sf
         import numpy as np
@@ -154,7 +153,7 @@ class CosyVoice3Model:
         if ref_wav is None:
             raise ValueError(f"Reference wav not found for: {speaker}")
 
-        instruction = f"You are a helpful assistant.{style}<|endofprompt|>"
+        instruction = f"You are a helpful assistant.<|endofprompt|>{style}"
 
         output_wav = None
         for result in self.model.inference_instruct2(
@@ -188,7 +187,7 @@ class CosyVoice3Model:
         if ref_wav is None:
             raise ValueError(f"Reference wav not found for: {speaker}")
 
-        instruction = f"You are a helpful assistant.{style}<|endofprompt|>"
+        instruction = f"You are a helpful assistant.<|endofprompt|>{style}"
 
         for result in self.model.inference_instruct2(
             text,
@@ -276,11 +275,22 @@ class CosyVoice3Model:
     @modal.fastapi_endpoint(method="GET")
     def health(self):
         """헬스 체크"""
+        import transformers
+        import torch
+        attn_impl = None
+        if self.model is not None:
+            try:
+                attn_impl = str(self.model.model.llm.model.config._attn_implementation)
+            except Exception:
+                attn_impl = "unknown"
         return {
             "status": "running" if self.model is not None else "error",
             "engine": "CosyVoice3 (Fine-tuned LLM SFT)",
             "speakers": SPEAKERS,
             "errors": self.load_errors if hasattr(self, "load_errors") else [],
+            "transformers_version": transformers.__version__,
+            "torch_version": torch.__version__,
+            "attn_implementation": attn_impl,
         }
 
 

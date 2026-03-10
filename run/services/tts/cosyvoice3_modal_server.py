@@ -49,8 +49,8 @@ image = (
         "cd /opt/CosyVoice/third_party/Matcha-TTS && pip install cython && python setup.py build_ext --inplace",
         "pip install numpy==1.26.4",
         "pip install 'fastapi[standard]'",
-        # TensorRT for flow decoder acceleration (load_trt=True)
-        "pip install tensorrt==10.7.0 --extra-index-url https://pypi.nvidia.com",
+        # vLLM for LLM inference acceleration (load_vllm=True)
+        "pip install vllm>=0.11.0 torchcodec",
     )
     .env({
         "PYTHONPATH": "/opt/CosyVoice/third_party/Matcha-TTS:/opt/CosyVoice",
@@ -65,7 +65,7 @@ SPEAKERS = ["debi", "marlene"]
 
 @app.cls(
     image=image,
-    gpu="T4",
+    gpu="A10G",
     timeout=300,
     volumes={"/cache": volume},
     secrets=[hf_secret],
@@ -102,7 +102,7 @@ class CosyVoice3Model:
             # CosyVoice3 모델 로드
             print(f"Loading CosyVoice3 from {model_path}")
             from cosyvoice.cli.cosyvoice import CosyVoice3
-            self.model = CosyVoice3(model_path, load_jit=True, load_trt=False, fp16=True)
+            self.model = CosyVoice3(model_path, load_vllm=True, load_trt=False, fp16=True)
 
             # 워밍업 추론
             print("Warming up...")

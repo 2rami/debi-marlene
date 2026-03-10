@@ -7,6 +7,7 @@ TTS는 음악보다 우선순위가 높아 끼어들기합니다.
 """
 
 import asyncio
+import io
 import logging
 import os
 import glob
@@ -192,11 +193,18 @@ class VoiceManager:
             # TTS 재생
             self.current_type[guild_id] = AudioType.TTS
 
-            audio_source = discord.FFmpegPCMAudio(
-                audio_path,
-                executable=FFMPEG_PATH,
-                options="-vn"
-            )
+            # .pcm 파일: FFmpeg 없이 직접 재생 (GCloud TTS)
+            if audio_path.endswith('.pcm'):
+                with open(audio_path, 'rb') as f:
+                    pcm_data = f.read()
+                audio_source = discord.PCMAudio(io.BytesIO(pcm_data))
+            else:
+                audio_source = discord.FFmpegPCMAudio(
+                    audio_path,
+                    executable=FFMPEG_PATH,
+                    before_options="-nostdin -probesize 32 -analyzeduration 0",
+                    options="-vn"
+                )
 
             play_finished = asyncio.Event()
 

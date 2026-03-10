@@ -5,10 +5,15 @@ Modal에서 실행되는 CosyVoice3 API를 호출합니다.
 기존 ModalTTSClient / FishTTSClient와 동일한 인터페이스를 제공합니다.
 """
 
+import io
 import os
+import time
+import wave
+import struct
 import hashlib
 import logging
 import asyncio
+import audioop
 import aiohttp
 from typing import Optional, AsyncGenerator
 
@@ -106,7 +111,7 @@ class CosyVoice3Client:
         if output_path is None:
             text_hash = hashlib.md5(f"{text}{speaker}".encode()).hexdigest()[:8]
             output_path = os.path.join(
-                self.temp_dir, f"cosyvoice3_{speaker}_{text_hash}.wav"
+                self.temp_dir, f"cosyvoice3_{speaker}_{text_hash}.pcm"
             )
 
         session = await self._get_session()
@@ -122,15 +127,29 @@ class CosyVoice3Client:
 
         for attempt in range(max_retries + 1):
             try:
+                t0 = time.time()
                 async with session.post(self.api_url, json=payload) as response:
                     if response.status == 200:
                         content_type = response.headers.get("content-type", "")
 
                         if "audio" in content_type:
+                            t1 = time.time()
                             audio_data = await response.read()
+                            t2 = time.time()
+                            # WAV → Discord PCM 변환 (48kHz stereo, FFmpeg 불필요)
+                            pcm_data = self._wav_to_discord_pcm(audio_data)
+                            t3 = time.time()
                             with open(output_path, "wb") as f:
-                                f.write(audio_data)
-                            logger.info(f"CosyVoice3 생성 완료: {output_path}")
+                                f.write(pcm_data)
+                            t4 = time.time()
+                            print(
+                                f"[TIMING] 응답대기={t1-t0:.2f}s "
+                                f"다운로드={t2-t1:.2f}s "
+                                f"변환={t3-t2:.3f}s "
+                                f"저장={t4-t3:.3f}s "
+                                f"총={t4-t0:.2f}s "
+                                f"WAV={len(audio_data)}B PCM={len(pcm_data)}B"
+                            )
                             return output_path
                         else:
                             data = await response.json()
@@ -167,6 +186,29 @@ class CosyVoice3Client:
                     continue
 
         raise RuntimeError(f"CosyVoice3 실패: {last_error}")
+
+    @staticmethod
+    def _wav_to_discord_pcm(wav_bytes: bytes) -> bytes:
+        """WAV(24kHz mono) → Discord PCM(48kHz stereo 16bit). FFmpeg 불필요."""
+        with wave.open(io.BytesIO(wav_bytes), 'rb') as wav:
+            sr = wav.getframerate()
+            mono_pcm = wav.readframes(wav.getnframes())
+
+        # 리샘플링 (24kHz 등 → 48kHz)
+        if sr != 48000:
+            mono_pcm, _ = audioop.ratecv(mono_pcm, 2, 1, sr, 48000, None)
+
+        # mono → stereo
+        stereo_pcm = audioop.tostereo(mono_pcm, 2, 1, 1)
+
+        # 앞쪽 무음 제거
+        for i in range(0, len(stereo_pcm) - 4, 4):
+            left = abs(struct.unpack_from('<h', stereo_pcm, i)[0])
+            right = abs(struct.unpack_from('<h', stereo_pcm, i + 2)[0])
+            if left > 500 or right > 500:
+                return stereo_pcm[i:]
+
+        return stereo_pcm
 
     async def text_to_speech_streaming(
         self,
@@ -239,7 +281,7 @@ class CosyVoice3Client:
     def cleanup_temp_files(self):
         try:
             for file in os.listdir(self.temp_dir):
-                if file.startswith("cosyvoice3_") and file.endswith(".wav"):
+                if file.startswith("cosyvoice3_") and (file.endswith(".wav") or file.endswith(".pcm")):
                     file_path = os.path.join(self.temp_dir, file)
                     if os.path.isfile(file_path):
                         os.remove(file_path)

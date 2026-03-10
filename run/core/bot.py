@@ -566,9 +566,11 @@ async def on_message(message):
     if message.guild:
         try:
             from run.cogs.voice import handle_tts_message
+            print(f"[BOT-MSG] on_message -> handle_tts_message: {message.content[:20]}", flush=True)
             await handle_tts_message(message)
         except Exception as e:
-            import logging
+            import logging, traceback
+            print(f"[BOT-MSG-ERROR] {e}\n{traceback.format_exc()}", flush=True)
             logging.error(f"TTS 메시지 처리 오류: {e}")
 
     # DM 메시지 처리 (실제 내용이 있는 메시지만)

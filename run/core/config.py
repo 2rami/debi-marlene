@@ -26,10 +26,8 @@ GCS_REMOVED_SERVERS_KEY = 'removed_servers.json'
 GCS_COMMAND_LOGS_KEY = 'command_logs.json'
 gcs_client = None
 
-# 설정 캐시 (성능 개선)
+# 설정 캐시 (save 시에만 무효화)
 settings_cache = None
-cache_timestamp = 0
-CACHE_DURATION = 5  # 5초 캐시
 
 def get_gcs_client():
     """GCS 클라이언트를 가져옵니다."""
@@ -69,13 +67,10 @@ def get_gcs_client():
 
 def load_settings():
     """GCS 또는 로컬 백업에서 설정 파일을 로드합니다. (GCS 우선)"""
-    global settings_cache, cache_timestamp
-    import time
+    global settings_cache
 
-    current_time = time.time()
-
-    # 캐시된 설정이 있고 아직 유효하면 사용
-    if settings_cache is not None and (current_time - cache_timestamp) < CACHE_DURATION:
+    # 캐시가 있으면 바로 반환 (save_settings에서만 무효화)
+    if settings_cache is not None:
         return settings_cache.copy()
 
     # 1순위: GCS에서 로드
@@ -91,7 +86,6 @@ def load_settings():
                 settings['guilds'] = {}
             # 캐시 업데이트
             settings_cache = settings.copy()
-            cache_timestamp = current_time
             print(f"[GCS] 설정 로드 완료", flush=True)
             return settings
         except Exception as e:
@@ -110,7 +104,6 @@ def load_settings():
                 settings['guilds'] = {}
             # 캐시 업데이트
             settings_cache = settings.copy()
-            cache_timestamp = current_time
             print(f"[로컬] 설정 로드 완료 (GCS 실패 - 로컬 백업 사용)", flush=True)
             return settings
     except Exception as e:
@@ -120,7 +113,6 @@ def load_settings():
     print(f"[기본값] 새로운 설정 생성", flush=True)
     default_settings = {"guilds": {}, "users": {}, "global": {"LAST_CHECKED_VIDEO_ID": None}}
     settings_cache = default_settings.copy()
-    cache_timestamp = current_time
     return default_settings
 
 def save_local_backup(settings):
@@ -159,11 +151,10 @@ def save_settings(settings, silent=False):
         settings: 저장할 설정 데이터
         silent: True면 로그 출력 안 함 (대량 저장 시)
     """
-    global settings_cache, cache_timestamp
+    global settings_cache
 
     # 캐시 무효화
     settings_cache = None
-    cache_timestamp = 0
 
     gcs_success = False
 
@@ -279,37 +270,19 @@ def save_removed_server(guild_id, guild_name, member_count=None):
 
 def remove_guild_settings(guild_id):
     """특정 서버(guild)에 삭제됨 표시를 추가합니다."""
-    global settings_cache, cache_timestamp
-    import time
+    global settings_cache
     from datetime import datetime
 
     guild_id_str = str(guild_id)
 
-    # 즉시 캐시 무효화 (빠른 반영을 위해)
     settings_cache = None
-    cache_timestamp = 0
-
     settings = load_settings()
 
     if guild_id_str in settings["guilds"]:
-        # 기존 설정에 삭제됨 표시 추가
         settings["guilds"][guild_id_str]["STATUS"] = "삭제됨"
         settings["guilds"][guild_id_str]["REMOVED_AT"] = datetime.now().isoformat()
 
-        # 삭제 후 즉시 캐시 무효화 (저장 전에도)
-        settings_cache = None
-        cache_timestamp = 0
-
-        result = save_settings(settings)
-
-        # 저장 후 실제 확인
-        verification_settings = load_settings()
-
-        # 저장 후 한 번 더 캐시 무효화 확인
-        settings_cache = None
-        cache_timestamp = 0
-
-        return result
+        return save_settings(settings)
 
     return True  # 이미 없는 경우도 성공으로 처리
 
@@ -588,7 +561,9 @@ def save_command_log(log_entry):
             - timestamp: ISO 형식 타임스탬프
             - args: 명령어 인자 (dict)
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
+
+    KST = timezone(timedelta(hours=9))
 
     try:
         client = get_gcs_client()
@@ -608,7 +583,7 @@ def save_command_log(log_entry):
         logs_data["logs"].append(log_entry)
 
         # 30일 이상 된 로그 삭제 (로그 로테이션)
-        cutoff_date = datetime.now() - timedelta(days=30)
+        cutoff_date = datetime.now(KST) - timedelta(days=30)
         logs_data["logs"] = [
             log for log in logs_data["logs"]
             if datetime.fromisoformat(log["timestamp"]) > cutoff_date

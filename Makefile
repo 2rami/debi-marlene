@@ -1,4 +1,7 @@
 # Debi Marlene Bot - Makefile
+export LANG := en_US.UTF-8
+export PYTHONIOENCODING := utf-8
+
 # GCP 설정
 PROJECT_ID = ironic-objectivist-465713-a6
 VM_NAME = debi-marlene-bot

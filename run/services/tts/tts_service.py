@@ -64,7 +64,19 @@ class TTSService:
         if self.tts_backend is not None:
             return
 
-        if self.engine == "cosyvoice3":
+        if self.engine == "gcloud":
+            # Google Cloud TTS (GCP VM에서 초저지연)
+            from .gcloud_tts_client import GCloudTTSClient
+            self.tts_backend = GCloudTTSClient()
+            await self.tts_backend.initialize()
+            logger.info("Google Cloud TTS 클라이언트 초기화 완료")
+        elif self.engine == "edge":
+            # Edge TTS (Microsoft, 무료, 빠름)
+            from .edge_tts_client import EdgeTTSClient
+            self.tts_backend = EdgeTTSClient()
+            await self.tts_backend.initialize()
+            logger.info("Edge TTS 클라이언트 초기화 완료")
+        elif self.engine == "cosyvoice3":
             # CosyVoice3 파인튜닝 모델 (Modal Serverless)
             from .cosyvoice3_client import CosyVoice3Client
             self.tts_backend = CosyVoice3Client()

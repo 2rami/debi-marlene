@@ -4,8 +4,10 @@
 Discord 봇의 모든 명령어 사용 내역을 GCS에 기록합니다.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any
+
+KST = timezone(timedelta(hours=9))
 
 
 async def log_command_usage(
@@ -42,7 +44,7 @@ async def log_command_usage(
             "guild_name": guild_name,
             "channel_id": str(channel_id) if channel_id else None,
             "channel_name": channel_name,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(KST).isoformat(),
             "args": args or {}
         }
 

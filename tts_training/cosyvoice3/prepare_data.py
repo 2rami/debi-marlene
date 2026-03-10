@@ -312,31 +312,13 @@ def step2(character: str):
         with open(src_nb, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # 데이터 경로 치환
+        # CHARACTER 변수 치환
+        content = content.replace(
+            'CHARACTER = "alex"',
+            f'CHARACTER = "{char_lower}"',
+        )
+        # 데이터 경로 치환 (ZIP에서 풀면 cosyvoice3_data 폴더가 나오므로 유지)
         content = content.replace("cosyvoice3_data", zip_name)
-        # 제목 치환
-        content = content.replace(
-            f"(Debi & Marlene) - Colab {gpu}",
-            f"({character}) - Colab {gpu}",
-        )
-        # 스피커 목록 치환 (추론 테스트용)
-        content = content.replace(
-            "['debi', 'marlene']",
-            f"['{char_lower}']",
-        )
-        content = content.replace(
-            "for spk in ['debi', 'marlene']",
-            f"for spk in ['{char_lower}']",
-        )
-        content = content.replace(
-            "f.startswith('debi')",
-            f"f.startswith('{char_lower}')",
-        )
-        # Multi-speaker 설명 치환
-        content = content.replace(
-            "Multi-speaker: debi + marlene",
-            f"Single-speaker: {char_lower}",
-        )
 
         with open(dst_nb, "w", encoding="utf-8") as f:
             f.write(content)

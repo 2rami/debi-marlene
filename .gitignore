@@ -136,7 +136,7 @@ checkpoint-epoch-*/
 tests/qwen3_tts_test/output/
 
 # CosyVoice3 전처리 작업 폴더 (음성 파일 + CSV)
-tts_training/workspace/
+tts_training/cosyvoice3/workspace/
 cosyvoice3_*_data.zip
 
 # Fish Speech 학습 데이터

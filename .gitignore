@@ -147,6 +147,4 @@ tts_training/Fish_Speech_Finetune.ipynb
 # CosyVoice3 학습 데이터
 tts_training/cosyvoice3_data/
 tts_training/cosyvoice3_data.zip
-
-# 스타일 리뷰 데이터
 tts_training/style_review.csv

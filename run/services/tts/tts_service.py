@@ -7,6 +7,7 @@ TTS 서비스
 - cosyvoice3: CosyVoice3 파인튜닝 모델 (Modal Serverless, 24kHz)
 - fish: Fish-Speech OpenAudio S1-mini (빠름 + 고품질)
 - modal: Modal Serverless Qwen3-TTS (Flash Attention)
+- sovits: GPT-SoVITS v2Pro 파인튜닝 모델 (Modal Serverless)
 - qwen3_api: Qwen3-TTS FastAPI 서버 (로컬)
 - qwen3: Qwen3-TTS 로컬 모델
 """
@@ -28,7 +29,7 @@ class TTSService:
     TTS 엔진 클래스
 
     Qwen3-TTS를 사용합니다.
-    환경변수 TTS_ENGINE으로 선택 (fish / modal / qwen3_api / qwen3)
+    환경변수 TTS_ENGINE으로 선택 (fish / modal / sovits / qwen3_api / qwen3)
     """
 
     def __init__(
@@ -47,7 +48,7 @@ class TTSService:
             config_path: 설정 파일 경로 (사용 안 함, 하위 호환용)
             default_model: 언어 코드 (기본값: 'ko')
             speaker: 화자 이름 (debi, marlene)
-            engine: TTS 엔진 (fish / modal / qwen3_api / qwen3)
+            engine: TTS 엔진 (fish / modal / sovits / qwen3_api / qwen3)
         """
         self.language = default_model
         self.temp_dir = "/tmp/tts_audio"
@@ -81,6 +82,12 @@ class TTSService:
             self.tts_backend = ModalTTSClient()
             await self.tts_backend.initialize()
             logger.info("Modal TTS 클라이언트 초기화 완료")
+        elif self.engine == "sovits":
+            # GPT-SoVITS v2Pro (Modal Serverless)
+            from .sovits_tts_client import SoVITSTTSClient
+            self.tts_backend = SoVITSTTSClient()
+            await self.tts_backend.initialize()
+            logger.info("SoVITS TTS 클라이언트 초기화 완료")
         elif self.engine == "qwen3_api":
             # 로컬 API 서버 사용
             from .qwen3_tts_client import Qwen3TTSClient

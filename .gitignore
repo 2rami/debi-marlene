@@ -130,9 +130,14 @@ Debi&Marlene_KOR.zip
 debi_tts_data.zip
 
 # TTS 모델 파일 (용량이 큼)
+*.pt
 *.safetensors
 checkpoint-epoch-*/
 tests/qwen3_tts_test/output/
+
+# CosyVoice3 전처리 작업 폴더 (음성 파일 + CSV)
+tts_training/workspace/
+cosyvoice3_*_data.zip
 
 # Fish Speech 학습 데이터
 tts_training/fish_speech_data/

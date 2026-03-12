@@ -584,9 +584,14 @@ def save_command_log(log_entry):
 
         # 30일 이상 된 로그 삭제 (로그 로테이션)
         cutoff_date = datetime.now(KST) - timedelta(days=30)
+        def _parse_ts(ts_str):
+            dt = datetime.fromisoformat(ts_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=KST)
+            return dt
         logs_data["logs"] = [
             log for log in logs_data["logs"]
-            if datetime.fromisoformat(log["timestamp"]) > cutoff_date
+            if _parse_ts(log.get("timestamp", "2000-01-01")) > cutoff_date
         ]
 
         # GCS에 저장

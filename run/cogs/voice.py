@@ -276,11 +276,12 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
             except:
                 pass
 
-    @app_commands.command(name="목소리", description="TTS 음성을 설정합니다 (데비/마를렌)")
-    @app_commands.describe(음성="사용할 음성 선택")
+    @app_commands.command(name="목소리", description="서버 기본 TTS 음성을 설정합니다 (관리자)")
+    @app_commands.describe(음성="서버 기본 음성 선택")
     @app_commands.choices(음성=[
         app_commands.Choice(name="데비", value="debi"),
         app_commands.Choice(name="마를렌", value="marlene"),
+        app_commands.Choice(name="알렉스", value="alex"),
     ])
     @app_commands.default_permissions(administrator=True)
     async def set_tts_voice(
@@ -337,6 +338,88 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
 
         except Exception as e:
             logger.error(f"음성설정 명령어 오류: {e}")
+            try:
+                await interaction.followup.send(
+                    f"오류가 발생했어요: {str(e)}",
+                    ephemeral=True
+                )
+            except:
+                pass
+
+    @app_commands.command(name="내목소리", description="내가 사용할 TTS 목소리를 선택합니다")
+    @app_commands.describe(목소리="사용할 목소리 선택")
+    @app_commands.choices(목소리=[
+        app_commands.Choice(name="데비", value="debi"),
+        app_commands.Choice(name="마를렌", value="marlene"),
+        app_commands.Choice(name="알렉스", value="alex"),
+        app_commands.Choice(name="서버 기본값", value="default"),
+    ])
+    async def set_my_voice(
+        self,
+        interaction: discord.Interaction,
+        목소리: app_commands.Choice[str]
+    ):
+        """유저 개인 TTS 목소리를 설정합니다."""
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            if not interaction.guild:
+                await interaction.followup.send(
+                    "이 명령어는 서버에서만 사용할 수 있어요!",
+                    ephemeral=True
+                )
+                return
+
+            await log_command_usage(
+                command_name="내목소리",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
+                args={"목소리": 목소리.name}
+            )
+
+            settings = load_settings()
+            guild_id = str(interaction.guild.id)
+            user_id = str(interaction.user.id)
+
+            if "guilds" not in settings:
+                settings["guilds"] = {}
+            if guild_id not in settings["guilds"]:
+                settings["guilds"][guild_id] = {}
+
+            guild_settings = settings["guilds"][guild_id]
+
+            if 목소리.value == "default":
+                # 개인 설정 삭제 -> 서버 기본값 사용
+                if "user_voices" in guild_settings and user_id in guild_settings["user_voices"]:
+                    del guild_settings["user_voices"][user_id]
+                save_settings(settings)
+
+                server_voice = guild_settings.get("tts_voice", "debi")
+                embed = discord.Embed(
+                    title="내 목소리 설정 해제",
+                    description=f"서버 기본값({server_voice})으로 돌아갔어요!",
+                    color=0x7289DA
+                )
+            else:
+                if "user_voices" not in guild_settings:
+                    guild_settings["user_voices"] = {}
+                guild_settings["user_voices"][user_id] = 목소리.value
+                save_settings(settings)
+
+                embed = discord.Embed(
+                    title="내 목소리 설정 완료",
+                    description=f"{목소리.name} 목소리로 내 메시지를 읽어드릴게요!",
+                    color=0x7289DA
+                )
+
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
+        except Exception as e:
+            logger.error(f"내목소리 명령어 오류: {e}")
             try:
                 await interaction.followup.send(
                     f"오류가 발생했어요: {str(e)}",
@@ -446,11 +529,12 @@ async def _generate_tts_audio(
     guild_settings: dict
 ):
     """TTS 오디오를 생성하고 PCM 변환 후 Future에 결과를 설정합니다."""
-    import time
-    t0 = time.time()
     try:
-        tts_voice = guild_settings.get("tts_voice", "debi")
-        if tts_voice not in ["debi", "marlene"]:
+        # 유저별 목소리 우선, 없으면 서버 기본값
+        user_id = str(message.author.id)
+        user_voices = guild_settings.get("user_voices", {})
+        tts_voice = user_voices.get(user_id) or guild_settings.get("tts_voice", "debi")
+        if tts_voice not in ["debi", "marlene", "alex"]:
             tts_voice = "debi"
 
         meta = {
@@ -507,9 +591,7 @@ async def _generate_tts_audio(
 
         # 모든 오디오를 Discord PCM으로 변환 (재생 시 FFmpeg 불필요)
         if audio_path:
-            t1 = time.time()
             audio_path = await convert_to_discord_pcm(audio_path)
-            print(f"[TIMING] 생성={t1-t0:.3f}s PCM={time.time()-t1:.3f}s 총={time.time()-t0:.3f}s", flush=True)
 
         future.set_result(audio_path)
 

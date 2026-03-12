@@ -15,7 +15,7 @@ import random
 import asyncio
 
 from run.services.tts import TTSService, AudioPlayer
-from run.services.tts.text_preprocessor import extract_segments_with_sfx, has_sfx_triggers, preprocess_text_for_tts, split_text_for_tts
+from run.services.tts.text_preprocessor import extract_segments_with_sfx, has_sfx_triggers, match_voice_line, preprocess_text_for_tts, split_text_for_tts
 from run.services.tts.audio_utils import convert_to_discord_pcm
 from run.core.config import load_settings, save_settings
 from run.utils.command_logger import log_command_usage
@@ -59,10 +59,11 @@ def get_random_sfx(sfx_name: str, character: str = "debi") -> Optional[str]:
         logger.warning(f"효과음 폴더 없음: {sfx_character_dir}")
         return None
 
-    # 효과음 이름에 맞는 파일 찾기
+    # 효과음 이름에 맞는 파일 찾기 (대소문자 무시)
+    sfx_name_lower = sfx_name.lower()
     sfx_files = [
         f for f in os.listdir(sfx_character_dir)
-        if sfx_name in f.lower() and f.endswith(".wav")
+        if sfx_name_lower in f.lower() and f.endswith(".wav")
     ]
 
     if not sfx_files:
@@ -455,7 +456,7 @@ async def _generate_tts_audio(
         tts_voice = guild_settings.get("tts_voice", "debi")
         if tts_voice not in ["debi", "marlene"]:
             tts_voice = "debi"
-        print(f"[TTS-DEBUG] 생성시작 voice={tts_voice} text={message.content[:30]}")
+        logger.info(f"TTS 생성시작 voice={tts_voice} text={message.content[:30]}")
 
         meta = {
             "guild_name": message.guild.name if message.guild else None,
@@ -465,8 +466,14 @@ async def _generate_tts_audio(
 
         audio_path = None
 
+        # 게임 대사 매칭 (metadata.csv 기반, 정확한 대사 → 즉시 재생)
+        voice_line_path = match_voice_line(message.content, tts_voice)
+        if voice_line_path:
+            audio_path = voice_line_path
+            logger.info(f"대사 매칭: '{message.content}' -> {os.path.basename(voice_line_path)}")
+
         # 효과음 트리거 확인
-        if has_sfx_triggers(message.content):
+        if audio_path is None and has_sfx_triggers(message.content):
             segments = extract_segments_with_sfx(message.content)
             audio_segments = []
             for seg in segments:

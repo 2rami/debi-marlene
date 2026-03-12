@@ -6,7 +6,12 @@ TTS 텍스트 전처리
 """
 
 import re
-from typing import List, Dict, Any
+import os
+import csv
+import logging
+from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 
 def number_to_korean(num: int) -> str:
@@ -162,7 +167,7 @@ def preprocess_text_for_tts(text: str) -> str:
     return result
 
 
-# 효과음 트리거 패턴
+# 효과음 트리거 패턴 (정규식)
 SFX_PATTERNS = {
     r"ㅋ{6,}": "laugh",  # ㅋㅋㅋㅋㅋㅋ 이상 → 웃음
     r"ㅎ{6,}": "laugh",  # ㅎㅎㅎㅎㅎㅎ 이상 → 웃음
@@ -170,6 +175,119 @@ SFX_PATTERNS = {
     r"으악": "die",      # 으악 → 비명
     r"흐앗": "attack",   # 흐앗 → 기합
 }
+
+# 게임 대사 → wav 파일 매핑 (metadata.csv에서 로드)
+# {speaker: {normalized_text: wav_filename}}
+_voice_line_map: Dict[str, Dict[str, str]] = {}
+_voice_line_loaded = False
+
+# SFX 디렉토리 (voice.py의 SFX_DIR와 동일한 위치)
+_SFX_BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "sfx")
+# metadata.csv 경로
+_METADATA_CSV = os.path.join(_SFX_BASE_DIR, "metadata.csv")
+
+
+def _normalize_for_match(text: str) -> str:
+    """매칭용 텍스트 정규화 (띄어쓰기/구두점 제거, 소문자)"""
+    return re.sub(r"[\s,\.!?\-~]+", "", text).lower()
+
+
+def _load_voice_lines():
+    """metadata.csv에서 대사 텍스트 → wav 파일 매핑을 로드합니다."""
+    global _voice_line_map, _voice_line_loaded
+
+    if _voice_line_loaded:
+        return
+
+    _voice_line_loaded = True
+
+    if not os.path.exists(_METADATA_CSV):
+        logger.warning(f"대사 metadata.csv 없음: {_METADATA_CSV}")
+        return
+
+    count = 0
+    with open(_METADATA_CSV, "r", encoding="utf-8") as f:
+        reader = csv.reader(f, delimiter="|")
+        header = next(reader, None)  # skip header
+        if not header:
+            return
+
+        for row in reader:
+            if len(row) < 3:
+                continue
+            wav_path, speaker_id, text = row[0], row[1], row[2]
+
+            # wav_path: "wavs/debi_taunt_2_01_01.wav" → "debi_taunt_2_01_01.wav"
+            wav_filename = os.path.basename(wav_path)
+
+            speaker = speaker_id.lower().strip()
+            normalized = _normalize_for_match(text)
+            if not normalized:
+                continue
+
+            if speaker not in _voice_line_map:
+                _voice_line_map[speaker] = {}
+            _voice_line_map[speaker][normalized] = wav_filename
+            count += 1
+
+    logger.info(f"대사 매핑 로드 완료: {count}개 ({', '.join(_voice_line_map.keys())})")
+
+
+def _find_wav_file(speaker: str, wav_filename: str) -> Optional[str]:
+    """
+    실제 sfx 폴더에서 wav 파일을 찾습니다.
+    metadata.csv는 소문자(debi_taunt...), 실제 파일은 대문자(Debi_taunt...)이므로
+    대소문자 무시로 매칭합니다.
+    """
+    sfx_dir = os.path.join(_SFX_BASE_DIR, speaker)
+    if not os.path.exists(sfx_dir):
+        return None
+
+    wav_lower = wav_filename.lower()
+
+    # 빠른 경로: 파일명 첫글자만 대문자로 시도
+    capitalized = wav_filename[0].upper() + wav_filename[1:]
+    direct_path = os.path.join(sfx_dir, capitalized)
+    if os.path.exists(direct_path):
+        return direct_path
+
+    # 폴백: 대소문자 무시 검색
+    for f in os.listdir(sfx_dir):
+        if f.lower() == wav_lower:
+            return os.path.join(sfx_dir, f)
+
+    return None
+
+
+def match_voice_line(text: str, speaker: str = "debi") -> Optional[str]:
+    """
+    텍스트가 게임 대사와 정확히 일치하는지 확인합니다.
+    띄어쓰기/구두점 무시.
+
+    Args:
+        text: 유저가 입력한 텍스트
+        speaker: 캐릭터 이름 (debi / marlene)
+
+    Returns:
+        매칭된 wav 파일의 절대 경로, 또는 None
+    """
+    _load_voice_lines()
+
+    normalized = _normalize_for_match(text)
+    if not normalized:
+        return None
+
+    speaker = speaker.lower()
+    speaker_lines = _voice_line_map.get(speaker, {})
+    wav_filename = speaker_lines.get(normalized)
+
+    if not wav_filename:
+        return None
+
+    wav_path = _find_wav_file(speaker, wav_filename)
+    if wav_path:
+        logger.info(f"대사 매칭: '{text}' -> {os.path.basename(wav_path)}")
+    return wav_path
 
 
 def extract_segments_with_sfx(text: str) -> List[Dict[str, Any]]:

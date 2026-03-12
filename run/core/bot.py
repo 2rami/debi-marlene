@@ -387,6 +387,15 @@ async def on_ready():
         bot.emoji_auto_updater = EmojiAutoUpdater(bot)
         print("[완료] 이모지 자동 업데이트 서비스 시작 (매주 목요일 오후 5시)", flush=True)
 
+        # 기존 음성 연결 복구 (봇 재시작/RESUME 후 voice_manager에 등록)
+        from run.services.voice_manager import voice_manager
+        for vc in bot.voice_clients:
+            if vc.is_connected() and vc.guild:
+                guild_id = str(vc.guild.id)
+                voice_manager.voice_clients[guild_id] = vc
+                voice_manager.current_type[guild_id] = None
+                print(f"[음성] 기존 연결 복구: {vc.guild.name} / {vc.channel.name}", flush=True)
+
         print("[완료] 모든 초기화 완료!", flush=True)
         sys.stdout.flush()
 
@@ -529,8 +538,21 @@ async def on_voice_state_update(member, before, after):
     """음성 채널 상태 변경 시 - 봇 혼자 남으면 idle 타이머 시작"""
     from run.services.voice_manager import voice_manager
 
-    # 봇 자신의 상태 변경은 무시
+    # 봇 자신이 음성 채널에 연결/해제된 경우 voice_manager 동기화
     if member.id == bot.user.id:
+        if after.channel and not before.channel:
+            # 봇이 음성 채널에 들어감 (RESUME 포함)
+            guild_id = str(after.channel.guild.id)
+            vc = after.channel.guild.voice_client
+            if vc and guild_id not in voice_manager.voice_clients:
+                voice_manager.voice_clients[guild_id] = vc
+                voice_manager.current_type[guild_id] = None
+                print(f"[음성] 연결 동기화: {after.channel.name}", flush=True)
+        elif before.channel and not after.channel:
+            # 봇이 음성 채널에서 나감
+            guild_id = str(before.channel.guild.id)
+            voice_manager.voice_clients.pop(guild_id, None)
+            voice_manager.current_type.pop(guild_id, None)
         return
 
     # 사용자가 봇이 있는 채널에서 나간 경우 (퇴장 또는 다른 채널로 이동)

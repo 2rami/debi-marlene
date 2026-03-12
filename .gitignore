@@ -129,6 +129,9 @@ Debi&Marlene_KOR/
 Debi&Marlene_KOR.zip
 debi_tts_data.zip
 
+# SFX 음성 파일 (wav만 제외, metadata.csv와 .gitkeep은 포함)
+run/assets/sfx/**/*.wav
+
 # TTS 모델 파일 (용량이 큼)
 *.pt
 *.safetensors

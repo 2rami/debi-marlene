@@ -266,7 +266,7 @@ def match_voice_line(text: str, speaker: str = "debi") -> Optional[str]:
 
     Args:
         text: 유저가 입력한 텍스트
-        speaker: 캐릭터 이름 (debi / marlene)
+        speaker: 캐릭터 이름 (debi / marlene / alex)
 
     Returns:
         매칭된 wav 파일의 절대 경로, 또는 None

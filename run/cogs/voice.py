@@ -430,12 +430,8 @@ async def _playback_worker(guild_id: str):
             break
 
         try:
-            import time
-            t_wait = time.time()
             audio_path = await future
-            t_ready = time.time()
             if audio_path and voice_manager.is_connected(guild_id):
-                print(f"[TIMING] Future대기={t_ready-t_wait:.2f}s 재생시작")
                 await voice_manager.play_tts(guild_id, audio_path)
         except Exception as e:
             logger.error(f"TTS 재생 오류: {e}")
@@ -451,12 +447,11 @@ async def _generate_tts_audio(
 ):
     """TTS 오디오를 생성하고 PCM 변환 후 Future에 결과를 설정합니다."""
     import time
-    t_start = time.time()
+    t0 = time.time()
     try:
         tts_voice = guild_settings.get("tts_voice", "debi")
         if tts_voice not in ["debi", "marlene"]:
             tts_voice = "debi"
-        logger.info(f"TTS 생성시작 voice={tts_voice} text={message.content[:30]}")
 
         meta = {
             "guild_name": message.guild.name if message.guild else None,
@@ -512,15 +507,14 @@ async def _generate_tts_audio(
 
         # 모든 오디오를 Discord PCM으로 변환 (재생 시 FFmpeg 불필요)
         if audio_path:
-            t_conv_start = time.time()
+            t1 = time.time()
             audio_path = await convert_to_discord_pcm(audio_path)
-            print(f"[TIMING] PCM변환={time.time()-t_conv_start:.3f}s 전체생성={time.time()-t_start:.2f}s")
+            print(f"[TIMING] 생성={t1-t0:.3f}s PCM={time.time()-t1:.3f}s 총={time.time()-t0:.3f}s", flush=True)
 
         future.set_result(audio_path)
 
     except Exception as e:
-        import traceback
-        print(f"[TTS-ERROR] {e}\n{traceback.format_exc()}")
+        logger.error(f"TTS 생성 오류: {e}", exc_info=True)
         if not future.done():
             future.set_result(None)
 
@@ -556,8 +550,9 @@ async def handle_tts_message(message: discord.Message):
     if not message.content.strip():
         return
 
+    print(f"[TTS] {message.author.name}: {message.content[:30]}", flush=True)
+
     # 재생 큐에 Future 추가 (메시지 순서 보장)
-    print(f"[TTS-DEBUG] 메시지 수신: {message.content[:30]}")
     _ensure_playback_worker(guild_id)
     future = asyncio.get_running_loop().create_future()
     await tts_playback_queues[guild_id].put(future)

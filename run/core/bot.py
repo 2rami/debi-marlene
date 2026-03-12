@@ -17,17 +17,23 @@ from run.views.welcome_view import WelcomeView
 
 # Opus 라이브러리 로드 (음성 채널 지원)
 if not discord.opus.is_loaded():
-    try:
-        # macOS Homebrew 경로
-        discord.opus.load_opus('/opt/homebrew/lib/libopus.dylib')
-        print("[완료] Opus 라이브러리 로드 완료", flush=True)
-    except:
+    import platform
+    _opus_paths = {
+        'Windows': ['opus', 'libopus-0', 'libopus',
+                    os.path.join(os.environ.get('CONDA_PREFIX', ''), 'Library', 'bin', 'opus.dll'),
+                    os.path.expanduser('~/miniconda3/Library/bin/opus.dll')],
+        'Darwin': ['/opt/homebrew/lib/libopus.dylib', '/usr/local/lib/libopus.dylib'],
+        'Linux': ['libopus.so.0', 'libopus.so', '/usr/lib/x86_64-linux-gnu/libopus.so.0'],
+    }
+    for path in _opus_paths.get(platform.system(), ['opus']):
         try:
-            # macOS 대체 경로
-            discord.opus.load_opus('/usr/local/lib/libopus.dylib')
-            print("[완료] Opus 라이브러리 로드 완료", flush=True)
+            discord.opus.load_opus(path)
+            print(f"[완료] Opus 로드: {path}", flush=True)
+            break
         except Exception as e:
-            print(f"[경고] Opus 로드 실패: {e}", flush=True)
+            print(f"[Opus] {path} -> {e}", flush=True)
+    if not discord.opus.is_loaded():
+        print("[경고] Opus 로드 실패 - 음성 기능 제한", flush=True)
 
 
 # Discord 봇 설정
@@ -566,11 +572,9 @@ async def on_message(message):
     if message.guild:
         try:
             from run.cogs.voice import handle_tts_message
-            print(f"[BOT-MSG] on_message -> handle_tts_message: {message.content[:20]}", flush=True)
             await handle_tts_message(message)
         except Exception as e:
             import logging, traceback
-            print(f"[BOT-MSG-ERROR] {e}\n{traceback.format_exc()}", flush=True)
             logging.error(f"TTS 메시지 처리 오류: {e}")
 
     # DM 메시지 처리 (실제 내용이 있는 메시지만)
@@ -597,7 +601,7 @@ async def on_message(message):
         if len(gateway_dm_messages) > 500:
             gateway_dm_messages[:] = gateway_dm_messages[-400:]
 
-        print(f'💌 DM 수신: {message.author.display_name} - {message.content[:100]}')
+        print(f'[DM] 수신: {message.author.display_name} - {message.content[:100]}')
 
         # GCS에 사용자 DM 정보 저장 (통합)
         try:

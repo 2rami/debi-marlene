@@ -13,12 +13,19 @@ TTS 서비스
 """
 
 import os
+import hashlib
 from typing import Optional
 import logging
 
 from .text_preprocessor import preprocess_text_for_tts
+from .audio_utils import convert_to_discord_pcm
 
 logger = logging.getLogger(__name__)
+
+# TTS 캐시 디렉토리 (서버 재시작해도 유지)
+TTS_CACHE_DIR = os.environ.get("TTS_CACHE_DIR", "/tmp/tts_cache")
+# 캐시 최대 개수 (초과 시 오래된 것부터 삭제)
+TTS_CACHE_MAX = int(os.environ.get("TTS_CACHE_MAX", "2000"))
 
 # 환경변수로 TTS 엔진 선택 (modal / qwen3_api / qwen3)
 TTS_ENGINE = os.environ.get("TTS_ENGINE", "modal")
@@ -52,11 +59,13 @@ class TTSService:
         """
         self.language = default_model
         self.temp_dir = "/tmp/tts_audio"
+        self.cache_dir = TTS_CACHE_DIR
         self.speaker = speaker or "debi"
         self.engine = engine or TTS_ENGINE
         self.tts_backend = None
 
         os.makedirs(self.temp_dir, exist_ok=True)
+        os.makedirs(self.cache_dir, exist_ok=True)
         logger.info(f"TTS 서비스 초기화 (엔진: {self.engine}, 화자: {self.speaker})")
 
     async def initialize(self):
@@ -142,7 +151,16 @@ class TTSService:
         if processed_text != text:
             logger.info(f"텍스트 전처리: '{text}' -> '{processed_text}'")
 
-        return await self.tts_backend.text_to_speech(
+        # 캐시 확인 (엔진 + 화자 + 전처리된 텍스트 기준)
+        cache_key = hashlib.md5(f"{self.engine}:{self.speaker}:{processed_text}".encode()).hexdigest()
+        cache_path = os.path.join(self.cache_dir, f"{cache_key}.pcm")
+
+        if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+            logger.info(f"TTS 캐시 히트: '{processed_text[:30]}...' -> {cache_path}")
+            return cache_path
+
+        # 캐시 미스: TTS 생성
+        audio_path = await self.tts_backend.text_to_speech(
             text=processed_text,
             speaker=self.speaker,
             language=self.language,
@@ -151,6 +169,19 @@ class TTSService:
             channel_name=channel_name,
             user_name=user_name
         )
+
+        # PCM 변환 후 캐시 저장
+        pcm_path = await convert_to_discord_pcm(audio_path)
+        try:
+            if pcm_path != cache_path:
+                import shutil
+                shutil.copy2(pcm_path, cache_path)
+            self._evict_cache_if_needed()
+            logger.info(f"TTS 캐시 저장: '{processed_text[:30]}...' -> {cache_path}")
+        except Exception as e:
+            logger.warning(f"TTS 캐시 저장 실패 (무시): {e}")
+
+        return pcm_path
 
     async def text_to_speech_streaming(
         self,
@@ -187,6 +218,26 @@ class TTSService:
                 user_name=user_name,
             )
             yield audio_path
+
+    def _evict_cache_if_needed(self):
+        """캐시 파일이 최대 개수를 초과하면 오래된 것부터 삭제"""
+        try:
+            cache_files = [
+                os.path.join(self.cache_dir, f)
+                for f in os.listdir(self.cache_dir)
+                if f.endswith(".pcm")
+            ]
+            if len(cache_files) <= TTS_CACHE_MAX:
+                return
+
+            # 수정 시간 기준 오래된 순 정렬
+            cache_files.sort(key=lambda f: os.path.getmtime(f))
+            # 초과분 삭제
+            for f in cache_files[:len(cache_files) - TTS_CACHE_MAX]:
+                os.remove(f)
+                logger.info(f"캐시 정리: {os.path.basename(f)}")
+        except Exception as e:
+            logger.warning(f"캐시 정리 실패: {e}")
 
     def cleanup_temp_files(self):
         """임시 음성 파일들을 정리합니다."""

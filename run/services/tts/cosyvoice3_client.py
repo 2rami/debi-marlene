@@ -7,7 +7,6 @@ Modal에서 실행되는 CosyVoice3 API를 호출합니다.
 
 import io
 import os
-import time
 import wave
 import struct
 import hashlib
@@ -31,6 +30,27 @@ DEFAULT_HEALTH_URL = os.environ.get(
     "COSYVOICE3_HEALTH_URL",
     "https://goenho0613--cosyvoice3-tts-server-cosyvoice3model-health.modal.run"
 )
+
+# Alex 전용 Modal 엔드포인트 (별도 체크포인트)
+ALEX_API_URL = os.environ.get(
+    "COSYVOICE3_ALEX_API_URL",
+    "https://goenho0613--cosyvoice3-alex-tts-server-cosyvoice3model-tts.modal.run"
+)
+ALEX_STREAM_URL = os.environ.get(
+    "COSYVOICE3_ALEX_STREAM_URL",
+    "https://goenho0613--cosyvoice3-alex-tts-server-cosyvoice3model-t-e222cf.modal.run"
+)
+ALEX_HEALTH_URL = os.environ.get(
+    "COSYVOICE3_ALEX_HEALTH_URL",
+    "https://goenho0613--cosyvoice3-alex-tts-server-cosyvoice3model-health.modal.run"
+)
+
+# 스피커별 엔드포인트 매핑
+SPEAKER_ENDPOINTS = {
+    "debi": {"api": DEFAULT_API_URL, "stream": DEFAULT_STREAM_URL, "health": DEFAULT_HEALTH_URL},
+    "marlene": {"api": DEFAULT_API_URL, "stream": DEFAULT_STREAM_URL, "health": DEFAULT_HEALTH_URL},
+    "alex": {"api": ALEX_API_URL, "stream": ALEX_STREAM_URL, "health": ALEX_HEALTH_URL},
+}
 
 
 class CosyVoice3Client:
@@ -91,6 +111,14 @@ class CosyVoice3Client:
             logger.error(f"CosyVoice3 서버 연결 실패: {e}")
             self.is_initialized = False
 
+    def _get_urls_for_speaker(self, speaker: str) -> dict:
+        """스피커별 엔드포인트 URL 반환"""
+        endpoints = SPEAKER_ENDPOINTS.get(speaker)
+        if endpoints:
+            return endpoints
+        # 알 수 없는 스피커는 기본 엔드포인트 사용
+        return SPEAKER_ENDPOINTS["debi"]
+
     async def text_to_speech(
         self,
         text: str,
@@ -102,7 +130,9 @@ class CosyVoice3Client:
         channel_name: Optional[str] = None,
         user_name: Optional[str] = None,
     ) -> str:
-        if not self.api_url:
+        urls = self._get_urls_for_speaker(speaker)
+        api_url = urls["api"]
+        if not api_url:
             raise RuntimeError("CosyVoice3 API URL이 설정되지 않음")
 
         if len(text) > 500:
@@ -127,29 +157,16 @@ class CosyVoice3Client:
 
         for attempt in range(max_retries + 1):
             try:
-                t0 = time.time()
-                async with session.post(self.api_url, json=payload) as response:
+                async with session.post(api_url, json=payload) as response:
                     if response.status == 200:
                         content_type = response.headers.get("content-type", "")
 
                         if "audio" in content_type:
-                            t1 = time.time()
                             audio_data = await response.read()
-                            t2 = time.time()
                             # WAV → Discord PCM 변환 (48kHz stereo, FFmpeg 불필요)
                             pcm_data = self._wav_to_discord_pcm(audio_data)
-                            t3 = time.time()
                             with open(output_path, "wb") as f:
                                 f.write(pcm_data)
-                            t4 = time.time()
-                            print(
-                                f"[TIMING] 응답대기={t1-t0:.2f}s "
-                                f"다운로드={t2-t1:.2f}s "
-                                f"변환={t3-t2:.3f}s "
-                                f"저장={t4-t3:.3f}s "
-                                f"총={t4-t0:.2f}s "
-                                f"WAV={len(audio_data)}B PCM={len(pcm_data)}B"
-                            )
                             return output_path
                         else:
                             data = await response.json()
@@ -219,7 +236,9 @@ class CosyVoice3Client:
         user_name: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """스트리밍 TTS - 청크별 wav 파일 경로를 yield"""
-        if not self.stream_url:
+        urls = self._get_urls_for_speaker(speaker)
+        stream_url = urls["stream"]
+        if not stream_url:
             raise RuntimeError("CosyVoice3 Stream URL이 설정되지 않음")
 
         if len(text) > 500:
@@ -236,7 +255,7 @@ class CosyVoice3Client:
 
         chunk_index = 0
         try:
-            async with session.post(self.stream_url, json=payload) as response:
+            async with session.post(stream_url, json=payload) as response:
                 if response.status != 200:
                     error_detail = await response.text()
                     raise RuntimeError(f"TTS 스트리밍 실패: {response.status} - {error_detail}")
@@ -293,4 +312,4 @@ class CosyVoice3Client:
             await self._session.close()
 
     def list_speakers(self):
-        return ["debi", "marlene"]
+        return list(SPEAKER_ENDPOINTS.keys())

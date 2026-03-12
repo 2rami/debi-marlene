@@ -24,6 +24,8 @@ class StatsCog(commands.Cog):
         self.message_counts = defaultdict(lambda: defaultdict(int))  # guild_id -> user_id -> count
         self.daily_messages = defaultdict(int)  # guild_id -> count
         self.member_logs = defaultdict(list)  # guild_id -> [log entries]
+
+    async def cog_load(self):
         self.save_stats_task.start()
 
     def cog_unload(self):

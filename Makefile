@@ -1,6 +1,10 @@
 # Debi Marlene Bot - Makefile
-export LANG := en_US.UTF-8
+SHELL := /usr/bin/bash
+.ONESHELL:
+export LANG := C.UTF-8
+export LC_ALL := C.UTF-8
 export PYTHONIOENCODING := utf-8
+export PYTHONUTF8 := 1
 
 # GCP 설정
 PROJECT_ID = ironic-objectivist-465713-a6
@@ -168,9 +172,9 @@ start-vm:
 
 # 로컬에서 봇 테스트 (VM 봇 자동 중지)
 test-local: stop-vm
-	@echo "로컬 봇 시작 중... (venv 자동 활성화)"
+	@echo "로컬 봇 시작 중..."
 	@echo "테스트 종료 후 'make start-vm'을 실행하세요!"
-	@bash -c "source venv/bin/activate && python3 main.py"
+	@python main.py
 
 # ============================================================
 # Dashboard 배포

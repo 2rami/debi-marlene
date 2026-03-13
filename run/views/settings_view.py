@@ -1,8 +1,9 @@
 """
-서버 설정 UI (SettingsView, ChannelSelectViewForSetting)
+서버 설정 UI
 
-/설정 명령어나 환영 메시지에서 사용하는 설정 UI예요.
-공지 채널, 채팅 채널을 설정할 수 있어요.
+- SettingsLayoutView: /설정 명령어의 메인 UI (Components V2, LayoutView)
+- SettingsView: 레거시 설정 UI (환영 메시지 등에서 사용)
+- ChannelSelectViewForSetting: 채널 선택 드롭다운
 """
 import discord
 import sys
@@ -10,143 +11,186 @@ from typing import Optional
 
 from run.core import config
 
+DASHBOARD_URL = "https://debimarlene.com"
+EMOJI_DASHBOARD = discord.PartialEmoji(name="ui_dashboard", id=1481865509971693649)
 
-class SettingsView(discord.ui.View):
-    """
-    서버 설정 메인 UI
 
-    버튼 구성:
-    - [#] 공지 채널 설정
-    - [*] 채팅 채널 설정
-    - [X] 알림 해제 (공지 채널 설정 시에만 표시)
+def build_settings_layout(guild: discord.Guild, user_id: int, is_admin: bool):
+    """서버 설정 LayoutView를 생성하는 팩토리 함수
+
+    콜백에서 설정 변경 후 뷰를 재빌드할 때도 사용.
     """
-    def __init__(self, guild: discord.Guild):
-        super().__init__(timeout=180)
+    return SettingsLayoutView(guild, user_id, is_admin)
+
+
+class SettingsLayoutView(discord.ui.LayoutView):
+    """
+    /설정 명령어 메인 UI (Components V2)
+
+    Container 구조:
+    1. 현재 설정 상태 (공지 채널, TTS, DM 알림)
+    2. 공지 채널 선택 (ChannelSelect)
+    3. TTS 기본 목소리 선택 (Select)
+    4. 하단 버튼 (DM 알림 토글, 대시보드 링크, 테스트)
+    """
+
+    def __init__(self, guild: discord.Guild, user_id: int, is_admin: bool):
+        super().__init__(timeout=120)
         self.guild = guild
+        self.user_id = user_id
+        self.is_admin = is_admin
 
-        # 공지 채널이 설정되어 있는지 확인하고 알림 해제 버튼 추가
+        guild_id = str(guild.id)
         guild_settings = config.get_guild_settings(guild.id)
+        settings = config.load_settings()
+        full_guild_settings = settings.get("guilds", {}).get(guild_id, {})
+
+        # 현재 설정값 읽기
         announcement_ch_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
+        tts_voice = full_guild_settings.get("tts_voice", "debi")
+        tts_channel_id = full_guild_settings.get("tts_channel_id")
+        is_subscribed = config.is_youtube_subscribed(user_id)
 
-        # 공지 채널이 설정되어 있으면 알림 해제 버튼 추가
+        # 텍스트 빌드
         if announcement_ch_id:
-            self.add_item(self.create_unsubscribe_button())
+            ch = guild.get_channel(int(announcement_ch_id))
+            channel_text = f"#{ch.name}" if ch else "채널을 찾을 수 없음"
+        else:
+            channel_text = "미설정"
 
-    def update_components(self):
-        """버튼 라벨 업데이트 (설정 상태에 따라)"""
-        if len(self.children) < 2:
+        voice_names = {"debi": "데비", "marlene": "마를렌", "alex": "알렉스"}
+        voice_text = voice_names.get(tts_voice, tts_voice)
+
+        if tts_channel_id:
+            tts_ch = guild.get_channel(int(tts_channel_id))
+            tts_channel_text = f"#{tts_ch.name}" if tts_ch else "채널을 찾을 수 없음"
+        else:
+            tts_channel_text = "모든 채널"
+
+        dm_text = "켜짐" if is_subscribed else "꺼짐"
+
+        # === Container 1: 현재 상태 ===
+        status_text = (
+            f"## 서버 설정\n"
+            f"공지 채널: **{channel_text}**\n"
+            f"TTS 기본 목소리: **{voice_text}**\n"
+            f"TTS 읽을 채널: **{tts_channel_text}**\n"
+            f"DM 알림: **{dm_text}**"
+        )
+        self.add_item(discord.ui.Container(discord.ui.TextDisplay(status_text)))
+
+        # === Container 2: 설정 컨트롤 ===
+        controls = []
+
+        # 공지 채널 선택
+        controls.append(discord.ui.TextDisplay("**공지 채널** - 유튜브 새 영상 알림을 받을 채널"))
+        channel_select = discord.ui.ChannelSelect(
+            placeholder="공지 채널을 선택하세요",
+            channel_types=[discord.ChannelType.text]
+        )
+        channel_select.callback = self._on_channel_select
+        controls.append(discord.ui.ActionRow(channel_select))
+
+        controls.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # TTS 목소리 선택
+        controls.append(discord.ui.TextDisplay("**TTS 기본 목소리**"))
+        voice_select = discord.ui.Select(
+            placeholder="TTS 기본 목소리를 선택하세요",
+            options=[
+                discord.SelectOption(label="데비", value="debi", description="밝고 활기찬 목소리", default=(tts_voice == "debi")),
+                discord.SelectOption(label="마를렌", value="marlene", description="차분하고 낮은 목소리", default=(tts_voice == "marlene")),
+                discord.SelectOption(label="알렉스", value="alex", description="중성적인 목소리", default=(tts_voice == "alex")),
+            ]
+        )
+        voice_select.callback = self._on_voice_select
+        controls.append(discord.ui.ActionRow(voice_select))
+
+        self.add_item(discord.ui.Container(*controls))
+
+        # === Container 3: 버튼 ===
+        dm_btn = discord.ui.Button(
+            label=f"DM 알림 {'끄기' if is_subscribed else '켜기'}",
+            style=discord.ButtonStyle.secondary if is_subscribed else discord.ButtonStyle.primary
+        )
+        dm_btn.callback = self._on_dm_toggle
+
+        dashboard_btn = discord.ui.Button(
+            label="대시보드",
+            emoji=EMOJI_DASHBOARD,
+            style=discord.ButtonStyle.link,
+            url=f"{DASHBOARD_URL}/servers/{guild.id}"
+        )
+
+        btn_items = [dm_btn, dashboard_btn]
+
+        if is_admin:
+            test_btn = discord.ui.Button(label="테스트", style=discord.ButtonStyle.secondary)
+            test_btn.callback = self._on_test
+            btn_items.append(test_btn)
+
+        self.add_item(discord.ui.Container(discord.ui.ActionRow(*btn_items)))
+
+    async def _rebuild(self, interaction: discord.Interaction):
+        """설정 변경 후 뷰를 재빌드하여 최신 상태 반영"""
+        new_view = build_settings_layout(self.guild, self.user_id, self.is_admin)
+        await interaction.response.edit_message(view=new_view)
+
+    async def _on_channel_select(self, interaction: discord.Interaction):
+        channel = interaction.data["values"][0]
+        # ChannelSelect의 값은 ID 문자열
+        channel_id = int(channel)
+        ch = self.guild.get_channel(channel_id)
+        channel_name = ch.name if ch else None
+
+        config.save_guild_settings(
+            self.guild.id,
+            announcement_id=channel_id,
+            guild_name=self.guild.name,
+            announcement_channel_name=channel_name
+        )
+        await self._rebuild(interaction)
+
+    async def _on_voice_select(self, interaction: discord.Interaction):
+        selected = interaction.data["values"][0]
+        guild_id = str(self.guild.id)
+
+        settings = config.load_settings()
+        if "guilds" not in settings:
+            settings["guilds"] = {}
+        if guild_id not in settings["guilds"]:
+            settings["guilds"][guild_id] = {}
+        settings["guilds"][guild_id]["tts_voice"] = selected
+        config.save_settings(settings)
+
+        await self._rebuild(interaction)
+
+    async def _on_dm_toggle(self, interaction: discord.Interaction):
+        user_name = interaction.user.display_name or interaction.user.global_name or interaction.user.name
+        is_subscribed = config.is_youtube_subscribed(self.user_id)
+        config.set_youtube_subscription(self.user_id, not is_subscribed, user_name)
+        await self._rebuild(interaction)
+
+    async def _on_test(self, interaction: discord.Interaction):
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("관리자만 사용할 수 있어요!", ephemeral=True)
             return
 
-        guild_settings = config.get_guild_settings(self.guild.id)
-        announcement_ch_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
-        chat_ch_id = guild_settings.get("CHAT_CHANNEL_ID")
-
-        # 공지 채널 버튼 업데이트
-        announcement_button = self.children[0]
-        if announcement_ch_id and (ch := self.guild.get_channel(announcement_ch_id)):
-            announcement_button.label = f"[#] 공지 채널: #{ch.name}"
-            announcement_button.style = discord.ButtonStyle.success
-        else:
-            announcement_button.label = "[#] 공지 채널 설정"
-            announcement_button.style = discord.ButtonStyle.secondary
-
-        # 채팅 채널 버튼 업데이트
-        chat_button = self.children[1]
-        if chat_ch_id and (ch := self.guild.get_channel(chat_ch_id)):
-            chat_button.label = f"[*] 채팅 채널: #{ch.name}"
-            chat_button.style = discord.ButtonStyle.success
-        else:
-            chat_button.label = "[*] 채팅 채널 설정 (선택사항)"
-            chat_button.style = discord.ButtonStyle.secondary
-
-    @discord.ui.button(
-        label="[#] 공지 채널 설정",
-        style=discord.ButtonStyle.secondary,
-        custom_id="setting_announcement"
-    )
-    async def announcement_button_handler(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """공지 채널 설정 버튼"""
-        view = ChannelSelectViewForSetting("announcement")
-        await interaction.response.send_message(
-            "유튜브 영상 알림을 받을 채널을 선택해주세요.",
-            view=view,
-            ephemeral=True
-        )
-
-    @discord.ui.button(
-        label="[*] 채팅 채널 설정 (선택사항)",
-        style=discord.ButtonStyle.secondary,
-        custom_id="setting_chat"
-    )
-    async def chat_button_handler(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """채팅 채널 설정 버튼"""
-        view = ChannelSelectViewForSetting("chat")
-        await interaction.response.send_message(
-            "명령어 사용을 제한할 채널을 선택해주세요 (없으면 모두 허용).",
-            view=view,
-            ephemeral=True
-        )
-
-    def create_unsubscribe_button(self):
-        """알림 해제 버튼 생성 (동적으로 추가)"""
-        button = discord.ui.Button(
-            label="알림 해제",
-            style=discord.ButtonStyle.danger,
-            custom_id="setting_unsubscribe"
-        )
-        button.callback = self.unsubscribe_button_handler
-        return button
-
-    async def unsubscribe_button_handler(self, interaction: discord.Interaction):
-        """유튜브 알림 해제 버튼"""
+        await interaction.response.defer(ephemeral=True)
         try:
-            # 즉시 응답하여 타임아웃 방지
-            await interaction.response.defer(ephemeral=True)
-
-            # 공지 채널 설정을 None으로 변경
-            result = config.save_guild_settings(
-                interaction.guild.id,
-                announcement_id=None,
-                guild_name=interaction.guild.name
-            )
-
-            if result:
-                await interaction.followup.send(
-                    "[완료] 유튜브 알림이 해제되었습니다.",
-                    ephemeral=True
-                )
-                print(f"[완료] 유튜브 알림 해제: {interaction.guild.name} (ID: {interaction.guild.id})", flush=True)
-            else:
-                await interaction.followup.send(
-                    "[오류] 설정 저장에 실패했습니다.",
-                    ephemeral=True
-                )
-                print(f"[오류] 알림 해제 실패: {interaction.guild.name}", flush=True)
-
+            from run.services import youtube_service
+            result = await youtube_service.manual_check_for_guild(self.guild)
+            await interaction.followup.send(f"테스트 완료!\n```{result}```", ephemeral=True)
         except Exception as e:
-            print(f"[오류] 알림 해제 오류: {e}", flush=True)
-            import traceback
-            traceback.print_exc()
-            try:
-                await interaction.followup.send(
-                    "[오류] 알림 해제 중 오류가 발생했습니다.",
-                    ephemeral=True
-                )
-            except:
-                pass
+            await interaction.followup.send(f"테스트 중 오류: {e}", ephemeral=True)
 
+
+# === 레거시 UI (ChannelSelectViewForSetting은 다른 곳에서 아직 사용 가능) ===
 
 class ChannelSelectViewForSetting(discord.ui.View):
-    """
-    채널 선택 UI
+    """채널 선택 드롭다운 UI"""
 
-    공지 채널이나 채팅 채널을 선택하는 드롭다운 메뉴
-    """
     def __init__(self, channel_type: str):
-        """
-        Args:
-            channel_type: "announcement" 또는 "chat"
-        """
         super().__init__(timeout=180)
         self.channel_type = channel_type
         label = "공지" if channel_type == "announcement" else "채팅"
@@ -154,42 +198,35 @@ class ChannelSelectViewForSetting(discord.ui.View):
 
         self.select_menu = discord.ui.ChannelSelect(
             placeholder=placeholder,
-            channel_types=[discord.ChannelType.text]  # 텍스트 채널만 선택 가능
+            channel_types=[discord.ChannelType.text]
         )
         self.select_menu.callback = self.select_callback
         self.add_item(self.select_menu)
 
     async def select_callback(self, interaction: discord.Interaction):
-        """채널 선택 시 설정 저장"""
         try:
-            # 즉시 응답하여 타임아웃 방지
             await interaction.response.defer()
-
             channel = self.select_menu.values[0]
 
             if self.channel_type == "announcement":
-                # 공지 채널 설정
-                result = config.save_guild_settings(
+                config.save_guild_settings(
                     interaction.guild.id,
                     announcement_id=channel.id,
                     guild_name=interaction.guild.name,
                     announcement_channel_name=channel.name
                 )
-
                 await interaction.followup.edit_message(
                     interaction.message.id,
                     content=f"[완료] 공지 채널이 {channel.mention}으로 설정되었습니다.",
                     view=None
                 )
             else:
-                # 채팅 채널 설정
-                result = config.save_guild_settings(
+                config.save_guild_settings(
                     interaction.guild.id,
                     chat_id=channel.id,
                     guild_name=interaction.guild.name,
                     chat_channel_name=channel.name
                 )
-
                 await interaction.followup.edit_message(
                     interaction.message.id,
                     content=f"[완료] 채팅 채널이 {channel.mention}으로 설정되었습니다.",

@@ -63,5 +63,6 @@ class UtilityCog(commands.Cog, name="기타"):
             await interaction.followup.send(f"피드백 전송 중 오류가 발생했어요: {e}", ephemeral=True)
 
 
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(UtilityCog(bot))

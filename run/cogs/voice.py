@@ -108,7 +108,11 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
                 )
                 return
 
-            await interaction.response.defer(ephemeral=True)
+            try:
+                await interaction.response.defer(ephemeral=True)
+            except discord.NotFound:
+                logger.warning("음성입장: interaction 만료됨 (3초 초과)")
+                return
 
             await log_command_usage(
                 command_name="음성입장",
@@ -124,17 +128,40 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
             await initialize_audio_player()
 
             voice_channel = interaction.user.voice.channel
+
+            # 기존 연결이 죽어있으면 정리 후 재연결
+            from run.services.voice_manager import voice_manager
+            guild_id_str = str(interaction.guild.id)
+            vc = voice_manager.get_voice_client(guild_id_str)
+            if vc and not vc.is_connected():
+                await voice_manager.leave(guild_id_str)
+
             success = await audio_player.join_voice_channel(voice_channel)
 
             if success:
+                # 읽을 채널 정보 가져오기
+                guild_id = str(interaction.guild.id)
+                settings = load_settings()
+                guild_settings = settings.get("guilds", {}).get(guild_id, {})
+                tts_channel_id = guild_settings.get("tts_channel_id")
+
+                if tts_channel_id:
+                    tts_channel = interaction.guild.get_channel(int(tts_channel_id))
+                    channel_info = f"읽을 채널: {tts_channel.mention}" if tts_channel else f"읽을 채널: (삭제된 채널)"
+                else:
+                    channel_info = "읽을 채널: 모든 채널"
+
                 embed = discord.Embed(
                     title="음성 채널 입장",
                     description=f"{voice_channel.mention}에 입장했어요!\n\n"
-                               "이제 채팅을 읽어드릴게요.\n"
-                               "`/음성 채널설정`으로 읽을 채널을 지정할 수 있어요.",
-                    color=0x00FF00
+                               f"{channel_info}\n"
+                               "TTS 서버를 준비하고 있어요...",
+                    color=0xFFA500
                 )
-                await interaction.followup.send(embed=embed, ephemeral=True)
+                msg = await interaction.followup.send(embed=embed, ephemeral=True, wait=True)
+
+                # Modal TTS 서버 선제 워밍업 (백그라운드)
+                asyncio.create_task(self._warmup_and_notify(msg, voice_channel, channel_info))
             else:
                 await interaction.followup.send(
                     "음성 채널 입장에 실패했어요. 다시 시도해주세요.",
@@ -152,6 +179,39 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
                 )
             except:
                 pass
+
+    async def _warmup_and_notify(self, msg: discord.WebhookMessage, voice_channel, channel_info: str):
+        """Modal TTS 서버를 깨우고 완료되면 메시지를 업데이트합니다."""
+        try:
+            from run.services.tts.cosyvoice3_client import CosyVoice3Client
+            results = await CosyVoice3Client.warmup_all_servers()
+
+            all_ready = all(s == "running" for s in results.values())
+            if all_ready:
+                embed = discord.Embed(
+                    title="음성 채널 입장",
+                    description=f"{voice_channel.mention}에 입장했어요!\n\n"
+                               f"{channel_info}\n"
+                               "TTS 서버 준비 완료! 바로 사용할 수 있어요.",
+                    color=0x00FF00
+                )
+            else:
+                status_lines = []
+                for name, status in results.items():
+                    mark = "[OK]" if status == "running" else "[준비중]" if status == "starting" else "[오류]"
+                    status_lines.append(f"{mark} {name}")
+                embed = discord.Embed(
+                    title="음성 채널 입장",
+                    description=f"{voice_channel.mention}에 입장했어요!\n\n"
+                               f"{channel_info}\n\n"
+                               "TTS 서버 상태:\n" + "\n".join(status_lines) + "\n\n"
+                               "준비중인 서버는 첫 메시지에서 시간이 걸릴 수 있어요.",
+                    color=0xFFA500
+                )
+
+            await msg.edit(embed=embed)
+        except Exception as e:
+            logger.warning(f"TTS 워밍업 알림 실패: {e}")
 
     @app_commands.command(name="퇴장", description="봇이 음성 채널에서 퇴장합니다")
     async def voice_leave(self, interaction: discord.Interaction):

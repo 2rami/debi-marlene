@@ -8,7 +8,6 @@ from run.cogs.eternal_return import EternalReturnCog
 from run.cogs.voice import VoiceCog
 from run.cogs.music import MusicCog
 from run.cogs.youtube import YoutubeCog
-from run.cogs.settings import SettingsCog
 from run.cogs.utility import UtilityCog
 from run.cogs.welcome import WelcomeCog
 from run.cogs.stats import StatsCog
@@ -21,7 +20,6 @@ async def setup_all_cogs(bot):
     await bot.add_cog(VoiceCog(bot))
     await bot.add_cog(MusicCog(bot))
     await bot.add_cog(YoutubeCog(bot))
-    await bot.add_cog(SettingsCog(bot))
     await bot.add_cog(UtilityCog(bot))
     await bot.add_cog(WelcomeCog(bot))
     await bot.add_cog(StatsCog(bot))
@@ -36,7 +34,6 @@ __all__ = [
     'VoiceCog',
     'MusicCog',
     'YoutubeCog',
-    'SettingsCog',
     'UtilityCog',
     'WelcomeCog',
     'StatsCog',

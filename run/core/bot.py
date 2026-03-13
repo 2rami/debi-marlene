@@ -14,7 +14,7 @@ from datetime import datetime
 from run.core import config
 from run.services.eternal_return.api_client import initialize_game_data, set_bot_instance
 from run.services import youtube_service
-from run.views.welcome_view import WelcomeView
+from run.views.welcome_view import WelcomeLayoutView
 
 # Opus 라이브러리 로드 (음성 채널 지원)
 if not discord.opus.is_loaded():
@@ -452,35 +452,32 @@ async def on_guild_join(guild: discord.Guild):
             guild_name=guild.name
         )
 
-    target_channel = guild.system_channel
-    if not target_channel or not target_channel.permissions_for(guild.me).send_messages:
-        for channel in guild.text_channels:
-            if channel.permissions_for(guild.me).send_messages:
-                target_channel = channel
+    # Audit Log에서 봇을 초대한 사람 찾기
+    inviter = None
+    try:
+        async for entry in guild.audit_log(action=discord.AuditLogAction.bot_add, limit=5):
+            if entry.target and entry.target.id == bot.user.id:
+                inviter = entry.user
                 break
+    except discord.Forbidden:
+        print(f"[경고] Audit Log 권한 없음: {guild.name} (ID: {guild.id})", flush=True)
+    except Exception as e:
+        print(f"[경고] Audit Log 조회 실패: {e}", flush=True)
 
-    if target_channel:
+    # 초대자를 못 찾으면 서버 소유자에게 발송
+    if not inviter:
+        inviter = guild.owner
+        print(f"[정보] 초대자를 찾을 수 없어 서버 소유자에게 DM 발송: {inviter}", flush=True)
+
+    if inviter:
         try:
-            profile_url = "https://panel.debimarlene.com/assets/profile.webp"
-
-            if is_reinvited:
-                embed = discord.Embed(
-                    title="데비&마를렌",
-                    description="데비&마를렌이 다시 온라인입니다.\n이전 설정을 그대로 유지하고 있어요.",
-                    color=0xDC143C
-                )
-            else:
-                embed = discord.Embed(
-                    title="데비&마를렌",
-                    description="데비&마를렌이 온라인입니다.",
-                    color=0x0000FF
-                )
-            embed.set_thumbnail(url=profile_url)
-
-            view = WelcomeView()
-            await target_channel.send(embed=embed, view=view)
+            view = WelcomeLayoutView(guild)
+            await inviter.send(view=view)
+            print(f"[완료] 환영 DM 전송: {inviter.name} (서버: {guild.name})", flush=True)
+        except discord.Forbidden:
+            print(f"[경고] DM 전송 불가 (차단/비허용): {inviter.name}", flush=True)
         except Exception as e:
-            print(f"[오류] 환영 메시지 전송 중 오류 발생: {e}")
+            print(f"[오류] 환영 DM 전송 실패: {e}", flush=True)
 
     # 서버 참가 시 GCS 실시간 업데이트
     try:

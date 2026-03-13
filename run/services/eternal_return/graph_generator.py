@@ -44,29 +44,14 @@ def create_mmr_graph(mmr_history, nickname="플레이어"):
     dates = [item[0] for item in parsed_data]
     mmr_values = [item[1] for item in parsed_data]
     
-    # 한글 폰트 설정
-    try:
-        # macOS 기본 한글 폰트들 시도
-        korean_fonts = ['AppleGothic', 'Apple SD Gothic Neo', 'Noto Sans CJK KR', 'NanumGothic', 'Malgun Gothic']
-        font_found = False
-        for font_name in korean_fonts:
-            try:
-                plt.rcParams['font.family'] = font_name
-                font_found = True
-                break
-            except:
-                continue
-        
-        if not font_found:
-            # 시스템에서 사용 가능한 한글 폰트 찾기
-            available_fonts = [f.name for f in fm.fontManager.ttflist]
-            korean_font = next((f for f in available_fonts if 'Gothic' in f or 'Nanum' in f), None)
-            if korean_font:
-                plt.rcParams['font.family'] = korean_font
-    except:
-        pass  # 폰트 설정 실패해도 계속 진행
-    
-    # 음수 기호가 깨지는 문제 해결
+    # 한글 폰트 설정 — 사용 가능한 첫 번째 폰트 사용
+    available = {f.name for f in fm.fontManager.ttflist}
+    for font_name in ['Malgun Gothic', 'Noto Sans KR', 'NanumGothic', 'AppleGothic']:
+        if font_name in available:
+            plt.rcParams['font.family'] = font_name
+            break
+    else:
+        plt.rcParams['font.family'] = 'DejaVu Sans'
     plt.rcParams['axes.unicode_minus'] = False
     
     # 디스코드 다크 테마 색상 설정

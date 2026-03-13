@@ -5,8 +5,7 @@
 ```
 run/                    # Discord 봇 메인 코드
   core/                 # bot.py, config.py (봇 초기화)
-  cogs/                 # 이벤트 핸들러 (eternal_return, music, voice, welcome, stats, settings, utility, youtube)
-  commands/             # 슬래시 커맨드 (character, feedback, music, online, recommend, settings, stats, voice, youtube)
+  cogs/                 # 슬래시 커맨드 + 이벤트 핸들러 (eternal_return, music, voice, welcome, stats, quiz, utility, youtube)
   services/             # 비즈니스 로직 (eternal_return/, music/, tts/, welcome/, voice_manager.py, youtube_service.py)
   views/                # Discord embed/UI 포맷팅
   utils/                # 유틸리티

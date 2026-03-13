@@ -80,6 +80,13 @@ class CosyVoice3Model:
     def load_model(self):
         """컨테이너 시작시 모델 로드"""
         import sys
+        import logging
+        logging.basicConfig(level=logging.WARNING)
+        for name in ["transformers", "vllm", "torch", "lightning", "diffusers",
+                      "modelscope", "huggingface_hub", "urllib3", "matplotlib",
+                      "numba", "httpx", "filelock"]:
+            logging.getLogger(name).setLevel(logging.WARNING)
+
         sys.path.insert(0, "/opt/CosyVoice")
 
         from huggingface_hub import snapshot_download

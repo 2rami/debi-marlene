@@ -156,11 +156,32 @@ class MusicPlayer:
         self.is_playing = False
         voice_manager.clear_music_state(self.guild_id)
 
+    def pause(self) -> bool:
+        """현재 곡을 일시정지합니다."""
+        vc = voice_manager.get_voice_client(self.guild_id)
+        if vc and vc.is_playing():
+            vc.pause()
+            return True
+        return False
+
+    def resume(self) -> bool:
+        """일시정지된 곡을 재개합니다."""
+        vc = voice_manager.get_voice_client(self.guild_id)
+        if vc and vc.is_paused():
+            vc.resume()
+            return True
+        return False
+
+    def is_paused(self) -> bool:
+        """일시정지 상태인지 확인합니다."""
+        vc = voice_manager.get_voice_client(self.guild_id)
+        return vc.is_paused() if vc else False
+
     async def skip(self) -> Optional[Song]:
         """현재 곡을 건너뜁니다."""
         skipped = self.current
         vc = voice_manager.get_voice_client(self.guild_id)
-        if vc and vc.is_playing():
+        if vc and (vc.is_playing() or vc.is_paused()):
             vc.stop()
         return skipped
 

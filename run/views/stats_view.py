@@ -13,7 +13,7 @@ from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-from run.utils.embeds import create_stats_embed, create_union_embed
+from run.utils.embeds import create_stats_embed, create_union_embed, UNION_TIER_MAP
 from run.services.eternal_return.api_client import (
     get_player_season_data,
     get_player_recent_games,
@@ -29,6 +29,7 @@ from run.utils.emoji_utils import (
     get_character_emoji,
     get_tier_emoji,
     get_weapon_emoji,
+    get_weapon_skill_emoji,
     get_item_emoji,
     get_trait_emoji,
     get_tactical_skill_emoji,
@@ -46,6 +47,9 @@ class StatsLayoutView(discord.ui.LayoutView):
         self.played_seasons = played_seasons or []
         self.show_preseason = show_preseason
         self.current_mode = current_mode
+        self._recent_games = []
+        self._recent_index = 0
+        self._recent_game_mode_text = ""
         self._build_main()
 
     def _is_preseason(self, season_name):
@@ -60,25 +64,33 @@ class StatsLayoutView(discord.ui.LayoutView):
         """메인 화면 전적 텍스트"""
         nickname = self.player_data.get('nickname', 'Unknown')
 
-        # 티어 이모지
+        # 티어 이모지 (tier_id=0은 언랭크 — 0도 유효한 값이므로 None 체크)
         tier_emoji = ""
-        tier_id = self.player_data.get('tier_id', 0)
-        if tier_id:
+        tier_id = self.player_data.get('tier_id')
+        if tier_id is not None:
             tier_emoji = get_tier_emoji(tier_id) or ""
 
         if is_normal:
             level = self.player_data.get('level', 1)
-            lines = [f"# {nickname}", f"**일반게임** | Lv.{level}"]
+            lines = [f"# {nickname}"]
+            if tier_emoji:
+                lines.append(f"## {tier_emoji} 일반게임")
+            else:
+                lines.append(f"## 일반게임")
+            lines.append(f"Lv.{level}")
             if self.player_data.get('stats'):
                 stats = self.player_data['stats']
                 lines.append(f"평균 순위 **{stats.get('avg_rank', 0):.1f}등** | 승률 **{stats.get('winrate', 0):.1f}%**")
         else:
             rank_info = self.player_data.get('tier_info', 'Unranked')
+            mmr = self.player_data.get('mmr', 0)
             lines = [f"# {nickname}"]
             if tier_emoji:
                 lines.append(f"## {tier_emoji} {rank_info}")
             else:
                 lines.append(f"## {rank_info}")
+            if mmr > 0:
+                lines.append(f"MMR **{mmr:,}**")
             rank = self.player_data.get('rank', 0)
             rank_percent = self.player_data.get('rank_percent', 0)
             if rank > 0:
@@ -170,48 +182,6 @@ class StatsLayoutView(discord.ui.LayoutView):
         container = discord.ui.Container(*container_children)
         self.add_item(container)
 
-    def _add_navigation(self):
-        """네비게이션 버튼 (top-level, 서브화면용)"""
-        btn_main = discord.ui.Button(label='메인', style=discord.ButtonStyle.primary)
-        btn_main.callback = self._on_main
-        btn_chars = discord.ui.Button(label='실험체', style=discord.ButtonStyle.primary)
-        btn_chars.callback = self._on_characters
-        btn_recent = discord.ui.Button(label='최근전적', style=discord.ButtonStyle.success)
-        btn_recent.callback = self._on_recent_games
-        btn_stats = discord.ui.Button(label='통계', style=discord.ButtonStyle.secondary)
-        btn_stats.callback = self._on_stats
-
-        nav_row = discord.ui.ActionRow(btn_main, btn_chars, btn_recent, btn_stats)
-        self.add_item(nav_row)
-
-        filtered_seasons = self._filter_seasons_by_type()
-        if filtered_seasons:
-            options = [
-                discord.SelectOption(
-                    label=f"{s['name']}{' (현재)' if s.get('is_current') else ''}",
-                    value=str(s['id']),
-                )
-                for s in filtered_seasons
-            ]
-            placeholder = "프리시즌별 전적 보기..." if self.show_preseason else "시즌별 전적 보기..."
-            select = discord.ui.Select(placeholder=placeholder, options=options)
-            select.callback = self._on_season_select
-            self.add_item(discord.ui.ActionRow(select))
-
-        if any(self._is_preseason(s['name']) for s in self.played_seasons):
-            normal_label = '랭크게임' if self.current_mode == "NORMAL" else '일반게임'
-            btn_normal = discord.ui.Button(label=normal_label, style=discord.ButtonStyle.secondary)
-            btn_normal.callback = self._on_toggle_normal
-
-            btn_union = discord.ui.Button(label='유니온', style=discord.ButtonStyle.secondary)
-            btn_union.callback = self._on_toggle_union
-
-            season_label = '정식시즌' if self.show_preseason else '프리시즌'
-            btn_season = discord.ui.Button(label=season_label, style=discord.ButtonStyle.secondary)
-            btn_season.callback = self._on_toggle_season_type
-
-            self.add_item(discord.ui.ActionRow(btn_normal, btn_union, btn_season))
-
     # === 콜백 ===
 
     async def _on_main(self, interaction):
@@ -225,26 +195,31 @@ class StatsLayoutView(discord.ui.LayoutView):
         most_chars = self.player_data.get('most_characters', [])
         lines = [f"## {self.player_data['nickname']}님의 실험체\n"]
 
+        is_normal = (self.current_mode == "NORMAL")
         if most_chars:
             for i, char in enumerate(most_chars[:10]):
-                mmr_gain = char.get('mmr_gain', 0)
-                rp_text = f"{mmr_gain:+d} RP" if mmr_gain != 0 else "+/-0 RP"
                 avg_rank = char.get('avg_rank', 0)
-                arrow = "^ " if mmr_gain > 0 else "v " if mmr_gain < 0 else ""
-                lines.append(f"**{i+1}. {char['name']}** - {char['games']}게임, {char['winrate']:.1f}% 승률, 평균 {avg_rank:.1f}등, {arrow}{rp_text}")
+                # 실험체 이모지
+                char_key = char.get('char_key')
+                char_emoji = get_character_emoji(char_key) if char_key else ""
+                prefix = f"{char_emoji} " if char_emoji else ""
+                # 일반게임이면 RP 표시 안 함
+                if is_normal:
+                    lines.append(f"{prefix}**{i+1}. {char['name']}** - {char['games']}게임, {char['winrate']:.1f}% 승률, 평균 {avg_rank:.1f}등")
+                else:
+                    mmr_gain = char.get('mmr_gain', 0)
+                    rp_text = f"{mmr_gain:+d} RP" if mmr_gain != 0 else "+/-0 RP"
+                    arrow = "^ " if mmr_gain > 0 else "v " if mmr_gain < 0 else ""
+                    lines.append(f"{prefix}**{i+1}. {char['name']}** - {char['games']}게임, {char['winrate']:.1f}% 승률, 평균 {avg_rank:.1f}등, {arrow}{rp_text}")
         else:
             lines.append("데이터가 없습니다.")
 
-        container = discord.ui.Container(
-            discord.ui.TextDisplay("\n".join(lines)),
-            accent_colour=discord.Colour(0x5865F2)
-        )
-        self.add_item(container)
-        self._add_navigation()
+        self.add_item(discord.ui.Container(discord.ui.TextDisplay("\n".join(lines))))
+        self._add_navigation_in_container()
         await interaction.response.edit_message(view=self)
 
     async def _on_recent_games(self, interaction):
-        """최근전적 (RecentGamesView는 embed 기반 -> StatsView로 전환)"""
+        """최근전적 (LayoutView 내에서 표시)"""
         await interaction.response.defer()
 
         game_mode = self.current_mode
@@ -267,36 +242,39 @@ class StatsLayoutView(discord.ui.LayoutView):
 
         if not recent_games:
             self.clear_items()
-            container = discord.ui.Container(
-                discord.ui.TextDisplay(f"## {self.player_data['nickname']}님의 최근전적\n\n{game_mode_text} 데이터가 없습니다."),
-                accent_colour=discord.Colour(0xFF6B35)
-            )
-            self.add_item(container)
-            self._add_navigation()
+            self.add_item(discord.ui.Container(
+                discord.ui.TextDisplay(f"## {self.player_data['nickname']}님의 최근전적\n\n{game_mode_text} 데이터가 없습니다.")
+            ))
+            self._add_navigation_in_container()
             await interaction.edit_original_response(view=self)
             return
 
-        # embed 기반 RecentGamesView 사용 -> StatsView를 parent로 전달
-        parent_view = StatsView(
-            self.player_data, self.played_seasons,
-            current_mode=self.current_mode, show_preseason=self.show_preseason
-        )
-        recent_games_view = RecentGamesView(
-            self.player_data, recent_games[:20],
-            game_mode, game_mode_text,
-            parent_view=parent_view
-        )
-        embed = await recent_games_view.create_game_embed(0)
-        await interaction.edit_original_response(embed=embed, view=recent_games_view)
+        # LayoutView 내에서 최근전적 표시
+        self._recent_games = recent_games[:20]
+        self._recent_game_mode_text = game_mode_text
+        self._recent_index = 0
+        await self._build_recent_game(interaction)
 
     async def _on_stats(self, interaction):
-        """통계 화면"""
+        """통계 화면 (LayoutView 내에서 표시)"""
         await interaction.response.defer()
         stats = self.player_data.get('stats', {})
         mmr_history = self.player_data.get('mmr_history', [])
 
-        # 그래프가 있으면 embed 기반 StatsView로 전환 (파일 첨부 필요)
+        self.clear_items()
+        lines = [f"## {self.player_data['nickname']}님의 통계\n"]
+        if stats:
+            lines.append(f"**게임 수** {stats.get('total_games', 0)}게임 | **승률** {stats.get('winrate', 0):.1f}%")
+            lines.append(f"**평균 순위** {stats.get('avg_rank', 0):.1f}등 | **평균 킬** {stats.get('avg_kills', 0):.1f}킬")
+            lines.append(f"**평균 어시** {stats.get('avg_assists', 0):.1f}어시 | **KDA** {stats.get('kda', 0):.2f}")
+        else:
+            lines.append("데이터가 없습니다.")
+
+        self.add_item(discord.ui.Container(discord.ui.TextDisplay("\n".join(lines))))
+
+        # 그래프 이미지 (MediaGallery로 인라인 표시)
         graph_path = None
+        file_attachment = None
         if mmr_history and len(mmr_history) >= 2:
             try:
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
@@ -305,44 +283,233 @@ class StatsLayoutView(discord.ui.LayoutView):
                         self.player_data.get('nickname', '플레이어'),
                         tmp_file.name
                     )
+                if graph_path and os.path.exists(graph_path):
+                    file_attachment = discord.File(graph_path, filename="mmr_graph.png")
+                    self.add_item(discord.ui.MediaGallery(
+                        items=[discord.ui.MediaGalleryItem(media="attachment://mmr_graph.png")]
+                    ))
             except Exception:
                 pass
 
-        if graph_path and os.path.exists(graph_path):
-            # embed + 파일 첨부 -> StatsView 사용
-            parent_view = StatsView(
-                self.player_data, self.played_seasons,
-                current_mode=self.current_mode, show_preseason=self.show_preseason
-            )
-            embed = discord.Embed(title=f"{self.player_data['nickname']}님의 통계", color=0xE67E22)
-            if stats:
-                embed.add_field(name="게임 수", value=f"{stats.get('total_games', 0)}게임", inline=True)
-                embed.add_field(name="승률", value=f"{stats.get('winrate', 0):.1f}%", inline=True)
-                embed.add_field(name="평균 순위", value=f"{stats.get('avg_rank', 0):.1f}등", inline=True)
-                embed.add_field(name="평균 킬", value=f"{stats.get('avg_kills', 0):.1f}킬", inline=True)
-                embed.add_field(name="평균 어시", value=f"{stats.get('avg_assists', 0):.1f}어시", inline=True)
-                embed.add_field(name="KDA", value=f"**{stats.get('kda', 0):.2f}**", inline=True)
-            file_attachment = discord.File(graph_path, filename="mmr_graph.png")
-            embed.set_image(url="attachment://mmr_graph.png")
-            await interaction.edit_original_response(embed=embed, attachments=[file_attachment], view=parent_view)
-            os.unlink(graph_path)
+        self._add_navigation_in_container()
+
+        if file_attachment:
+            await interaction.edit_original_response(view=self, attachments=[file_attachment])
+            if graph_path:
+                os.unlink(graph_path)
         else:
-            # 그래프 없음 -> LayoutView로 텍스트 표시
-            self.clear_items()
-            lines = [f"## {self.player_data['nickname']}님의 통계\n"]
-            if stats:
-                lines.append(f"**게임 수** {stats.get('total_games', 0)}게임 | **승률** {stats.get('winrate', 0):.1f}%")
-                lines.append(f"**평균 순위** {stats.get('avg_rank', 0):.1f}등 | **평균 킬** {stats.get('avg_kills', 0):.1f}킬")
-                lines.append(f"**평균 어시** {stats.get('avg_assists', 0):.1f}어시 | **KDA** {stats.get('kda', 0):.2f}")
-            else:
-                lines.append("데이터가 없습니다.")
-            container = discord.ui.Container(
-                discord.ui.TextDisplay("\n".join(lines)),
-                accent_colour=discord.Colour(0xE67E22)
-            )
-            self.add_item(container)
-            self._add_navigation()
             await interaction.edit_original_response(view=self)
+
+    async def _build_recent_game(self, interaction):
+        """최근전적 한 게임을 LayoutView로 표시"""
+        game = self._recent_games[self._recent_index]
+        season_name = game_data.get_season_name(self.player_data['season_id'])
+
+        # 게임 모드
+        actual_mode = game.get('matchingMode', 3)
+        mode_map = {0: "일반게임", 2: "일반게임", 3: "랭크게임", 8: "유니온"}
+        game_mode_text = mode_map.get(actual_mode, f"게임모드 {actual_mode}")
+
+        # 기본 정보
+        rank = game.get('gameRank', 0)
+        kills = game.get('playerKill', 0)
+        team_kills = game.get('teamKill', 0)
+        assists = game.get('playerAssistant', 0)
+        damage = game.get('damageToPlayer', 0)
+        mmr_gain = game.get('mmrGain') or game.get('mmrGainInGame', 0)
+        char_code = game.get('characterNum', 0)
+        char_name = game_data.get_character_name(char_code)
+        level = game.get('characterLevel', 1)
+        game_id = game.get('gameId', 0)
+
+        # 무기 이모지 (weaponType 직접 사용)
+        weapon_emoji = ""
+        weapon_type = game.get('weaponType') or game.get('bestWeapon')
+        if weapon_type:
+            weapon_key = game_data.get_weapon_key(weapon_type)
+            if weapon_key:
+                weapon_emoji = get_weapon_emoji(weapon_key)
+                if not weapon_emoji:
+                    logger.warning(f"[최근전적] 무기 이모지 없음: weapon_key={weapon_key}, weapon_type={weapon_type}")
+
+        # 전술스킬 이모지
+        tactical_emoji = ""
+        tactical_id = game.get('tacticalSkillGroup', 0)
+        if tactical_id:
+            tactical_key = game_data.get_tactical_skill_key(tactical_id)
+            if tactical_key:
+                tactical_emoji = get_tactical_skill_emoji(tactical_key)
+                if not tactical_emoji:
+                    logger.warning(f"[최근전적] 전술스킬 이모지 없음: tactical_key={tactical_key}")
+
+        # 시간 정보
+        time_info = ""
+        start_time = game.get('startDtm')
+        play_time = game.get('playTime', 0)
+        if start_time:
+            from datetime import datetime, timezone
+            try:
+                game_time = datetime.fromisoformat(start_time)
+                total_seconds = (datetime.now(timezone.utc) - game_time).total_seconds()
+                hours_ago = int(total_seconds / 3600)
+                if hours_ago < 1:
+                    time_ago = f"{int(total_seconds / 60)}분 전"
+                elif hours_ago < 24:
+                    time_ago = f"{hours_ago}시간 전"
+                else:
+                    time_ago = f"{int(hours_ago / 24)}일 전"
+                if play_time and play_time > 0:
+                    time_info = f"{time_ago} | {int(play_time / 60)}분 {int(play_time % 60)}초"
+                else:
+                    time_info = time_ago
+            except Exception:
+                pass
+
+        # 순위 표시
+        rank_display = f"{rank}등 WIN" if rank == 1 else f"{rank}등"
+
+        # 아이템 이모지
+        equipment = game.get('equipment', [])
+        if isinstance(equipment, str):
+            import json
+            try:
+                equipment = json.loads(equipment)
+            except:
+                equipment = []
+        item_emojis = []
+        if equipment and isinstance(equipment, list):
+            for item in equipment[:6]:
+                item_code = item.get('itemCode', 0) if isinstance(item, dict) else item
+                if item_code and item_code > 0:
+                    emoji = get_item_emoji(item_code)
+                    if emoji:
+                        item_emojis.append(emoji)
+
+        # 무기스킬 이모지 (masteryLevel에서 100~199 범위 추출)
+        weapon_skill_emojis = []
+        mastery_level_raw = game.get('masteryLevel', '')
+        if mastery_level_raw and isinstance(mastery_level_raw, str):
+            import ast
+            try:
+                mastery_dict = ast.literal_eval(mastery_level_raw)
+                for mid_str in mastery_dict:
+                    mid = int(mid_str)
+                    if 100 <= mid < 200:
+                        ws_emoji = get_weapon_skill_emoji(mid)
+                        if ws_emoji:
+                            weapon_skill_emojis.append(ws_emoji)
+            except Exception:
+                pass
+
+        # 특성 + 팀원 정보
+        game_details = await get_game_details(game_id)
+        trait_emojis = []
+        team_text = ""
+
+        if game_details and game_details.get('userGames'):
+            my_match = next((u for u in game_details['userGames'] if u.get('nickname') == self.player_data['nickname']), None)
+            if my_match:
+                core = my_match.get('traitFirstCore')
+                if core:
+                    e = get_trait_emoji(core)
+                    if e:
+                        trait_emojis.append(e)
+                for tid in my_match.get('traitFirstSub', []) + my_match.get('traitSecondSub', []):
+                    e = get_trait_emoji(tid)
+                    if e:
+                        trait_emojis.append(e)
+
+            # 팀원 정보
+            team_members = extract_team_members_info(game_details, self.player_data['nickname'])
+            if team_members:
+                tm_lines = []
+                for tm in team_members[:2]:
+                    tm_char_num = tm.get('characterNum', 0)
+                    tm_char = game_data.get_character_name(tm_char_num)
+                    tm_char_key = game_data.get_character_key(tm_char_num)
+                    tm_emoji = get_character_emoji(tm_char_key) if tm_char_key else ""
+                    tm_nick = tm.get('nickname', '')
+                    tm_dmg = tm.get('damageToPlayer', 0)
+                    tm_lines.append(f"{tm_emoji} {tm_char} **{tm_nick}** | 딜량 {tm_dmg:,}")
+                team_text = "\n".join(tm_lines)
+
+        # 텍스트 구성
+        self.clear_items()
+
+        # 헤더 라인
+        header_parts = [f"# {rank_display}"]
+        char_key = game_data.get_character_key(char_code)
+        char_emoji = get_character_emoji(char_key) if char_key else ""
+        sub_parts = [f"{char_emoji} {char_name} Lv.{level}" if char_emoji else f"{char_name} Lv.{level}"]
+        if weapon_emoji:
+            sub_parts.append(weapon_emoji)
+        if weapon_skill_emojis:
+            sub_parts.extend(weapon_skill_emojis)
+        if tactical_emoji:
+            sub_parts.append(tactical_emoji)
+        header_parts.append(" ".join(sub_parts))
+        if time_info:
+            header_parts.append(f"-# {time_info}")
+
+        # 캐릭터 이미지
+        char_image = game.get('characterImage')
+        header_display = discord.ui.TextDisplay("\n".join(header_parts))
+
+        if char_image:
+            self.add_item(discord.ui.Section(header_display, accessory=discord.ui.Thumbnail(media=char_image)))
+        else:
+            self.add_item(header_display)
+
+        # 상세 정보 Container
+        detail_children = []
+
+        # 아이템
+        if item_emojis:
+            detail_children.append(discord.ui.TextDisplay(f"**아이템** {' '.join(item_emojis)}"))
+
+        # 특성
+        if trait_emojis:
+            detail_children.append(discord.ui.TextDisplay(f"**특성** {' '.join(trait_emojis)}"))
+
+        # 전투 정보
+        combat_line = f"**TK/K/A** {team_kills}/{kills}/{assists} | **딜량** {damage:,}"
+        if actual_mode in (3, 8) and mmr_gain != 0:
+            combat_line += f" | **RP** {mmr_gain:+d}"
+        detail_children.append(discord.ui.TextDisplay(combat_line))
+
+        # 팀원
+        if team_text:
+            detail_children.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+            detail_children.append(discord.ui.TextDisplay(team_text))
+
+        # 푸터
+        detail_children.append(discord.ui.TextDisplay(f"-# {season_name} | {game_mode_text} | {self._recent_index + 1}/{len(self._recent_games)}"))
+
+        # 네비게이션 버튼 (이전/다음)
+        btn_prev = discord.ui.Button(label='◀', style=discord.ButtonStyle.secondary, disabled=(self._recent_index == 0))
+        btn_prev.callback = self._on_recent_prev
+        btn_back = discord.ui.Button(label='돌아가기', style=discord.ButtonStyle.primary)
+        btn_back.callback = self._on_main
+        btn_next = discord.ui.Button(label='▶', style=discord.ButtonStyle.secondary, disabled=(self._recent_index >= len(self._recent_games) - 1))
+        btn_next.callback = self._on_recent_next
+        detail_children.append(discord.ui.ActionRow(btn_prev, btn_back, btn_next))
+
+        self.add_item(discord.ui.Container(*detail_children))
+        await interaction.edit_original_response(view=self)
+
+    async def _on_recent_prev(self, interaction):
+        """최근전적 이전"""
+        await interaction.response.defer()
+        if self._recent_index > 0:
+            self._recent_index -= 1
+        await self._build_recent_game(interaction)
+
+    async def _on_recent_next(self, interaction):
+        """최근전적 다음"""
+        await interaction.response.defer()
+        if self._recent_index < len(self._recent_games) - 1:
+            self._recent_index += 1
+        await self._build_recent_game(interaction)
 
     async def _on_season_select(self, interaction):
         """시즌 선택"""
@@ -389,23 +556,71 @@ class StatsLayoutView(discord.ui.LayoutView):
             self.current_mode = "UNION"
             union_data = await get_player_union_teams(self.original_nickname)
 
+            self.clear_items()
             if union_data and union_data.get('teams'):
-                # 유니온은 embed 필요 -> StatsView로 전환
-                parent_view = StatsView(
-                    self.player_data, self.played_seasons,
-                    current_mode=self.current_mode, show_preseason=self.show_preseason
-                )
-                embed = create_union_embed(union_data, self.original_nickname)
-                await interaction.edit_original_response(embed=embed, view=parent_view, attachments=[])
+                self._build_union_layout(union_data)
             else:
-                self.clear_items()
-                container = discord.ui.Container(
-                    discord.ui.TextDisplay(f"## {self.original_nickname}님의 유니온 정보\n\n유니온 데이터가 없습니다."),
-                    accent_colour=discord.Colour(0xFF0000)
-                )
-                self.add_item(container)
-                self._add_navigation()
-                await interaction.edit_original_response(view=self)
+                self.add_item(discord.ui.Container(
+                    discord.ui.TextDisplay(f"## {self.original_nickname}님의 유니온 정보\n\n유니온 데이터가 없습니다.")
+                ))
+            self._add_navigation_in_container()
+            await interaction.edit_original_response(view=self)
+
+    def _build_union_layout(self, union_data):
+        """유니온 정보를 LayoutView Container로 표시"""
+
+        teams = union_data.get('teams', [])
+        players = union_data.get('players', [])
+        player_tiers = union_data.get('playerTiers', [])
+
+        lines = [f"## {self.original_nickname}님의 유니온 정보\n"]
+
+        for team_idx, team in enumerate(teams):
+            team_name = team.get('tnm', f'팀 {team_idx + 1}')
+            total_games = team.get('actual_games', 0)
+            wins = sum([
+                team.get('ssstw', 0), team.get('sstw', 0), team.get('stw', 0),
+                team.get('aaatw', 0), team.get('aatw', 0), team.get('atw', 0),
+                team.get('bbbtw', 0), team.get('bbtw', 0), team.get('btw', 0),
+                team.get('ccctw', 0), team.get('cctw', 0), team.get('ctw', 0),
+                team.get('dddtw', 0), team.get('ddtw', 0), team.get('dtw', 0),
+                team.get('etw', 0), team.get('ffftw', 0), team.get('fftw', 0), team.get('ftw', 0)
+            ])
+            win_rate = (wins / total_games * 100) if total_games > 0 else 0
+            team_tier_id = team.get('ti', 0)
+            team_tier = UNION_TIER_MAP.get(team_tier_id, 'F')
+
+            avg_rank = team.get('avgrnk', 0)
+            avg_rank_text = f" | 평균 {avg_rank:.1f}등" if avg_rank > 0 else ""
+            top3_rate = team.get('top3_rate', 0)
+            top3_text = f" | Top3 {top3_rate:.1f}%" if top3_rate > 0 else ""
+            team_rank = team.get('rank', 0)
+            rank_percent = team.get('rank_percent', 0)
+            rank_text = f"\n순위: {team_rank:,}위 (상위 {rank_percent:.1f}%)" if team_rank > 0 else ""
+
+            lines.append(f"### {team_name}")
+            lines.append(f"**티어:** {team_tier}")
+            lines.append(f"**전적:** {total_games}게임 {wins}승 (승률 {win_rate:.1f}%){avg_rank_text}{top3_text}{rank_text}")
+
+            # 팀원
+            for user_num in team.get('userNums', []):
+                player_name = next((p['name'] for p in players if p['userNum'] == user_num), '알수없음')
+                tier_info = next((t for t in player_tiers if t['userNum'] == user_num), None)
+                if tier_info:
+                    mmr = tier_info.get('mmr', 0)
+                    t_id = tier_info.get('tierId', 0)
+                    t_grade = tier_info.get('tierGradeId', 0)
+                    t_emoji = get_tier_emoji(t_id) or ""
+                    if not t_emoji:
+                        logger.warning(f"[유니온] 티어 이모지 없음: tier_{t_id}")
+                    t_name = game_data.get_tier_name(t_id)
+                    grade_text = f" {t_grade}" if t_grade else ''
+                    lines.append(f"  {t_emoji} {player_name} - {t_name}{grade_text} ({mmr:,} RP)")
+                else:
+                    lines.append(f"  {player_name} - 언랭")
+            lines.append("")
+
+        self.add_item(discord.ui.Container(discord.ui.TextDisplay("\n".join(lines))))
 
     async def _on_toggle_season_type(self, interaction):
         """정식시즌/프리시즌 전환"""

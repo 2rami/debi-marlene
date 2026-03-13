@@ -107,7 +107,12 @@ def get_weapon_emoji(weapon_key: str) -> str:
     Returns:
         Discord 이모지 문자열
     """
-    return EMOJI_MAP.get(weapon_key, "")
+    # 여러 네이밍 포맷 시도: weapon_whip, Whip, whip
+    for name in [f"weapon_{weapon_key.lower()}", weapon_key, weapon_key.lower()]:
+        emoji = EMOJI_MAP.get(name)
+        if emoji:
+            return emoji
+    return ""
 
 
 def get_trait_emoji(trait_id: int) -> str:
@@ -142,12 +147,31 @@ def get_tactical_skill_emoji(tactical_skill_key: str) -> str:
     전술 스킬 이모지 가져오기
 
     Args:
-        tactical_skill_key: 전술 스킬의 영어 key
+        tactical_skill_key: 전술 스킬 key (예: "tactical_30")
 
     Returns:
         Discord 이모지 문자열 또는 빈 문자열
     """
-    return EMOJI_MAP.get(tactical_skill_key, "")
+    # tactical_{id} 형식 또는 raw key 시도
+    emoji = EMOJI_MAP.get(tactical_skill_key)
+    if emoji:
+        return emoji
+    # 소문자 시도
+    return EMOJI_MAP.get(tactical_skill_key.lower(), "")
+
+def get_weapon_skill_emoji(wskill_id: int) -> str:
+    """
+    무기스킬 이모지 가져오기
+
+    Args:
+        wskill_id: 무기스킬 ID (예: 101, 111, 191)
+
+    Returns:
+        Discord 이모지 문자열 또는 빈 문자열
+    """
+    emoji_name = f"wskill_{wskill_id}"
+    return EMOJI_MAP.get(emoji_name, "")
+
 
 def get_weather_emoji(weather_key: str) -> str:
     """
@@ -173,21 +197,6 @@ def get_skin_emoji(skin_id: int) -> str:
     """
     # Application Emoji 이름은 skin_{skin_id} 형식
     emoji_name = f"skin_{skin_id}"
-    return EMOJI_MAP.get(emoji_name, "")
-
-
-def get_tier_emoji(tier_id: int) -> str:
-    """
-    티어 이모지 가져오기
-
-    Args:
-        tier_id: 티어 ID (예: 0=언랭, 1=아이언, 2=브론즈, ..., 8=이터니티)
-
-    Returns:
-        Discord 이모지 문자열 또는 빈 문자열
-    """
-    # Application Emoji 이름은 tier_{tier_id} 형식
-    emoji_name = f"tier_{tier_id}"
     return EMOJI_MAP.get(emoji_name, "")
 
 
@@ -255,6 +264,10 @@ class EmojiAutoUpdater:
             total_added += await self._update_item_emojis(existing_emojis)
             total_added += await self._update_character_emojis(existing_emojis)
             total_added += await self._update_skin_emojis(existing_emojis)
+            total_added += await self._update_weapon_emojis(existing_emojis)
+            total_added += await self._update_tier_emojis(existing_emojis)
+            total_added += await self._update_tactical_skill_emojis(existing_emojis)
+            total_added += await self._update_weapon_skill_emojis(existing_emojis)
 
             logger.info("=" * 60)
             logger.info(f"이모지 자동 업데이트 완료! 총 {total_added}개 추가됨")
@@ -270,8 +283,25 @@ class EmojiAutoUpdater:
 
     @weekly_update.before_loop
     async def before_weekly_update(self):
-        """태스크 시작 전 봇이 준비될 때까지 대기"""
+        """태스크 시작 전 봇이 준비될 때까지 대기 + 초기 이모지 체크"""
         await self.bot.wait_until_ready()
+
+        # 봇 시작 시 한 번 빠진 이모지 체크/업로드
+        try:
+            self.application_id = self.bot.application_id
+            if not self.application_id:
+                return
+            existing = await self._get_existing_emojis()
+            total = 0
+            total += await self._update_weapon_emojis(existing)
+            total += await self._update_tier_emojis(existing)
+            total += await self._update_tactical_skill_emojis(existing)
+            total += await self._update_weapon_skill_emojis(existing)
+            if total > 0:
+                logger.info(f"시작 시 이모지 {total}개 업로드 완료")
+                await load_emoji_map(self.bot)
+        except Exception as e:
+            logger.error(f"시작 시 이모지 체크 오류: {e}")
 
     async def _get_existing_emojis(self) -> Set[str]:
         """현재 Discord에 등록된 이모지 이름 목록 가져오기"""
@@ -470,6 +500,285 @@ class EmojiAutoUpdater:
             logger.error(f"스킨 이모지 업데이트 오류: {e}")
             return 0
 
+    async def _update_weapon_emojis(self, existing: Set[str]) -> int:
+        """무기(마스터리) 이모지 업데이트"""
+        logger.info("무기 이모지 체크 중...")
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f'{self.dak_api_base}/masteries?hl=ko') as response:
+                    if response.status != 200:
+                        logger.error(f"무기 API 요청 실패: {response.status}")
+                        return 0
+
+                    data = await response.json()
+                    masteries = data.get('masteries', [])
+
+                    new_weapons = []
+                    for m in masteries:
+                        key = m.get('key', '').lower()
+                        if not key:
+                            continue
+                        emoji_name = f"weapon_{key}"
+                        if emoji_name not in existing:
+                            icon_url = m.get('iconUrl', '')
+                            if icon_url:
+                                new_weapons.append({
+                                    'key': key,
+                                    'name': m.get('name', 'Unknown'),
+                                    'url': icon_url
+                                })
+
+                    if not new_weapons:
+                        logger.info("  새로운 무기 없음")
+                        return 0
+
+                    logger.info(f"  새로운 무기 {len(new_weapons)}개 발견!")
+                    added_count = 0
+                    for w in new_weapons:
+                        emoji_name = f"weapon_{w['key']}"
+                        success = await self._download_resize_upload(
+                            session, w['url'], emoji_name, 128, 128
+                        )
+                        if success:
+                            added_count += 1
+                            logger.info(f"  [+] {emoji_name} ({w['name']})")
+                        else:
+                            logger.warning(f"  [!] {emoji_name} 업로드 실패")
+                        await asyncio.sleep(0.5)
+
+                    return added_count
+
+        except Exception as e:
+            logger.error(f"무기 이모지 업데이트 오류: {e}")
+            return 0
+
+    async def _update_tier_emojis(self, existing: Set[str]) -> int:
+        """티어 이모지 업데이트"""
+        logger.info("티어 이모지 체크 중...")
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f'{self.dak_api_base}/tiers?hl=ko') as response:
+                    if response.status != 200:
+                        logger.error(f"티어 API 요청 실패: {response.status}")
+                        return 0
+
+                    data = await response.json()
+                    tiers = data.get('tiers', [])
+
+                    new_tiers = []
+                    for t in tiers:
+                        tier_id = t.get('id')
+                        if tier_id is None:
+                            continue
+                        emoji_name = f"tier_{tier_id}"
+                        if emoji_name not in existing:
+                            image_url = t.get('imageUrl', '')
+                            if image_url:
+                                new_tiers.append({
+                                    'id': tier_id,
+                                    'name': t.get('name', 'Unknown'),
+                                    'url': image_url
+                                })
+
+                    if not new_tiers:
+                        logger.info("  새로운 티어 없음")
+                        return 0
+
+                    logger.info(f"  새로운 티어 {len(new_tiers)}개 발견!")
+                    added_count = 0
+                    for t in new_tiers:
+                        emoji_name = f"tier_{t['id']}"
+                        success = await self._download_resize_upload(
+                            session, t['url'], emoji_name, 128, 128
+                        )
+                        if success:
+                            added_count += 1
+                            logger.info(f"  [+] {emoji_name} ({t['name']})")
+                        else:
+                            logger.warning(f"  [!] {emoji_name} 업로드 실패")
+                        await asyncio.sleep(0.5)
+
+                    return added_count
+
+        except Exception as e:
+            logger.error(f"티어 이모지 업데이트 오류: {e}")
+            return 0
+
+    async def _update_tactical_skill_emojis(self, existing: Set[str]) -> int:
+        """전술스킬 이모지 업데이트"""
+        logger.info("전술스킬 이모지 체크 중...")
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f'{self.dak_api_base}/tactical-skills?hl=ko') as response:
+                    if response.status != 200:
+                        logger.error(f"전술스킬 API 요청 실패: {response.status}")
+                        return 0
+
+                    data = await response.json()
+                    skills = data.get('tacticalSkills', [])
+
+                    new_skills = []
+                    for s in skills:
+                        skill_id = s.get('id')
+                        if skill_id is None:
+                            continue
+                        emoji_name = f"tactical_{skill_id}"
+                        if emoji_name not in existing:
+                            icon_url = s.get('iconUrl', '')
+                            if icon_url:
+                                new_skills.append({
+                                    'id': skill_id,
+                                    'name': s.get('name', 'Unknown'),
+                                    'url': icon_url
+                                })
+
+                    if not new_skills:
+                        logger.info("  새로운 전술스킬 없음")
+                        return 0
+
+                    logger.info(f"  새로운 전술스킬 {len(new_skills)}개 발견!")
+                    added_count = 0
+                    for s in new_skills:
+                        emoji_name = f"tactical_{s['id']}"
+                        success = await self._download_resize_upload(
+                            session, s['url'], emoji_name, 128, 128
+                        )
+                        if success:
+                            added_count += 1
+                            logger.info(f"  [+] {emoji_name} ({s['name']})")
+                        else:
+                            logger.warning(f"  [!] {emoji_name} 업로드 실패")
+                        await asyncio.sleep(0.5)
+
+                    return added_count
+
+        except Exception as e:
+            logger.error(f"전술스킬 이모지 업데이트 오류: {e}")
+            return 0
+
+    async def _update_weapon_skill_emojis(self, existing: Set[str]) -> int:
+        """무기스킬 이모지 업데이트 (CDN에서 WSkillIcon_{id}.png)"""
+        logger.info("무기스킬 이모지 체크 중...")
+
+        # 알려진 무기스킬 ID 목록
+        wskill_ids = [101, 111, 112, 113, 114, 115, 116, 117, 181, 191, 192, 193, 194, 198, 199]
+        cdn_base = "https://cdn.dak.gg/assets/er/game-assets/10.4.0"
+
+        new_skills = []
+        for wid in wskill_ids:
+            emoji_name = f"wskill_{wid}"
+            if emoji_name not in existing:
+                new_skills.append(wid)
+
+        if not new_skills:
+            logger.info("  새로운 무기스킬 없음")
+            return 0
+
+        logger.info(f"  새로운 무기스킬 {len(new_skills)}개 발견!")
+        added_count = 0
+        try:
+            async with aiohttp.ClientSession() as session:
+                for wid in new_skills:
+                    emoji_name = f"wskill_{wid}"
+                    url = f"{cdn_base}/WSkillIcon_{wid}.png"
+                    success = await self._download_resize_upload(
+                        session, url, emoji_name, 128, 128
+                    )
+                    if success:
+                        added_count += 1
+                        logger.info(f"  [+] {emoji_name}")
+                    else:
+                        logger.warning(f"  [!] {emoji_name} 업로드 실패")
+                    await asyncio.sleep(0.5)
+        except Exception as e:
+            logger.error(f"무기스킬 이모지 업데이트 오류: {e}")
+
+        return added_count
+
+    async def _get_existing_emojis_with_ids(self) -> Dict[str, str]:
+        """현재 Discord에 등록된 이모지 {이름: ID} 딕셔너리 반환"""
+        try:
+            headers = {
+                'Authorization': f'Bot {self.bot.http.token}',
+                'Content-Type': 'application/json'
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f'{self.base_url}/applications/{self.application_id}/emojis',
+                    headers=headers
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return {e['name']: e['id'] for e in data.get('items', [])}
+                    return {}
+        except Exception:
+            return {}
+
+    async def _delete_emoji(self, session: aiohttp.ClientSession, emoji_id: str) -> bool:
+        """Discord Application Emoji 삭제"""
+        try:
+            headers = {
+                'Authorization': f'Bot {self.bot.http.token}',
+            }
+            async with session.delete(
+                f'{self.base_url}/applications/{self.application_id}/emojis/{emoji_id}',
+                headers=headers
+            ) as response:
+                return response.status == 204
+        except Exception:
+            return False
+
+    async def force_reupload_all(self):
+        """Application Emoji만 삭제 후 재업로드 (비율 보존 리사이즈 적용)
+
+        주의: /applications/{app_id}/emojis API만 사용 — 서버(길드) 이모지는 건드리지 않음.
+        """
+        self.application_id = self.bot.application_id
+        if not self.application_id:
+            logger.error("Application ID가 없어 재업로드를 중단합니다.")
+            return
+
+        logger.info("=" * 60)
+        logger.info("Application Emoji 전체 재업로드 시작")
+        logger.info(f"대상: /applications/{self.application_id}/emojis (서버 이모지 아님)")
+        logger.info("=" * 60)
+
+        # 1. 기존 Application Emoji 전부 삭제
+        existing = await self._get_existing_emojis_with_ids()
+        logger.info(f"Application Emoji {len(existing)}개 삭제 시작...")
+
+        async with aiohttp.ClientSession() as session:
+            for name, eid in existing.items():
+                success = await self._delete_emoji(session, eid)
+                if success:
+                    logger.info(f"  [-] {name} 삭제")
+                else:
+                    logger.warning(f"  [!] {name} 삭제 실패")
+                await asyncio.sleep(0.3)
+
+        logger.info("Application Emoji 삭제 완료. 재업로드 시작...")
+
+        # 2. 전부 새로 업로드 (빈 set = 모두 새로운 것으로 처리)
+        empty_set: Set[str] = set()
+        total = 0
+        total += await self._update_character_emojis(empty_set)
+        total += await self._update_skin_emojis(empty_set)
+        total += await self._update_item_emojis(empty_set)
+        total += await self._update_weapon_emojis(empty_set)
+        total += await self._update_tier_emojis(empty_set)
+        total += await self._update_tactical_skill_emojis(empty_set)
+        total += await self._update_weapon_skill_emojis(empty_set)
+
+        logger.info("=" * 60)
+        logger.info(f"이모지 전체 재업로드 완료! 총 {total}개 업로드")
+        logger.info("=" * 60)
+
+        # 이모지 맵 재로드
+        await load_emoji_map(self.bot)
+
     async def _download_resize_upload(
         self, session: aiohttp.ClientSession, url: str, emoji_name: str,
         width: int, height: int
@@ -486,13 +795,19 @@ class EmojiAutoUpdater:
                     return False
                 image_data = await response.read()
 
-            # 2. 리사이즈
+            # 2. 리사이즈 (비율 유지, 투명 패딩)
             img = Image.open(BytesIO(image_data))
             if img.mode != 'RGBA':
                 img = img.convert('RGBA')
 
-            # 128x128로 강제 리사이즈
-            img_resized = img.resize((width, height), Image.Resampling.LANCZOS)
+            # 비율 유지하면서 128x128 안에 맞추기
+            img.thumbnail((width, height), Image.Resampling.LANCZOS)
+            # 투명 캔버스에 중앙 배치
+            canvas = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+            x = (width - img.width) // 2
+            y = (height - img.height) // 2
+            canvas.paste(img, (x, y))
+            img_resized = canvas
 
             # PNG로 인코딩
             output = BytesIO()

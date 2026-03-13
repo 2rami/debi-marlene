@@ -405,13 +405,13 @@ def _process_normal_game_data(nickname: str, profile_data: Dict) -> Optional[Dic
     
     if not overview:
         return {
-            'nickname': nickname, 'tier_info': '일반게임', 'tier_image_url': game_data.get_tier_image_url(0),
+            'nickname': nickname, 'tier_info': '일반게임', 'tier_id': 0, 'tier_image_url': game_data.get_tier_image_url(0),
             'mmr': 0, 'lp': 0, 'stats': {}, 'most_characters': [],
             'season_id': None, 'season_name': '일반게임',
             'rank': 0, 'rank_size': 0, 'rank_percent': 0,
             'level': level, 'exp': exp  # 레벨 정보 추가
         }
-    
+
     total_games = overview.get('play', 1)
     wins = overview.get('win', 0)
     
@@ -464,7 +464,7 @@ def _process_normal_game_data(nickname: str, profile_data: Dict) -> Optional[Dic
     most_characters = sorted(char_stats, key=lambda x: x['games'], reverse=True)[:10]
 
     return {
-        'nickname': nickname, 'tier_info': '일반게임', 'tier_image_url': game_data.get_tier_image_url(0),
+        'nickname': nickname, 'tier_info': '일반게임', 'tier_id': 0, 'tier_image_url': game_data.get_tier_image_url(0),
         'mmr': 0, 'lp': 0, 'stats': stats, 'most_characters': most_characters,
         'season_id': None, 'season_name': '일반게임',
         'rank': 0, 'rank_size': 0, 'rank_percent': 0,
@@ -492,14 +492,14 @@ def _process_player_data(nickname: str, profile_data: Dict, target_season_id: in
     target_season = next((s for s in profile_data.get('playerSeasons', []) if s.get('seasonId') == target_season_id), None)
     if not target_season:
         return {
-            'nickname': nickname, 'tier_info': '언랭크', 'tier_image_url': game_data.get_tier_image_url(0),
+            'nickname': nickname, 'tier_info': '언랭크', 'tier_id': 0, 'tier_image_url': game_data.get_tier_image_url(0),
             'mmr': 0, 'lp': 0, 'stats': {}, 'most_characters': [],
             'season_id': target_season_id, 'season_name': game_data.get_season_name(target_season_id)
         }
 
     mmr, tier_id, grade, lp = target_season.get('mmr', 0), target_season.get('tierId', 0), target_season.get('tierGradeId', 1), target_season.get('tierMmr', 0)
     tier_name = game_data.get_tier_name(tier_id)
-    tier_info = f"{tier_name} {grade} {lp} RP (MMR {mmr})" if tier_id > 0 else f"{tier_name} (MMR {mmr})"
+    tier_info = f"{tier_name} {grade} - {lp} RP" if tier_id > 0 else tier_name
     
     # 랭킹 정보는 playerSeasonOverviews에서 찾기
     rank = 0
@@ -890,7 +890,8 @@ async def get_player_recent_games(nickname: str, season_id: int = None, game_mod
                 'subWeather': game.get('subWeather'),  # 부 날씨
                 'items': str(game.get('items', [])),  # 리스트를 문자열로 변환
                 'equipment': str(game.get('equipment', [])),  # 리스트를 문자열로 변환
-                'mastery': str(game.get('mastery', [])),  # 리스트를 문자열로 변홨
+                'mastery': str(game.get('mastery', [])),  # 리스트를 문자열로 변환
+                'masteryLevel': game.get('masteryLevel', ''),  # 무기스킬 정보 (dict -> str)
                 'teamKill': game.get('teamKill', 0)  # 팀킬 정보 추가
             }
             

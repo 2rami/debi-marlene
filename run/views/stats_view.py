@@ -29,11 +29,11 @@ from run.utils.emoji_utils import (
     get_character_emoji,
     get_tier_emoji,
     get_weapon_emoji,
-    get_weapon_skill_emoji,
     get_item_emoji,
     get_trait_emoji,
     get_tactical_skill_emoji,
-    get_skin_emoji
+    get_skin_emoji,
+    get_weather_emoji
 )
 
 
@@ -322,15 +322,13 @@ class StatsLayoutView(discord.ui.LayoutView):
         level = game.get('characterLevel', 1)
         game_id = game.get('gameId', 0)
 
-        # 무기 이모지 (weaponType 직접 사용)
+        # 무기 이모지 (bestWeapon = mastery ID)
         weapon_emoji = ""
-        weapon_type = game.get('weaponType') or game.get('bestWeapon')
-        if weapon_type:
-            weapon_key = game_data.get_weapon_key(weapon_type)
+        best_weapon = game.get('bestWeapon')
+        if best_weapon:
+            weapon_key = game_data.get_weapon_key(best_weapon)
             if weapon_key:
                 weapon_emoji = get_weapon_emoji(weapon_key)
-                if not weapon_emoji:
-                    logger.warning(f"[최근전적] 무기 이모지 없음: weapon_key={weapon_key}, weapon_type={weapon_type}")
 
         # 전술스킬 이모지
         tactical_emoji = ""
@@ -365,16 +363,24 @@ class StatsLayoutView(discord.ui.LayoutView):
             except Exception:
                 pass
 
-        # 순위 표시
-        rank_display = f"{rank}등 WIN" if rank == 1 else f"{rank}등"
+        # 순위 표시 (\# 이스케이프로 마크다운 헤딩 충돌 방지)
+        rank_display = f"\\#{rank} WIN" if rank == 1 else f"\\#{rank}"
 
-        # 아이템 이모지
+        # 순위별 악센트 색상
+        if rank == 1:
+            accent_colour = discord.Colour(0x00CED1)   # 청옥색
+        elif rank <= 3:
+            accent_colour = discord.Colour(0x5865F2)   # 파란색
+        else:
+            accent_colour = discord.Colour(0x4F545C)   # 회색
+
+        # 아이템 이모지 (str()로 변환된 Python list → ast.literal_eval로 파싱)
         equipment = game.get('equipment', [])
         if isinstance(equipment, str):
-            import json
+            import ast
             try:
-                equipment = json.loads(equipment)
-            except:
+                equipment = ast.literal_eval(equipment)
+            except Exception:
                 equipment = []
         item_emojis = []
         if equipment and isinstance(equipment, list):
@@ -384,22 +390,6 @@ class StatsLayoutView(discord.ui.LayoutView):
                     emoji = get_item_emoji(item_code)
                     if emoji:
                         item_emojis.append(emoji)
-
-        # 무기스킬 이모지 (masteryLevel에서 100~199 범위 추출)
-        weapon_skill_emojis = []
-        mastery_level_raw = game.get('masteryLevel', '')
-        if mastery_level_raw and isinstance(mastery_level_raw, str):
-            import ast
-            try:
-                mastery_dict = ast.literal_eval(mastery_level_raw)
-                for mid_str in mastery_dict:
-                    mid = int(mid_str)
-                    if 100 <= mid < 200:
-                        ws_emoji = get_weapon_skill_emoji(mid)
-                        if ws_emoji:
-                            weapon_skill_emojis.append(ws_emoji)
-            except Exception:
-                pass
 
         # 특성 + 팀원 정보
         game_details = await get_game_details(game_id)
@@ -430,71 +420,119 @@ class StatsLayoutView(discord.ui.LayoutView):
                     tm_emoji = get_character_emoji(tm_char_key) if tm_char_key else ""
                     tm_nick = tm.get('nickname', '')
                     tm_dmg = tm.get('damageToPlayer', 0)
-                    tm_lines.append(f"{tm_emoji} {tm_char} **{tm_nick}** | 딜량 {tm_dmg:,}")
+                    # 팀원 장비 이모지
+                    tm_equip = tm.get('equipment', {})
+                    tm_item_emojis = []
+                    if isinstance(tm_equip, dict):
+                        for slot in sorted(tm_equip.keys())[:6]:
+                            ic = tm_equip[slot]
+                            if ic and ic > 0:
+                                ie = get_item_emoji(ic)
+                                if ie:
+                                    tm_item_emojis.append(ie)
+                    elif isinstance(tm_equip, list):
+                        for item in tm_equip[:6]:
+                            ic = item.get('itemCode', 0) if isinstance(item, dict) else item
+                            if ic and ic > 0:
+                                ie = get_item_emoji(ic)
+                                if ie:
+                                    tm_item_emojis.append(ie)
+                    tm_items_str = " ".join(tm_item_emojis) if tm_item_emojis else ""
+                    line = f"### {tm_emoji} {tm_nick} | 딜량 {tm_dmg:,}"
+                    if tm_items_str:
+                        line += f"\n### {tm_items_str}"
+                    tm_lines.append(line)
                 team_text = "\n".join(tm_lines)
 
         # 텍스트 구성
         self.clear_items()
 
-        # 헤더 라인
-        header_parts = [f"# {rank_display}"]
         char_key = game_data.get_character_key(char_code)
         char_emoji = get_character_emoji(char_key) if char_key else ""
+
+        # === 상단 컨테이너: 순위 + 캐릭터 + 아이템 + 특성 + 전투 ===
+        upper_children = []
+
+        # 헤더 (순위 + 캐릭터 + 전투정보)
+        # 순위를 별도 줄로, 캐릭터 정보는 그 아래
         sub_parts = [f"{char_emoji} {char_name} Lv.{level}" if char_emoji else f"{char_name} Lv.{level}"]
         if weapon_emoji:
             sub_parts.append(weapon_emoji)
-        if weapon_skill_emojis:
-            sub_parts.extend(weapon_skill_emojis)
         if tactical_emoji:
             sub_parts.append(tactical_emoji)
-        header_parts.append(" ".join(sub_parts))
-        if time_info:
-            header_parts.append(f"-# {time_info}")
 
-        # 캐릭터 이미지
+        combat_line = f"TK/K/A {team_kills}/{kills}/{assists} | 딜량 {damage:,}"
+        if actual_mode in (3, 8) and mmr_gain != 0:
+            combat_line += f" | RP {mmr_gain:+d}"
+
+        header_parts = [f"## {rank_display}", ' '.join(sub_parts), combat_line]
+
         char_image = game.get('characterImage')
         header_display = discord.ui.TextDisplay("\n".join(header_parts))
-
         if char_image:
-            self.add_item(discord.ui.Section(header_display, accessory=discord.ui.Thumbnail(media=char_image)))
+            upper_children.append(discord.ui.Section(header_display, accessory=discord.ui.Thumbnail(media=char_image)))
         else:
-            self.add_item(header_display)
-
-        # 상세 정보 Container
-        detail_children = []
+            upper_children.append(header_display)
 
         # 아이템
         if item_emojis:
-            detail_children.append(discord.ui.TextDisplay(f"**아이템** {' '.join(item_emojis)}"))
+            upper_children.append(discord.ui.TextDisplay(f"### 아이템 {' '.join(item_emojis)}"))
+
+        # 아이템/특성 사이 구분선
+        if item_emojis and trait_emojis:
+            upper_children.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
 
         # 특성
         if trait_emojis:
-            detail_children.append(discord.ui.TextDisplay(f"**특성** {' '.join(trait_emojis)}"))
+            upper_children.append(discord.ui.TextDisplay(f"### 특성 {' '.join(trait_emojis)}"))
 
-        # 전투 정보
-        combat_line = f"**TK/K/A** {team_kills}/{kills}/{assists} | **딜량** {damage:,}"
-        if actual_mode in (3, 8) and mmr_gain != 0:
-            combat_line += f" | **RP** {mmr_gain:+d}"
-        detail_children.append(discord.ui.TextDisplay(combat_line))
+        # 게임 시간 (하단)
+        if time_info:
+            upper_children.append(discord.ui.TextDisplay(f"-# {time_info}"))
+
+        self.add_item(discord.ui.Container(*upper_children, accent_colour=accent_colour))
+
+        # === 하단 컨테이너: 팀원 + 푸터 + 네비게이션 ===
+        lower_children = []
 
         # 팀원
         if team_text:
-            detail_children.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
-            detail_children.append(discord.ui.TextDisplay(team_text))
+            lower_children.append(discord.ui.TextDisplay(team_text))
 
-        # 푸터
-        detail_children.append(discord.ui.TextDisplay(f"-# {season_name} | {game_mode_text} | {self._recent_index + 1}/{len(self._recent_games)}"))
+        # 푸터 (날씨 이모지 + 텍스트)
+        footer_parts = [season_name, game_mode_text]
+        # 메인 날씨
+        main_weather = game.get('mainWeather')
+        if main_weather:
+            w_emoji = get_weather_emoji(main_weather)
+            w_name = game_data.get_weather_name(main_weather)
+            if w_emoji and w_name:
+                footer_parts.append(f"{w_emoji} {w_name}")
+            elif w_name:
+                footer_parts.append(w_name)
+        # 서브 날씨
+        sub_weather = game.get('subWeather')
+        if sub_weather:
+            sw_emoji = get_weather_emoji(sub_weather)
+            sw_name = game_data.get_weather_name(sub_weather)
+            if sw_emoji and sw_name:
+                footer_parts.append(f"{sw_emoji} {sw_name}")
+            elif sw_name:
+                footer_parts.append(sw_name)
+        lower_children.append(discord.ui.TextDisplay(f"-# **{' | '.join(footer_parts)}**"))
 
-        # 네비게이션 버튼 (이전/다음)
+        # 네비게이션 버튼 (페이지 수를 가운데 버튼에 표시)
+        page_label = f"{self._recent_index + 1}/{len(self._recent_games)}"
         btn_prev = discord.ui.Button(label='◀', style=discord.ButtonStyle.secondary, disabled=(self._recent_index == 0))
         btn_prev.callback = self._on_recent_prev
-        btn_back = discord.ui.Button(label='돌아가기', style=discord.ButtonStyle.primary)
+        btn_page = discord.ui.Button(label=page_label, style=discord.ButtonStyle.primary, disabled=True)
+        btn_back = discord.ui.Button(label='돌아가기', style=discord.ButtonStyle.secondary)
         btn_back.callback = self._on_main
         btn_next = discord.ui.Button(label='▶', style=discord.ButtonStyle.secondary, disabled=(self._recent_index >= len(self._recent_games) - 1))
         btn_next.callback = self._on_recent_next
-        detail_children.append(discord.ui.ActionRow(btn_prev, btn_back, btn_next))
+        lower_children.append(discord.ui.ActionRow(btn_prev, btn_page, btn_back, btn_next))
 
-        self.add_item(discord.ui.Container(*detail_children))
+        self.add_item(discord.ui.Container(*lower_children, accent_colour=accent_colour))
         await interaction.edit_original_response(view=self)
 
     async def _on_recent_prev(self, interaction):

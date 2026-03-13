@@ -5,6 +5,7 @@ Discord 봇 인스턴스 및 이벤트 핸들러
 """
 
 import asyncio
+import aiohttp
 import discord
 import os
 import json
@@ -258,6 +259,13 @@ async def on_ready():
     print(f"[정보] 현재 {guild_count}개 서버에 연결되었습니다, 총 {total_members}명 사용자", flush=True)
     sys.stdout.flush()
 
+    # 모든 명령어에 allowed_installs/allowed_contexts 설정 (프로필에 명령어 표시)
+    installs = discord.app_commands.AppInstallationType(guild=True, user=True)
+    contexts = discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True)
+    for cmd in bot.tree.get_commands():
+        cmd.allowed_installs = installs
+        cmd.allowed_contexts = contexts
+
     # 명령어 동기화를 최우선으로 실행 (유저가 바로 커맨드를 쓸 수 있도록)
     try:
         synced = await bot.tree.sync()
@@ -374,9 +382,7 @@ async def _background_init():
         from run.utils.emoji_utils import load_emoji_map, EmojiAutoUpdater
         await load_emoji_map(bot)
 
-        # 이모지 자동 업데이트 서비스 시작 (매주 목요일 오후 5시)
         bot.emoji_auto_updater = EmojiAutoUpdater(bot)
-        print("[완료] 이모지 자동 업데이트 서비스 시작 (매주 목요일 오후 5시)", flush=True)
 
         # 기존 음성 연결 복구 (봇 재시작/RESUME 후 voice_manager에 등록)
         from run.services.voice_manager import voice_manager
@@ -387,6 +393,11 @@ async def _background_init():
                 voice_manager.current_type[guild_id] = None
                 print(f"[음성] 기존 연결 복구: {vc.guild.name} / {vc.channel.name}", flush=True)
 
+        # 동접수 상태 업데이트 태스크 시작
+        if not update_presence.is_running():
+            update_presence.start()
+            print("[완료] 동접수 상태 업데이트 태스크 시작 (5분 간격)", flush=True)
+
         print("[완료] 모든 초기화 완료!", flush=True)
         sys.stdout.flush()
 
@@ -396,6 +407,25 @@ async def _background_init():
         import traceback
         traceback.print_exc()
         sys.stdout.flush()
+
+
+STEAM_PLAYER_COUNT_URL = "https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=1049590"
+
+
+@tasks.loop(minutes=5)
+async def update_presence():
+    """5분마다 이터널리턴 동접수를 가져와 봇 상태에 표시"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(STEAM_PLAYER_COUNT_URL, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get("response", {}).get("result") == 1:
+                        count = data["response"]["player_count"]
+                        activity = discord.CustomActivity(name=f"이터널리턴 동접 {count:,}명")
+                        await bot.change_presence(activity=activity)
+    except Exception as e:
+        print(f"[경고] 동접수 상태 업데이트 실패: {e}", flush=True)
 
 
 @bot.event

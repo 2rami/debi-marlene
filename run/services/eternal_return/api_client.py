@@ -882,7 +882,7 @@ async def get_player_recent_games(nickname: str, season_id: int = None, game_mod
                 'startDtm': game.get('startDtm'),  # 게임 시작 시간
                 'duration': game.get('duration'),  # 게임 지속 시간
                 # 추가 정보들
-                'weaponType': game.get('weaponType'),
+                'bestWeapon': game.get('bestWeapon'),
                 'traitType': game.get('traitType'),
                 'skillType': game.get('skillType'),
                 'tacticalSkillGroup': game.get('tacticalSkillGroup'),  # 전술스킬

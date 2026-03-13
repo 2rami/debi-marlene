@@ -404,6 +404,14 @@ def set_youtube_subscription(user_id, subscribe: bool, user_name=None):
 
     return save_settings(settings)
 
+
+def is_youtube_subscribed(user_id) -> bool:
+    """사용자의 유튜브 DM 알림 구독 상태를 확인합니다."""
+    settings = load_settings()
+    user_id_str = str(user_id)
+    return settings.get("users", {}).get(user_id_str, {}).get("youtube_subscribed", False)
+
+
 def get_server_admins(guild_id=None):
     """서버 관리자 목록을 반환합니다. guild_id가 주어지면 해당 서버의 관리자만 반환."""
     settings = load_settings()

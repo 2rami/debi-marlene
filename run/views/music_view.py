@@ -4,6 +4,7 @@
 Spotify 스타일 버튼 컨트롤과 상시 대기열을 제공합니다.
 """
 
+import asyncio
 import discord
 from typing import List, Optional
 import logging
@@ -11,6 +12,13 @@ import logging
 from run.services.music.youtube_extractor import Song, format_duration
 
 logger = logging.getLogger(__name__)
+
+# 애플리케이션 커스텀 이모지 ID
+EMOJI_PLAY = discord.PartialEmoji(name="ui_play", id=1481865511804600481)
+EMOJI_PAUSE = discord.PartialEmoji(name="ui_pause", id=1481865513608024094)
+EMOJI_SKIP = discord.PartialEmoji(name="ui_skip", id=1481865515332010098)
+EMOJI_PREVIOUS = discord.PartialEmoji(name="ui_previous", id=1481865516959137975)
+EMOJI_STOP = discord.PartialEmoji(name="ui_stop", id=1481865518892716096)
 
 
 def _build_player_embed(guild_id: str) -> discord.Embed:
@@ -71,7 +79,7 @@ class MusicPlayerView(discord.ui.View):
         except Exception:
             pass
 
-    @discord.ui.button(emoji="\u23EE\uFE0F", label="처음", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji=EMOJI_PREVIOUS, label="처음", style=discord.ButtonStyle.secondary)
     async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """처음부터 다시 재생"""
         from run.services.music import MusicManager
@@ -85,13 +93,12 @@ class MusicPlayerView(discord.ui.View):
             await interaction.response.send_message("재생 중인 곡이 없어요!", ephemeral=True)
             return
 
-        # 현재 곡을 대기열 맨 앞에 다시 넣고 스킵 -> 같은 곡 재시작
         player.queue.appendleft(player.current)
         await player.skip()
         await interaction.response.defer()
         await self._update_message(interaction)
 
-    @discord.ui.button(emoji="\u23F8\uFE0F", label="일시정지", style=discord.ButtonStyle.primary)
+    @discord.ui.button(emoji=EMOJI_PAUSE, label="일시정지", style=discord.ButtonStyle.primary)
     async def pause_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """일시정지 / 재개 토글"""
         from run.services.music import MusicManager
@@ -104,17 +111,17 @@ class MusicPlayerView(discord.ui.View):
 
         if player.is_paused():
             player.resume()
-            button.emoji = "\u23F8\uFE0F"
+            button.emoji = EMOJI_PAUSE
             button.label = "일시정지"
         else:
             player.pause()
-            button.emoji = "\u25B6\uFE0F"
+            button.emoji = EMOJI_PLAY
             button.label = "재생"
 
         await interaction.response.defer()
         await self._update_message(interaction)
 
-    @discord.ui.button(emoji="\u23ED\uFE0F", label="스킵", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji=EMOJI_SKIP, label="스킵", style=discord.ButtonStyle.secondary)
     async def skip_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """다음 곡으로 스킵"""
         from run.services.music import MusicManager
@@ -128,17 +135,14 @@ class MusicPlayerView(discord.ui.View):
             await interaction.response.send_message("스킵할 곡이 없어요!", ephemeral=True)
             return
 
-        skipped = await player.skip()
+        await player.skip()
         await interaction.response.defer()
-
-        # 잠시 대기 후 업데이트 (다음 곡 재생 시작 대기)
-        import asyncio
         await asyncio.sleep(0.5)
         await self._update_message(interaction)
 
-    @discord.ui.button(emoji="\u23F9\uFE0F", label="정지", style=discord.ButtonStyle.danger)
+    @discord.ui.button(emoji=EMOJI_STOP, label="정지", style=discord.ButtonStyle.danger)
     async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """정지 + 대기열 비우기"""
+        """정지 + 대기열 비우기 (음성 채널 유지)"""
         from run.services.music import MusicManager
 
         if not MusicManager.has_player(self.guild_id):
@@ -146,17 +150,24 @@ class MusicPlayerView(discord.ui.View):
             return
 
         await interaction.response.defer()
-        await MusicManager.remove_player(self.guild_id)
+        player = MusicManager.get_player(self.guild_id)
+        await player.stop()
 
         embed = discord.Embed(
             title="Stopped",
-            description="재생을 정지하고 대기열을 비웠습니다.",
+            description="재생을 정지했습니다.",
             color=0xFF0000
         )
 
-        # 버튼 비활성화
-        for item in self.children:
-            item.disabled = True
+        queue = player.get_queue()
+        if queue:
+            queue_lines = []
+            for i, s in enumerate(queue[:5], 1):
+                queue_lines.append(f"`{i}.` {s.title} [{format_duration(s.duration)}]")
+            if len(queue) > 5:
+                queue_lines.append(f"... +{len(queue) - 5}곡")
+            embed.add_field(name=f"Up Next ({len(queue)})", value="\n".join(queue_lines), inline=False)
+
         try:
             await interaction.message.edit(embed=embed, view=self)
         except Exception:

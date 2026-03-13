@@ -11,6 +11,10 @@ from run.views.settings_view import SettingsView
 
 DASHBOARD_URL = "https://debimarlene.com"
 
+# 애플리케이션 커스텀 이모지 ID
+EMOJI_SETTINGS = discord.PartialEmoji(name="ui_settings", id=1481865507861958777)
+EMOJI_DASHBOARD = discord.PartialEmoji(name="ui_dashboard", id=1481865509971693649)
+
 
 class WelcomeView(discord.ui.View):
     """
@@ -24,12 +28,14 @@ class WelcomeView(discord.ui.View):
         super().__init__(timeout=None)  # 영구적으로 유지
         self.add_item(discord.ui.Button(
             label="대시보드",
+            emoji=EMOJI_DASHBOARD,
             style=discord.ButtonStyle.link,
             url=DASHBOARD_URL
         ))
 
     @discord.ui.button(
         label="바로 설정하기",
+        emoji=EMOJI_SETTINGS,
         style=discord.ButtonStyle.success,
         custom_id="welcome_setup_button"
     )

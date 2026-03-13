@@ -1,9 +1,66 @@
 """
 Discord Embed 생성 함수들
 """
+import io
+import aiohttp
 import discord
 from run.services.eternal_return.api_client import game_data
 from run.utils.emoji_utils import get_tier_emoji
+
+
+async def download_image(url):
+    """URL에서 이미지를 다운로드하여 discord.File로 반환"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.read()
+                    return discord.File(io.BytesIO(data), filename="character.png")
+    except Exception:
+        pass
+    return None
+
+
+def build_stats_content(player_data, is_normal_mode=False):
+    """전적 마크다운 텍스트 생성 (임베드 없이 content로 사용)"""
+    nickname = player_data.get('nickname', 'Unknown Player')
+    season_name = game_data.get_season_name(player_data['season_id'])
+    game_mode_text = "일반게임" if is_normal_mode else "랭크게임"
+
+    lines = [f"## {nickname}"]
+
+    if is_normal_mode:
+        level = player_data.get('level', 1)
+        lines.append(f"**일반게임** | Lv.{level}")
+        if player_data.get('stats'):
+            stats = player_data['stats']
+            lines.append(f"평균 순위 **{stats.get('avg_rank', 0):.1f}등** | 승률 **{stats.get('winrate', 0):.1f}%**")
+    else:
+        rank_info = player_data.get('tier_info', 'Unranked')
+        lines.append(f"**{rank_info}**")
+
+        rank = player_data.get('rank', 0)
+        rank_percent = player_data.get('rank_percent', 0)
+        if rank > 0:
+            lines.append(f"{rank:,}위 상위 {rank_percent}%")
+
+        if player_data.get('most_characters'):
+            top_char = player_data['most_characters'][0]
+            lines.append(f"\n가장 많이 플레이한 실험체\n**{top_char['name']}** ({top_char['games']}게임)")
+
+        if player_data.get('stats'):
+            stats = player_data['stats']
+            lines.append(f"승률 **{stats.get('winrate', 0):.1f}%**")
+
+    lines.append(f"-# {season_name} | {game_mode_text}")
+    return "\n".join(lines)
+
+
+def get_stats_char_image_url(player_data):
+    """전적에서 보여줄 실험체 이미지 URL"""
+    if player_data.get('most_characters'):
+        return player_data['most_characters'][0].get('image_url')
+    return None
 
 
 # 유니온 티어 매핑 (API tier 값 -> 티어 이름)
@@ -33,59 +90,61 @@ UNION_TIER_MAP = {
 
 
 def create_stats_embed(player_data, is_normal_mode=False):
-    """플레이어 전적 Embed 생성
+    """플레이어 전적 Embed 생성 (카미봇 레이아웃)
 
-    Args:
-        player_data: 플레이어 데이터
-        is_normal_mode: 일반게임 모드 여부
+    레이아웃:
+    - author (왼쪽 아이콘): 티어 이미지 + 닉네임
+    - thumbnail (오른쪽): 실험체 스킨 이미지
+    - description: 전적 내용
     """
+    nickname = player_data.get('nickname', 'Unknown Player')
+    tier_image_url = player_data.get('tier_image_url', '')
+
     if is_normal_mode:
-        rank_info = "일반게임"
-        description = ""
-        embed = discord.Embed(title=rank_info, description=description, color=0x9932CC)
-
-        normal_game_image_url = "https://cdn.dak.gg/er/images/common/img-gamemode-normal.png"
-        embed.set_thumbnail(url=normal_game_image_url)
-
         level = player_data.get('level', 1)
-        embed.add_field(name="레벨", value=f"**Lv.{level}**", inline=True)
+        desc_lines = [f"**일반게임** | Lv.{level}"]
 
         if player_data.get('stats'):
             stats = player_data['stats']
-            embed.add_field(name="평균 순위", value=f"**{stats.get('avg_rank', 0):.1f}등**", inline=True)
-            embed.add_field(name="승률", value=f"**{stats.get('winrate', 0):.1f}%**", inline=True)
+            desc_lines.append(f"평균 순위 **{stats.get('avg_rank', 0):.1f}등** | 승률 **{stats.get('winrate', 0):.1f}%**")
+
+        embed = discord.Embed(description="\n".join(desc_lines), color=0x9932CC)
+
+        if player_data.get('most_characters') and player_data['most_characters'][0].get('image_url'):
+            embed.set_thumbnail(url=player_data['most_characters'][0]['image_url'])
+
     else:
         rank_info = player_data.get('tier_info', 'Unranked')
-        description = ""
+        desc_lines = [f"**{rank_info}**"]
+
         rank = player_data.get('rank', 0)
         rank_percent = player_data.get('rank_percent', 0)
         if rank > 0:
-            description = f"{rank:,}위 상위 {rank_percent}%"
-
-        embed = discord.Embed(title=rank_info, description=description, color=0x00D4AA)
-
-        if player_data.get('tier_image_url'):
-            embed.set_thumbnail(url=player_data['tier_image_url'])
+            desc_lines.append(f"{rank:,}위 상위 {rank_percent}%")
 
         if player_data.get('most_characters'):
             top_char = player_data['most_characters'][0]
-            embed.add_field(name="가장 많이 플레이한 실험체", value=f"**{top_char['name']}** ({top_char['games']}게임)", inline=True)
+            desc_lines.append(f"\n가장 많이 플레이한 실험체\n**{top_char['name']}** ({top_char['games']}게임)")
 
         if player_data.get('stats'):
             stats = player_data['stats']
-            embed.add_field(name="승률", value=f"**{stats.get('winrate', 0):.1f}%**", inline=True)
+            desc_lines.append(f"승률 **{stats.get('winrate', 0):.1f}%**")
 
-    nickname = player_data.get('nickname', 'Unknown Player')
-    author_icon_url = None
-    if player_data.get('most_characters'):
-        most_char = player_data['most_characters'][0]
-        if most_char.get('image_url'):
-            author_icon_url = most_char['image_url']
-    embed.set_author(name=nickname, icon_url=author_icon_url)
+        embed = discord.Embed(description="\n".join(desc_lines), color=0x00D4AA)
+
+        # thumbnail: 실험체 스킨 이미지 (오른쪽)
+        if player_data.get('most_characters') and player_data['most_characters'][0].get('image_url'):
+            embed.set_thumbnail(url=player_data['most_characters'][0]['image_url'])
+
+    # author: 티어 이미지 (왼쪽) + 닉네임
+    if tier_image_url:
+        embed.set_author(name=nickname, icon_url=tier_image_url)
+    else:
+        embed.set_author(name=nickname)
 
     season_name = game_data.get_season_name(player_data['season_id'])
     game_mode_text = "일반게임" if is_normal_mode else "랭크게임"
-    embed.set_footer(text=f"{season_name} • {game_mode_text}")
+    embed.set_footer(text=f"{season_name} * {game_mode_text}")
 
     return embed
 
@@ -204,4 +263,4 @@ def create_union_embed(union_data, nickname):
     return embed
 
 
-__all__ = ['create_stats_embed', 'create_union_embed']
+__all__ = ['create_stats_embed', 'create_union_embed', 'build_stats_content', 'get_stats_char_image_url', 'download_image']

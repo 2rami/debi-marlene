@@ -105,7 +105,7 @@ export default function QuizDashboard({ guildId }: Props) {
     setSaving(true)
     try {
       const aliases = editSong.aliases ? editSong.aliases.split(',').map(a => a.trim()).filter(Boolean) : []
-      await api.put(`/quiz/songs/${index}`, { ...editSong, aliases })
+      await api.put(`/quiz/${guildId}/songs/${index}`, { ...editSong, aliases })
       setEditIndex(null)
       const res = await api.get<{ songs: Song[]; count: number }>(`/quiz/${guildId}/songs`)
       setSongs(res.data.songs)
@@ -121,7 +121,7 @@ export default function QuizDashboard({ guildId }: Props) {
   const handleDeleteSong = async (index: number) => {
     setSaving(true)
     try {
-      await api.delete(`/quiz/songs/${index}`)
+      await api.delete(`/quiz/${guildId}/songs/${index}`)
       const res = await api.get<{ songs: Song[]; count: number }>(`/quiz/${guildId}/songs`)
       setSongs(res.data.songs)
       setSongCount(res.data.count)
@@ -137,7 +137,7 @@ export default function QuizDashboard({ guildId }: Props) {
     if (!confirm('글로벌 곡 목록에서 다시 복사하시겠습니까? 현재 서버의 곡 목록이 초기화됩니다.')) return
     setSaving(true)
     try {
-      await api.post('/quiz/songs/reset')
+      await api.post(`/quiz/${guildId}/songs/reset`)
       const res = await api.get<{ songs: Song[]; count: number }>(`/quiz/${guildId}/songs`)
       setSongs(res.data.songs)
       setSongCount(res.data.count)

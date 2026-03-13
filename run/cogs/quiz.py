@@ -1,10 +1,7 @@
 """
 퀴즈 게임 Cog
 
-/퀴즈 노래 - 노래 맞추기
-/퀴즈 노래출제 - 출제자가 직접 곡을 골라 출제
-/퀴즈 이터널리턴 - 이터널리턴 4지선다 퀴즈
-/퀴즈 중지 - 진행 중인 퀴즈 중단
+/퀴즈 - 퀴즈 유형 선택 (버튼) + 문제 수 선택 (드롭다운)
 """
 
 import asyncio
@@ -39,15 +36,40 @@ from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
 
-SECOND_HINT_REMAINING = 5  # 2차 힌트: 종료 5초 전
+SECOND_HINT_REMAINING = 5
 
 
-class QuizCog(commands.GroupCog, group_name="퀴즈"):
+class QuizCog(commands.Cog, name="퀴즈"):
     """퀴즈 게임 관련 명령어"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        super().__init__()
+
+    @app_commands.command(name="퀴즈", description="퀴즈 게임을 시작합니다")
+    async def quiz(self, interaction: discord.Interaction):
+        if not interaction.guild:
+            await interaction.response.send_message("서버에서만 사용할 수 있습니다.", ephemeral=True)
+            return
+
+        guild_id = str(interaction.guild.id)
+
+        if QuizManager.has_active_session(guild_id):
+            # 진행 중이면 중지 버튼만 보여주기
+            view = QuizStopView(guild_id, self)
+            await interaction.response.send_message(
+                "이미 진행 중인 퀴즈가 있습니다.",
+                view=view,
+                ephemeral=True,
+            )
+            return
+
+        embed = discord.Embed(
+            title="퀴즈 게임",
+            description="퀴즈 유형을 선택하세요!\n문제 수는 드롭다운에서 변경할 수 있어요.",
+            color=0x5865F2,
+        )
+        view = QuizStartView(self, interaction)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     # ---------- 공통 노래 답변 루프 ----------
 
@@ -64,16 +86,13 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
     ):
         """노래 퀴즈 한 문제의 재생, 힌트, 답변, 스킵을 처리합니다."""
 
-        # 스킵 버튼 (음성 채널 전원 투표)
         vc = voice_manager.get_voice_client(guild_id)
         member_count = max(1, len([m for m in vc.channel.members if not m.bot])) if vc else 1
         skip_view = SongSkipView(guild_id, member_count)
 
-        # 문제 Embed + 스킵 버튼 전송
         embed = create_song_question_embed(question_num, total)
         question_msg = await channel.send(embed=embed, view=skip_view)
 
-        # 클립 재생
         play_task = asyncio.create_task(
             SongQuiz.play_clip(guild_id, stream_info, 180)
         )
@@ -82,9 +101,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
         title_answered = False
         artist_answered = False
 
-        # 2단계 힌트
         async def send_hints():
-            # 1차: 제목 초성 (HINT_DELAY초 후)
             await asyncio.sleep(HINT_DELAY)
             if not answered and session.is_active and not title_answered:
                 h = get_title_hint(song.title)
@@ -92,7 +109,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                     question_num, total, hint=f"제목: {h}"
                 ))
 
-            # 2차: 가수 (종료 5초 전)
             second_delay = ANSWER_TIMEOUT - HINT_DELAY - SECOND_HINT_REMAINING
             await asyncio.sleep(second_delay)
             if not answered and session.is_active and not artist_answered:
@@ -102,7 +118,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
 
         hint_task = asyncio.create_task(send_hints())
 
-        # 정답 판정 (스킵은 버튼으로만)
         def msg_check(msg: discord.Message) -> bool:
             if msg.channel.id != session.channel_id or msg.author.bot:
                 return False
@@ -130,7 +145,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 {msg_wait, skip_wait, stop_wait}, return_when=asyncio.FIRST_COMPLETED
             )
 
-            # 중지 명령
             if stop_wait in done:
                 msg_wait.cancel()
                 try:
@@ -139,7 +153,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                     pass
                 break
 
-            # 스킵 투표 완료
             if skip_wait in done:
                 msg_wait.cancel()
                 try:
@@ -150,7 +163,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 answered = True
                 break
 
-            # 메시지 수신 또는 타임아웃
             try:
                 msg = msg_wait.result()
             except asyncio.TimeoutError:
@@ -177,7 +189,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             if title_answered and artist_answered:
                 answered = True
 
-        # 정리
         if not stop_wait.done():
             stop_wait.cancel()
         if not skip_wait.done():
@@ -186,7 +197,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
         SongQuiz.stop_playback(guild_id)
         play_task.cancel()
 
-        # 스킵 버튼 비활성화
         for item in skip_view.children:
             item.disabled = True
         try:
@@ -194,7 +204,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
         except Exception:
             pass
 
-        # 결과 Embed (중지 시에는 표시하지 않음)
         if not session.is_active:
             return
         if skipped:
@@ -212,43 +221,11 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
 
         await asyncio.sleep(3)
 
-    # ---------- /퀴즈 노래 ----------
+    # ---------- 퀴즈 실행 메서드 ----------
 
-    @app_commands.command(name="노래", description="노래 맞추기 퀴즈를 시작합니다")
-    @app_commands.describe(문제수="문제 수를 선택하세요")
-    @app_commands.choices(문제수=[
-        app_commands.Choice(name="5문제", value=5),
-        app_commands.Choice(name="10문제", value=10),
-        app_commands.Choice(name="15문제", value=15),
-    ])
-    async def song_quiz(
-        self,
-        interaction: discord.Interaction,
-        문제수: app_commands.Choice[int] = None,
-    ):
-        if not interaction.guild:
-            await interaction.response.send_message(
-                "서버에서만 사용할 수 있습니다.", ephemeral=True
-            )
-            return
-
+    async def _run_song_quiz(self, interaction: discord.Interaction, total: int):
+        """노래 맞추기 퀴즈를 실행합니다."""
         guild_id = str(interaction.guild.id)
-
-        if QuizManager.has_active_session(guild_id):
-            await interaction.response.send_message(
-                "이미 진행 중인 퀴즈가 있습니다. `/퀴즈 중지`로 먼저 종료해주세요.",
-                ephemeral=True,
-            )
-            return
-
-        if not interaction.user.voice:
-            await interaction.response.send_message(
-                "먼저 음성 채널에 입장해주세요!", ephemeral=True
-            )
-            return
-
-        total = 문제수.value if 문제수 else 5
-        await interaction.response.defer()
 
         await log_command_usage(
             command_name="퀴즈노래",
@@ -261,10 +238,9 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             args={"문제수": total},
         )
 
-        # 음성 채널 입장
         success = await voice_manager.join(interaction.user.voice.channel)
         if not success:
-            await interaction.followup.send("음성 채널 입장에 실패했습니다.", ephemeral=True)
+            await interaction.channel.send("음성 채널 입장에 실패했습니다.")
             return
 
         session = QuizManager.start_session(guild_id, interaction.channel_id, "song", total)
@@ -278,7 +254,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             ),
             color=0x1DB954,
         )
-        await interaction.followup.send(embed=start_embed)
+        await interaction.channel.send(embed=start_embed)
         await asyncio.sleep(2)
 
         channel = interaction.channel
@@ -302,7 +278,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 channel, session, song, stream_info, i + 1, total, guild_id
             )
 
-        # 결과 표시 + 저장
         final_session = QuizManager.end_session(guild_id)
         if final_session:
             embed = create_song_result_embed(
@@ -315,37 +290,9 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             await channel.send(embed=embed)
             self._save_result(guild_id, final_session, interaction.guild)
 
-    # ---------- /퀴즈 이터널리턴 ----------
-
-    @app_commands.command(name="이터널리턴", description="이터널리턴 퀴즈를 시작합니다")
-    @app_commands.describe(문제수="문제 수를 선택하세요")
-    @app_commands.choices(문제수=[
-        app_commands.Choice(name="5문제", value=5),
-        app_commands.Choice(name="10문제", value=10),
-        app_commands.Choice(name="15문제", value=15),
-    ])
-    async def er_quiz(
-        self,
-        interaction: discord.Interaction,
-        문제수: app_commands.Choice[int] = None,
-    ):
-        if not interaction.guild:
-            await interaction.response.send_message(
-                "서버에서만 사용할 수 있습니다.", ephemeral=True
-            )
-            return
-
+    async def _run_er_quiz(self, interaction: discord.Interaction, total: int):
+        """이터널리턴 퀴즈를 실행합니다."""
         guild_id = str(interaction.guild.id)
-
-        if QuizManager.has_active_session(guild_id):
-            await interaction.response.send_message(
-                "이미 진행 중인 퀴즈가 있습니다. `/퀴즈 중지`로 먼저 종료해주세요.",
-                ephemeral=True,
-            )
-            return
-
-        total = 문제수.value if 문제수 else 5
-        await interaction.response.defer()
 
         await log_command_usage(
             command_name="퀴즈이터널리턴",
@@ -365,7 +312,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             description=f"총 {total}문제 | 버튼을 눌러 정답을 선택하세요",
             color=0x5865F2,
         )
-        await interaction.followup.send(embed=start_embed)
+        await interaction.channel.send(embed=start_embed)
         await asyncio.sleep(2)
 
         channel = interaction.channel
@@ -387,7 +334,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             view = ERQuizView(question.choices, question.correct_index)
             msg = await channel.send(embed=embed, view=view)
 
-            # wait_for_answer와 stop_event를 경쟁
             answer_task = asyncio.create_task(view.wait_for_answer())
             stop_task = asyncio.create_task(session._stop_event.wait())
             done, _ = await asyncio.wait(
@@ -399,7 +345,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                     await answer_task
                 except asyncio.CancelledError:
                     pass
-                # 버튼 비활성화 후 break
                 for item in view.children:
                     item.disabled = True
                 try:
@@ -441,44 +386,10 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             await channel.send(embed=embed)
             self._save_result(guild_id, final_session, interaction.guild)
 
-    # ---------- /퀴즈 노래출제 ----------
-
-    @app_commands.command(name="노래출제", description="출제자가 직접 곡을 골라 노래 퀴즈를 출제합니다")
-    @app_commands.describe(문제수="문제 수를 선택하세요")
-    @app_commands.choices(문제수=[
-        app_commands.Choice(name="3문제", value=3),
-        app_commands.Choice(name="5문제", value=5),
-        app_commands.Choice(name="10문제", value=10),
-    ])
-    async def custom_song_quiz(
-        self,
-        interaction: discord.Interaction,
-        문제수: app_commands.Choice[int] = None,
-    ):
-        if not interaction.guild:
-            await interaction.response.send_message(
-                "서버에서만 사용할 수 있습니다.", ephemeral=True
-            )
-            return
-
+    async def _run_custom_song_quiz(self, interaction: discord.Interaction, total: int):
+        """노래 출제 모드를 실행합니다."""
         guild_id = str(interaction.guild.id)
-
-        if QuizManager.has_active_session(guild_id):
-            await interaction.response.send_message(
-                "이미 진행 중인 퀴즈가 있습니다. `/퀴즈 중지`로 먼저 종료해주세요.",
-                ephemeral=True,
-            )
-            return
-
-        if not interaction.user.voice:
-            await interaction.response.send_message(
-                "먼저 음성 채널에 입장해주세요!", ephemeral=True
-            )
-            return
-
-        total = 문제수.value if 문제수 else 5
         host = interaction.user
-        await interaction.response.defer()
 
         await log_command_usage(
             command_name="퀴즈노래출제",
@@ -493,7 +404,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
 
         success = await voice_manager.join(host.voice.channel)
         if not success:
-            await interaction.followup.send("음성 채널 입장에 실패했습니다.", ephemeral=True)
+            await interaction.channel.send("음성 채널 입장에 실패했습니다.")
             return
 
         session = QuizManager.start_session(guild_id, interaction.channel_id, "song", total)
@@ -508,7 +419,7 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             ),
             color=0xFF9B00,
         )
-        await interaction.followup.send(embed=start_embed)
+        await channel.send(embed=start_embed)
         await asyncio.sleep(1)
 
         for i in range(total):
@@ -517,7 +428,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
 
             session.current_question = i + 1
 
-            # 출제 버튼 전송
             submit_view = SongSubmitView(host.id, i + 1, total)
             prompt_embed = discord.Embed(
                 title=f"[{i + 1}/{total}] 곡 출제 대기중",
@@ -526,7 +436,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             )
             prompt_msg = await channel.send(embed=prompt_embed, view=submit_view)
 
-            # wait_for_song과 stop_event를 경쟁
             song_task = asyncio.create_task(submit_view.wait_for_song())
             stop_task = asyncio.create_task(session._stop_event.wait())
             done, _ = await asyncio.wait(
@@ -577,7 +486,6 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                 exclude_user_id=host.id,
             )
 
-        # 결과 표시 + 저장
         final_session = QuizManager.end_session(guild_id)
         if final_session:
             embed = create_song_result_embed(
@@ -590,31 +498,113 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
             await channel.send(embed=embed)
             self._save_result(guild_id, final_session, interaction.guild)
 
-    # ---------- /퀴즈 중지 ----------
+    # ---------- 결과 저장 헬퍼 ----------
 
-    @app_commands.command(name="중지", description="진행 중인 퀴즈를 중단합니다")
-    async def stop_quiz(self, interaction: discord.Interaction):
-        if not interaction.guild:
-            await interaction.response.send_message(
-                "서버에서만 사용할 수 있습니다.", ephemeral=True
-            )
+    @staticmethod
+    def _save_result(guild_id: str, session, guild: discord.Guild):
+        """퀴즈 결과를 GCS에 비동기로 저장합니다."""
+        if not session.scores:
+            return
+        try:
+            save_quiz_result(guild_id, session)
+            members = {}
+            for user_id in session.scores:
+                member = guild.get_member(user_id)
+                if member:
+                    members[user_id] = member.display_name
+            if members:
+                update_leaderboard_names(guild_id, members)
+        except Exception as e:
+            logger.error(f"퀴즈 결과 저장 중 오류: {e}")
+
+
+# ---------- 퀴즈 시작 뷰 ----------
+
+class QuizStartView(discord.ui.View):
+    """퀴즈 유형 선택 + 문제 수 선택 뷰"""
+
+    def __init__(self, cog: QuizCog, interaction: discord.Interaction):
+        super().__init__(timeout=60)
+        self.cog = cog
+        self.original_interaction = interaction
+        self.question_count = 5
+
+    @discord.ui.select(
+        placeholder="문제 수 (기본: 5)",
+        options=[
+            discord.SelectOption(label="5문제", value="5", default=True),
+            discord.SelectOption(label="10문제", value="10"),
+            discord.SelectOption(label="15문제", value="15"),
+        ],
+        row=0,
+    )
+    async def count_select(self, interaction: discord.Interaction, select: discord.ui.Select):
+        self.question_count = int(select.values[0])
+        await interaction.response.defer()
+
+    @discord.ui.button(label="노래 맞추기", style=discord.ButtonStyle.primary, row=1)
+    async def song_quiz_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not interaction.user.voice:
+            await interaction.response.send_message("먼저 음성 채널에 입장해주세요!", ephemeral=True)
             return
 
-        guild_id = str(interaction.guild.id)
-        session = QuizManager.get_session(guild_id)
+        # 버튼 비활성화
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(
+            content=f"노래 맞추기 {self.question_count}문제 시작!", embed=None, view=self
+        )
+        self.stop()
+        asyncio.create_task(self.cog._run_song_quiz(self.original_interaction, self.question_count))
 
+    @discord.ui.button(label="이터널리턴", style=discord.ButtonStyle.primary, row=1)
+    async def er_quiz_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(
+            content=f"이터널리턴 퀴즈 {self.question_count}문제 시작!", embed=None, view=self
+        )
+        self.stop()
+        asyncio.create_task(self.cog._run_er_quiz(self.original_interaction, self.question_count))
+
+    @discord.ui.button(label="노래 출제", style=discord.ButtonStyle.secondary, row=1)
+    async def custom_quiz_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not interaction.user.voice:
+            await interaction.response.send_message("먼저 음성 채널에 입장해주세요!", ephemeral=True)
+            return
+
+        # 노래 출제는 3/5/10 옵션
+        count = min(self.question_count, 10)
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(
+            content=f"노래 출제 모드 {count}문제 시작!", embed=None, view=self
+        )
+        self.stop()
+        asyncio.create_task(self.cog._run_custom_song_quiz(self.original_interaction, count))
+
+
+class QuizStopView(discord.ui.View):
+    """진행 중인 퀴즈 중지 뷰"""
+
+    def __init__(self, guild_id: str, cog: QuizCog):
+        super().__init__(timeout=30)
+        self.guild_id = guild_id
+        self.cog = cog
+
+    @discord.ui.button(label="퀴즈 중지", style=discord.ButtonStyle.danger)
+    async def stop_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        session = QuizManager.get_session(self.guild_id)
         if not session:
-            await interaction.response.send_message(
-                "진행 중인 퀴즈가 없습니다.", ephemeral=True
-            )
+            await interaction.response.send_message("진행 중인 퀴즈가 없습니다.", ephemeral=True)
             return
 
         await interaction.response.defer()
 
-        final_session = QuizManager.end_session(guild_id)
+        final_session = QuizManager.end_session(self.guild_id)
 
         if session.quiz_type == "song":
-            SongQuiz.stop_playback(guild_id)
+            SongQuiz.stop_playback(self.guild_id)
 
         if final_session and final_session.scores:
             if session.quiz_type == "song":
@@ -630,29 +620,15 @@ class QuizCog(commands.GroupCog, group_name="퀴즈"):
                     final_session.scores, final_session.current_question, interaction.guild
                 )
             await interaction.followup.send(content="퀴즈가 중단되었습니다.", embed=embed)
-            self._save_result(guild_id, final_session, interaction.guild)
+            self.cog._save_result(self.guild_id, final_session, interaction.guild)
         else:
             await interaction.followup.send("퀴즈가 중단되었습니다.")
 
-    # ---------- 결과 저장 헬퍼 ----------
-
-    @staticmethod
-    def _save_result(guild_id: str, session, guild: discord.Guild):
-        """퀴즈 결과를 GCS에 비동기로 저장합니다."""
-        if not session.scores:
-            return
+        button.disabled = True
         try:
-            save_quiz_result(guild_id, session)
-            # 리더보드에 닉네임 업데이트
-            members = {}
-            for user_id in session.scores:
-                member = guild.get_member(user_id)
-                if member:
-                    members[user_id] = member.display_name
-            if members:
-                update_leaderboard_names(guild_id, members)
-        except Exception as e:
-            logger.error(f"퀴즈 결과 저장 중 오류: {e}")
+            await interaction.message.edit(view=self)
+        except Exception:
+            pass
 
 
 async def setup(bot: commands.Bot):

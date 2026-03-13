@@ -40,16 +40,13 @@ def create_stats_embed(player_data, is_normal_mode=False):
         is_normal_mode: 일반게임 모드 여부
     """
     if is_normal_mode:
-        # 일반게임 모드: 언랭크 표시, 평균순위와 승률만
         rank_info = "일반게임"
         description = ""
         embed = discord.Embed(title=rank_info, description=description, color=0x9932CC)
 
-        # 일반게임 전용 이미지 사용
         normal_game_image_url = "https://cdn.dak.gg/er/images/common/img-gamemode-normal.png"
         embed.set_thumbnail(url=normal_game_image_url)
 
-        # 통계 필드 - 레벨, 평균순위, 승률
         level = player_data.get('level', 1)
         embed.add_field(name="레벨", value=f"**Lv.{level}**", inline=True)
 
@@ -58,7 +55,6 @@ def create_stats_embed(player_data, is_normal_mode=False):
             embed.add_field(name="평균 순위", value=f"**{stats.get('avg_rank', 0):.1f}등**", inline=True)
             embed.add_field(name="승률", value=f"**{stats.get('winrate', 0):.1f}%**", inline=True)
     else:
-        # 랭크게임 모드: 기존 표시 방식
         rank_info = player_data.get('tier_info', 'Unranked')
         description = ""
         rank = player_data.get('rank', 0)
@@ -87,7 +83,6 @@ def create_stats_embed(player_data, is_normal_mode=False):
             author_icon_url = most_char['image_url']
     embed.set_author(name=nickname, icon_url=author_icon_url)
 
-    # 푸터에 시즌명과 게임 모드 표시
     season_name = game_data.get_season_name(player_data['season_id'])
     game_mode_text = "일반게임" if is_normal_mode else "랭크게임"
     embed.set_footer(text=f"{season_name} • {game_mode_text}")

@@ -20,6 +20,7 @@ from run.services.eternal_return.api_client import (
 from run.views.stats_view import StatsView
 from run.views.character_view import CharacterStatsView
 from run.utils.embeds import create_stats_embed
+from run.utils.emoji_utils import get_character_emoji
 from run.utils.command_logger import log_command_usage
 
 

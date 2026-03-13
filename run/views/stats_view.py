@@ -1,14 +1,17 @@
 """
-전적 조회 UI (StatsView)
+전적 조회 UI (StatsLayoutView + StatsView)
 
-이 파일은 /전적 명령어에서 사용하는 UI를 담당해요.
-버튼을 눌러서 메인/실험체/최근전적/통계/유니온을 볼 수 있어요.
+Components V2 기반 레이아웃 (Section + Thumbnail)으로 메인 전적을 표시하고,
+최근전적/통계(그래프)/유니온 등 embed가 필요한 화면은 StatsView로 전환.
 """
 import discord
 import tempfile
 import os
 import asyncio
+import logging
 from typing import Optional, List, Dict, Any
+
+logger = logging.getLogger(__name__)
 
 from run.utils.embeds import create_stats_embed, create_union_embed
 from run.services.eternal_return.api_client import (
@@ -24,6 +27,7 @@ from run.services.eternal_return.api_client import (
 from run.services.eternal_return.graph_generator import save_mmr_graph_to_file
 from run.utils.emoji_utils import (
     get_character_emoji,
+    get_tier_emoji,
     get_weapon_emoji,
     get_item_emoji,
     get_trait_emoji,
@@ -32,144 +36,476 @@ from run.utils.emoji_utils import (
 )
 
 
-class StatsView(discord.ui.View):
-    """
-    플레이어 전적 조회 UI
+class StatsLayoutView(discord.ui.LayoutView):
+    """Components V2 기반 전적 조회 UI (Section + Thumbnail 레이아웃)"""
 
-    버튼들:
-    - 메인: 기본 전적 화면
-    - 실험체: 가장 많이 플레이한 실험체들
-    - 최근전적: 최근 게임 결과 (이미지)
-    - 통계: MMR 그래프 및 통계
-    - 유니온: 유니온 팀 정보
-    """
-    def __init__(self, player_data: Dict[str, Any], played_seasons: Optional[List[Dict]] = None):
+    def __init__(self, player_data, played_seasons=None, current_mode="RANK", show_preseason=False):
         super().__init__(timeout=300)
         self.player_data = player_data
-        self.original_nickname = player_data['nickname']  # 원본 닉네임 보존
+        self.original_nickname = player_data['nickname']
         self.played_seasons = played_seasons or []
-        self.show_preseason = False  # 프리시즌 표시 여부
-        self.current_mode = "RANK"  # 현재 모드: "RANK", "NORMAL", "UNION"
+        self.show_preseason = show_preseason
+        self.current_mode = current_mode
+        self._build_main()
 
-        # 시즌 선택 메뉴 추가
-        season_select = self.create_season_select()
-        if season_select:
-            self.add_item(season_select)
+    def _is_preseason(self, season_name):
+        return "프리" in season_name or "Pre" in season_name
 
-        # 프리시즌이 있으면 프리시즌 버튼과 일반게임 버튼을 3번째 줄에 추가
-        if any(self._is_preseason(s['name']) for s in self.played_seasons):
-            # 일반게임 버튼
-            normal_button = discord.ui.Button(
-                label='일반게임',
-                style=discord.ButtonStyle.secondary,
-                custom_id='toggle_normal',
-                row=3
-            )
-            normal_button.callback = self.toggle_normal_games
-            self.add_item(normal_button)
+    def _filter_seasons_by_type(self):
+        if not self.played_seasons:
+            return []
+        return [s for s in self.played_seasons if self._is_preseason(s['name']) == self.show_preseason][:25]
 
-            # 유니온 버튼
-            union_button = discord.ui.Button(
-                label='유니온',
-                style=discord.ButtonStyle.secondary,
-                custom_id='toggle_union',
-                row=3
-            )
-            union_button.callback = self.toggle_union_mode
-            self.add_item(union_button)
+    def _build_stats_text(self, is_normal):
+        """메인 화면 전적 텍스트"""
+        nickname = self.player_data.get('nickname', 'Unknown')
 
-            # 프리시즌 버튼
-            toggle_button = discord.ui.Button(
-                label='프리시즌',
-                style=discord.ButtonStyle.secondary,
-                custom_id='toggle_season',
-                row=3
-            )
-            toggle_button.callback = self.toggle_season_type
-            self.add_item(toggle_button)
+        # 티어 이모지
+        tier_emoji = ""
+        tier_id = self.player_data.get('tier_id', 0)
+        if tier_id:
+            tier_emoji = get_tier_emoji(tier_id) or ""
 
-    @discord.ui.button(label='메인', style=discord.ButtonStyle.primary, row=0)
-    async def back_to_main(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """메인 화면으로 돌아가기"""
+        if is_normal:
+            level = self.player_data.get('level', 1)
+            lines = [f"# {nickname}", f"**일반게임** | Lv.{level}"]
+            if self.player_data.get('stats'):
+                stats = self.player_data['stats']
+                lines.append(f"평균 순위 **{stats.get('avg_rank', 0):.1f}등** | 승률 **{stats.get('winrate', 0):.1f}%**")
+        else:
+            rank_info = self.player_data.get('tier_info', 'Unranked')
+            lines = [f"# {nickname}"]
+            if tier_emoji:
+                lines.append(f"## {tier_emoji} {rank_info}")
+            else:
+                lines.append(f"## {rank_info}")
+            rank = self.player_data.get('rank', 0)
+            rank_percent = self.player_data.get('rank_percent', 0)
+            if rank > 0:
+                lines.append(f"{rank:,}위 상위 {rank_percent}%")
+            if self.player_data.get('most_characters'):
+                top_char = self.player_data['most_characters'][0]
+                lines.append(f"\n가장 많이 플레이한 실험체\n**{top_char['name']}** ({top_char['games']}게임)")
+            if self.player_data.get('stats'):
+                stats = self.player_data['stats']
+                lines.append(f"승률 **{stats.get('winrate', 0):.1f}%**")
+        return "\n".join(lines)
+
+    def _build_main(self):
+        """메인 전적 화면 - 카미봇 스타일 (top-level Section + Container)"""
+        self.clear_items()
         is_normal = (self.current_mode == "NORMAL")
-        embed = create_stats_embed(self.player_data, is_normal)
-        await interaction.response.edit_message(embed=embed, view=self, attachments=[])
 
-    @discord.ui.button(label='실험체', style=discord.ButtonStyle.primary, row=0)
-    async def show_characters(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """가장 많이 플레이한 실험체들 표시"""
-        embed = discord.Embed(title=f"{self.player_data['nickname']}님의 실험체", color=0x5865F2)
+        # === 상단: top-level (Container 밖) - 전적 정보 ===
+        stats_text = self._build_stats_text(is_normal)
+        text_display = discord.ui.TextDisplay(stats_text)
+
+        # 실험체 스킨 이미지를 오른쪽 Thumbnail으로
+        char_image_url = None
+        if self.player_data.get('most_characters') and self.player_data['most_characters'][0].get('image_url'):
+            char_image_url = self.player_data['most_characters'][0]['image_url']
+
+        if char_image_url:
+            section = discord.ui.Section(text_display, accessory=discord.ui.Thumbnail(media=char_image_url))
+        else:
+            section = discord.ui.Section(text_display)
+
+        # 시즌 푸터
+        season_name = game_data.get_season_name(self.player_data['season_id'])
+        game_mode_text = "일반게임" if is_normal else "랭크게임"
+        footer = discord.ui.TextDisplay(f"-# {season_name} | {game_mode_text}")
+
+        # 상단 Container (accent_colour 없음)
+        self.add_item(discord.ui.Container(section, footer))
+
+        # === 하단: Container 안 - 버튼 + 드롭다운 ===
+        self._add_navigation_in_container()
+
+    def _add_navigation_in_container(self):
+        """네비게이션을 Container 안에 배치"""
+        container_children = []
+
+        # Row 1: 메인 버튼들
+        btn_main = discord.ui.Button(label='메인', style=discord.ButtonStyle.primary)
+        btn_main.callback = self._on_main
+        btn_chars = discord.ui.Button(label='실험체', style=discord.ButtonStyle.primary)
+        btn_chars.callback = self._on_characters
+        btn_recent = discord.ui.Button(label='최근전적', style=discord.ButtonStyle.success)
+        btn_recent.callback = self._on_recent_games
+        btn_stats = discord.ui.Button(label='통계', style=discord.ButtonStyle.secondary)
+        btn_stats.callback = self._on_stats
+
+        container_children.append(discord.ui.ActionRow(btn_main, btn_chars, btn_recent, btn_stats))
+
+        # Row 2: 시즌 선택 드롭다운
+        filtered_seasons = self._filter_seasons_by_type()
+        if filtered_seasons:
+            options = [
+                discord.SelectOption(
+                    label=f"{s['name']}{' (현재)' if s.get('is_current') else ''}",
+                    value=str(s['id']),
+                )
+                for s in filtered_seasons
+            ]
+            placeholder = "프리시즌별 전적 보기..." if self.show_preseason else "시즌별 전적 보기..."
+            select = discord.ui.Select(placeholder=placeholder, options=options)
+            select.callback = self._on_season_select
+            container_children.append(discord.ui.ActionRow(select))
+
+        # Row 3: 모드 토글 버튼 (프리시즌이 있을 때만)
+        if any(self._is_preseason(s['name']) for s in self.played_seasons):
+            normal_label = '랭크게임' if self.current_mode == "NORMAL" else '일반게임'
+            btn_normal = discord.ui.Button(label=normal_label, style=discord.ButtonStyle.secondary)
+            btn_normal.callback = self._on_toggle_normal
+
+            btn_union = discord.ui.Button(label='유니온', style=discord.ButtonStyle.secondary)
+            btn_union.callback = self._on_toggle_union
+
+            season_label = '정식시즌' if self.show_preseason else '프리시즌'
+            btn_season = discord.ui.Button(label=season_label, style=discord.ButtonStyle.secondary)
+            btn_season.callback = self._on_toggle_season_type
+
+            container_children.append(discord.ui.ActionRow(btn_normal, btn_union, btn_season))
+
+        container = discord.ui.Container(*container_children)
+        self.add_item(container)
+
+    def _add_navigation(self):
+        """네비게이션 버튼 (top-level, 서브화면용)"""
+        btn_main = discord.ui.Button(label='메인', style=discord.ButtonStyle.primary)
+        btn_main.callback = self._on_main
+        btn_chars = discord.ui.Button(label='실험체', style=discord.ButtonStyle.primary)
+        btn_chars.callback = self._on_characters
+        btn_recent = discord.ui.Button(label='최근전적', style=discord.ButtonStyle.success)
+        btn_recent.callback = self._on_recent_games
+        btn_stats = discord.ui.Button(label='통계', style=discord.ButtonStyle.secondary)
+        btn_stats.callback = self._on_stats
+
+        nav_row = discord.ui.ActionRow(btn_main, btn_chars, btn_recent, btn_stats)
+        self.add_item(nav_row)
+
+        filtered_seasons = self._filter_seasons_by_type()
+        if filtered_seasons:
+            options = [
+                discord.SelectOption(
+                    label=f"{s['name']}{' (현재)' if s.get('is_current') else ''}",
+                    value=str(s['id']),
+                )
+                for s in filtered_seasons
+            ]
+            placeholder = "프리시즌별 전적 보기..." if self.show_preseason else "시즌별 전적 보기..."
+            select = discord.ui.Select(placeholder=placeholder, options=options)
+            select.callback = self._on_season_select
+            self.add_item(discord.ui.ActionRow(select))
+
+        if any(self._is_preseason(s['name']) for s in self.played_seasons):
+            normal_label = '랭크게임' if self.current_mode == "NORMAL" else '일반게임'
+            btn_normal = discord.ui.Button(label=normal_label, style=discord.ButtonStyle.secondary)
+            btn_normal.callback = self._on_toggle_normal
+
+            btn_union = discord.ui.Button(label='유니온', style=discord.ButtonStyle.secondary)
+            btn_union.callback = self._on_toggle_union
+
+            season_label = '정식시즌' if self.show_preseason else '프리시즌'
+            btn_season = discord.ui.Button(label=season_label, style=discord.ButtonStyle.secondary)
+            btn_season.callback = self._on_toggle_season_type
+
+            self.add_item(discord.ui.ActionRow(btn_normal, btn_union, btn_season))
+
+    # === 콜백 ===
+
+    async def _on_main(self, interaction):
+        """메인 화면으로"""
+        self._build_main()
+        await interaction.response.edit_message(view=self)
+
+    async def _on_characters(self, interaction):
+        """실험체 화면 (TextDisplay로 표시)"""
+        self.clear_items()
         most_chars = self.player_data.get('most_characters', [])
+        lines = [f"## {self.player_data['nickname']}님의 실험체\n"]
+
         if most_chars:
             for i, char in enumerate(most_chars[:10]):
                 mmr_gain = char.get('mmr_gain', 0)
-                rp_text = f"{mmr_gain:+d} RP" if mmr_gain != 0 else "±0 RP"
-                rp_emoji = "📈" if mmr_gain > 0 else "📉" if mmr_gain < 0 else "➖"
+                rp_text = f"{mmr_gain:+d} RP" if mmr_gain != 0 else "+/-0 RP"
                 avg_rank = char.get('avg_rank', 0)
-                embed.add_field(
-                    name=f"{i+1}. {char['name']}",
-                    value=f"{char['games']}게임, {char['winrate']:.1f}% 승률\n평균 {avg_rank:.1f}등, {rp_emoji} {rp_text}",
-                    inline=True
-                )
+                arrow = "^ " if mmr_gain > 0 else "v " if mmr_gain < 0 else ""
+                lines.append(f"**{i+1}. {char['name']}** - {char['games']}게임, {char['winrate']:.1f}% 승률, 평균 {avg_rank:.1f}등, {arrow}{rp_text}")
         else:
-            embed.add_field(name="실험체 정보", value="데이터가 없습니다.", inline=False)
-        await interaction.response.edit_message(embed=embed, view=self, attachments=[])
+            lines.append("데이터가 없습니다.")
 
-    @discord.ui.button(label='최근전적', style=discord.ButtonStyle.success, row=0)
-    async def show_recent_games(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """최근 게임 전적 표시 (한 게임씩, 화살표로 넘기기)"""
+        container = discord.ui.Container(
+            discord.ui.TextDisplay("\n".join(lines)),
+            accent_colour=discord.Colour(0x5865F2)
+        )
+        self.add_item(container)
+        self._add_navigation()
+        await interaction.response.edit_message(view=self)
+
+    async def _on_recent_games(self, interaction):
+        """최근전적 (RecentGamesView는 embed 기반 -> StatsView로 전환)"""
         await interaction.response.defer()
 
-        # 현재 모드에 따라 게임 모드 결정
-        game_mode = self.current_mode  # "RANK", "NORMAL", "UNION"
-
+        game_mode = self.current_mode
         recent_games = await get_player_recent_games(
             self.player_data['nickname'],
             self.player_data['season_id'],
             game_mode
         )
 
-        # 게임 모드별 데이터 필터링
         if recent_games:
-            if game_mode == "NORMAL":  # 일반게임만 (matchingMode: 2)
-                recent_games = [game for game in recent_games if game.get('matchingMode') == 2]
-            elif game_mode == "RANK":  # 랭크게임만 (matchingMode: 3)
-                recent_games = [game for game in recent_games if game.get('matchingMode') == 3]
-            elif game_mode == "UNION":  # 유니온만 (matchingMode: 8)
-                recent_games = [game for game in recent_games if game.get('matchingMode') == 8]
+            if game_mode == "NORMAL":
+                recent_games = [g for g in recent_games if g.get('matchingMode') == 2]
+            elif game_mode == "RANK":
+                recent_games = [g for g in recent_games if g.get('matchingMode') == 3]
+            elif game_mode == "UNION":
+                recent_games = [g for g in recent_games if g.get('matchingMode') == 8]
 
-        # 게임 모드 텍스트 결정
         mode_text_map = {"RANK": "랭크게임", "NORMAL": "일반게임", "UNION": "유니온"}
         game_mode_text = mode_text_map.get(game_mode, "게임")
 
-        # 데이터가 없는 경우
+        if not recent_games:
+            self.clear_items()
+            container = discord.ui.Container(
+                discord.ui.TextDisplay(f"## {self.player_data['nickname']}님의 최근전적\n\n{game_mode_text} 데이터가 없습니다."),
+                accent_colour=discord.Colour(0xFF6B35)
+            )
+            self.add_item(container)
+            self._add_navigation()
+            await interaction.edit_original_response(view=self)
+            return
+
+        # embed 기반 RecentGamesView 사용 -> StatsView를 parent로 전달
+        parent_view = StatsView(
+            self.player_data, self.played_seasons,
+            current_mode=self.current_mode, show_preseason=self.show_preseason
+        )
+        recent_games_view = RecentGamesView(
+            self.player_data, recent_games[:20],
+            game_mode, game_mode_text,
+            parent_view=parent_view
+        )
+        embed = await recent_games_view.create_game_embed(0)
+        await interaction.edit_original_response(embed=embed, view=recent_games_view)
+
+    async def _on_stats(self, interaction):
+        """통계 화면"""
+        await interaction.response.defer()
+        stats = self.player_data.get('stats', {})
+        mmr_history = self.player_data.get('mmr_history', [])
+
+        # 그래프가 있으면 embed 기반 StatsView로 전환 (파일 첨부 필요)
+        graph_path = None
+        if mmr_history and len(mmr_history) >= 2:
+            try:
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                    graph_path = save_mmr_graph_to_file(
+                        mmr_history,
+                        self.player_data.get('nickname', '플레이어'),
+                        tmp_file.name
+                    )
+            except Exception:
+                pass
+
+        if graph_path and os.path.exists(graph_path):
+            # embed + 파일 첨부 -> StatsView 사용
+            parent_view = StatsView(
+                self.player_data, self.played_seasons,
+                current_mode=self.current_mode, show_preseason=self.show_preseason
+            )
+            embed = discord.Embed(title=f"{self.player_data['nickname']}님의 통계", color=0xE67E22)
+            if stats:
+                embed.add_field(name="게임 수", value=f"{stats.get('total_games', 0)}게임", inline=True)
+                embed.add_field(name="승률", value=f"{stats.get('winrate', 0):.1f}%", inline=True)
+                embed.add_field(name="평균 순위", value=f"{stats.get('avg_rank', 0):.1f}등", inline=True)
+                embed.add_field(name="평균 킬", value=f"{stats.get('avg_kills', 0):.1f}킬", inline=True)
+                embed.add_field(name="평균 어시", value=f"{stats.get('avg_assists', 0):.1f}어시", inline=True)
+                embed.add_field(name="KDA", value=f"**{stats.get('kda', 0):.2f}**", inline=True)
+            file_attachment = discord.File(graph_path, filename="mmr_graph.png")
+            embed.set_image(url="attachment://mmr_graph.png")
+            await interaction.edit_original_response(embed=embed, attachments=[file_attachment], view=parent_view)
+            os.unlink(graph_path)
+        else:
+            # 그래프 없음 -> LayoutView로 텍스트 표시
+            self.clear_items()
+            lines = [f"## {self.player_data['nickname']}님의 통계\n"]
+            if stats:
+                lines.append(f"**게임 수** {stats.get('total_games', 0)}게임 | **승률** {stats.get('winrate', 0):.1f}%")
+                lines.append(f"**평균 순위** {stats.get('avg_rank', 0):.1f}등 | **평균 킬** {stats.get('avg_kills', 0):.1f}킬")
+                lines.append(f"**평균 어시** {stats.get('avg_assists', 0):.1f}어시 | **KDA** {stats.get('kda', 0):.2f}")
+            else:
+                lines.append("데이터가 없습니다.")
+            container = discord.ui.Container(
+                discord.ui.TextDisplay("\n".join(lines)),
+                accent_colour=discord.Colour(0xE67E22)
+            )
+            self.add_item(container)
+            self._add_navigation()
+            await interaction.edit_original_response(view=self)
+
+    async def _on_season_select(self, interaction):
+        """시즌 선택"""
+        await interaction.response.defer()
+        season_id = int(interaction.data['values'][0])
+        season_player_data = await get_player_season_data(self.player_data['nickname'], season_id)
+
+        if season_player_data:
+            self.player_data = season_player_data
+        self._build_main()
+        await interaction.edit_original_response(view=self)
+
+    async def _on_toggle_normal(self, interaction):
+        """랭크/일반게임 전환"""
+        await interaction.response.defer()
+        if self.current_mode == "NORMAL":
+            self.current_mode = "RANK"
+        else:
+            self.current_mode = "NORMAL"
+
+        if self.current_mode == "NORMAL":
+            normal_data = await get_player_normal_game_data(self.player_data['nickname'])
+            if normal_data:
+                self.player_data = normal_data
+        else:
+            rank_data = await get_player_basic_data(self.player_data['nickname'])
+            if rank_data:
+                self.player_data = rank_data
+
+        self._build_main()
+        await interaction.edit_original_response(view=self)
+
+    async def _on_toggle_union(self, interaction):
+        """유니온 모드 전환"""
+        await interaction.response.defer()
+        if self.current_mode == "UNION":
+            self.current_mode = "RANK"
+            rank_data = await get_player_basic_data(self.player_data['nickname'])
+            if rank_data:
+                self.player_data = rank_data
+            self._build_main()
+            await interaction.edit_original_response(view=self)
+        else:
+            self.current_mode = "UNION"
+            union_data = await get_player_union_teams(self.original_nickname)
+
+            if union_data and union_data.get('teams'):
+                # 유니온은 embed 필요 -> StatsView로 전환
+                parent_view = StatsView(
+                    self.player_data, self.played_seasons,
+                    current_mode=self.current_mode, show_preseason=self.show_preseason
+                )
+                embed = create_union_embed(union_data, self.original_nickname)
+                await interaction.edit_original_response(embed=embed, view=parent_view, attachments=[])
+            else:
+                self.clear_items()
+                container = discord.ui.Container(
+                    discord.ui.TextDisplay(f"## {self.original_nickname}님의 유니온 정보\n\n유니온 데이터가 없습니다."),
+                    accent_colour=discord.Colour(0xFF0000)
+                )
+                self.add_item(container)
+                self._add_navigation()
+                await interaction.edit_original_response(view=self)
+
+    async def _on_toggle_season_type(self, interaction):
+        """정식시즌/프리시즌 전환"""
+        await interaction.response.defer()
+        self.show_preseason = not self.show_preseason
+        self._build_main()
+        await interaction.edit_original_response(view=self)
+
+
+class StatsView(discord.ui.View):
+    """embed 기반 전적 조회 UI (서브화면 전환용)
+
+    최근전적/통계(그래프)/유니온 등 embed가 필요할 때 사용.
+    메인 버튼 클릭 시 StatsLayoutView로 돌아감.
+    """
+    def __init__(self, player_data, played_seasons=None, current_mode="RANK", show_preseason=False):
+        super().__init__(timeout=300)
+        self.player_data = player_data
+        self.original_nickname = player_data['nickname']
+        self.played_seasons = played_seasons or []
+        self.show_preseason = show_preseason
+        self.current_mode = current_mode
+
+        # 시즌 선택 메뉴
+        season_select = self.create_season_select()
+        if season_select:
+            self.add_item(season_select)
+
+        # 모드 토글 버튼
+        if any(self._is_preseason(s['name']) for s in self.played_seasons):
+            normal_label = '랭크게임' if self.current_mode == "NORMAL" else '일반게임'
+            normal_button = discord.ui.Button(label=normal_label, style=discord.ButtonStyle.secondary, custom_id='toggle_normal', row=3)
+            normal_button.callback = self.toggle_normal_games
+            self.add_item(normal_button)
+
+            union_button = discord.ui.Button(label='유니온', style=discord.ButtonStyle.secondary, custom_id='toggle_union', row=3)
+            union_button.callback = self.toggle_union_mode
+            self.add_item(union_button)
+
+            season_label = '정식시즌' if self.show_preseason else '프리시즌'
+            toggle_button = discord.ui.Button(label=season_label, style=discord.ButtonStyle.secondary, custom_id='toggle_season', row=3)
+            toggle_button.callback = self.toggle_season_type
+            self.add_item(toggle_button)
+
+    @discord.ui.button(label='메인', style=discord.ButtonStyle.primary, row=0)
+    async def back_to_main(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """메인 화면 -> StatsLayoutView로 전환"""
+        layout = StatsLayoutView(
+            self.player_data, self.played_seasons,
+            current_mode=self.current_mode, show_preseason=self.show_preseason
+        )
+        await interaction.response.edit_message(view=layout, embed=None, attachments=[])
+
+    @discord.ui.button(label='실험체', style=discord.ButtonStyle.primary, row=0)
+    async def show_characters(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """실험체 -> StatsLayoutView로 전환해서 표시"""
+        layout = StatsLayoutView(
+            self.player_data, self.played_seasons,
+            current_mode=self.current_mode, show_preseason=self.show_preseason
+        )
+        await layout._on_characters(interaction)
+
+    @discord.ui.button(label='최근전적', style=discord.ButtonStyle.success, row=0)
+    async def show_recent_games(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """최근 게임 전적 표시"""
+        await interaction.response.defer()
+        game_mode = self.current_mode
+        recent_games = await get_player_recent_games(
+            self.player_data['nickname'], self.player_data['season_id'], game_mode
+        )
+
+        if recent_games:
+            if game_mode == "NORMAL":
+                recent_games = [g for g in recent_games if g.get('matchingMode') == 2]
+            elif game_mode == "RANK":
+                recent_games = [g for g in recent_games if g.get('matchingMode') == 3]
+            elif game_mode == "UNION":
+                recent_games = [g for g in recent_games if g.get('matchingMode') == 8]
+
+        mode_text_map = {"RANK": "랭크게임", "NORMAL": "일반게임", "UNION": "유니온"}
+        game_mode_text = mode_text_map.get(game_mode, "게임")
+
         if not recent_games:
             embed = discord.Embed(
                 title=f"{self.player_data['nickname']}님의 최근전적 ({game_mode_text})",
                 description=f"{game_mode_text} 데이터가 없습니다.",
-                color=0x9932CC if game_mode == 0 else 0xFF6B35
+                color=0xFF6B35
             )
-            season_name = game_data.get_season_name(self.player_data['season_id'])
-            embed.set_footer(text=f"{season_name}")
             await interaction.edit_original_response(embed=embed, view=self)
             return
 
-        # 최근 전적 View 생성 (화살표 버튼 포함)
         recent_games_view = RecentGamesView(
-            self.player_data,
-            recent_games[:20],  # 최대 20게임
-            game_mode,
-            game_mode_text,
-            parent_view=self
+            self.player_data, recent_games[:20], game_mode, game_mode_text, parent_view=self
         )
-
-        # 첫 번째 게임 임베드 생성
         embed = await recent_games_view.create_game_embed(0)
         await interaction.edit_original_response(embed=embed, view=recent_games_view)
 
     @discord.ui.button(label='통계', style=discord.ButtonStyle.secondary, row=0)
     async def show_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """통계 및 MMR 그래프 표시"""
+        """통계 및 MMR 그래프"""
         await interaction.response.defer()
         embed = discord.Embed(title=f"{self.player_data['nickname']}님의 통계", color=0xE67E22)
         stats = self.player_data.get('stats', {})
@@ -181,9 +517,7 @@ class StatsView(discord.ui.View):
             try:
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
                     graph_path = save_mmr_graph_to_file(
-                        mmr_history,
-                        self.player_data.get('nickname', '플레이어'),
-                        tmp_file.name
+                        mmr_history, self.player_data.get('nickname', '플레이어'), tmp_file.name
                     )
                 if graph_path and os.path.exists(graph_path):
                     file_attachment = discord.File(graph_path, filename="mmr_graph.png")
@@ -208,103 +542,60 @@ class StatsView(discord.ui.View):
         else:
             await interaction.edit_original_response(embed=embed, view=self)
 
-    def _is_preseason(self, season_name: str) -> bool:
-        """프리시즌인지 확인"""
+    def _is_preseason(self, season_name):
         return "프리" in season_name or "Pre" in season_name
 
     def _filter_seasons_by_type(self):
-        """시즌 필터링 (정식시즌 or 프리시즌)"""
         if not self.played_seasons:
             return []
         return [s for s in self.played_seasons if self._is_preseason(s['name']) == self.show_preseason][:25]
 
     def create_season_select(self):
-        """시즌 선택 메뉴 생성"""
         filtered_seasons = self._filter_seasons_by_type()
         if not filtered_seasons:
             return None
-
         options = [
             discord.SelectOption(
                 label=f"{s['name']}{' (현재)' if s.get('is_current') else ''}",
                 value=str(s['id']),
-                emoji="🔥" if s.get('is_current') else None
             )
             for s in filtered_seasons
         ]
-
         if not options:
             return None
-
         placeholder = "프리시즌별 전적 보기..." if self.show_preseason else "시즌별 전적 보기..."
         select = discord.ui.Select(placeholder=placeholder, options=options)
         select.callback = self.season_select_callback
         return select
 
-    async def season_select_callback(self, interaction: discord.Interaction):
-        """시즌 선택 시 해당 시즌 전적 표시"""
+    async def season_select_callback(self, interaction):
         await interaction.response.defer()
         season_id = int(interaction.data['values'][0])
         season_player_data = await get_player_season_data(self.player_data['nickname'], season_id)
-
         if season_player_data:
             self.player_data = season_player_data
-            is_normal = (self.current_mode == "NORMAL")
-            embed = create_stats_embed(season_player_data, is_normal)
-        else:
-            season_name = game_data.get_season_name(season_id)
-            embed = discord.Embed(
-                title=f"{self.player_data['nickname']}님의 {season_name} 전적",
-                description="해당 시즌 데이터를 찾을 수 없습니다.",
-                color=0xE74C3C
-            )
-            embed.set_footer(text=season_name)
+        # StatsLayoutView로 전환
+        layout = StatsLayoutView(
+            self.player_data, self.played_seasons,
+            current_mode=self.current_mode, show_preseason=self.show_preseason
+        )
+        await interaction.edit_original_response(view=layout, embed=None, attachments=[])
 
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def toggle_season_type(self, interaction: discord.Interaction):
-        """정식시즌/프리시즌 전환"""
+    async def toggle_season_type(self, interaction):
         await interaction.response.defer()
         self.show_preseason = not self.show_preseason
+        layout = StatsLayoutView(
+            self.player_data, self.played_seasons,
+            current_mode=self.current_mode, show_preseason=self.show_preseason
+        )
+        await interaction.edit_original_response(view=layout, embed=None, attachments=[])
 
-        # 버튼 라벨 업데이트
-        for item in self.children:
-            if hasattr(item, 'custom_id') and item.custom_id == 'toggle_season':
-                item.label = '정식시즌' if self.show_preseason else '프리시즌'
-                break
-
-        # 기존 시즌 선택 메뉴 제거하고 새로 추가
-        for item in list(self.children):
-            if isinstance(item, discord.ui.Select):
-                self.remove_item(item)
-                break
-
-        # 새로운 시즌 선택 메뉴 추가
-        season_select = self.create_season_select()
-        if season_select:
-            self.add_item(season_select)
-
-        is_normal = (self.current_mode == "NORMAL")
-        embed = create_stats_embed(self.player_data, is_normal)
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def toggle_normal_games(self, interaction: discord.Interaction):
-        """랭크게임/일반게임 전환"""
+    async def toggle_normal_games(self, interaction):
         await interaction.response.defer()
-
-        # 모드 전환
         if self.current_mode == "NORMAL":
             self.current_mode = "RANK"
         else:
             self.current_mode = "NORMAL"
-
-        # 일반게임 버튼 찾아서 라벨 업데이트
-        for item in self.children:
-            if hasattr(item, 'custom_id') and item.custom_id == 'toggle_normal':
-                item.label = '랭크게임' if self.current_mode == "NORMAL" else '일반게임'
-                break
-
-        # 데이터 가져오기
         if self.current_mode == "NORMAL":
             normal_data = await get_player_normal_game_data(self.player_data['nickname'])
             if normal_data:
@@ -313,40 +604,34 @@ class StatsView(discord.ui.View):
             rank_data = await get_player_basic_data(self.player_data['nickname'])
             if rank_data:
                 self.player_data = rank_data
+        layout = StatsLayoutView(
+            self.player_data, self.played_seasons,
+            current_mode=self.current_mode, show_preseason=self.show_preseason
+        )
+        await interaction.edit_original_response(view=layout, embed=None, attachments=[])
 
-        # 메인 화면으로 돌아가기
-        is_normal = (self.current_mode == "NORMAL")
-        embed = create_stats_embed(self.player_data, is_normal)
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def toggle_union_mode(self, interaction: discord.Interaction):
-        """랭크게임/유니온 전환"""
+    async def toggle_union_mode(self, interaction):
         await interaction.response.defer()
-
-        # 모드 전환
         if self.current_mode == "UNION":
             self.current_mode = "RANK"
-            # 랭크 데이터 복원
             rank_data = await get_player_basic_data(self.player_data['nickname'])
             if rank_data:
                 self.player_data = rank_data
-
-            # 메인 화면으로
-            embed = create_stats_embed(self.player_data, False)
-            await interaction.edit_original_response(embed=embed, view=self, attachments=[])
+            layout = StatsLayoutView(
+                self.player_data, self.played_seasons,
+                current_mode=self.current_mode, show_preseason=self.show_preseason
+            )
+            await interaction.edit_original_response(view=layout, embed=None, attachments=[])
         else:
             self.current_mode = "UNION"
-            # 유니온 데이터 가져오기
             union_data = await get_player_union_teams(self.original_nickname)
-
             if union_data and union_data.get('teams'):
                 embed = create_union_embed(union_data, self.original_nickname)
                 await interaction.edit_original_response(embed=embed, view=self, attachments=[])
             else:
                 embed = discord.Embed(
                     title=f"{self.original_nickname}님의 유니온 정보",
-                    description="유니온 데이터가 없습니다.",
-                    color=0xFF0000
+                    description="유니온 데이터가 없습니다.", color=0xFF0000
                 )
                 await interaction.edit_original_response(embed=embed, view=self, attachments=[])
 
@@ -694,9 +979,9 @@ class RecentGamesView(discord.ui.View):
 
     @discord.ui.button(label='돌아가기', style=discord.ButtonStyle.primary, row=0)
     async def back_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """메인으로 돌아가기"""
-        # 유니온 모드일 때는 유니온 정보로 돌아가기
+        """메인으로 돌아가기 (StatsLayoutView로 전환)"""
         if self.parent_view.current_mode == "UNION":
+            # 유니온 모드 -> embed + StatsView 유지
             union_data = await get_player_union_teams(self.parent_view.original_nickname)
             if union_data and union_data.get('teams'):
                 embed = create_union_embed(union_data, self.parent_view.original_nickname)
@@ -708,10 +993,14 @@ class RecentGamesView(discord.ui.View):
                 )
             await interaction.response.edit_message(embed=embed, view=self.parent_view)
         else:
-            # 일반게임 또는 랭크게임 모드
-            is_normal = (self.parent_view.current_mode == "NORMAL")
-            embed = create_stats_embed(self.player_data, is_normal)
-            await interaction.response.edit_message(embed=embed, view=self.parent_view)
+            # 랭크/일반게임 -> StatsLayoutView로 전환
+            layout = StatsLayoutView(
+                self.player_data,
+                self.parent_view.played_seasons,
+                current_mode=self.parent_view.current_mode,
+                show_preseason=self.parent_view.show_preseason
+            )
+            await interaction.response.edit_message(view=layout, embed=None, attachments=[])
 
     @discord.ui.button(label='▶', style=discord.ButtonStyle.secondary, row=0)
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):

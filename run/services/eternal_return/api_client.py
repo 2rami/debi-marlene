@@ -507,7 +507,8 @@ def _process_player_data(nickname: str, profile_data: Dict, target_season_id: in
     rank_percent = 0
     
     result = {
-        'nickname': nickname, 'tier_info': tier_info, 'tier_image_url': game_data.get_tier_image_url(tier_id),
+        'nickname': nickname, 'tier_info': tier_info, 'tier_id': tier_id,
+        'tier_image_url': game_data.get_tier_image_url(tier_id),
         'mmr': mmr, 'lp': lp, 'stats': {}, 'most_characters': [],
         'season_id': target_season_id, 'season_name': game_data.get_season_name(target_season_id),
         'rank': rank, 'rank_size': rank_size, 'rank_percent': rank_percent

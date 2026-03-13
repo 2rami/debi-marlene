@@ -75,6 +75,14 @@ make status      # VM/컨테이너 상태
 | `run/services/` (api_client) | 순수 데이터 추출/변환, API 호출 | `extract_team_members_info` |
 | `run/views/` | Discord embed/UI 포맷팅 | `format_teammate_info` |
 
+**Discord Components V2 (LayoutView) 규칙**
+- LayoutView에서는 Embed 사용 불가 — Container가 Embed 대체
+- `Container(accent_colour 없음)` → 깔끔한 테두리 박스 (기본 스타일)
+- `Container(accent_colour=색상)` → 왼쪽 색상 줄 추가
+- 정보 영역, 컨트롤 영역을 **별도 Container로 분리**해서 시각적 계층 구분
+- Section의 Thumbnail(accessory)은 항상 오른쪽, 왼쪽 이미지는 커스텀 이모지로 대체
+- 이모지를 크게 보이려면 헤딩(`##`) 안에 넣기
+
 **기타**
 - 디버그 로그 추가하고 해결되면 삭제
 - `dak gg 사용가능한 api endpoint.md` 참고 (Eternal Return API)

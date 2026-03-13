@@ -2,20 +2,17 @@
 음악 Cog
 
 음악 재생 명령어: /음악
-정지, 스킵, 대기열은 버튼으로 제공
+정지, 스킵, 대기열은 버튼으로 제공 (Components V2)
 """
 
+import asyncio
 import discord
 from discord import app_commands
 from discord.ext import commands
 import logging
 
 from run.services.music import MusicManager, YouTubeExtractor
-from run.views.music_view import (
-    MusicPlayerView,
-    create_added_to_queue_embed,
-    create_error_embed
-)
+from run.views.music_view import MusicPlayerView, create_error_view
 from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
@@ -64,8 +61,8 @@ class MusicCog(commands.Cog, name="음악"):
             song = await YouTubeExtractor.extract_info(검색어, interaction.user)
 
             if not song:
-                embed = create_error_embed("검색 결과를 찾을 수 없어요. 다른 검색어를 시도해보세요.")
-                await interaction.followup.send(embed=embed)
+                view = create_error_view("검색 결과를 찾을 수 없어요. 다른 검색어를 시도해보세요.")
+                await interaction.followup.send(view=view)
                 return
 
             player = MusicManager.get_player(guild_id)
@@ -74,21 +71,24 @@ class MusicCog(commands.Cog, name="음악"):
                 voice_channel = interaction.user.voice.channel
                 success = await player.join(voice_channel)
                 if not success:
-                    embed = create_error_embed("음성 채널에 입장할 수 없어요.")
-                    await interaction.followup.send(embed=embed)
+                    view = create_error_view("음성 채널에 입장할 수 없어요.")
+                    await interaction.followup.send(view=view)
                     return
 
             position = await player.add_song(song)
 
-            embed = create_added_to_queue_embed(song, position, queue=player.get_queue())
-            view = MusicPlayerView(guild_id)
-            await interaction.followup.send(embed=embed, view=view)
+            # play_loop가 시작될 시간을 줌 (첫 번째 곡일 때)
+            if position == 1:
+                await asyncio.sleep(0.3)
+
+            view = MusicPlayerView(guild_id, added_song=song, added_position=position)
+            await interaction.followup.send(view=view)
 
         except Exception as e:
-            logger.error(f"음악 명령어 오류: {e}")
+            logger.error(f"음악 명령어 오류: {e}", exc_info=True)
             try:
-                embed = create_error_embed(f"오류가 발생했어요: {str(e)}")
-                await interaction.followup.send(embed=embed)
+                view = create_error_view(f"오류가 발생했어요: {str(e)}")
+                await interaction.followup.send(view=view)
             except:
                 pass
 

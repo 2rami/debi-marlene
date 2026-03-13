@@ -76,9 +76,25 @@ def get_character_emoji(character_key: str) -> str:
         character_key: 캐릭터의 영어 key (예: "Jackie", "Aya")
 
     Returns:
-        Discord 이모지 문자열 (예: "<:Jackie:123456>") 또는 빈 문자열
+        Discord 이모지 문자열 (예: "<:char_jackie:123456>") 또는 빈 문자열
     """
-    return EMOJI_MAP.get(character_key, "")
+    # Application Emoji 이름은 char_{key.lower()} 형식
+    emoji_name = f"char_{character_key.lower()}"
+    return EMOJI_MAP.get(emoji_name, "")
+
+
+def get_tier_emoji(tier_id: int) -> str:
+    """
+    티어 이모지 가져오기
+
+    Args:
+        tier_id: 티어 ID (예: 63)
+
+    Returns:
+        Discord 이모지 문자열 (예: "<:tier_63:123456>") 또는 빈 문자열
+    """
+    emoji_name = f"tier_{tier_id}"
+    return EMOJI_MAP.get(emoji_name, "")
 
 
 def get_weapon_emoji(weapon_key: str) -> str:

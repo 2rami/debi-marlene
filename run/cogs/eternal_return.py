@@ -17,9 +17,8 @@ from run.services.eternal_return.api_client import (
     get_character_stats,
     game_data
 )
-from run.views.stats_view import StatsView
+from run.views.stats_view import StatsLayoutView
 from run.views.character_view import CharacterStatsView
-from run.utils.embeds import create_stats_embed
 from run.utils.command_logger import log_command_usage
 
 
@@ -84,9 +83,8 @@ class EternalReturnCog(commands.Cog, name="이터널리턴"):
                 await interaction.followup.send(embed=embed)
                 return
 
-            view = StatsView(player_data, played_seasons)
-            embed = create_stats_embed(player_data, False)
-            await interaction.followup.send(embed=embed, view=view)
+            view = StatsLayoutView(player_data, played_seasons)
+            await interaction.followup.send(view=view)
 
         except Exception as e:
             print(f"--- 전적 명령어 오류: {e} ---")

@@ -4,6 +4,7 @@ Discord 봇 인스턴스 및 이벤트 핸들러
 이 모듈에는 봇 인스턴스와 모든 이벤트 핸들러가 포함되어 있습니다.
 """
 
+import asyncio
 import discord
 import os
 import json
@@ -257,6 +258,21 @@ async def on_ready():
     print(f"[정보] 현재 {guild_count}개 서버에 연결되었습니다, 총 {total_members}명 사용자", flush=True)
     sys.stdout.flush()
 
+    # 명령어 동기화를 최우선으로 실행 (유저가 바로 커맨드를 쓸 수 있도록)
+    try:
+        synced = await bot.tree.sync()
+        print(f"[완료] 명령어 동기화 완료 ({len(synced)}개)", flush=True)
+    except Exception as e:
+        print(f"[오류] 명령어 동기화 실패: {e}", flush=True)
+
+    # 무거운 초기화를 백그라운드로 실행 (이벤트 루프 차단 방지)
+    asyncio.create_task(_background_init())
+
+
+async def _background_init():
+    """봇 시작 후 백그라운드에서 실행되는 무거운 초기화 작업들"""
+    import sys
+
     # TTS 서비스 초기화
     try:
         tts_engine = os.environ.get("TTS_ENGINE", "modal")
@@ -269,22 +285,18 @@ async def on_ready():
         print(f"[TTS] 초기화 실패: {e}", flush=True)
 
     # settings.json에 기존 서버들의 이름 정보를 한 번에 업데이트
-
-    # 모든 서버 정보를 모아서 한 번에 저장
-    settings = config.load_settings()
-    updated_count = 0
+    # GCS 호출은 동기적이라 to_thread()로 이벤트 루프 차단 방지
+    settings = await asyncio.to_thread(config.load_settings)
 
     for guild in bot.guilds:
         try:
             guild_id_str = str(guild.id)
 
-            # 기존 설정 가져오기
             if guild_id_str not in settings.get('guilds', {}):
                 settings.setdefault('guilds', {})[guild_id_str] = {}
 
             guild_settings = settings['guilds'][guild_id_str]
 
-            # 채널 정보 업데이트
             announcement_channel_name = None
             chat_channel_name = None
 
@@ -298,24 +310,19 @@ async def on_ready():
                 if chat_channel:
                     chat_channel_name = chat_channel.name
 
-            # 서버 정보 직접 업데이트 (저장은 나중에 한 번만)
             guild_settings['GUILD_NAME'] = guild.name
             if announcement_channel_name:
                 guild_settings['ANNOUNCEMENT_CHANNEL_NAME'] = announcement_channel_name
             if chat_channel_name:
                 guild_settings['CHAT_CHANNEL_NAME'] = chat_channel_name
-
-            updated_count += 1
         except Exception as e:
             print(f"[경고] {guild.name} 서버 정보 업데이트 실패: {e}", flush=True)
 
-    # 한 번만 저장
-    config.save_settings(settings)
+    await asyncio.to_thread(config.save_settings, settings)
 
     # 기존 사용자들의 이름 정보 업데이트
-    settings = config.load_settings()
+    settings = await asyncio.to_thread(config.load_settings)
     existing_users = settings.get("users", {})
-    user_update_count = 0
 
     for user_id_str, user_data in existing_users.items():
         if "user_name" not in user_data or not user_data["user_name"]:
@@ -324,46 +331,30 @@ async def on_ready():
                 user = await bot.fetch_user(user_id)
                 if user:
                     user_name = user.display_name or user.global_name or user.name
-                    config.log_user_interaction(user_id, user_name)
-                    user_update_count += 1
-                    print(f"  -> 사용자 {user_id} 이름 업데이트: {user_name}", flush=True)
+                    await asyncio.to_thread(config.log_user_interaction, user_id, user_name)
             except Exception as e:
                 print(f"  -> [경고] 사용자 {user_id_str} 이름 업데이트 실패: {e}", flush=True)
 
     # 웹 패널을 위한 봇 인스턴스 저장
     try:
         set_bot_instance(bot)
-        sys.stdout.flush()
     except Exception as e:
         print(f"[경고] 웹 패널용 봇 인스턴스 등록 실패: {e}", flush=True)
-        sys.stdout.flush()
 
     # GCS에 서버 정보 업데이트
     try:
         await update_server_info_to_gcs()
-        sys.stdout.flush()
     except Exception as e:
         print(f"[경고] GCS 서버 정보 업데이트 실패: {e}", flush=True)
-        sys.stdout.flush()
 
     # 서버 정보 정기 업데이트 태스크 시작
     try:
         if not update_server_info_periodic.is_running():
             update_server_info_periodic.start()
-        sys.stdout.flush()
     except Exception as e:
         print(f"[경고] 서버 정보 업데이트 태스크 시작 실패: {e}", flush=True)
-        sys.stdout.flush()
 
     try:
-        sys.stdout.flush()
-
-        # 명령어 동기화 (기존 명령어 업데이트)
-        synced = await bot.tree.sync()
-
-        print("[완료] 모든 명령어 동기화 완료.", flush=True)
-        sys.stdout.flush()
-
         await initialize_game_data()
         print("[완료] 게임 데이터 초기화 완료.", flush=True)
 
@@ -470,29 +461,24 @@ async def on_guild_join(guild: discord.Guild):
 
     if target_channel:
         try:
-            profile_image = discord.File("assets/profile.webp", filename="profile.webp")
+            profile_url = "https://panel.debimarlene.com/assets/profile.webp"
 
             if is_reinvited:
-                # 재초대된 서버용 메시지
                 embed = discord.Embed(
-                    title="다시 만나게 되어 반가워.",
-                    description="우리를 다시 불러주어서 정말 기뻐! 이전 설정을 그대로 유지하고 있었어.",
-                    color=0xDC143C  # 빨강
+                    title="데비&마를렌",
+                    description="데비&마를렌이 다시 온라인입니다.\n이전 설정을 그대로 유지하고 있어요.",
+                    color=0xDC143C
                 )
-                embed.set_thumbnail(url="attachment://profile.webp")
-                embed.add_field(name="데비", value="> 또 만나니까 정말 좋아!", inline=False)
-                embed.add_field(name="마를렌", value="> 이전처럼 열심히 도와줄게.", inline=False)
-                embed.add_field(name="⚙️ 설정 확인", value="이전 **공지 채널**과 **채팅 채널** 설정을 확인하고 싶으시다면\n아래 버튼을 눌러줘!", inline=False)
             else:
-                # 새로운 서버용 메시지
-                embed = discord.Embed(title="데비&마를렌", description="디스코드 이터널리턴 전적검색 봇", color=0x0000FF)  # 파랑
-                embed.set_thumbnail(url="attachment://profile.webp")
-                embed.add_field(name="데비", value="> 와, 새로운 곳이다! 여기서도 우리 팀워크를 보여주자!", inline=False)
-                embed.add_field(name="마를렌", value="> 흥, 데비 언니... 너무 들뜨지 마. 일단 상황부터 파악해야지.", inline=False)
-                embed.add_field(name="⚙️ 초기 설정 안내", value="유튜브 알림 **공지 채널**과 전적 검색 **채팅 채널** 설정이 필요해요.\n아래 버튼을 눌러 바로 시작할 수 있습니다!", inline=False)
+                embed = discord.Embed(
+                    title="데비&마를렌",
+                    description="데비&마를렌이 온라인입니다.",
+                    color=0x0000FF
+                )
+            embed.set_thumbnail(url=profile_url)
 
             view = WelcomeView()
-            await target_channel.send(file=profile_image, embed=embed, view=view)
+            await target_channel.send(embed=embed, view=view)
         except Exception as e:
             print(f"[오류] 환영 메시지 전송 중 오류 발생: {e}")
 
@@ -549,10 +535,15 @@ async def on_voice_state_update(member, before, after):
                 voice_manager.current_type[guild_id] = None
                 print(f"[음성] 연결 동기화: {after.channel.name}", flush=True)
         elif before.channel and not after.channel:
-            # 봇이 음성 채널에서 나감
+            # 봇이 음성 채널에서 나감 (퇴장, 킥, 연결 끊김 등)
             guild_id = str(before.channel.guild.id)
             voice_manager.voice_clients.pop(guild_id, None)
             voice_manager.current_type.pop(guild_id, None)
+            voice_manager.tts_interrupting.pop(guild_id, None)
+            voice_manager.music_restart_callbacks.pop(guild_id, None)
+            voice_manager.play_finished_events.pop(guild_id, None)
+            voice_manager.cancel_idle_timer(guild_id)
+            print(f"[음성] 연결 해제 정리: {before.channel.name}", flush=True)
         return
 
     # 사용자가 봇이 있는 채널에서 나간 경우 (퇴장 또는 다른 채널로 이동)

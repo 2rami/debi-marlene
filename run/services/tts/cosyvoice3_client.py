@@ -94,22 +94,18 @@ class CosyVoice3Client:
             self.is_initialized = False
             return
 
+        # health check은 빠르게만 확인 (서버가 꺼져 있어도 OK)
+        # 실제 cold start 대응은 text_to_speech()의 재시도 로직에서 처리
+        self.is_initialized = True
         try:
-            session = await self._get_session()
-            async with session.get(self.health_url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    status = data.get("status", "")
-                    self.is_initialized = status == "running"
-                    logger.info(f"CosyVoice3 서버 연결: {data}")
-                else:
-                    self.is_initialized = False
-        except asyncio.TimeoutError:
-            logger.warning("CosyVoice3 서버 cold start 중... (정상)")
-            self.is_initialized = True
-        except aiohttp.ClientError as e:
-            logger.error(f"CosyVoice3 서버 연결 실패: {e}")
-            self.is_initialized = False
+            quick_timeout = aiohttp.ClientTimeout(total=5)
+            async with aiohttp.ClientSession(timeout=quick_timeout) as session:
+                async with session.get(self.health_url) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        logger.info(f"CosyVoice3 서버 연결: {data}")
+        except (asyncio.TimeoutError, aiohttp.ClientError):
+            logger.info("CosyVoice3 서버 응답 없음 (cold start 필요, 정상)")
 
     def _get_urls_for_speaker(self, speaker: str) -> dict:
         """스피커별 엔드포인트 URL 반환"""
@@ -296,6 +292,40 @@ class CosyVoice3Client:
         logger.info("CosyVoice3 서버 워밍업 중...")
         await self.initialize()
         logger.info("CosyVoice3 서버 워밍업 완료")
+
+    @staticmethod
+    async def warmup_all_servers() -> dict:
+        """모든 Modal TTS 서버에 health check을 보내 컨테이너를 깨웁니다.
+        Returns: {"debi": "running"|"starting"|"error", "alex": ...}
+        """
+        import aiohttp
+
+        # debi/marlene 공유 서버 + alex 별도 서버
+        targets = {
+            "debi": DEFAULT_HEALTH_URL,
+            "alex": ALEX_HEALTH_URL,
+        }
+        results = {}
+        timeout = aiohttp.ClientTimeout(total=120, connect=30)
+
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async def ping(name, url):
+                try:
+                    async with session.get(url) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            results[name] = data.get("status", "unknown")
+                        else:
+                            results[name] = "starting"
+                except asyncio.TimeoutError:
+                    results[name] = "starting"
+                except Exception as e:
+                    logger.warning(f"Modal warmup failed ({name}): {e}")
+                    results[name] = "error"
+
+            await asyncio.gather(*[ping(n, u) for n, u in targets.items()])
+
+        return results
 
     def cleanup_temp_files(self):
         try:

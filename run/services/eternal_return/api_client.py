@@ -442,23 +442,23 @@ def _process_normal_game_data(nickname: str, profile_data: Dict) -> Optional[Dic
             character_name = game_data.get_character_name(char_id)
             # print(f"    캐릭터 이름: {character_name}")
 
-            # 가장 많이 사용한 스킨 찾기
-            most_used_skin_id = char_id * 1000 + 1 # 기본 스킨 ID로 초기화
+            # 가장 최근에 사용한 스킨 찾기
+            most_used_skin_id = char_id * 1000 + 1
             if char_stat.get('skinStats'):
-                sorted_skins = sorted(char_stat['skinStats'], key=lambda x: x.get('play', 0), reverse=True)
+                sorted_skins = sorted(char_stat['skinStats'], key=lambda x: x.get('updatedAt', 0), reverse=True)
                 if sorted_skins:
                     most_used_skin_id = sorted_skins[0].get('key', most_used_skin_id)
-            
+
             image_url = game_data.get_skin_image_url(most_used_skin_id)
-            # print(f"    스킨 ID: {most_used_skin_id}, 이미지 URL: {image_url}")
 
             char_stats.append({
                 'name': character_name,
+                'char_key': game_data.get_character_key(char_id),
                 'image_url': image_url,
                 'games': games, 'wins': char_stat.get('win', 0),
                 'winrate': round((char_stat.get('win', 0) / games) * 100, 1),
                 'avg_rank': round(char_stat.get('place', 0) / games, 1),
-                'mmr_gain': 0  # 일반게임은 RP 없음
+                'mmr_gain': 0
             })
     
     most_characters = sorted(char_stats, key=lambda x: x['games'], reverse=True)[:10]
@@ -554,24 +554,25 @@ def _process_player_data(nickname: str, profile_data: Dict, target_season_id: in
                 char_id = char_stat.get('key')
                 games = char_stat.get('play', 1)
 
-                # 가장 많이 사용한 스킨 찾기
-                most_used_skin_id = char_id * 1000 + 1 # 기본 스킨 ID로 초기화
+                # 가장 최근에 사용한 스킨 찾기
+                most_used_skin_id = char_id * 1000 + 1
                 if char_stat.get('skinStats'):
-                    sorted_skins = sorted(char_stat['skinStats'], key=lambda x: x.get('play', 0), reverse=True)
+                    sorted_skins = sorted(char_stat['skinStats'], key=lambda x: x.get('updatedAt', 0), reverse=True)
                     if sorted_skins:
                         most_used_skin_id = sorted_skins[0].get('key', most_used_skin_id)
-                
+
                 image_url = game_data.get_skin_image_url(most_used_skin_id)
 
                 char_stats.append({
                     'name': game_data.get_character_name(char_id),
-                    'image_url': image_url, # 스킨 이미지 URL 사용
+                    'char_key': game_data.get_character_key(char_id),
+                    'image_url': image_url,
                     'games': games, 'wins': char_stat.get('win', 0),
                     'winrate': round((char_stat.get('win', 0) / games) * 100, 1),
                     'avg_rank': round(char_stat.get('place', 0) / games, 1),
-                    'mmr_gain': char_stat.get('mmrGain', 0)  # RP 획득/손실 추가
+                    'mmr_gain': char_stat.get('mmrGain', 0)
                 })
-        
+
         result['most_characters'] = sorted(char_stats, key=lambda x: x['games'], reverse=True)[:10]
         
         # MMR 히스토리 데이터 추가

@@ -314,7 +314,7 @@ class StatsView(discord.ui.View):
             if rank_data:
                 self.player_data = rank_data
 
-        # 메인 임베드로 돌아가기
+        # 메인 화면으로 돌아가기
         is_normal = (self.current_mode == "NORMAL")
         embed = create_stats_embed(self.player_data, is_normal)
         await interaction.edit_original_response(embed=embed, view=self)

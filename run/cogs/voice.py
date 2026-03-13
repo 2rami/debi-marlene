@@ -1,7 +1,8 @@
 """
 음성 Cog
 
-TTS 관련 명령어: 음성입장, 음성퇴장, 음성설정, 읽기채널설정, 읽기채널해제
+TTS 관련 명령어: /tts
+설정(목소리, 채널, 퇴장)은 버튼/드롭다운으로 제공
 """
 
 import discord
@@ -59,7 +60,6 @@ def get_random_sfx(sfx_name: str, character: str = "debi") -> Optional[str]:
         logger.warning(f"효과음 폴더 없음: {sfx_character_dir}")
         return None
 
-    # 효과음 이름에 맞는 파일 찾기 (대소문자 무시)
     sfx_name_lower = sfx_name.lower()
     sfx_files = [
         f for f in os.listdir(sfx_character_dir)
@@ -83,15 +83,14 @@ async def initialize_audio_player():
         logger.info("오디오 플레이어 초기화 완료")
 
 
-class VoiceCog(commands.GroupCog, group_name="음성"):
+class VoiceCog(commands.Cog, name="TTS"):
     """음성 채널 TTS 관련 명령어"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        super().__init__()
 
-    @app_commands.command(name="입장", description="봇이 음성 채널에 입장합니다")
-    async def voice_join(self, interaction: discord.Interaction):
+    @app_commands.command(name="tts", description="봇이 음성 채널에 입장합니다")
+    async def tts_join(self, interaction: discord.Interaction):
         """봇을 음성 채널에 입장시킵니다."""
         try:
             if not interaction.guild:
@@ -111,11 +110,11 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
             try:
                 await interaction.response.defer(ephemeral=True)
             except discord.NotFound:
-                logger.warning("음성입장: interaction 만료됨 (3초 초과)")
+                logger.warning("tts: interaction 만료됨 (3초 초과)")
                 return
 
             await log_command_usage(
-                command_name="음성입장",
+                command_name="tts",
                 user_id=interaction.user.id,
                 user_name=interaction.user.display_name or interaction.user.name,
                 guild_id=interaction.guild.id if interaction.guild else None,
@@ -139,7 +138,6 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
             success = await audio_player.join_voice_channel(voice_channel)
 
             if success:
-                # 읽을 채널 정보 가져오기
                 guild_id = str(interaction.guild.id)
                 settings = load_settings()
                 guild_settings = settings.get("guilds", {}).get(guild_id, {})
@@ -147,21 +145,32 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
 
                 if tts_channel_id:
                     tts_channel = interaction.guild.get_channel(int(tts_channel_id))
-                    channel_info = f"읽을 채널: {tts_channel.mention}" if tts_channel else f"읽을 채널: (삭제된 채널)"
+                    channel_info = f"읽을 채널: {tts_channel.mention}" if tts_channel else "읽을 채널: (삭제된 채널)"
                 else:
                     channel_info = "읽을 채널: 모든 채널"
 
+                # 현재 목소리 정보
+                user_id = str(interaction.user.id)
+                user_voices = guild_settings.get("user_voices", {})
+                current_voice = user_voices.get(user_id) or guild_settings.get("tts_voice", "debi")
+                voice_names = {"debi": "데비", "marlene": "마를렌", "alex": "알렉스"}
+                voice_display = voice_names.get(current_voice, current_voice)
+
                 embed = discord.Embed(
-                    title="음성 채널 입장",
+                    title="TTS 입장",
                     description=f"{voice_channel.mention}에 입장했어요!\n\n"
                                f"{channel_info}\n"
+                               f"내 목소리: **{voice_display}**\n\n"
                                "TTS 서버를 준비하고 있어요...",
                     color=0xFFA500
                 )
-                msg = await interaction.followup.send(embed=embed, ephemeral=True, wait=True)
+
+                is_admin = interaction.user.guild_permissions.administrator
+                view = TTSControlView(guild_id, interaction.user.id, is_admin)
+                msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True, wait=True)
 
                 # Modal TTS 서버 선제 워밍업 (백그라운드)
-                asyncio.create_task(self._warmup_and_notify(msg, voice_channel, channel_info))
+                asyncio.create_task(self._warmup_and_notify(msg, voice_channel, channel_info, voice_display, is_admin, guild_id, interaction.user.id))
             else:
                 await interaction.followup.send(
                     "음성 채널 입장에 실패했어요. 다시 시도해주세요.",
@@ -170,7 +179,7 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
 
         except Exception as e:
             import traceback
-            logger.error(f"음성입장 명령어 오류: {e}")
+            logger.error(f"tts 명령어 오류: {e}")
             logger.error(traceback.format_exc())
             try:
                 await interaction.followup.send(
@@ -180,7 +189,7 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
             except:
                 pass
 
-    async def _warmup_and_notify(self, msg: discord.WebhookMessage, voice_channel, channel_info: str):
+    async def _warmup_and_notify(self, msg, voice_channel, channel_info, voice_display, is_admin, guild_id, user_id):
         """Modal TTS 서버를 깨우고 완료되면 메시지를 업데이트합니다."""
         try:
             from run.services.tts.cosyvoice3_client import CosyVoice3Client
@@ -189,10 +198,11 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
             all_ready = all(s == "running" for s in results.values())
             if all_ready:
                 embed = discord.Embed(
-                    title="음성 채널 입장",
+                    title="TTS 입장",
                     description=f"{voice_channel.mention}에 입장했어요!\n\n"
                                f"{channel_info}\n"
-                               "TTS 서버 준비 완료! 바로 사용할 수 있어요.",
+                               f"내 목소리: **{voice_display}**\n\n"
+                               "TTS 서버 준비 완료!",
                     color=0x00FF00
                 )
             else:
@@ -201,349 +211,201 @@ class VoiceCog(commands.GroupCog, group_name="음성"):
                     mark = "[OK]" if status == "running" else "[준비중]" if status == "starting" else "[오류]"
                     status_lines.append(f"{mark} {name}")
                 embed = discord.Embed(
-                    title="음성 채널 입장",
+                    title="TTS 입장",
                     description=f"{voice_channel.mention}에 입장했어요!\n\n"
-                               f"{channel_info}\n\n"
+                               f"{channel_info}\n"
+                               f"내 목소리: **{voice_display}**\n\n"
                                "TTS 서버 상태:\n" + "\n".join(status_lines) + "\n\n"
                                "준비중인 서버는 첫 메시지에서 시간이 걸릴 수 있어요.",
                     color=0xFFA500
                 )
 
-            await msg.edit(embed=embed)
+            view = TTSControlView(guild_id, user_id, is_admin)
+            await msg.edit(embed=embed, view=view)
         except Exception as e:
             logger.warning(f"TTS 워밍업 알림 실패: {e}")
 
-    @app_commands.command(name="퇴장", description="봇이 음성 채널에서 퇴장합니다")
-    async def voice_leave(self, interaction: discord.Interaction):
-        """봇을 음성 채널에서 퇴장시킵니다."""
-        try:
-            if not interaction.guild:
-                await interaction.response.send_message(
-                    "이 명령어는 서버에서만 사용할 수 있어요!",
-                    ephemeral=True
-                )
-                return
 
-            guild_id = str(interaction.guild.id)
+class TTSControlView(discord.ui.View):
+    """TTS 컨트롤 뷰 - 목소리 선택, 퇴장, 채널설정"""
 
-            if not audio_player or not audio_player.is_connected(guild_id):
-                await interaction.response.send_message(
-                    "봇이 음성 채널에 연결되어 있지 않아요!",
-                    ephemeral=True
-                )
-                return
+    def __init__(self, guild_id: str, user_id: int, is_admin: bool):
+        super().__init__(timeout=120)
+        self.guild_id = guild_id
 
-            await interaction.response.defer(ephemeral=True)
+        # 내 목소리 선택 드롭다운
+        voice_select = discord.ui.Select(
+            placeholder="내 목소리 변경",
+            options=[
+                discord.SelectOption(label="데비", value="debi"),
+                discord.SelectOption(label="마를렌", value="marlene"),
+                discord.SelectOption(label="알렉스", value="alex"),
+                discord.SelectOption(label="서버 기본값", value="default"),
+            ]
+        )
+        voice_select.callback = self._on_voice_select
+        self.add_item(voice_select)
 
-            await log_command_usage(
-                command_name="음성퇴장",
-                user_id=interaction.user.id,
-                user_name=interaction.user.display_name or interaction.user.name,
-                guild_id=interaction.guild.id if interaction.guild else None,
-                guild_name=interaction.guild.name if interaction.guild else None,
-                channel_id=interaction.channel_id,
-                channel_name=interaction.channel.name if interaction.channel else None,
-                args={}
+        # 퇴장 버튼
+        leave_btn = discord.ui.Button(
+            label="퇴장", style=discord.ButtonStyle.danger, row=1
+        )
+        leave_btn.callback = self._on_leave
+        self.add_item(leave_btn)
+
+        # 관리자 전용: 채널 설정
+        if is_admin:
+            channel_btn = discord.ui.Button(
+                label="읽을 채널 설정", style=discord.ButtonStyle.secondary, row=1
             )
+            channel_btn.callback = self._on_channel_setting
+            self.add_item(channel_btn)
 
-            success = await audio_player.leave_voice_channel(guild_id)
-
-            if success:
-                embed = discord.Embed(
-                    title="음성 채널 퇴장",
-                    description="음성 채널에서 퇴장했어요!",
-                    color=0xFF0000
-                )
-                await interaction.followup.send(embed=embed, ephemeral=True)
-            else:
-                await interaction.followup.send(
-                    "음성 채널 퇴장에 실패했어요.",
-                    ephemeral=True
-                )
-
-        except Exception as e:
-            logger.error(f"음성퇴장 명령어 오류: {e}")
-            try:
-                await interaction.followup.send(
-                    f"오류가 발생했어요: {str(e)}",
-                    ephemeral=True
-                )
-            except:
-                pass
-
-    @app_commands.command(name="채널설정", description="메시지를 읽어줄 채널을 설정합니다")
-    @app_commands.describe(채널="메시지를 읽어줄 채널")
-    @app_commands.default_permissions(administrator=True)
-    async def set_tts_channel(
-        self,
-        interaction: discord.Interaction,
-        채널: discord.TextChannel
-    ):
-        """TTS로 읽어줄 채널을 설정합니다."""
-        await interaction.response.defer(ephemeral=True)
-
-        try:
-            if not interaction.guild:
-                await interaction.followup.send(
-                    "이 명령어는 서버에서만 사용할 수 있어요!",
-                    ephemeral=True
-                )
-                return
-
-            if not interaction.user.guild_permissions.administrator:
-                await interaction.followup.send(
-                    "이 명령어는 서버 관리자만 사용할 수 있어요!",
-                    ephemeral=True
-                )
-                return
-
-            await log_command_usage(
-                command_name="읽기채널설정",
-                user_id=interaction.user.id,
-                user_name=interaction.user.display_name or interaction.user.name,
-                guild_id=interaction.guild.id if interaction.guild else None,
-                guild_name=interaction.guild.name if interaction.guild else None,
-                channel_id=interaction.channel_id,
-                channel_name=interaction.channel.name if interaction.channel else None,
-                args={"채널": 채널.name}
+            voice_btn = discord.ui.Button(
+                label="서버 기본 목소리", style=discord.ButtonStyle.secondary, row=1
             )
+            voice_btn.callback = self._on_server_voice
+            self.add_item(voice_btn)
 
-            settings = load_settings()
-            guild_id = str(interaction.guild.id)
+    async def _on_voice_select(self, interaction: discord.Interaction):
+        """내 목소리 변경"""
+        selected = interaction.data["values"][0]
+        settings = load_settings()
+        guild_id = self.guild_id
+        user_id = str(interaction.user.id)
 
-            if "guilds" not in settings:
-                settings["guilds"] = {}
-            if guild_id not in settings["guilds"]:
-                settings["guilds"][guild_id] = {}
+        if "guilds" not in settings:
+            settings["guilds"] = {}
+        if guild_id not in settings["guilds"]:
+            settings["guilds"][guild_id] = {}
 
-            settings["guilds"][guild_id]["tts_channel_id"] = str(채널.id)
+        guild_settings = settings["guilds"][guild_id]
+
+        if selected == "default":
+            if "user_voices" in guild_settings and user_id in guild_settings["user_voices"]:
+                del guild_settings["user_voices"][user_id]
             save_settings(settings)
-
-            embed = discord.Embed(
-                title="TTS 채널 설정 완료",
-                description=f"{채널.mention} 채널의 메시지를 읽어드릴게요!",
-                color=0x7289DA
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-        except Exception as e:
-            logger.error(f"읽기채널설정 명령어 오류: {e}")
-            try:
-                await interaction.followup.send(
-                    f"오류가 발생했어요: {str(e)}",
-                    ephemeral=True
-                )
-            except:
-                pass
-
-    @app_commands.command(name="목소리", description="서버 기본 TTS 음성을 설정합니다 (관리자)")
-    @app_commands.describe(음성="서버 기본 음성 선택")
-    @app_commands.choices(음성=[
-        app_commands.Choice(name="데비", value="debi"),
-        app_commands.Choice(name="마를렌", value="marlene"),
-        app_commands.Choice(name="알렉스", value="alex"),
-    ])
-    @app_commands.default_permissions(administrator=True)
-    async def set_tts_voice(
-        self,
-        interaction: discord.Interaction,
-        음성: app_commands.Choice[str]
-    ):
-        """TTS 음성을 설정합니다."""
-        await interaction.response.defer(ephemeral=True)
-
-        try:
-            if not interaction.guild:
-                await interaction.followup.send(
-                    "이 명령어는 서버에서만 사용할 수 있어요!",
-                    ephemeral=True
-                )
-                return
-
-            if not interaction.user.guild_permissions.administrator:
-                await interaction.followup.send(
-                    "이 명령어는 서버 관리자만 사용할 수 있어요!",
-                    ephemeral=True
-                )
-                return
-
-            await log_command_usage(
-                command_name="음성설정",
-                user_id=interaction.user.id,
-                user_name=interaction.user.display_name or interaction.user.name,
-                guild_id=interaction.guild.id if interaction.guild else None,
-                guild_name=interaction.guild.name if interaction.guild else None,
-                channel_id=interaction.channel_id,
-                channel_name=interaction.channel.name if interaction.channel else None,
-                args={"음성": 음성.name}
-            )
-
-            settings = load_settings()
-            guild_id = str(interaction.guild.id)
-
-            if "guilds" not in settings:
-                settings["guilds"] = {}
-            if guild_id not in settings["guilds"]:
-                settings["guilds"][guild_id] = {}
-
-            settings["guilds"][guild_id]["tts_voice"] = 음성.value
-            save_settings(settings)
-
-            embed = discord.Embed(
-                title="TTS 음성 설정 완료",
-                description=f"{음성.name} 목소리로 메시지를 읽어드릴게요!",
-                color=0x7289DA
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-        except Exception as e:
-            logger.error(f"음성설정 명령어 오류: {e}")
-            try:
-                await interaction.followup.send(
-                    f"오류가 발생했어요: {str(e)}",
-                    ephemeral=True
-                )
-            except:
-                pass
-
-    @app_commands.command(name="내목소리", description="내가 사용할 TTS 목소리를 선택합니다")
-    @app_commands.describe(목소리="사용할 목소리 선택")
-    @app_commands.choices(목소리=[
-        app_commands.Choice(name="데비", value="debi"),
-        app_commands.Choice(name="마를렌", value="marlene"),
-        app_commands.Choice(name="알렉스", value="alex"),
-        app_commands.Choice(name="서버 기본값", value="default"),
-    ])
-    async def set_my_voice(
-        self,
-        interaction: discord.Interaction,
-        목소리: app_commands.Choice[str]
-    ):
-        """유저 개인 TTS 목소리를 설정합니다."""
-        await interaction.response.defer(ephemeral=True)
-
-        try:
-            if not interaction.guild:
-                await interaction.followup.send(
-                    "이 명령어는 서버에서만 사용할 수 있어요!",
-                    ephemeral=True
-                )
-                return
-
-            await log_command_usage(
-                command_name="내목소리",
-                user_id=interaction.user.id,
-                user_name=interaction.user.display_name or interaction.user.name,
-                guild_id=interaction.guild.id if interaction.guild else None,
-                guild_name=interaction.guild.name if interaction.guild else None,
-                channel_id=interaction.channel_id,
-                channel_name=interaction.channel.name if interaction.channel else None,
-                args={"목소리": 목소리.name}
-            )
-
-            settings = load_settings()
-            guild_id = str(interaction.guild.id)
-            user_id = str(interaction.user.id)
-
-            if "guilds" not in settings:
-                settings["guilds"] = {}
-            if guild_id not in settings["guilds"]:
-                settings["guilds"][guild_id] = {}
-
-            guild_settings = settings["guilds"][guild_id]
-
-            if 목소리.value == "default":
-                # 개인 설정 삭제 -> 서버 기본값 사용
-                if "user_voices" in guild_settings and user_id in guild_settings["user_voices"]:
-                    del guild_settings["user_voices"][user_id]
-                save_settings(settings)
-
-                server_voice = guild_settings.get("tts_voice", "debi")
-                embed = discord.Embed(
-                    title="내 목소리 설정 해제",
-                    description=f"서버 기본값({server_voice})으로 돌아갔어요!",
-                    color=0x7289DA
-                )
-            else:
-                if "user_voices" not in guild_settings:
-                    guild_settings["user_voices"] = {}
-                guild_settings["user_voices"][user_id] = 목소리.value
-                save_settings(settings)
-
-                embed = discord.Embed(
-                    title="내 목소리 설정 완료",
-                    description=f"{목소리.name} 목소리로 내 메시지를 읽어드릴게요!",
-                    color=0x7289DA
-                )
-
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-        except Exception as e:
-            logger.error(f"내목소리 명령어 오류: {e}")
-            try:
-                await interaction.followup.send(
-                    f"오류가 발생했어요: {str(e)}",
-                    ephemeral=True
-                )
-            except:
-                pass
-
-    @app_commands.command(name="채널해제", description="TTS 채널 설정을 해제합니다")
-    @app_commands.default_permissions(administrator=True)
-    async def unset_tts_channel(self, interaction: discord.Interaction):
-        """TTS 채널 설정을 해제합니다."""
-        try:
-            if not interaction.guild:
-                await interaction.response.send_message(
-                    "이 명령어는 서버에서만 사용할 수 있어요!",
-                    ephemeral=True
-                )
-                return
-
-            if not interaction.user.guild_permissions.administrator:
-                await interaction.response.send_message(
-                    "이 명령어는 서버 관리자만 사용할 수 있어요!",
-                    ephemeral=True
-                )
-                return
-
-            await log_command_usage(
-                command_name="읽기채널해제",
-                user_id=interaction.user.id,
-                user_name=interaction.user.display_name or interaction.user.name,
-                guild_id=interaction.guild.id if interaction.guild else None,
-                guild_name=interaction.guild.name if interaction.guild else None,
-                channel_id=interaction.channel_id,
-                channel_name=interaction.channel.name if interaction.channel else None,
-                args={}
-            )
-
-            settings = load_settings()
-            guild_id = str(interaction.guild.id)
-
-            if "guilds" in settings and guild_id in settings["guilds"] and "tts_channel_id" in settings["guilds"][guild_id]:
-                del settings["guilds"][guild_id]["tts_channel_id"]
-                save_settings(settings)
-
-                embed = discord.Embed(
-                    title="TTS 채널 설정 해제",
-                    description="이제 모든 채널의 메시지를 읽어드릴게요!",
-                    color=0x7289DA
-                )
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-            else:
-                await interaction.response.send_message(
-                    "TTS 채널이 설정되어 있지 않아요!",
-                    ephemeral=True
-                )
-
-        except Exception as e:
-            logger.error(f"읽기채널해제 명령어 오류: {e}")
+            server_voice = guild_settings.get("tts_voice", "debi")
+            voice_names = {"debi": "데비", "marlene": "마를렌", "alex": "알렉스"}
             await interaction.response.send_message(
-                f"오류가 발생했어요: {str(e)}",
+                f"서버 기본값({voice_names.get(server_voice, server_voice)})으로 변경했어요!",
+                ephemeral=True
+            )
+        else:
+            if "user_voices" not in guild_settings:
+                guild_settings["user_voices"] = {}
+            guild_settings["user_voices"][user_id] = selected
+            save_settings(settings)
+            voice_names = {"debi": "데비", "marlene": "마를렌", "alex": "알렉스"}
+            await interaction.response.send_message(
+                f"{voice_names.get(selected, selected)} 목소리로 변경했어요!",
                 ephemeral=True
             )
 
+    async def _on_leave(self, interaction: discord.Interaction):
+        """음성 채널 퇴장"""
+        if not audio_player or not audio_player.is_connected(self.guild_id):
+            await interaction.response.send_message("봇이 음성 채널에 연결되어 있지 않아요!", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        success = await audio_player.leave_voice_channel(self.guild_id)
+
+        if success:
+            await interaction.followup.send("음성 채널에서 퇴장했어요!", ephemeral=True)
+        else:
+            await interaction.followup.send("퇴장에 실패했어요.", ephemeral=True)
+
+    async def _on_channel_setting(self, interaction: discord.Interaction):
+        """읽을 채널 설정 모달"""
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("관리자만 사용할 수 있어요!", ephemeral=True)
+            return
+
+        modal = TTSChannelModal(self.guild_id)
+        await interaction.response.send_modal(modal)
+
+    async def _on_server_voice(self, interaction: discord.Interaction):
+        """서버 기본 목소리 설정"""
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("관리자만 사용할 수 있어요!", ephemeral=True)
+            return
+
+        view = ServerVoiceSelectView(self.guild_id)
+        await interaction.response.send_message("서버 기본 목소리를 선택하세요:", view=view, ephemeral=True)
+
+
+class TTSChannelModal(discord.ui.Modal, title="TTS 읽을 채널 설정"):
+    """TTS 채널 설정 모달"""
+
+    channel_id_input = discord.ui.TextInput(
+        label="채널 ID (비우면 모든 채널에서 읽음)",
+        placeholder="채널 ID를 입력하세요 (숫자)",
+        required=False,
+        max_length=20,
+    )
+
+    def __init__(self, guild_id: str):
+        super().__init__()
+        self.guild_id = guild_id
+
+    async def on_submit(self, interaction: discord.Interaction):
+        settings = load_settings()
+        if "guilds" not in settings:
+            settings["guilds"] = {}
+        if self.guild_id not in settings["guilds"]:
+            settings["guilds"][self.guild_id] = {}
+
+        channel_id = self.channel_id_input.value.strip()
+        if channel_id:
+            settings["guilds"][self.guild_id]["tts_channel_id"] = channel_id
+            channel = interaction.guild.get_channel(int(channel_id))
+            if channel:
+                await interaction.response.send_message(f"{channel.mention} 채널의 메시지를 읽어드릴게요!", ephemeral=True)
+            else:
+                await interaction.response.send_message(f"채널 ID {channel_id} 설정 완료!", ephemeral=True)
+        else:
+            if "tts_channel_id" in settings["guilds"][self.guild_id]:
+                del settings["guilds"][self.guild_id]["tts_channel_id"]
+            await interaction.response.send_message("모든 채널의 메시지를 읽어드릴게요!", ephemeral=True)
+
+        save_settings(settings)
+
+
+class ServerVoiceSelectView(discord.ui.View):
+    """서버 기본 목소리 선택"""
+
+    def __init__(self, guild_id: str):
+        super().__init__(timeout=30)
+        self.guild_id = guild_id
+
+    @discord.ui.select(
+        placeholder="서버 기본 목소리 선택",
+        options=[
+            discord.SelectOption(label="데비", value="debi"),
+            discord.SelectOption(label="마를렌", value="marlene"),
+            discord.SelectOption(label="알렉스", value="alex"),
+        ]
+    )
+    async def voice_select(self, interaction: discord.Interaction, select: discord.ui.Select):
+        selected = select.values[0]
+        settings = load_settings()
+        if "guilds" not in settings:
+            settings["guilds"] = {}
+        if self.guild_id not in settings["guilds"]:
+            settings["guilds"][self.guild_id] = {}
+
+        settings["guilds"][self.guild_id]["tts_voice"] = selected
+        save_settings(settings)
+
+        voice_names = {"debi": "데비", "marlene": "마를렌", "alex": "알렉스"}
+        await interaction.response.edit_message(
+            content=f"서버 기본 목소리를 {voice_names.get(selected, selected)}(으)로 설정했어요!",
+            view=None
+        )
+
+
+# ========== TTS 메시지 처리 (기존 로직 유지) ==========
 
 def _ensure_playback_worker(guild_id: str):
     """재생 워커가 실행 중인지 확인하고, 없으면 시작합니다."""
@@ -555,11 +417,7 @@ def _ensure_playback_worker(guild_id: str):
 
 
 async def _playback_worker(guild_id: str):
-    """
-    재생 워커: Future를 순서대로 await하고 오디오를 재생합니다.
-
-    여러 메시지가 동시에 TTS를 생성하더라도, 이 워커가 순서를 보장합니다.
-    """
+    """재생 워커: Future를 순서대로 await하고 오디오를 재생합니다."""
     from run.services.voice_manager import voice_manager
 
     queue = tts_playback_queues[guild_id]
@@ -590,7 +448,6 @@ async def _generate_tts_audio(
 ):
     """TTS 오디오를 생성하고 PCM 변환 후 Future에 결과를 설정합니다."""
     try:
-        # 유저별 목소리 우선, 없으면 서버 기본값
         user_id = str(message.author.id)
         user_voices = guild_settings.get("user_voices", {})
         tts_voice = user_voices.get(user_id) or guild_settings.get("tts_voice", "debi")
@@ -605,7 +462,7 @@ async def _generate_tts_audio(
 
         audio_path = None
 
-        # 게임 대사 매칭 (metadata.csv 기반, 정확한 대사 → 즉시 재생)
+        # 게임 대사 매칭
         voice_line_path = match_voice_line(message.content, tts_voice)
         if voice_line_path:
             audio_path = voice_line_path
@@ -634,7 +491,6 @@ async def _generate_tts_audio(
                 audio_path = concatenate_audio_files(audio_segments, final_path)
 
         if audio_path is None:
-            # 300자 이상이면 간단 응답
             if len(message.content) > 300:
                 tts_service = await get_tts_service(tts_voice)
                 short_msgs = [
@@ -649,7 +505,6 @@ async def _generate_tts_audio(
                 processed_text = preprocess_text_for_tts(message.content)
                 audio_path = await tts_service.text_to_speech(text=processed_text, **meta)
 
-        # 모든 오디오를 Discord PCM으로 변환 (재생 시 FFmpeg 불필요)
         if audio_path:
             audio_path = await convert_to_discord_pcm(audio_path)
 
@@ -694,12 +549,10 @@ async def handle_tts_message(message: discord.Message):
 
     print(f"[TTS] {message.author.name}: {message.content[:30]}", flush=True)
 
-    # 재생 큐에 Future 추가 (메시지 순서 보장)
     _ensure_playback_worker(guild_id)
     future = asyncio.get_running_loop().create_future()
     await tts_playback_queues[guild_id].put(future)
 
-    # TTS 생성을 백그라운드로 실행 (여러 메시지 동시 생성)
     asyncio.create_task(_generate_tts_audio(future, message, guild_id, guild_settings))
 
 

@@ -73,7 +73,7 @@ def get_guild_features(guild_id):
     announcement_channel_id = guild_settings.get('ANNOUNCEMENT_CHANNEL_ID')
     chat_channel_id = guild_settings.get('CHAT_CHANNEL_ID')
     tts_channel_id = guild_settings.get('tts_channel_id')
-    tts_voice = guild_settings.get('tts_voice', 'debi')
+    tts_voice = guild_settings.get('tts_voice', 'edge_sunhi')
 
     # 기본값과 병합 (봇에서 설정한 채널이 있으면 enabled: True)
     default_features = {
@@ -90,7 +90,7 @@ def get_guild_features(guild_id):
         'tts': {
             'enabled': bool(tts_channel_id),
             'channelId': tts_channel_id,
-            'character': guild_settings.get('tts_voice', 'debi'),
+            'character': guild_settings.get('tts_voice', 'edge_sunhi'),
             'userVoices': guild_settings.get('user_voices', {})
         },
         'autoresponse': {'enabled': False, 'rules': []},
@@ -346,7 +346,7 @@ def get_server_members(guild_id):
     settings = load_gcs_settings()
     guild_settings = settings.get('guilds', {}).get(str(guild_id), {})
     user_voices = guild_settings.get('user_voices', {})
-    server_default = guild_settings.get('tts_voice', 'debi')
+    server_default = guild_settings.get('tts_voice', 'edge_sunhi')
 
     members = []
     for m in members_data:
@@ -839,6 +839,126 @@ def update_welcome_image_config(guild_id):
         return jsonify({'error': 'Failed to save'}), 500
 
 
+# ============== 환영 메시지 테스트 전송 ==============
+@servers_bp.route('/servers/<guild_id>/welcome-test', methods=['POST'])
+@admin_required
+def send_welcome_test(guild_id):
+    """환영 메시지 테스트 전송 (이미지 생성 후 채널에 전송)"""
+    import sys
+    import os
+    import asyncio
+    import base64
+
+    data = request.json
+    channel_id = data.get('channelId')
+    config = data.get('config', {})
+    image_type = data.get('type', 'welcome')
+
+    if not channel_id:
+        return jsonify({'error': 'Channel ID required'}), 400
+
+    # 봇 모듈 경로 추가
+    for p in ['/app', os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))]:
+        if p not in sys.path:
+            sys.path.insert(0, p)
+
+    try:
+        from run.services.welcome import WelcomeImageGenerator
+
+        # 배경 이미지 가져오기
+        background = None
+        try:
+            client = get_gcs_client()
+            if client:
+                bucket = client.bucket(GCS_BUCKET)
+                blob_name = f'welcome_images/{guild_id}_{image_type}_bg.png'
+                blob = bucket.blob(blob_name)
+                if blob.exists():
+                    background = blob.download_as_bytes()
+        except Exception:
+            pass
+
+        # 대시보드 config -> PIL config 변환
+        pil_config = {
+            'background_color': config.get('background_color', '#1a1a2e'),
+            'avatar': {
+                'x': 512, 'y': 180,
+                'size': 200,
+                'shape': config.get('avatar', {}).get('shape', 'circle'),
+                'border_color': '#FFFFFF',
+                'border_width': 5,
+            },
+            'username': {
+                'x': 512, 'y': 320,
+                'font_size': 48, 'color': '#FFFFFF',
+                'align': 'center', 'shadow': True,
+            },
+            'welcome_text': {
+                'x': 512, 'y': 390,
+                'font_size': 32, 'color': '#99AAB5',
+            },
+            'member_count': {
+                'enabled': config.get('member_count', {}).get('enabled', True),
+                'color': '#7289DA',
+            },
+        }
+
+        # 커스텀 텍스트
+        if config.get('welcome_subtitle'):
+            pil_config['custom_welcome_text'] = config['welcome_subtitle']
+
+        # 아바타 비활성화
+        if not config.get('avatar', {}).get('enabled', True):
+            pil_config['avatar']['size'] = 0
+            pil_config['avatar']['border_width'] = 0
+
+        generator = WelcomeImageGenerator()
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            image_bytes = loop.run_until_complete(generator.generate(
+                user_name='Test User',
+                user_avatar_url='https://cdn.discordapp.com/embed/avatars/0.png',
+                server_name='Test Server',
+                member_count=128,
+                is_welcome=(image_type == 'welcome'),
+                config=pil_config,
+                background_image=background,
+            ))
+        finally:
+            loop.close()
+
+        # Discord API로 이미지 파일 전송
+        import io
+        files = {
+            'file': ('welcome_test.png', io.BytesIO(image_bytes), 'image/png')
+        }
+        payload = {
+            'content': '[테스트] 환영 메시지 미리보기'
+        }
+
+        headers = {
+            'Authorization': f'Bot {DISCORD_BOT_TOKEN}',
+        }
+        url = f'{DISCORD_API_URL}/channels/{channel_id}/messages'
+
+        import requests as req
+        response = req.post(url, headers=headers, data=payload, files=files)
+
+        if response.ok:
+            return jsonify({'success': True, 'messageId': response.json().get('id')})
+        else:
+            logger.error(f'테스트 전송 실패: {response.text}')
+            return jsonify({'error': 'Failed to send'}), 500
+
+    except Exception as e:
+        logger.error(f'테스트 이미지 생성 실패: {e}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @servers_bp.route('/servers/<guild_id>/welcome-preview', methods=['POST'])
 @admin_required
 def preview_welcome_image(guild_id):
@@ -847,9 +967,9 @@ def preview_welcome_image(guild_id):
     import os
 
     # 봇 모듈 경로 추가
-    bot_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    if bot_path not in sys.path:
-        sys.path.insert(0, bot_path)
+    for p in ['/app', os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))]:
+        if p not in sys.path:
+            sys.path.insert(0, p)
 
     try:
         import asyncio

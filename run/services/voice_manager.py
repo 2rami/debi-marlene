@@ -46,7 +46,7 @@ class AudioType(Enum):
     MUSIC = "music"
 
 
-IDLE_TIMEOUT_SECONDS = 300  # 5분
+IDLE_TIMEOUT_SECONDS = 5  # 사용자 모두 나가면 5초 후 퇴장
 
 
 class VoiceManager:
@@ -111,12 +111,24 @@ class VoiceManager:
                         if vc.channel.id != channel.id:
                             await vc.move_to(channel)
                             logger.info(f"음성 채널 이동: {channel.name}")
+                            # 이동 후 봇 혼자면 idle 타이머 시작
+                            non_bot = [m for m in channel.members if not m.bot]
+                            if not non_bot:
+                                self.start_idle_timer(guild_id)
+                            else:
+                                self.cancel_idle_timer(guild_id)
                         return True
 
                 vc = await channel.connect(self_deaf=True)
                 self.voice_clients[guild_id] = vc
                 self.current_type[guild_id] = None
                 logger.info(f"음성 채널 입장: {channel.name}")
+
+                # 입장 시 봇 혼자면 idle 타이머 시작
+                non_bot = [m for m in channel.members if not m.bot]
+                if not non_bot:
+                    self.start_idle_timer(guild_id)
+
                 return True
 
             except Exception as e:

@@ -20,8 +20,17 @@ WORKDIR /app
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install Korean font for welcome image generation
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    fonts-nanum \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy backend code
 COPY backend/ ./backend/
+
+# Copy bot welcome module (for image generation)
+# These files are copied into dashboard/run/ before docker build by Makefile
+COPY run/ ./run/
 
 # Copy frontend build from Stage 1
 COPY --from=frontend-build /app/frontend/dist /var/www/dashboard

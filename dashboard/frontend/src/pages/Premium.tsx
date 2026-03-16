@@ -64,7 +64,7 @@ export default function Premium() {
               개발자 응원하기
             </h1>
             <p className="text-gray-400">
-              데비&마를렌이 더 열심히 일할 수 있도록 간식을 선물해주세요! 🧁
+              데비&마를렌이 더 열심히 일할 수 있도록 간식을 선물해주세요!
             </p>
           </motion.div>
 
@@ -137,15 +137,15 @@ export default function Premium() {
                   disabled={loading || amount < 100}
                   className="w-full py-4 rounded-xl font-bold text-white shadow-lg shadow-debi-primary/20 bg-gradient-to-r from-debi-primary to-marlene-primary hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? '처리 중...' : '후원하기 🎁'}
+                  {loading ? '처리 중...' : '후원하기'}
                 </button>
               </div>
             </div>
           </motion.div>
 
           <p className="text-center text-xs text-gray-600 mt-8">
-            후원금은 서버 운영비와 개발자의 커피값으로 소중하게 사용됩니다.<br />
-            항상 응원해 주셔서 감사합니다! 🙇‍♂️
+            후원금은 서버 운영비와 개발에 소중하게 사용됩니다.<br />
+            항상 응원해 주셔서 감사합니다!
           </p>
         </div>
       </main>

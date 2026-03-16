@@ -9,10 +9,8 @@ import {
   Command,
   Filter,
   Shield,
-  Sparkles,
   Settings,
   Music,
-  Youtube,
   Gamepad2,
   Mic,
   MoreHorizontal
@@ -24,35 +22,26 @@ interface CommandItem {
   usage: string
   category: string
   adminOnly?: boolean
-  premium?: boolean
 }
 
 const commands: CommandItem[] = [
   // 이터널리턴
-  { name: '/이터널리턴 전적', description: '플레이어 전적을 검색합니다', usage: '/이터널리턴 전적 닉네임:<플레이어명>', category: '이터널리턴' },
-  { name: '/이터널리턴 통계', description: '캐릭터별 통계를 보여줍니다 (다이아+)', usage: '/이터널리턴 통계', category: '이터널리턴' },
-  { name: '/이터널리턴 추천', description: '티어별 승률 높은 실험체 Top 5', usage: '/이터널리턴 추천 [티어]', category: '이터널리턴' },
-  { name: '/이터널리턴 동접', description: '현재 동접자 수를 확인합니다', usage: '/이터널리턴 동접', category: '이터널리턴' },
-
-  // 유튜브
-  { name: '/유튜브 알림', description: '새 영상 알림을 DM으로 받거나 해제합니다', usage: '/유튜브 알림 받기:<True/False>', category: '유튜브' },
-  { name: '/유튜브 테스트', description: '새 영상 확인을 수동으로 테스트합니다', usage: '/유튜브 테스트', category: '유튜브', adminOnly: true },
+  { name: '/전적', description: '플레이어 전적을 검색합니다', usage: '/전적 닉네임:<플레이어명>', category: '이터널리턴' },
+  { name: '/통계', description: '캐릭터별 통계를 보여줍니다 (다이아+)', usage: '/통계', category: '이터널리턴' },
+  { name: '/시즌', description: '현재 시즌 정보를 확인합니다', usage: '/시즌', category: '이터널리턴' },
+  { name: '/동접', description: '현재 동접자 수를 확인합니다', usage: '/동접', category: '이터널리턴' },
 
   // 음악
-  { name: '/음악 재생', description: 'YouTube 음악을 재생합니다', usage: '/음악 재생 검색어:<URL 또는 검색어>', category: '음악' },
-  { name: '/음악 정지', description: '음악을 정지하고 대기열을 비웁니다', usage: '/음악 정지', category: '음악' },
-  { name: '/음악 스킵', description: '현재 곡을 건너뜁니다', usage: '/음악 스킵', category: '음악' },
-  { name: '/음악 대기열', description: '현재 대기열을 확인합니다', usage: '/음악 대기열', category: '음악' },
+  { name: '/음악', description: 'YouTube 음악을 재생합니다', usage: '/음악 검색어:<URL 또는 검색어>', category: '음악' },
 
   // 음성 (TTS)
-  { name: '/음성 입장', description: '봇이 음성 채널에 입장합니다', usage: '/음성 입장', category: '음성', premium: true },
-  { name: '/음성 퇴장', description: '봇이 음성 채널에서 퇴장합니다', usage: '/음성 퇴장', category: '음성', premium: true },
-  { name: '/음성 채널설정', description: '메시지를 읽어줄 TTS 채널을 설정합니다', usage: '/음성 채널설정 채널:<텍스트채널>', category: '음성', adminOnly: true, premium: true },
-  { name: '/음성 목소리', description: 'TTS 음성을 설정합니다 (데비/마를렌)', usage: '/음성 목소리 음성:<데비/마를렌>', category: '음성', adminOnly: true, premium: true },
-  { name: '/음성 채널해제', description: 'TTS 채널 설정을 해제합니다', usage: '/음성 채널해제', category: '음성', adminOnly: true, premium: true },
+  { name: '/tts', description: '봇이 음성 채널에 입장하여 채팅을 읽어줍니다', usage: '/tts', category: '음성' },
+
+  // 퀴즈
+  { name: '/퀴즈', description: '음악 퀴즈 게임을 시작합니다', usage: '/퀴즈', category: '기타' },
 
   // 설정
-  { name: '/설정', description: '서버의 유튜브 알림 채널을 설정합니다', usage: '/설정', category: '설정', adminOnly: true },
+  { name: '/설정', description: '서버 설정을 관리합니다 (공지 채널, TTS, 알림, 대시보드)', usage: '/설정', category: '설정', adminOnly: true },
 
   // 기타
   { name: '/피드백', description: '봇 개발자에게 피드백을 보냅니다', usage: '/피드백 내용:<피드백 내용>', category: '기타' },
@@ -61,7 +50,6 @@ const commands: CommandItem[] = [
 const categories = [
   { id: '전체', label: 'All', icon: <Command className="w-4 h-4" /> },
   { id: '이터널리턴', label: 'Eternal Return', icon: <Gamepad2 className="w-4 h-4" /> },
-  { id: '유튜브', label: 'YouTube', icon: <Youtube className="w-4 h-4" /> },
   { id: '음악', label: 'Music', icon: <Music className="w-4 h-4" /> },
   { id: '음성', label: 'Voice (TTS)', icon: <Mic className="w-4 h-4" /> },
   { id: '설정', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
@@ -168,12 +156,6 @@ export default function Commands() {
                         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/10 text-xs font-medium">
                           <Shield className="w-3 h-3" />
                           Admin
-                        </div>
-                      )}
-                      {cmd.premium && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/10 text-xs font-medium">
-                          <Sparkles className="w-3 h-3" />
-                          후원자
                         </div>
                       )}
                     </div>

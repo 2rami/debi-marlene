@@ -88,8 +88,8 @@ export default function Docs() {
               봇이 서버에 들어왔다면 채팅창에 <code className="text-debi-primary">/</code>를 입력하여 슬래시 커맨드를 확인해보세요.
             </p>
             <TerminalBlock
-              command="/이터널리턴 추천"
-              output="[Debi & Marlene] 다이아몬드+ 티어 기준 승률 TOP 5 실험체를 추천해드릴게요!"
+              command="/전적 닉네임:플레이어명"
+              output="[Debi & Marlene] 플레이어 전적을 검색합니다."
             />
           </div>
         </div>
@@ -166,7 +166,7 @@ export default function Docs() {
             </h2>
             <p className="text-lg text-discord-muted leading-relaxed">
               채팅을 치면 봇이 음성으로 읽어주는 TTS 기능을 제공합니다.
-              데비와 마를렌의 생생한 목소리로 대화를 즐겨보세요! (후원자 전용 기능)
+              데비, 마를렌, 알렉스의 AI 음성과 Edge TTS 음성을 선택할 수 있어요.
             </p>
           </div>
 
@@ -174,19 +174,13 @@ export default function Docs() {
             <div>
               <h3 className="text-xl font-bold text-white mb-3">1. 봇 부르기</h3>
               <p className="text-discord-muted mb-3">먼저 음성 채널에 있어야 합니다. 그 후 아래 명령어를 입력하세요.</p>
-              <TerminalBlock command="/음성 입장" />
+              <TerminalBlock command="/tts" />
             </div>
 
             <div>
-              <h3 className="text-xl font-bold text-white mb-3">2. 읽어줄 채널 설정 (관리자)</h3>
-              <p className="text-discord-muted mb-3">어떤 채널의 채팅을 읽을지 설정해야 합니다.</p>
-              <TerminalBlock command="/음성 채널설정 채널:#일반" output="[설정 완료] 이제 #일반 채널의 메시지를 읽어드립니다." />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold text-white mb-3">3. 목소리 변경</h3>
-              <p className="text-discord-muted mb-3">취향에 따라 목소리를 변경할 수 있습니다.</p>
-              <TerminalBlock command="/음성 목소리 음성:마를렌" />
+              <h3 className="text-xl font-bold text-white mb-3">2. 목소리 & 채널 설정</h3>
+              <p className="text-discord-muted mb-3">입장 후 나타나는 UI에서 목소리 변경, 읽을 채널 설정을 할 수 있습니다. AI 음성(데비/마를렌/알렉스)과 Edge TTS 음성(SunHi/InJoon/Hyunsu)을 선택할 수 있어요.</p>
+              <TerminalBlock command="/tts" output="[TTS 입장] 음성 채널에 입장했어요! 목소리와 채널을 UI에서 설정하세요." />
             </div>
           </div>
         </div>
@@ -214,21 +208,20 @@ export default function Docs() {
             <div>
               <h3 className="text-xl font-bold text-white mb-3">음악 틀기</h3>
               <p className="text-discord-muted mb-3">제목이나 URL을 입력하면 자동으로 검색하여 재생합니다.</p>
-              <TerminalBlock command="/음악 재생 검색어:NewJeans Hype Boy" />
+              <TerminalBlock command="/음악 검색어:NewJeans Hype Boy" />
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
               <div className="p-5 rounded-xl bg-discord-dark border border-discord-light/10">
                 <h4 className="font-bold text-white mb-2">대기열 확인</h4>
                 <p className="text-sm text-discord-muted mb-3">현재 재생 중인 곡과 다음 곡 목록을 보여줍니다.</p>
-                <code className="text-xs bg-black/30 px-2 py-1 rounded text-pink-400">/음악 대기열</code>
+                <code className="text-xs bg-black/30 px-2 py-1 rounded text-pink-400">UI 대기열 버튼</code>
               </div>
               <div className="p-5 rounded-xl bg-discord-dark border border-discord-light/10">
                 <h4 className="font-bold text-white mb-2">스킵 / 정지</h4>
-                <p className="text-sm text-discord-muted mb-3">마음에 들지 않으면 넘기거나 멈출 수 있습니다.</p>
+                <p className="text-sm text-discord-muted mb-3">재생 중 나타나는 UI 버튼으로 스킵, 정지, 반복 등을 조작할 수 있습니다.</p>
                 <div className="flex gap-2">
-                  <code className="text-xs bg-black/30 px-2 py-1 rounded text-pink-400">/음악 스킵</code>
-                  <code className="text-xs bg-black/30 px-2 py-1 rounded text-pink-400">/음악 정지</code>
+                  <code className="text-xs bg-black/30 px-2 py-1 rounded text-pink-400">UI 버튼으로 조작</code>
                 </div>
               </div>
             </div>

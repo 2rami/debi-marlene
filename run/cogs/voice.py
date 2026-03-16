@@ -26,11 +26,19 @@ logger = logging.getLogger(__name__)
 # 효과음 파일 경로
 SFX_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "sfx")
 
+# 음성 이름 매핑
+VOICE_NAMES = {
+    "debi": "데비", "marlene": "마를렌", "alex": "알렉스",
+    "edge_sunhi": "SunHi", "edge_injoon": "InJoon", "edge_hyunsu": "Hyunsu",
+}
+
 # 전역 인스턴스
 audio_player: Optional[AudioPlayer] = None
 
 # 캐릭터별 TTS 서비스 캐시
 tts_services: dict = {}
+# Edge TTS 폴백 서비스 캐시
+edge_tts_services: dict = {}
 
 # 서버별 TTS 재생 큐 (생성은 병렬, 재생은 순서대로)
 tts_playback_queues: Dict[str, asyncio.Queue] = {}
@@ -38,16 +46,36 @@ tts_workers: Dict[str, asyncio.Task] = {}
 
 
 async def get_tts_service(character: str = "default") -> TTSService:
-    """캐릭터에 맞는 TTS 서비스를 가져옵니다."""
+    """캐릭터에 맞는 TTS 서비스를 가져옵니다.
+    edge_ 접두사면 Edge TTS 직접 사용."""
     global tts_services
+
+    # Edge TTS 직접 선택 (edge_sunhi, edge_injoon, edge_hyunsu)
+    if character.startswith("edge_"):
+        return await get_edge_tts_service(character)
 
     if character in tts_services:
         return tts_services[character]
 
-    logger.info(f"Qwen3-TTS 사용 ({character})")
+    logger.info(f"CosyVoice3 TTS 사용 ({character})")
     tts_service = TTSService(speaker=character)
     await tts_service.initialize()
     tts_services[character] = tts_service
+
+    return tts_service
+
+
+async def get_edge_tts_service(character: str = "debi") -> TTSService:
+    """Edge TTS 서비스를 가져옵니다."""
+    global edge_tts_services
+
+    if character in edge_tts_services:
+        return edge_tts_services[character]
+
+    logger.info(f"Edge TTS 초기화 ({character})")
+    tts_service = TTSService(speaker=character, engine="edge")
+    await tts_service.initialize()
+    edge_tts_services[character] = tts_service
 
     return tts_service
 
@@ -147,31 +175,50 @@ class VoiceCog(commands.Cog, name="TTS"):
                     tts_channel = interaction.guild.get_channel(int(tts_channel_id))
                     channel_info = f"읽을 채널: {tts_channel.mention}" if tts_channel else "읽을 채널: (삭제된 채널)"
                 else:
-                    channel_info = "읽을 채널: 모든 채널"
+                    channel_info = "읽을 채널: 미설정 (채널을 설정해주세요)"
 
                 # 현재 목소리 정보
                 user_id = str(interaction.user.id)
                 user_voices = guild_settings.get("user_voices", {})
-                current_voice = user_voices.get(user_id) or guild_settings.get("tts_voice", "debi")
-                voice_names = {"debi": "데비", "marlene": "마를렌", "alex": "알렉스"}
+                current_voice = user_voices.get(user_id) or guild_settings.get("tts_voice", "edge_sunhi")
+                voice_names = VOICE_NAMES
                 voice_display = voice_names.get(current_voice, current_voice)
 
-                embed = discord.Embed(
-                    title="TTS 입장",
-                    description=f"{voice_channel.mention}에 입장했어요!\n\n"
-                               f"{channel_info}\n"
-                               f"내 목소리: **{voice_display}**\n\n"
-                               "TTS 서버를 준비하고 있어요...",
-                    color=0xFFA500
-                )
-
                 is_admin = interaction.user.guild_permissions.administrator
-                view = TTSControlView(guild_id, interaction.user.id, is_admin)
-                msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True, wait=True)
-                view.message = msg
+                is_edge_voice = current_voice.startswith("edge_")
 
-                # Modal TTS 서버 선제 워밍업 (백그라운드)
-                asyncio.create_task(self._warmup_and_notify(msg, voice_channel, channel_info, voice_display, is_admin, guild_id, interaction.user.id))
+                if is_edge_voice:
+                    # Edge TTS: 서버 불필요, 즉시 준비 완료
+                    embed = discord.Embed(
+                        title="TTS 입장",
+                        description=f"{voice_channel.mention}에 입장했어요!\n\n"
+                                   f"{channel_info}\n"
+                                   f"내 목소리: **{voice_display}** (Edge TTS)\n\n"
+                                   "준비 완료!",
+                        color=0x00FF00
+                    )
+                    view = TTSControlView(guild_id, interaction.user.id, is_admin)
+                    msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True, wait=True)
+                    view.message = msg
+
+                    # Edge라도 Modal 서버 상태는 보여줌 (백그라운드)
+                    asyncio.create_task(self._update_server_status(msg, voice_channel, channel_info, voice_display, is_admin, guild_id, interaction.user.id, is_edge=True))
+                else:
+                    # AI 음성: Modal 서버 워밍업 필요
+                    embed = discord.Embed(
+                        title="TTS 입장",
+                        description=f"{voice_channel.mention}에 입장했어요!\n\n"
+                                   f"{channel_info}\n"
+                                   f"내 목소리: **{voice_display}**\n\n"
+                                   "TTS 서버를 준비하고 있어요...",
+                        color=0xFFA500
+                    )
+                    view = TTSControlView(guild_id, interaction.user.id, is_admin)
+                    msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True, wait=True)
+                    view.message = msg
+
+                    # Modal TTS 서버 워밍업 + 상태 표시
+                    asyncio.create_task(self._update_server_status(msg, voice_channel, channel_info, voice_display, is_admin, guild_id, interaction.user.id, is_edge=False))
             else:
                 await interaction.followup.send(
                     "음성 채널 입장에 실패했어요. 다시 시도해주세요.",
@@ -190,41 +237,68 @@ class VoiceCog(commands.Cog, name="TTS"):
             except:
                 pass
 
-    async def _warmup_and_notify(self, msg, voice_channel, channel_info, voice_display, is_admin, guild_id, user_id):
-        """Modal TTS 서버를 깨우고 완료되면 메시지를 업데이트합니다."""
+    async def _update_server_status(self, msg, voice_channel, channel_info, voice_display, is_admin, guild_id, user_id, is_edge: bool):
+        """Modal TTS 서버 상태를 확인하고 메시지를 업데이트합니다."""
         try:
             from run.services.tts.cosyvoice3_client import CosyVoice3Client
             results = await CosyVoice3Client.warmup_all_servers()
 
-            all_ready = all(s == "running" for s in results.values())
-            if all_ready:
+            # 서버 상태 라인 생성
+            status_lines = []
+            has_error = False
+            all_ready = True
+            for name, status in results.items():
+                if status == "running":
+                    mark = "[OK]"
+                elif status == "starting":
+                    mark = "[준비중]"
+                    all_ready = False
+                else:
+                    mark = "[오류]"
+                    has_error = True
+                    all_ready = False
+                status_lines.append(f"  {mark} {name}")
+
+            server_status_text = "AI 서버 상태:\n" + "\n".join(status_lines)
+
+            if is_edge:
+                # Edge TTS 사용자: 이미 준비 완료 상태, 서버 상태만 추가 표시
                 embed = discord.Embed(
                     title="TTS 입장",
                     description=f"{voice_channel.mention}에 입장했어요!\n\n"
                                f"{channel_info}\n"
-                               f"내 목소리: **{voice_display}**\n\n"
-                               "TTS 서버 준비 완료!",
+                               f"내 목소리: **{voice_display}** (Edge TTS)\n\n"
+                               "준비 완료!\n\n"
+                               f"{server_status_text}"
+                               + ("\n서버 오류 시 Edge TTS로 자동 전환됩니다." if has_error else ""),
                     color=0x00FF00
                 )
             else:
-                status_lines = []
-                for name, status in results.items():
-                    mark = "[OK]" if status == "running" else "[준비중]" if status == "starting" else "[오류]"
-                    status_lines.append(f"{mark} {name}")
-                embed = discord.Embed(
-                    title="TTS 입장",
-                    description=f"{voice_channel.mention}에 입장했어요!\n\n"
-                               f"{channel_info}\n"
-                               f"내 목소리: **{voice_display}**\n\n"
-                               "TTS 서버 상태:\n" + "\n".join(status_lines) + "\n\n"
-                               "준비중인 서버는 첫 메시지에서 시간이 걸릴 수 있어요.",
-                    color=0xFFA500
-                )
+                # AI 음성 사용자: 서버 상태에 따라 색상 변경
+                if all_ready:
+                    desc = (f"{voice_channel.mention}에 입장했어요!\n\n"
+                            f"{channel_info}\n"
+                            f"내 목소리: **{voice_display}**\n\n"
+                            f"TTS 서버 준비 완료!\n\n"
+                            f"{server_status_text}")
+                    color = 0x00FF00
+                else:
+                    note = "\n준비중인 서버는 첫 메시지에서 시간이 걸릴 수 있어요."
+                    if has_error:
+                        note += "\n서버 오류 시 Edge TTS로 자동 전환됩니다."
+                    desc = (f"{voice_channel.mention}에 입장했어요!\n\n"
+                            f"{channel_info}\n"
+                            f"내 목소리: **{voice_display}**\n\n"
+                            f"{server_status_text}\n"
+                            f"{note}")
+                    color = 0xFF6B6B if has_error else 0xFFA500
+
+                embed = discord.Embed(title="TTS 입장", description=desc, color=color)
 
             view = TTSControlView(guild_id, user_id, is_admin)
             await msg.edit(embed=embed, view=view)
         except Exception as e:
-            logger.warning(f"TTS 워밍업 알림 실패: {e}")
+            logger.warning(f"TTS 서버 상태 확인 실패: {e}")
 
 
 class TTSControlView(discord.ui.View):
@@ -238,9 +312,12 @@ class TTSControlView(discord.ui.View):
         voice_select = discord.ui.Select(
             placeholder="내 목소리 변경",
             options=[
-                discord.SelectOption(label="데비", value="debi"),
-                discord.SelectOption(label="마를렌", value="marlene"),
-                discord.SelectOption(label="알렉스", value="alex"),
+                discord.SelectOption(label="SunHi", value="edge_sunhi", description="Edge TTS (여성)"),
+                discord.SelectOption(label="InJoon", value="edge_injoon", description="Edge TTS (남성)"),
+                discord.SelectOption(label="Hyunsu", value="edge_hyunsu", description="Edge TTS (남성, 다국어)"),
+                discord.SelectOption(label="데비", value="debi", description="AI 음성 (서버 준비 필요)"),
+                discord.SelectOption(label="마를렌", value="marlene", description="AI 음성 (서버 준비 필요)"),
+                discord.SelectOption(label="알렉스", value="alex", description="AI 음성 (서버 준비 필요)"),
                 discord.SelectOption(label="서버 기본값", value="default"),
             ]
         )
@@ -294,8 +371,8 @@ class TTSControlView(discord.ui.View):
             if "user_voices" in guild_settings and user_id in guild_settings["user_voices"]:
                 del guild_settings["user_voices"][user_id]
             save_settings(settings)
-            server_voice = guild_settings.get("tts_voice", "debi")
-            voice_names = {"debi": "데비", "marlene": "마를렌", "alex": "알렉스"}
+            server_voice = guild_settings.get("tts_voice", "edge_sunhi")
+            voice_names = VOICE_NAMES
             await interaction.response.send_message(
                 f"서버 기본값({voice_names.get(server_voice, server_voice)})으로 변경했어요!",
                 ephemeral=True
@@ -305,11 +382,38 @@ class TTSControlView(discord.ui.View):
                 guild_settings["user_voices"] = {}
             guild_settings["user_voices"][user_id] = selected
             save_settings(settings)
-            voice_names = {"debi": "데비", "marlene": "마를렌", "alex": "알렉스"}
-            await interaction.response.send_message(
-                f"{voice_names.get(selected, selected)} 목소리로 변경했어요!",
-                ephemeral=True
-            )
+            voice_names = VOICE_NAMES
+
+            is_ai_voice = selected in ("debi", "marlene", "alex")
+            if is_ai_voice:
+                await interaction.response.send_message(
+                    f"{voice_names.get(selected, selected)} 목소리로 변경했어요! AI 서버 상태를 확인하고 있어요...",
+                    ephemeral=True
+                )
+                # AI 음성 선택 시 Modal 서버 워밍업 + 상태 표시
+                try:
+                    from run.services.tts.cosyvoice3_client import CosyVoice3Client
+                    results = await CosyVoice3Client.warmup_all_servers()
+                    status_lines = []
+                    for name, status in results.items():
+                        if status == "running":
+                            mark = "[OK]"
+                        elif status == "starting":
+                            mark = "[준비중]"
+                        else:
+                            mark = "[오류]"
+                        status_lines.append(f"  {mark} {name}")
+                    await interaction.followup.send(
+                        f"AI 서버 상태:\n" + "\n".join(status_lines),
+                        ephemeral=True
+                    )
+                except Exception:
+                    pass
+            else:
+                await interaction.response.send_message(
+                    f"{voice_names.get(selected, selected)} 목소리로 변경했어요!",
+                    ephemeral=True
+                )
 
     async def _on_leave(self, interaction: discord.Interaction):
         """음성 채널 퇴장"""
@@ -326,13 +430,14 @@ class TTSControlView(discord.ui.View):
             await interaction.followup.send("퇴장에 실패했어요.", ephemeral=True)
 
     async def _on_channel_setting(self, interaction: discord.Interaction):
-        """읽을 채널 설정 모달"""
+        """읽을 채널 설정"""
         if not interaction.user.guild_permissions.administrator:
             await interaction.response.send_message("관리자만 사용할 수 있어요!", ephemeral=True)
             return
 
-        modal = TTSChannelModal(self.guild_id)
-        await interaction.response.send_modal(modal)
+        view = TTSChannelSelectView(self.guild_id)
+        await interaction.response.send_message("TTS가 읽을 채널을 선택하세요:", view=view, ephemeral=True)
+        view.message = await interaction.original_response()
 
     async def _on_server_voice(self, interaction: discord.Interaction):
         """서버 기본 목소리 설정"""
@@ -345,41 +450,59 @@ class TTSControlView(discord.ui.View):
         view.message = await interaction.original_response()
 
 
-class TTSChannelModal(discord.ui.Modal, title="TTS 읽을 채널 설정"):
-    """TTS 채널 설정 모달"""
-
-    channel_id_input = discord.ui.TextInput(
-        label="채널 ID (비우면 모든 채널에서 읽음)",
-        placeholder="채널 ID를 입력하세요 (숫자)",
-        required=False,
-        max_length=20,
-    )
+class TTSChannelSelectView(discord.ui.View):
+    """TTS 읽을 채널 선택 (ChannelSelect 사용)"""
 
     def __init__(self, guild_id: str):
-        super().__init__()
+        super().__init__(timeout=60)
         self.guild_id = guild_id
+        self.message = None
 
-    async def on_submit(self, interaction: discord.Interaction):
+    @discord.ui.select(
+        cls=discord.ui.ChannelSelect,
+        channel_types=[discord.ChannelType.text],
+        placeholder="채널을 선택하세요",
+        min_values=0,
+        max_values=1,
+    )
+    async def channel_select(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect):
         settings = load_settings()
         if "guilds" not in settings:
             settings["guilds"] = {}
         if self.guild_id not in settings["guilds"]:
             settings["guilds"][self.guild_id] = {}
 
-        channel_id = self.channel_id_input.value.strip()
-        if channel_id:
-            settings["guilds"][self.guild_id]["tts_channel_id"] = channel_id
-            channel = interaction.guild.get_channel(int(channel_id))
-            if channel:
-                await interaction.response.send_message(f"{channel.mention} 채널의 메시지를 읽어드릴게요!", ephemeral=True)
-            else:
-                await interaction.response.send_message(f"채널 ID {channel_id} 설정 완료!", ephemeral=True)
+        if select.values:
+            channel = select.values[0]
+            settings["guilds"][self.guild_id]["tts_channel_id"] = str(channel.id)
+            save_settings(settings)
+            await interaction.response.send_message(f"{channel.mention} 채널의 메시지만 읽을게요!", ephemeral=True)
         else:
-            if "tts_channel_id" in settings["guilds"][self.guild_id]:
-                del settings["guilds"][self.guild_id]["tts_channel_id"]
-            await interaction.response.send_message("모든 채널의 메시지를 읽어드릴게요!", ephemeral=True)
+            await interaction.response.send_message("채널을 선택해주세요.", ephemeral=True)
+            return
 
+        self.stop()
+
+    @discord.ui.button(label="설정 해제", style=discord.ButtonStyle.danger, row=1)
+    async def clear_channel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        settings = load_settings()
+        if "guilds" not in settings:
+            settings["guilds"] = {}
+        if self.guild_id not in settings["guilds"]:
+            settings["guilds"][self.guild_id] = {}
+
+        if "tts_channel_id" in settings["guilds"][self.guild_id]:
+            del settings["guilds"][self.guild_id]["tts_channel_id"]
         save_settings(settings)
+        await interaction.response.send_message("채널 설정을 해제했어요. 채널을 설정하기 전까지 메시지를 읽지 않아요.", ephemeral=True)
+        self.stop()
+
+    async def on_timeout(self):
+        if self.message:
+            try:
+                await self.message.delete()
+            except Exception:
+                pass
 
 
 class ServerVoiceSelectView(discord.ui.View):
@@ -400,9 +523,12 @@ class ServerVoiceSelectView(discord.ui.View):
     @discord.ui.select(
         placeholder="서버 기본 목소리 선택",
         options=[
-            discord.SelectOption(label="데비", value="debi"),
-            discord.SelectOption(label="마를렌", value="marlene"),
-            discord.SelectOption(label="알렉스", value="alex"),
+            discord.SelectOption(label="SunHi", value="edge_sunhi", description="Edge TTS (여성)"),
+            discord.SelectOption(label="InJoon", value="edge_injoon", description="Edge TTS (남성)"),
+            discord.SelectOption(label="Hyunsu", value="edge_hyunsu", description="Edge TTS (남성, 다국어)"),
+            discord.SelectOption(label="데비", value="debi", description="AI 음성"),
+            discord.SelectOption(label="마를렌", value="marlene", description="AI 음성"),
+            discord.SelectOption(label="알렉스", value="alex", description="AI 음성"),
         ]
     )
     async def voice_select(self, interaction: discord.Interaction, select: discord.ui.Select):
@@ -416,7 +542,7 @@ class ServerVoiceSelectView(discord.ui.View):
         settings["guilds"][self.guild_id]["tts_voice"] = selected
         save_settings(settings)
 
-        voice_names = {"debi": "데비", "marlene": "마를렌", "alex": "알렉스"}
+        voice_names = VOICE_NAMES
         await interaction.response.edit_message(
             content=f"서버 기본 목소리를 {voice_names.get(selected, selected)}(으)로 설정했어요!",
             view=None
@@ -468,9 +594,10 @@ async def _generate_tts_audio(
     try:
         user_id = str(message.author.id)
         user_voices = guild_settings.get("user_voices", {})
-        tts_voice = user_voices.get(user_id) or guild_settings.get("tts_voice", "debi")
-        if tts_voice not in ["debi", "marlene", "alex"]:
-            tts_voice = "debi"
+        tts_voice = user_voices.get(user_id) or guild_settings.get("tts_voice", "edge_sunhi")
+        valid_voices = ["debi", "marlene", "alex", "edge_sunhi", "edge_injoon", "edge_hyunsu"]
+        if tts_voice not in valid_voices:
+            tts_voice = "edge_sunhi"
 
         meta = {
             "guild_name": message.guild.name if message.guild else None,
@@ -509,19 +636,26 @@ async def _generate_tts_audio(
                 audio_path = concatenate_audio_files(audio_segments, final_path)
 
         if audio_path is None:
-            if len(message.content) > 300:
-                tts_service = await get_tts_service(tts_voice)
+            text_to_read = message.content
+            if len(text_to_read) > 300:
                 short_msgs = [
                     "너무 길어서 못 읽겠어요.",
                     "힘들어서 못 말하겠어.",
                     "이건 좀 길어요.",
                     "요약 부탁드려요."
                 ]
-                audio_path = await tts_service.text_to_speech(text=random.choice(short_msgs), **meta)
+                text_to_read = random.choice(short_msgs)
             else:
+                text_to_read = preprocess_text_for_tts(text_to_read)
+
+            # CosyVoice3 시도 → 실패 시 Edge TTS 폴백
+            try:
                 tts_service = await get_tts_service(tts_voice)
-                processed_text = preprocess_text_for_tts(message.content)
-                audio_path = await tts_service.text_to_speech(text=processed_text, **meta)
+                audio_path = await tts_service.text_to_speech(text=text_to_read, **meta)
+            except Exception as e:
+                logger.warning(f"CosyVoice3 실패, Edge TTS 폴백: {e}")
+                edge_service = await get_edge_tts_service(tts_voice)
+                audio_path = await edge_service.text_to_speech(text=text_to_read, **meta)
 
         if audio_path:
             audio_path = await convert_to_discord_pcm(audio_path)
@@ -568,7 +702,9 @@ async def handle_tts_message(message: discord.Message):
     guild_settings = settings.get("guilds", {}).get(guild_id, {})
 
     tts_channel_id = guild_settings.get("tts_channel_id")
-    if tts_channel_id and str(message.channel.id) != tts_channel_id:
+    if not tts_channel_id:
+        return  # 채널 미설정이면 읽지 않음
+    if str(message.channel.id) != tts_channel_id:
         return
 
     if not message.content.strip():

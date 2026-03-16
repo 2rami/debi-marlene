@@ -252,13 +252,20 @@ deploy-dashboard-backend:
 
 # 웹패널 프론트엔드 빌드 + VM 배포
 deploy-webpanel-frontend:
-	@echo "[1/3] 프론트엔드 빌드 중..."
+	@echo "[1/4] 프론트엔드 빌드 중..."
 	@cd webpanel && npm run build
-	@echo "[2/3] dist를 VM에 업로드 중..."
-	@gcloud compute scp --recurse webpanel/dist/* $(VM_NAME):~/webpanel-upload/ --zone=$(ZONE)
-	@echo "[3/3] VM에서 배포 중..."
+	@echo "[2/4] dist를 VM에 업로드 중..."
+	@tar -czf /tmp/webpanel-dist.tar.gz -C webpanel/dist .
+	@gcloud compute scp /tmp/webpanel-dist.tar.gz $(VM_NAME):webpanel-dist.tar.gz --zone=$(ZONE)
+	@echo "[3/4] VM에서 배포 중 (nginx 마운트 경로: /home/kasa)..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="rm -rf ~/debi-marlene/webpanel/dist/* && mv ~/webpanel-upload/* ~/debi-marlene/webpanel/dist/ && rmdir ~/webpanel-upload && docker exec nginx-proxy nginx -s reload"
+		--command="sudo rm -rf /home/kasa/debi-marlene/webpanel/dist/assets/* && sudo rm -f /home/kasa/debi-marlene/webpanel/dist/index.html && sudo tar -xzf ~/webpanel-dist.tar.gz -C /home/kasa/debi-marlene/webpanel/dist/ && sudo chown -R kasa:kasa /home/kasa/debi-marlene/webpanel/dist/ && rm ~/webpanel-dist.tar.gz && docker exec nginx-proxy nginx -s reload"
+	@rm -f /tmp/webpanel-dist.tar.gz
+	@echo "[4/4] Cloudflare 캐시 퍼지 중..."
+	@curl -s -X POST "https://api.cloudflare.com/client/v4/zones/49337200d8d2ff73047081d747d42074/purge_cache" \
+		-H "Authorization: Bearer $(CF_API_TOKEN)" \
+		-H "Content-Type: application/json" \
+		--data '{"purge_everything":true}' > /dev/null
 	@echo "웹패널 프론트엔드 배포 완료"
 
 # 웹패널 백엔드 VM 배포 (Docker 이미지 리빌드 방식)

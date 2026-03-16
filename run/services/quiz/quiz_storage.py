@@ -5,6 +5,7 @@
 GCS 키: quiz_data.json (settings.json과 분리)
 """
 
+import asyncio
 import json
 import logging
 import random
@@ -226,6 +227,23 @@ def init_guild_songs_from_global(guild_id: str) -> List[dict]:
     guild_data["songs"] = guild_songs
     save_quiz_data(data)
     return guild_songs
+
+
+async def async_save_quiz_result(guild_id: str, session) -> bool:
+    """save_quiz_result의 비동기 버전. GCS 호출을 별도 스레드에서 실행합니다."""
+    try:
+        return await asyncio.to_thread(save_quiz_result, guild_id, session)
+    except Exception as e:
+        logger.error(f"퀴즈 결과 비동기 저장 실패: {e}")
+        return False
+
+
+async def async_update_leaderboard_names(guild_id: str, members: Dict[int, str]):
+    """update_leaderboard_names의 비동기 버전. GCS 호출을 별도 스레드에서 실행합니다."""
+    try:
+        await asyncio.to_thread(update_leaderboard_names, guild_id, members)
+    except Exception as e:
+        logger.error(f"리더보드 이름 비동기 업데이트 실패: {e}")
 
 
 def _random_id(length: int = 6) -> str:

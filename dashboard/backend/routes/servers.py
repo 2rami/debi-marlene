@@ -1126,6 +1126,170 @@ def delete_onboarding_prompt(guild_id, prompt_id):
         return jsonify({'error': 'Failed to delete prompt'}), 500
 
 
+# ============== 채널 청소 ==============
+@servers_bp.route('/servers/<guild_id>/channels/<channel_id>/purge', methods=['POST'])
+@admin_required
+def purge_channel(guild_id, channel_id):
+    """채널의 메시지를 일괄 삭제합니다 (14일 이내 메시지만, 최대 500개씩)"""
+    import time as time_module
+    from datetime import datetime, timezone, timedelta
+
+    max_count = request.json.get('count', 100)  # 기본 100개
+    if max_count > 1000:
+        max_count = 1000
+
+    deleted_total = 0
+    fourteen_days_ago = datetime.now(timezone.utc) - timedelta(days=14)
+
+    try:
+        while deleted_total < max_count:
+            # 메시지 가져오기 (최대 100개)
+            fetch_count = min(100, max_count - deleted_total)
+            response = discord_bot_request(
+                f'/channels/{channel_id}/messages?limit={fetch_count}'
+            )
+            if not response.ok:
+                break
+
+            messages = response.json()
+            if not messages:
+                break
+
+            # 14일 이내 메시지만 필터링
+            valid_ids = []
+            for msg in messages:
+                msg_time = datetime.fromisoformat(msg['timestamp'].replace('+00:00', '+00:00'))
+                if msg_time.tzinfo is None:
+                    msg_time = msg_time.replace(tzinfo=timezone.utc)
+                if msg_time > fourteen_days_ago:
+                    valid_ids.append(msg['id'])
+
+            if not valid_ids:
+                break
+
+            if len(valid_ids) == 1:
+                # 1개면 개별 삭제
+                discord_bot_request(
+                    f'/channels/{channel_id}/messages/{valid_ids[0]}',
+                    method='DELETE'
+                )
+                deleted_total += 1
+            else:
+                # 2개 이상이면 bulk-delete
+                resp = discord_bot_request(
+                    f'/channels/{channel_id}/messages/bulk-delete',
+                    method='POST',
+                    data={'messages': valid_ids}
+                )
+                if not resp.ok:
+                    logger.error(f'bulk-delete 실패: {resp.status_code} {resp.text}')
+                    break
+                deleted_total += len(valid_ids)
+
+            # 레이트 리밋 대응
+            time_module.sleep(1)
+
+        return jsonify({
+            'deleted': deleted_total,
+            'message': f'{deleted_total}개 메시지 삭제 완료'
+        })
+
+    except Exception as e:
+        logger.error(f'채널 청소 오류: {e}')
+        return jsonify({
+            'error': str(e),
+            'deleted': deleted_total
+        }), 500
+
+
+# ============== 알림 설정 ==============
+
+
+@servers_bp.route('/servers/<guild_id>/notifications')
+@admin_required
+def get_notification_settings(guild_id):
+    """알림 설정 조회"""
+    settings = load_gcs_settings()
+    guild_settings = settings.get('guilds', {}).get(str(guild_id), {})
+    notification_settings = guild_settings.get('notification_settings', {})
+
+    patch_note = notification_settings.get('patchNote', {
+        'enabled': False,
+        'channelId': None,
+    })
+
+    coupon_config = notification_settings.get('coupon', {
+        'enabled': False,
+        'channelId': None,
+    })
+
+    return jsonify({
+        'patchNote': patch_note,
+        'coupon': coupon_config,
+    })
+
+
+@servers_bp.route('/servers/<guild_id>/notifications/patchnote', methods=['POST'])
+@admin_required
+def update_patchnote_notification(guild_id):
+    """패치노트 알림 채널 설정"""
+    data = request.json
+    channel_id = data.get('channelId')
+    enabled = data.get('enabled', False)
+
+    if enabled and not channel_id:
+        return jsonify({'error': 'channelId is required when enabling'}), 400
+
+    settings = load_gcs_settings()
+    guild_id_str = str(guild_id)
+
+    if 'guilds' not in settings:
+        settings['guilds'] = {}
+    if guild_id_str not in settings['guilds']:
+        settings['guilds'][guild_id_str] = {}
+    if 'notification_settings' not in settings['guilds'][guild_id_str]:
+        settings['guilds'][guild_id_str]['notification_settings'] = {}
+
+    settings['guilds'][guild_id_str]['notification_settings']['patchNote'] = {
+        'enabled': enabled,
+        'channelId': channel_id if enabled else None,
+    }
+
+    if save_gcs_settings(settings):
+        return jsonify({'success': True})
+    else:
+        return jsonify({'error': 'Failed to save settings'}), 500
+
+
+@servers_bp.route('/servers/<guild_id>/notifications/coupon', methods=['POST'])
+@admin_required
+def update_coupon_notification(guild_id):
+    """쿠폰 알림 채널 설정"""
+    data = request.json
+    channel_id = data.get('channelId')
+    enabled = data.get('enabled', False)
+
+    settings = load_gcs_settings()
+    guild_id_str = str(guild_id)
+
+    if 'guilds' not in settings:
+        settings['guilds'] = {}
+    if guild_id_str not in settings['guilds']:
+        settings['guilds'][guild_id_str] = {}
+    if 'notification_settings' not in settings['guilds'][guild_id_str]:
+        settings['guilds'][guild_id_str]['notification_settings'] = {}
+
+    settings['guilds'][guild_id_str]['notification_settings']['coupon'] = {
+        'enabled': enabled,
+        'channelId': channel_id if enabled else None,
+    }
+
+    if save_gcs_settings(settings):
+        return jsonify({'success': True})
+    else:
+        return jsonify({'error': 'Failed to save settings'}), 500
+
+
 @servers_bp.route('/servers/<guild_id>/community-check')
 @admin_required
 def check_community_status(guild_id):

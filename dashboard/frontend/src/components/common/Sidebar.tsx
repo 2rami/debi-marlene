@@ -103,9 +103,6 @@ export default function Sidebar() {
             <p className="font-medium text-discord-text truncate">
               {user?.username}
             </p>
-            {user?.premium?.isActive && (
-              <p className="text-xs text-debi-primary font-medium mt-0.5">후원자</p>
-            )}
           </div>
         </div>
         <button

@@ -305,9 +305,6 @@ export default function DashboardLayout({ children }: Props) {
           />
           <div className="flex-1 min-w-0 flex flex-col justify-center">
             <p className="text-sm font-medium text-white truncate">{user?.username}</p>
-            {user?.premium?.isActive && (
-              <p className="text-[10px] text-debi-primary font-medium mt-0.5">후원자</p>
-            )}
           </div>
           <button
             onClick={logout}

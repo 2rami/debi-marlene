@@ -71,7 +71,9 @@ SPEAKERS = ["alex"]
     timeout=300,
     volumes={"/cache": volume},
     secrets=[hf_secret],
-    scaledown_window=300,
+    scaledown_window=120,
+    max_containers=1,
+    allow_concurrent_inputs=5,
 )
 class CosyVoice3Model:
     """CosyVoice3 파인튜닝 모델 (Alex LLM SFT)"""

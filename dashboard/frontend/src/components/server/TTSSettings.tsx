@@ -35,14 +35,17 @@ interface Props {
 }
 
 const VOICES = [
-  { id: 'debi', name: '데비', description: '밝고 활발한 목소리', borderActive: 'border-debi-primary', bgActive: 'bg-debi-primary/10' },
-  { id: 'marlene', name: '마를렌', description: '차분하고 부드러운 목소리', borderActive: 'border-marlene-primary', bgActive: 'bg-marlene-primary/10' },
-  { id: 'alex', name: '알렉스', description: '낮고 편안한 목소리', borderActive: 'border-blue-500', bgActive: 'bg-blue-500/10' },
+  { id: 'edge_sunhi', name: 'SunHi', description: 'Edge TTS (여성)', borderActive: 'border-emerald-500', bgActive: 'bg-emerald-500/10' },
+  { id: 'edge_injoon', name: 'InJoon', description: 'Edge TTS (남성)', borderActive: 'border-emerald-500', bgActive: 'bg-emerald-500/10' },
+  { id: 'edge_hyunsu', name: 'Hyunsu', description: 'Edge TTS (남성, 다국어)', borderActive: 'border-emerald-500', bgActive: 'bg-emerald-500/10' },
+  { id: 'debi', name: '데비', description: 'AI 음성 (서버 준비 필요)', borderActive: 'border-debi-primary', bgActive: 'bg-debi-primary/10' },
+  { id: 'marlene', name: '마를렌', description: 'AI 음성 (서버 준비 필요)', borderActive: 'border-marlene-primary', bgActive: 'bg-marlene-primary/10' },
+  { id: 'alex', name: '알렉스', description: 'AI 음성 (서버 준비 필요)', borderActive: 'border-blue-500', bgActive: 'bg-blue-500/10' },
 ]
 
 export default function TTSSettings({ features, channels, saving, guildId, onSave }: Props) {
   const [members, setMembers] = useState<Member[]>([])
-  const [, setServerDefault] = useState('debi')
+  const [, setServerDefault] = useState('edge_sunhi')
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [search, setSearch] = useState('')
   const [updatingMember, setUpdatingMember] = useState<string | null>(null)
@@ -114,14 +117,14 @@ export default function TTSSettings({ features, channels, saving, guildId, onSav
         {/* TTS 채널 선택 */}
         <div className="p-4 bg-discord-dark rounded-lg">
           <label className="block font-medium text-white mb-2">TTS 채널</label>
-          <p className="text-xs text-discord-muted mb-2">선택한 채널의 메시지만 읽어줍니다. 비어있으면 모든 채널을 읽습니다.</p>
+          <p className="text-xs text-discord-muted mb-2">선택한 채널의 메시지만 읽어줍니다. 채널을 설정해야 TTS가 작동합니다.</p>
           <select
             value={tts.channelId || ''}
             onChange={(e) => onSave({ tts: { ...tts, channelId: e.target.value || null } })}
             disabled={saving}
             className="w-full p-3 bg-discord-darkest border border-discord-light/20 rounded-lg text-white focus:border-debi-primary focus:outline-none"
           >
-            <option value="">모든 채널</option>
+            <option value="">미설정 (읽지 않음)</option>
             {textChannels.map(ch => <option key={ch.id} value={ch.id}>#{ch.name}</option>)}
           </select>
         </div>

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 import DashboardLayout from '../components/layout/DashboardLayout'
 import Loading from '../components/common/Loading'
@@ -8,10 +7,7 @@ import Loading from '../components/common/Loading'
 import {
   Plus,
   Search,
-  Crown,
-  ShieldAlert,
   Server as ServerIcon,
-  ChevronRight,
   ExternalLink
 } from 'lucide-react'
 import AnimatedSection from '../components/common/AnimatedSection'
@@ -47,7 +43,6 @@ interface Server {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth()
   const [servers, setServers] = useState<Server[]>([])
   const [botClientId, setBotClientId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -111,48 +106,6 @@ export default function Dashboard() {
           </div>
         </AnimatedSection>
 
-        {/* Premium Status Banner */}
-        <AnimatedSection delay={0.1} className="mb-10">
-          {user?.premium?.isActive ? (
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-debi-primary/20 via-discord-dark/50 to-marlene-primary/20 border border-debi-primary/20 p-6">
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-debi-primary to-marlene-primary flex items-center justify-center shadow-lg shadow-debi-primary/20">
-                  <Crown className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    후원 활성화
-                    <span className="px-2 py-0.5 rounded-full bg-debi-primary/20 text-debi-primary text-xs font-mono border border-debi-primary/20">PRO</span>
-                  </h3>
-                  <p className="text-discord-muted text-sm">모든 후원자 전용 기능을 제한 없이 이용할 수 있습니다.</p>
-                </div>
-              </div>
-              {/* Background glow */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-debi-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-            </div>
-          ) : (
-            <div className="relative overflow-hidden rounded-2xl bg-discord-dark/50 border border-discord-light/10 p-6 group hover:border-debi-primary/30 transition-colors">
-              <div className="flex items-center justify-between relative z-10">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gray-800 flex items-center justify-center">
-                    <ShieldAlert className="w-6 h-6 text-gray-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">기본 플랜</h3>
-                    <p className="text-discord-muted text-sm">TTS 등 고급 기능을 사용하시려면 후원이 필요합니다.</p>
-                  </div>
-                </div>
-                <Link
-                  to="/premium"
-                  className="px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium text-sm border border-white/5 transition-all flex items-center gap-2 group/btn"
-                >
-                  후원하기
-                  <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-0.5 transition-transform" />
-                </Link>
-              </div>
-            </div>
-          )}
-        </AnimatedSection>
 
         {/* Server Grid */}
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">

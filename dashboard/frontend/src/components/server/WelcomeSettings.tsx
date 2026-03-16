@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, forwardRef, useCallback } from 'react'
 import { api } from '../../services/api'
 import defaultBg from '../../assets/images/feature-bg.jpg'
 
@@ -90,7 +90,7 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void 
 }
 
 // --- Live CSS Preview ---
-function LivePreview({ config }: { config: ImageConfig }) {
+const LivePreview = forwardRef<HTMLDivElement, { config: ImageConfig }>(function LivePreview({ config }, ref) {
   const avatarEnabled = config.avatar?.enabled !== false
   const avatarShape = config.avatar?.shape || 'circle'
   const title = resolveVariables(config.welcome_title || 'Welcome, {user}')
@@ -107,6 +107,7 @@ function LivePreview({ config }: { config: ImageConfig }) {
 
   return (
     <div
+      ref={ref}
       className="relative w-full overflow-hidden rounded-lg"
       style={{ aspectRatio: '2 / 1', backgroundColor: bgColor }}
     >
@@ -170,7 +171,7 @@ function LivePreview({ config }: { config: ImageConfig }) {
       )}
     </div>
   )
-}
+})
 
 export default function WelcomeSettings({ features, channels, saving, guildId, onSave }: Props) {
   const [welcomeMessage, setWelcomeMessage] = useState(features.welcome.message || '')
@@ -184,19 +185,163 @@ export default function WelcomeSettings({ features, channels, saving, guildId, o
   const [testChannel, setTestChannel] = useState('')
   const [sendingTest, setSendingTest] = useState(false)
   const [testResult, setTestResult] = useState<{ message: string; error: boolean } | null>(null)
+  const previewRef = useRef<HTMLDivElement>(null)
+
+  const renderToCanvas = useCallback(async (): Promise<Blob | null> => {
+    const W = 1024, H = 500
+    const canvas = document.createElement('canvas')
+    canvas.width = W
+    canvas.height = H
+    const ctx = canvas.getContext('2d')!
+
+    const cfg = imageConfig
+    const avatarEnabled = cfg.avatar?.enabled !== false
+    const title = resolveVariables(cfg.welcome_title || 'Welcome, {user}')
+    const subtitle = resolveVariables(cfg.welcome_subtitle || '')
+    const tags = cfg.tags || []
+    const memberEnabled = cfg.member_count?.enabled !== false
+
+    // 1. Background
+    const bgUrl = cfg.background_image_url || defaultBg
+    try {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = bgUrl })
+      // cover
+      const sr = img.width / img.height, tr = W / H
+      let sw = img.width, sh = img.height, sx = 0, sy = 0
+      if (sr > tr) { sw = img.height * tr; sx = (img.width - sw) / 2 }
+      else { sh = img.width / tr; sy = (img.height - sh) / 2 }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H)
+      // opacity overlay
+      ctx.fillStyle = 'rgba(0,0,0,0.4)'
+      ctx.fillRect(0, 0, W, H)
+    } catch {
+      ctx.fillStyle = cfg.background_color || '#1a1a2e'
+      ctx.fillRect(0, 0, W, H)
+    }
+
+    // gradient bottom
+    const grad = ctx.createLinearGradient(0, H * 0.3, 0, H)
+    grad.addColorStop(0, 'rgba(0,0,0,0)')
+    grad.addColorStop(1, 'rgba(0,0,0,0.7)')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, W, H)
+
+    // layout
+    let y = avatarEnabled ? 100 : 160
+
+    // 2. Avatar
+    if (avatarEnabled) {
+      try {
+        const avImg = new Image()
+        avImg.crossOrigin = 'anonymous'
+        await new Promise<void>((res, rej) => { avImg.onload = () => res(); avImg.onerror = rej; avImg.src = 'https://cdn.discordapp.com/embed/avatars/0.png' })
+        const size = 140, x = (W - size) / 2
+        // white border
+        ctx.beginPath()
+        ctx.arc(W / 2, y + size / 2, size / 2 + 4, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(255,255,255,0.8)'
+        ctx.fill()
+        // clip circle
+        ctx.save()
+        ctx.beginPath()
+        ctx.arc(W / 2, y + size / 2, size / 2, 0, Math.PI * 2)
+        ctx.clip()
+        ctx.drawImage(avImg, x, y, size, size)
+        ctx.restore()
+        y += size + 24
+      } catch { y += 20 }
+    }
+
+    // 3. Title
+    ctx.textAlign = 'center'
+    ctx.font = 'bold 48px "Nanum Gothic", sans-serif'
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'
+    ctx.shadowBlur = 8
+    ctx.shadowOffsetX = 2
+    ctx.shadowOffsetY = 2
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillText(title, W / 2, y + 48)
+    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0
+    y += 72
+
+    // 4. Subtitle pill
+    if (subtitle) {
+      ctx.font = '24px "Nanum Gothic", sans-serif'
+      const tw = ctx.measureText(subtitle).width
+      const px = 28, py = 12, rr = 20
+      const rx = W / 2 - tw / 2 - px, ry = y, rw = tw + px * 2, rh = 24 + py * 2
+      ctx.fillStyle = 'rgba(255,255,255,0.1)'
+      ctx.beginPath()
+      ctx.roundRect(rx, ry, rw, rh, rr)
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.roundRect(rx, ry, rw, rh, rr)
+      ctx.stroke()
+      ctx.fillStyle = 'rgba(255,255,255,0.9)'
+      ctx.fillText(subtitle, W / 2, y + 24 + py - 2)
+      y += rh + 16
+    }
+
+    // 5. Member count
+    if (memberEnabled) {
+      ctx.font = '20px "Nanum Gothic", sans-serif'
+      ctx.fillStyle = '#7289DA'
+      ctx.fillText('#128번째 멤버', W / 2, y + 20)
+    }
+
+    // 6. Tags
+    if (tags.length > 0) {
+      ctx.textAlign = 'left'
+      ctx.font = '13px "Nanum Gothic", monospace'
+      let tx = 24
+      tags.forEach(tag => {
+        const tw = ctx.measureText(tag).width
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'
+        ctx.beginPath()
+        ctx.roundRect(tx, H - 44, tw + 20, 28, 14)
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)'
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.roundRect(tx, H - 44, tw + 20, 28, 14)
+        ctx.stroke()
+        ctx.fillStyle = 'rgba(255,255,255,0.7)'
+        ctx.fillText(tag, tx + 10, H - 25)
+        tx += tw + 30
+      })
+    }
+
+    return new Promise(resolve => canvas.toBlob(b => resolve(b), 'image/png'))
+  }, [imageConfig])
 
   const handleTestSend = async () => {
     if (!testChannel) return
     setSendingTest(true)
     setTestResult(null)
     try {
-      await api.post(`/servers/${guildId}/welcome-test`, {
-        channelId: testChannel,
-        type: activeImageTab,
-        config: imageConfig,
+      const blob = await renderToCanvas()
+      if (!blob) {
+        setTestResult({ message: '이미지 생성에 실패했습니다.', error: true })
+        return
+      }
+      const formData = new FormData()
+      formData.append('file', blob, 'welcome.png')
+      formData.append('channelId', testChannel)
+
+      const url = `/api/servers/${guildId}/welcome-test`
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
       })
+      if (!response.ok) throw new Error('Failed')
       setTestResult({ message: '테스트 메시지를 전송했습니다.', error: false })
-    } catch {
+    } catch (e) {
+      console.error('Test send failed:', e)
       setTestResult({ message: '전송에 실패했습니다.', error: true })
     } finally {
       setSendingTest(false)
@@ -615,7 +760,7 @@ export default function WelcomeSettings({ features, channels, saving, guildId, o
             <div className="space-y-2">
               <label className="text-sm font-medium text-discord-text">실시간 미리보기</label>
               <div className="p-3 bg-discord-darkest rounded-lg">
-                <LivePreview config={imageConfig} />
+                <LivePreview ref={previewRef} config={imageConfig} />
               </div>
               <p className="text-xs text-discord-muted mb-3">
                 미리보기는 실제 이미지와 약간 다를 수 있습니다. 변수는 샘플 값으로 표시됩니다.

@@ -100,24 +100,10 @@ export default function TTSSettings({ features, channels, saving, guildId, onSav
       </div>
 
       <div className="space-y-4">
-        {/* TTS 활성화 토글 */}
-        <div className="flex items-center justify-between p-4 bg-discord-dark rounded-lg">
-          <div>
-            <p className="font-medium text-white">TTS 기능</p>
-            <p className="text-sm text-discord-muted">텍스트 음성 변환 활성화</p>
-          </div>
-          <button
-            onClick={() => onSave({ tts: { ...tts, enabled: !tts.enabled } })}
-            className={`w-12 h-6 rounded-full transition-colors ${tts.enabled ? 'bg-debi-primary' : 'bg-discord-light'}`}
-          >
-            <div className={`w-5 h-5 rounded-full bg-white transform transition-transform ${tts.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
-          </button>
-        </div>
-
         {/* TTS 채널 선택 */}
         <div className="p-4 bg-discord-dark rounded-lg">
           <label className="block font-medium text-white mb-2">TTS 채널</label>
-          <p className="text-xs text-discord-muted mb-2">선택한 채널의 메시지만 읽어줍니다. 채널을 설정해야 TTS가 작동합니다.</p>
+          <p className="text-xs text-discord-muted mb-2">선택한 채널의 메시지만 읽어줍니다. /tts 명령어를 사용하면 해당 채널이 자동 설정됩니다.</p>
           <select
             value={tts.channelId || ''}
             onChange={(e) => onSave({ tts: { ...tts, channelId: e.target.value || null } })}

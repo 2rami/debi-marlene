@@ -72,6 +72,7 @@ def get_guild_features(guild_id):
     # 봇에서 설정한 값 가져오기
     announcement_channel_id = guild_settings.get('ANNOUNCEMENT_CHANNEL_ID')
     tts_channel_id = guild_settings.get('tts_channel_id')
+    tts_voice = guild_settings.get('tts_voice', 'debi')
 
     # 기본값과 병합 (봇에서 설정한 채널이 있으면 enabled: True)
     default_features = {
@@ -84,7 +85,8 @@ def get_guild_features(guild_id):
         'tts': {
             'enabled': bool(tts_channel_id),
             'channelId': tts_channel_id,
-            'character': 'debi'
+            'character': guild_settings.get('tts_voice', 'debi'),
+            'userVoices': guild_settings.get('user_voices', {})
         },
         'autoresponse': {'enabled': False, 'rules': []},
         'filter': {'enabled': False, 'action': 'delete', 'words': []},
@@ -149,6 +151,14 @@ def save_guild_features(guild_id, features):
             settings['guilds'][guild_id_str]['tts_channel_id'] = features['tts']['channelId']
         elif not features['tts'].get('enabled'):
             settings['guilds'][guild_id_str].pop('tts_channel_id', None)
+
+    # TTS 서버 기본 목소리
+    if 'tts' in features:
+        if features['tts'].get('character'):
+            settings['guilds'][guild_id_str]['tts_voice'] = features['tts']['character']
+        # 유저별 목소리
+        if 'userVoices' in features['tts']:
+            settings['guilds'][guild_id_str]['user_voices'] = features['tts']['userVoices']
 
     return save_gcs_settings(settings)
 
@@ -308,6 +318,69 @@ def get_server_channels(guild_id):
             })
 
     return jsonify({'channels': sorted(formatted, key=lambda x: x['position'])})
+
+@servers_bp.route('/servers/<guild_id>/members')
+@admin_required
+def get_server_members(guild_id):
+    """서버 멤버 목록 + 목소리 설정 조회"""
+    # Discord API에서 멤버 가져오기 (최대 100명)
+    response = discord_bot_request(f'/guilds/{guild_id}/members?limit=100')
+    if not response.ok:
+        return jsonify({'error': 'Failed to get members'}), 500
+
+    members_data = response.json()
+
+    # GCS에서 유저별 목소리 설정 가져오기
+    settings = load_gcs_settings()
+    guild_settings = settings.get('guilds', {}).get(str(guild_id), {})
+    user_voices = guild_settings.get('user_voices', {})
+    server_default = guild_settings.get('tts_voice', 'debi')
+
+    members = []
+    for m in members_data:
+        user = m.get('user', {})
+        if user.get('bot'):
+            continue
+        user_id = user['id']
+        members.append({
+            'id': user_id,
+            'username': user.get('username', ''),
+            'displayName': m.get('nick') or user.get('global_name') or user.get('username', ''),
+            'avatar': user.get('avatar'),
+            'voice': user_voices.get(user_id, None),
+        })
+
+    return jsonify({
+        'members': members,
+        'serverDefault': server_default,
+    })
+
+@servers_bp.route('/servers/<guild_id>/members/<user_id>/voice', methods=['PATCH'])
+@admin_required
+def update_member_voice(guild_id, user_id):
+    """유저 목소리 설정 변경"""
+    data = request.json
+    voice = data.get('voice')  # 'debi', 'marlene', 'alex', or None (server default)
+
+    settings = load_gcs_settings()
+    guild_id_str = str(guild_id)
+
+    if 'guilds' not in settings:
+        settings['guilds'] = {}
+    if guild_id_str not in settings['guilds']:
+        settings['guilds'][guild_id_str] = {}
+    if 'user_voices' not in settings['guilds'][guild_id_str]:
+        settings['guilds'][guild_id_str]['user_voices'] = {}
+
+    if voice and voice in ['debi', 'marlene', 'alex']:
+        settings['guilds'][guild_id_str]['user_voices'][user_id] = voice
+    else:
+        settings['guilds'][guild_id_str]['user_voices'].pop(user_id, None)
+
+    if save_gcs_settings(settings):
+        return jsonify({'success': True})
+    else:
+        return jsonify({'error': 'Failed to save'}), 500
 
 @servers_bp.route('/servers/<guild_id>/roles')
 @admin_required

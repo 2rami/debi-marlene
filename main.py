@@ -21,9 +21,7 @@ from run.cogs import setup_all_cogs
 
 async def setup():
     """봇 초기화 및 Cog 등록"""
-    # 삭제된 서버 정리
-    print("[정리] 삭제된 서버 정리 시작...", flush=True)
-    config.cleanup_removed_servers()
+    # 삭제된 서버 정리는 on_ready에서 실행 (봇 연결 후 현재 서버 목록 확인 가능)
 
     # 모든 Cog 등록
     await setup_all_cogs(bot)

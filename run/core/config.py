@@ -65,12 +65,12 @@ def get_gcs_client():
             gcs_client = False  # 실패를 명시적으로 표시
     return gcs_client if gcs_client != False else None
 
-def load_settings():
+def load_settings(force_reload=False):
     """GCS 또는 로컬 백업에서 설정 파일을 로드합니다. (GCS 우선)"""
     global settings_cache
 
     # 캐시가 있으면 바로 반환 (save_settings에서만 무효화)
-    if settings_cache is not None:
+    if not force_reload and settings_cache is not None:
         return settings_cache.copy()
 
     # 1순위: GCS에서 로드
@@ -527,14 +527,17 @@ def save_dm_channel(user_id, channel_id, user_name=None):
     return save_user_dm_interaction(user_id, channel_id, user_name)
 
 
-def cleanup_removed_servers():
+def cleanup_removed_servers(active_guild_ids=None):
     """삭제된 서버를 settings.json에서 완전히 제거합니다.
 
     removed_servers.json에 기록된 서버들을 settings.json의 guilds에서 삭제합니다.
+    active_guild_ids가 주어지면 현재 봇이 접속 중인 서버는 건너뜁니다.
 
     Returns:
         dict: 정리 결과 (removed_count, cleaned_servers)
     """
+    active_ids = set(str(gid) for gid in (active_guild_ids or []))
+
     try:
         # 삭제된 서버 목록 로드
         removed_data = load_removed_servers()
@@ -549,10 +552,16 @@ def cleanup_removed_servers():
 
         cleaned_servers = []
         removed_count = 0
+        skipped = []
 
         for removed_server in removed_servers:
             guild_id = str(removed_server.get("guild_id"))
             guild_name = removed_server.get("guild_name", "알 수 없음")
+
+            # 현재 봇이 접속 중인 서버는 건너뛰기 (재참가한 서버)
+            if guild_id in active_ids:
+                skipped.append(guild_name)
+                continue
 
             # settings.json에서 해당 서버 삭제
             if guild_id in settings.get("guilds", {}):
@@ -571,6 +580,25 @@ def cleanup_removed_servers():
             print(f"[완료] {removed_count}개의 삭제된 서버 정리 완료", flush=True)
         else:
             print("[정보] 정리할 서버가 없습니다.", flush=True)
+
+        if skipped:
+            print(f"[정보] 재참가 서버 {len(skipped)}개 건너뜀: {', '.join(skipped)}", flush=True)
+
+        # removed_servers.json에서 처리 완료된 항목 + 재참가 서버 제거
+        remaining = [s for s in removed_servers if str(s.get("guild_id")) in active_ids]
+        # 재참가 서버만 남기지 않고 전부 비우기 (처리 완료)
+        removed_data["removed_servers"] = []
+        try:
+            client = get_gcs_client()
+            if client:
+                bucket = client.bucket(GCS_BUCKET)
+                blob = bucket.blob(GCS_REMOVED_SERVERS_KEY)
+                blob.upload_from_string(
+                    json.dumps(removed_data, indent=2, ensure_ascii=False),
+                    content_type='application/json'
+                )
+        except Exception:
+            pass
 
         return {
             "removed_count": removed_count,

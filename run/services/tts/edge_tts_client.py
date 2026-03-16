@@ -13,8 +13,14 @@ import edge_tts
 logger = logging.getLogger(__name__)
 
 VOICES = {
+    # AI 음성 폴백용 (CosyVoice3 실패 시)
     "debi": "ko-KR-SunHiNeural",
     "marlene": "ko-KR-InJoonNeural",
+    "alex": "ko-KR-HyunsuMultilingualNeural",
+    # Edge TTS 직접 선택용
+    "edge_sunhi": "ko-KR-SunHiNeural",
+    "edge_injoon": "ko-KR-InJoonNeural",
+    "edge_hyunsu": "ko-KR-HyunsuMultilingualNeural",
 }
 
 

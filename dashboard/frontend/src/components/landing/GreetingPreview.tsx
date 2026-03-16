@@ -74,8 +74,16 @@ export default function GreetingPreview() {
                             key={currentGreeting}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="relative z-10"
+                            className="relative z-10 flex flex-col items-center"
                         >
+                            {/* User Avatar */}
+                            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white/80 shadow-2xl mb-5 overflow-hidden bg-discord-dark">
+                                <img
+                                    src="https://cdn.discordapp.com/embed/avatars/0.png"
+                                    alt="Avatar"
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
                             <h2 className="text-4xl md:text-6xl font-black text-white mb-4 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]">
                                 Welcome, {nickname}
                             </h2>
@@ -85,13 +93,6 @@ export default function GreetingPreview() {
                                 </p>
                             </div>
                         </motion.div>
-                    </div>
-
-                    {/* Decoration */}
-                    <div className="absolute top-6 right-6 z-20">
-                        <div className="w-12 h-12 rounded-full border-2 border-white/30 p-1">
-                            <div className="w-full h-full rounded-full bg-gradient-to-br from-debi-primary to-marlene-primary animate-pulse" />
-                        </div>
                     </div>
 
                     <div className="absolute bottom-6 left-6 z-20 flex gap-2">

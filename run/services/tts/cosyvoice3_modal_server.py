@@ -49,8 +49,10 @@ image = (
         "cd /opt/CosyVoice/third_party/Matcha-TTS && pip install cython && python setup.py build_ext --inplace",
         "pip install numpy==1.26.4",
         "pip install 'fastapi[standard]'",
-        # vLLM for LLM inference acceleration (load_vllm=True)
-        "pip install vllm>=0.11.0 torchcodec",
+        # vLLM 제거: 컨테이너 시작 실패 원인
+        "pip uninstall -y vllm || true",
+        # transformers 재고정 (vLLM이 올렸을 수 있음)
+        "pip install 'transformers==4.51.3'",
     )
     .env({
         "PYTHONPATH": "/opt/CosyVoice/third_party/Matcha-TTS:/opt/CosyVoice",
@@ -69,7 +71,9 @@ SPEAKERS = ["debi", "marlene"]
     timeout=300,
     volumes={"/cache": volume},
     secrets=[hf_secret],
-    scaledown_window=300,
+    scaledown_window=120,
+    max_containers=1,
+    allow_concurrent_inputs=5,
 )
 class CosyVoice3Model:
     """CosyVoice3 파인튜닝 모델 (LLM SFT)"""
@@ -109,7 +113,7 @@ class CosyVoice3Model:
             # CosyVoice3 모델 로드
             print(f"Loading CosyVoice3 from {model_path}")
             from cosyvoice.cli.cosyvoice import CosyVoice3
-            self.model = CosyVoice3(model_path, load_vllm=True, load_trt=False, fp16=True)
+            self.model = CosyVoice3(model_path, load_vllm=False, load_trt=False, fp16=True)
 
             # 워밍업 추론
             print("Warming up...")

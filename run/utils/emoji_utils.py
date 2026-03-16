@@ -102,6 +102,20 @@ def get_character_emoji(character_key: str) -> str:
     return EMOJI_MAP.get(emoji_name, "")
 
 
+def get_char_tier_emoji(tier_letter: str) -> str:
+    """
+    캐릭터 성능 티어 이모지 (S/A/B/C/D)
+
+    Args:
+        tier_letter: 티어 문자 (예: "S", "A", "B", "C", "D")
+
+    Returns:
+        Discord 이모지 문자열 (예: "<:char_tier_s:123456>") 또는 빈 문자열
+    """
+    emoji_name = f"char_tier_{tier_letter.lower()}"
+    return EMOJI_MAP.get(emoji_name, "")
+
+
 def get_tier_emoji(tier_id: int) -> str:
     """
     티어 이모지 가져오기

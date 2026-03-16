@@ -186,8 +186,17 @@ deploy-dashboard: build-dashboard push-dashboard restart-dashboard
 
 # 대시보드 Docker 이미지 빌드
 build-dashboard:
+	@echo "봇 모듈 복사 (환영 이미지 생성용)..."
+	@rm -rf dashboard/run
+	@mkdir -p dashboard/run/core dashboard/run/services/welcome
+	@cp run/__init__.py dashboard/run/__init__.py
+	@cp run/core/__init__.py dashboard/run/core/__init__.py
+	@cp run/core/config.py dashboard/run/core/config.py
+	@cp run/services/__init__.py dashboard/run/services/__init__.py
+	@cp -r run/services/welcome/* dashboard/run/services/welcome/
 	@echo "대시보드 Docker 이미지 빌드 중 (linux/amd64)..."
 	@docker build --platform linux/amd64 -t $(DASHBOARD_CONTAINER) -t $(DASHBOARD_IMAGE_TAG) ./dashboard
+	@rm -rf dashboard/run
 	@echo "빌드 완료"
 
 # 대시보드 이미지 푸시

@@ -122,8 +122,7 @@ class EternalReturnCog(commands.Cog, name="이터널리턴"):
                 return
 
             view = CharacterStatsView(stats_data, period=7)
-            embed = view.create_embed()
-            await interaction.edit_original_response(embed=embed, view=view)
+            await interaction.edit_original_response(view=view)
 
         except Exception as e:
             print(f"[오류] 캐릭터 통계 명령어 오류: {e}")

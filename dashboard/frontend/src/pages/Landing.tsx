@@ -313,8 +313,8 @@ export default function Landing() {
                     따뜻한 마음을 전해주세요
                   </h3>
                   <p className="text-gray-400 leading-relaxed mb-8">
-                    후원해주신 모든 분들께는 감사의 마음을 담아<br className="hidden md:block" />
-                    <span className="text-white font-semibold">특별한 후원자 배지</span>와 <span className="text-white font-semibold">우선 지원 혜택</span>을 드립니다.
+                    후원해주신 금액은 서버 운영비와 개발에 소중하게 사용됩니다.<br className="hidden md:block" />
+                    여러분의 응원이 큰 힘이 돼요!
                   </p>
 
                   <div className="flex flex-wrap gap-4 justify-center md:justify-start">

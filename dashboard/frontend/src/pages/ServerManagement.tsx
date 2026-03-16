@@ -11,6 +11,7 @@ import StickyMessage from '../components/server/StickyMessage'
 import ServerStats from '../components/server/ServerStats'
 import OnboardingSettings from '../components/server/OnboardingSettings'
 import QuizDashboard from '../components/server/QuizDashboard'
+import TTSSettings from '../components/server/TTSSettings'
 
 interface ServerSettings {
   id: string
@@ -20,7 +21,7 @@ interface ServerSettings {
     announcement: { enabled: boolean; channelId: string | null }
     welcome: { enabled: boolean; channelId: string | null; message: string; imageEnabled?: boolean }
     goodbye: { enabled: boolean; channelId: string | null; message: string; imageEnabled?: boolean }
-    tts: { enabled: boolean; channelId: string | null; character: string }
+    tts: { enabled: boolean; channelId: string | null; character: string; userVoices?: Record<string, string> }
     autoresponse: { enabled: boolean; rules: { id: string; trigger: string; response: string; enabled: boolean }[] }
     filter: { enabled: boolean; action: string; words: string[] }
     moderation: { enabled: boolean; warnThreshold: number }
@@ -170,57 +171,13 @@ export default function ServerManagement() {
 
           {/* TTS */}
           {activeTab === 'tts' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold text-white mb-2">TTS 설정</h2>
-                <p className="text-discord-muted text-sm">음성 채널에서 텍스트를 읽어주는 기능을 설정합니다.</p>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-discord-dark rounded-lg">
-                  <div>
-                    <p className="font-medium text-white">TTS 기능</p>
-                    <p className="text-sm text-discord-muted">텍스트 음성 변환 활성화</p>
-                  </div>
-                  <button
-                    onClick={() => saveSettings({ tts: { ...settings.features.tts, enabled: !settings.features.tts.enabled } })}
-                    className={`w-12 h-6 rounded-full transition-colors ${settings.features.tts.enabled ? 'bg-debi-primary' : 'bg-discord-light'}`}
-                  >
-                    <div className={`w-5 h-5 rounded-full bg-white transform transition-transform ${settings.features.tts.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-                <div className="p-4 bg-discord-dark rounded-lg">
-                  <label className="block font-medium text-white mb-2">TTS 채널</label>
-                  <select
-                    value={settings.features.tts.channelId || ''}
-                    onChange={(e) => saveSettings({ tts: { ...settings.features.tts, channelId: e.target.value || null } })}
-                    disabled={saving}
-                    className="w-full p-3 bg-discord-darkest border border-discord-light/20 rounded-lg text-white focus:border-debi-primary focus:outline-none"
-                  >
-                    <option value="">채널 선택...</option>
-                    {textChannels.map(ch => <option key={ch.id} value={ch.id}>#{ch.name}</option>)}
-                  </select>
-                </div>
-                <div className="p-4 bg-discord-dark rounded-lg">
-                  <label className="block font-medium text-white mb-3">TTS 캐릭터</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => saveSettings({ tts: { ...settings.features.tts, character: 'debi' } })}
-                      className={`p-4 rounded-lg border-2 transition-all ${settings.features.tts.character === 'debi' ? 'border-debi-primary bg-debi-primary/10' : 'border-discord-light/20 hover:border-discord-light/40'}`}
-                    >
-                      <p className="font-semibold text-white">Debi</p>
-                      <p className="text-sm text-discord-muted">밝고 활발한 목소리</p>
-                    </button>
-                    <button
-                      onClick={() => saveSettings({ tts: { ...settings.features.tts, character: 'marlene' } })}
-                      className={`p-4 rounded-lg border-2 transition-all ${settings.features.tts.character === 'marlene' ? 'border-marlene-primary bg-marlene-primary/10' : 'border-discord-light/20 hover:border-discord-light/40'}`}
-                    >
-                      <p className="font-semibold text-white">Marlene</p>
-                      <p className="text-sm text-discord-muted">차분하고 부드러운 목소리</p>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <TTSSettings
+              features={{ tts: settings.features.tts }}
+              channels={channels}
+              saving={saving}
+              guildId={guildId!}
+              onSave={(features) => saveSettings(features as Partial<ServerSettings['features']>)}
+            />
           )}
 
           {/* 임베드 */}

@@ -70,6 +70,7 @@ class QuizCog(commands.Cog, name="퀴즈"):
         )
         view = QuizStartView(self, interaction)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        view.message = await interaction.original_response()
 
     # ---------- 공통 노래 답변 루프 ----------
 
@@ -536,6 +537,14 @@ class QuizStartView(discord.ui.View):
         self.cog = cog
         self.original_interaction = interaction
         self.question_count = 5
+        self.message = None
+
+    async def on_timeout(self):
+        if self.message:
+            try:
+                await self.message.delete()
+            except Exception:
+                pass
 
     @discord.ui.select(
         placeholder="문제 수 (기본: 5)",

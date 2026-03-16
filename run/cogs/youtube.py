@@ -43,6 +43,7 @@ class YoutubeCog(commands.Cog, name="유튜브"):
             is_admin = interaction.user.guild_permissions.administrator
             view = SettingsLayoutView(interaction.guild, interaction.user.id, is_admin)
             await interaction.response.send_message(view=view, ephemeral=True)
+            view.message = await interaction.original_response()
 
         except Exception as e:
             print(f"[오류] 설정 명령어 오류: {e}", flush=True)

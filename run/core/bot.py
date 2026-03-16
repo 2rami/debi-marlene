@@ -53,7 +53,7 @@ welcomed_guilds = set()
 welcome_timestamps = {}
 # YouTube 태스크 시작 여부 (on_ready 중복 호출 방지)
 _youtube_task_started = False
-# 스티키 메시지 쿨다운 (채널별 마지막 재전송 시각)
+# 스티키 메시지
 _sticky_cooldowns = {}
 STICKY_COOLDOWN_SECONDS = 5
 
@@ -262,6 +262,13 @@ async def on_ready():
     total_members = sum(guild.member_count for guild in bot.guilds if guild.member_count)
     print(f"[정보] 현재 {guild_count}개 서버에 연결되었습니다, 총 {total_members}명 사용자", flush=True)
     sys.stdout.flush()
+
+    # 삭제된 서버 정리 (현재 접속 중인 서버는 건너뜀)
+    try:
+        active_ids = [g.id for g in bot.guilds]
+        config.cleanup_removed_servers(active_guild_ids=active_ids)
+    except Exception as e:
+        print(f"[경고] 삭제된 서버 정리 실패: {e}", flush=True)
 
     # 모든 명령어에 allowed_installs/allowed_contexts 설정 (프로필에 명령어 표시)
     installs = discord.app_commands.AppInstallationType(guild=True, user=True)
@@ -612,82 +619,65 @@ async def _handle_sticky_message(message):
     channel_id_str = str(message.channel.id)
     guild_id_str = str(message.guild.id)
 
-    # 쿨다운 체크 (채널별 5초)
+    # 쿨다운 체크 (채널별)
     now = time.time()
     last_sent = _sticky_cooldowns.get(channel_id_str, 0)
     if now - last_sent < STICKY_COOLDOWN_SECONDS:
         return
 
-    # 설정에서 스티키 메시지 로드
+    # GCS에서 설정 로드 (캐시 우회)
     try:
-        settings = await asyncio.to_thread(config.load_settings)
+        settings = await asyncio.to_thread(config.load_settings, True)
     except Exception as e:
         print(f"[스티키] 설정 로드 실패: {e}", flush=True)
         return
 
-    guild_data = settings.get('guilds', {}).get(guild_id_str, {})
-    sticky_messages = guild_data.get('sticky_messages', [])
-
+    sticky_messages = settings.get('guilds', {}).get(guild_id_str, {}).get('sticky_messages', [])
     if not sticky_messages:
         return
 
-    print(f"[스티키] 채널 {channel_id_str} 에서 스티키 체크 중 (길드 {guild_id_str}, 스티키 {len(sticky_messages)}개)", flush=True)
+    # 이 채널에 활성화된 스티키 메시지 모두 찾기
+    matching = [(i, sm) for i, sm in enumerate(sticky_messages)
+                if str(sm.get('channelId', '')) == channel_id_str and sm.get('enabled')]
 
-    # 이 채널에 활성화된 스티키 메시지 찾기
-    sticky = None
-    sticky_index = -1
-    for i, sm in enumerate(sticky_messages):
-        sm_channel = str(sm.get('channelId', ''))
-        print(f"[스티키] 비교: sm_channel={sm_channel} vs channel={channel_id_str}, enabled={sm.get('enabled')}", flush=True)
-        if sm_channel == channel_id_str and sm.get('enabled'):
-            sticky = sm
-            sticky_index = i
-            break
-
-    if not sticky:
-        print(f"[스티키] 이 채널에 매칭되는 스티키 없음", flush=True)
+    if not matching:
         return
 
-    print(f"[스티키] 매칭됨! content={sticky.get('content', '')[:20]}, lastMessageId={sticky.get('lastMessageId')}", flush=True)
-
-    # 쿨다운 설정 (다른 메시지가 동시에 처리되지 않도록 먼저 설정)
+    # 쿨다운 설정
     _sticky_cooldowns[channel_id_str] = now
 
-    # 이전 스티키 메시지 삭제
-    old_message_id = sticky.get('lastMessageId')
-    if old_message_id:
+    changed = False
+    for idx, sticky in matching:
+        # 이전 스티키 메시지 삭제
+        old_message_id = sticky.get('lastMessageId')
+        if old_message_id:
+            try:
+                old_msg = await message.channel.fetch_message(int(old_message_id))
+                await old_msg.delete()
+            except (discord.NotFound, discord.HTTPException):
+                pass
+            except Exception as e:
+                print(f"[스티키] 이전 메시지 삭제 실패: {e}", flush=True)
+
+        # 새 스티키 메시지 전송 (silent)
         try:
-            old_msg = await message.channel.fetch_message(int(old_message_id))
-            await old_msg.delete()
-            print(f"[스티키] 이전 메시지 삭제 완료: {old_message_id}", flush=True)
-        except (discord.NotFound, discord.HTTPException) as e:
-            print(f"[스티키] 이전 메시지 삭제 스킵 (NotFound/HTTP): {e}", flush=True)
+            new_msg = await message.channel.send(sticky['content'], silent=True)
+            sticky_messages[idx]['lastMessageId'] = str(new_msg.id)
+            changed = True
         except Exception as e:
-            print(f"[스티키] 이전 메시지 삭제 실패: {e}", flush=True)
+            print(f"[스티키] 메시지 전송 실패: {e}", flush=True)
 
-    # 새 스티키 메시지 전송
-    try:
-        new_msg = await message.channel.send(sticky['content'])
-        print(f"[스티키] 새 메시지 전송 완료: {new_msg.id}", flush=True)
-    except Exception as e:
-        print(f"[스티키] 메시지 전송 실패: {e}", flush=True)
-        return
-
-    # lastMessageId 업데이트 후 저장
-    settings['guilds'][guild_id_str]['sticky_messages'][sticky_index]['lastMessageId'] = str(new_msg.id)
-    try:
-        await asyncio.to_thread(config.save_settings, settings, True)
-    except Exception as e:
-        print(f"[스티키] 설정 저장 실패: {e}", flush=True)
+    # GCS에 lastMessageId 업데이트 (한 번만)
+    if changed:
+        try:
+            await asyncio.to_thread(config.save_settings, settings, True)
+        except Exception as e:
+            print(f"[스티키] 설정 저장 실패: {e}", flush=True)
 
 
 @bot.event
 async def on_message(message):
     """메시지 수신 시"""
-    # 디버그: on_message 진입 확인
-    if message.guild and not message.author.bot:
-        print(f"[DEBUG] on_message: {message.guild.name} #{getattr(message.channel, 'name', '?')} - {message.author.name}: {message.content[:30]}", flush=True)
-
     # 봇 자신의 메시지는 무시
     if message.author == bot.user:
         await bot.process_commands(message)

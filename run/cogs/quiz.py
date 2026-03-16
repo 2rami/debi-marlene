@@ -31,7 +31,7 @@ from run.views.quiz_view import (
     SongSubmitView,
     SongSkipView,
 )
-from run.services.quiz.quiz_storage import save_quiz_result, update_leaderboard_names
+from run.services.quiz.quiz_storage import async_save_quiz_result, async_update_leaderboard_names
 from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
@@ -288,7 +288,7 @@ class QuizCog(commands.Cog, name="퀴즈"):
                 interaction.guild,
             )
             await channel.send(embed=embed)
-            self._save_result(guild_id, final_session, interaction.guild)
+            await self._save_result(guild_id, final_session, interaction.guild, channel)
 
     async def _run_er_quiz(self, interaction: discord.Interaction, total: int):
         """이터널리턴 퀴즈를 실행합니다."""
@@ -384,7 +384,7 @@ class QuizCog(commands.Cog, name="퀴즈"):
                 final_session.scores, final_session.total_questions, interaction.guild
             )
             await channel.send(embed=embed)
-            self._save_result(guild_id, final_session, interaction.guild)
+            await self._save_result(guild_id, final_session, interaction.guild, channel)
 
     async def _run_custom_song_quiz(self, interaction: discord.Interaction, total: int):
         """노래 출제 모드를 실행합니다."""
@@ -496,26 +496,34 @@ class QuizCog(commands.Cog, name="퀴즈"):
                 interaction.guild,
             )
             await channel.send(embed=embed)
-            self._save_result(guild_id, final_session, interaction.guild)
+            await self._save_result(guild_id, final_session, interaction.guild, channel)
 
     # ---------- 결과 저장 헬퍼 ----------
 
     @staticmethod
-    def _save_result(guild_id: str, session, guild: discord.Guild):
+    async def _save_result(guild_id: str, session, guild: discord.Guild, channel: discord.abc.Messageable = None):
         """퀴즈 결과를 GCS에 비동기로 저장합니다."""
         if not session.scores:
             return
         try:
-            save_quiz_result(guild_id, session)
+            success = await async_save_quiz_result(guild_id, session)
+            if not success:
+                logger.error(f"퀴즈 결과 저장 반환값 실패: guild={guild_id}")
+                if channel:
+                    await channel.send("퀴즈 결과 저장에 실패했습니다. 관리자에게 문의하세요.")
+                return
+
             members = {}
             for user_id in session.scores:
                 member = guild.get_member(user_id)
                 if member:
                     members[user_id] = member.display_name
             if members:
-                update_leaderboard_names(guild_id, members)
+                await async_update_leaderboard_names(guild_id, members)
         except Exception as e:
             logger.error(f"퀴즈 결과 저장 중 오류: {e}")
+            if channel:
+                await channel.send("퀴즈 결과 저장 중 오류가 발생했습니다. 관리자에게 문의하세요.")
 
 
 # ---------- 퀴즈 시작 뷰 ----------
@@ -620,7 +628,7 @@ class QuizStopView(discord.ui.View):
                     final_session.scores, final_session.current_question, interaction.guild
                 )
             await interaction.followup.send(content="퀴즈가 중단되었습니다.", embed=embed)
-            self.cog._save_result(self.guild_id, final_session, interaction.guild)
+            await self.cog._save_result(self.guild_id, final_session, interaction.guild, interaction.channel)
         else:
             await interaction.followup.send("퀴즈가 중단되었습니다.")
 

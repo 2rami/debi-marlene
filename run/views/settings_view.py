@@ -39,6 +39,7 @@ class SettingsLayoutView(discord.ui.LayoutView):
         self.guild = guild
         self.user_id = user_id
         self.is_admin = is_admin
+        self.message = None
 
         guild_id = str(guild.id)
         guild_settings = config.get_guild_settings(guild.id)
@@ -130,6 +131,13 @@ class SettingsLayoutView(discord.ui.LayoutView):
             btn_items.append(test_btn)
 
         self.add_item(discord.ui.Container(discord.ui.ActionRow(*btn_items)))
+
+    async def on_timeout(self):
+        if self.message:
+            try:
+                await self.message.delete()
+            except Exception:
+                pass
 
     async def _rebuild(self, interaction: discord.Interaction):
         """설정 변경 후 뷰를 재빌드하여 최신 상태 반영"""

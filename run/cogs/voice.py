@@ -168,6 +168,7 @@ class VoiceCog(commands.Cog, name="TTS"):
                 is_admin = interaction.user.guild_permissions.administrator
                 view = TTSControlView(guild_id, interaction.user.id, is_admin)
                 msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True, wait=True)
+                view.message = msg
 
                 # Modal TTS 서버 선제 워밍업 (백그라운드)
                 asyncio.create_task(self._warmup_and_notify(msg, voice_channel, channel_info, voice_display, is_admin, guild_id, interaction.user.id))
@@ -267,6 +268,14 @@ class TTSControlView(discord.ui.View):
             voice_btn.callback = self._on_server_voice
             self.add_item(voice_btn)
 
+    async def on_timeout(self):
+        """타임아웃 시 ephemeral 메시지 삭제"""
+        if self.message:
+            try:
+                await self.message.delete()
+            except Exception:
+                pass
+
     async def _on_voice_select(self, interaction: discord.Interaction):
         """내 목소리 변경"""
         selected = interaction.data["values"][0]
@@ -333,6 +342,7 @@ class TTSControlView(discord.ui.View):
 
         view = ServerVoiceSelectView(self.guild_id)
         await interaction.response.send_message("서버 기본 목소리를 선택하세요:", view=view, ephemeral=True)
+        view.message = await interaction.original_response()
 
 
 class TTSChannelModal(discord.ui.Modal, title="TTS 읽을 채널 설정"):
@@ -378,6 +388,14 @@ class ServerVoiceSelectView(discord.ui.View):
     def __init__(self, guild_id: str):
         super().__init__(timeout=30)
         self.guild_id = guild_id
+        self.message = None
+
+    async def on_timeout(self):
+        if self.message:
+            try:
+                await self.message.delete()
+            except Exception:
+                pass
 
     @discord.ui.select(
         placeholder="서버 기본 목소리 선택",

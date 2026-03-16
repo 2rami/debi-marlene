@@ -15,6 +15,7 @@ from run.services.eternal_return.api_client import (
     get_player_basic_data,
     get_player_played_seasons,
     get_character_stats,
+    get_current_season_info,
     game_data
 )
 from run.views.stats_view import StatsLayoutView
@@ -129,6 +130,36 @@ class EternalReturnCog(commands.Cog, name="이터널리턴"):
             import traceback
             traceback.print_exc()
             await interaction.edit_original_response(content="캐릭터 통계를 처리하는 중 오류가 발생했습니다.")
+
+    @app_commands.command(name="시즌", description="현재 시즌 정보를 확인합니다")
+    async def season(self, interaction: discord.Interaction):
+        await log_command_usage(
+            command_name="시즌",
+            user_id=interaction.user.id,
+            user_name=interaction.user.display_name or interaction.user.name,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            guild_name=interaction.guild.name if interaction.guild else None,
+            channel_id=interaction.channel_id,
+            channel_name=getattr(interaction.channel, 'name', None) if interaction.channel else None,
+            args={}
+        )
+
+        info = get_current_season_info()
+
+        description = f"**{info['name']}**"
+        if info["day"] > 0:
+            description += f" | {info['day']}일차"
+        if info["start_date"]:
+            description += f"\n시작일: {info['start_date'].strftime('%Y.%m.%d')}"
+
+        embed = discord.Embed(
+            title="이터널 리턴 시즌 정보",
+            description=description,
+            color=0x4A90D9
+        )
+        embed.set_thumbnail(url="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1049590/fa56f360467f675b777dd18a6315f00c84a7b9c4/header.jpg")
+
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="동접", description="현재 동접자 수를 확인합니다")
     async def online(self, interaction: discord.Interaction):

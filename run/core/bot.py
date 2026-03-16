@@ -385,6 +385,14 @@ async def _background_init():
                 youtube_service.check_new_videos.start()
             _youtube_task_started = True
 
+        # 패치노트 체커 시작
+        from run.services.patchnote_service import start_patchnote_checker
+        start_patchnote_checker(bot)
+
+        # 쿠폰 크롤링 서비스 시작
+        from run.services.coupon_service import start_coupon_service
+        start_coupon_service(bot)
+
         # 정기적 서버 수 로깅 태스크 시작
         if not periodic_guild_logging.is_running():
             periodic_guild_logging.start()

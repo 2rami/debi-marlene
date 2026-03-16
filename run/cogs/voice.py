@@ -534,6 +534,15 @@ async def _generate_tts_audio(
             future.set_result(None)
 
 
+async def _delete_message_after(message: discord.Message, seconds: int):
+    """N초 후 메시지 삭제"""
+    try:
+        await asyncio.sleep(seconds)
+        await message.delete()
+    except Exception:
+        pass
+
+
 # 메시지 이벤트 핸들러
 async def handle_tts_message(message: discord.Message):
     """메시지를 TTS로 읽어줍니다."""
@@ -566,6 +575,11 @@ async def handle_tts_message(message: discord.Message):
         return
 
     print(f"[TTS] {message.author.name}: {message.content[:30]}", flush=True)
+
+    # TTS 메시지 자동 삭제
+    auto_delete = guild_settings.get("tts_auto_delete_seconds", 0)
+    if auto_delete and auto_delete > 0:
+        asyncio.create_task(_delete_message_after(message, auto_delete))
 
     _ensure_playback_worker(guild_id)
     future = asyncio.get_running_loop().create_future()

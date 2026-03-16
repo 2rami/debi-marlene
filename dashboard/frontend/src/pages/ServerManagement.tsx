@@ -13,6 +13,97 @@ import ServerStats from '../components/server/ServerStats'
 import OnboardingSettings from '../components/server/OnboardingSettings'
 import QuizDashboard from '../components/server/QuizDashboard'
 import TTSSettings from '../components/server/TTSSettings'
+import ChannelPurge from '../components/server/ChannelPurge'
+
+interface NotifToggleProps {
+  title: string
+  description: string
+  endpoint: string
+  guildId: string
+  channels: Channel[]
+}
+
+function NotifToggle({ title, description, endpoint, guildId, channels }: NotifToggleProps) {
+  const [enabled, setEnabled] = useState(false)
+  const [channelId, setChannelId] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    const fetchNotif = async () => {
+      try {
+        const res = await api.get<Record<string, { enabled: boolean; channelId: string | null }>>(
+          `/servers/${guildId}/notifications`
+        )
+        const key = endpoint === 'patchnote' ? 'patchNote' : endpoint
+        const config = res.data[key]
+        if (config) {
+          setEnabled(config.enabled)
+          setChannelId(config.channelId)
+        }
+      } catch (err) {
+        // ignore
+      } finally {
+        setLoaded(true)
+      }
+    }
+    fetchNotif()
+  }, [guildId, endpoint])
+
+  const save = async (newEnabled: boolean, newChannelId: string | null) => {
+    try {
+      await api.post(`/servers/${guildId}/notifications/${endpoint}`, {
+        enabled: newEnabled,
+        channelId: newChannelId,
+      })
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  const handleToggle = () => {
+    const next = !enabled
+    setEnabled(next)
+    save(next, channelId)
+  }
+
+  const handleChannel = (id: string) => {
+    const val = id || null
+    setChannelId(val)
+    save(enabled, val)
+  }
+
+  if (!loaded) return null
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between p-4 bg-discord-dark rounded-lg">
+        <div>
+          <p className="font-medium text-white">{title}</p>
+          <p className="text-sm text-discord-muted">{description}</p>
+        </div>
+        <button
+          onClick={handleToggle}
+          className={`w-12 h-6 rounded-full transition-colors ${enabled ? 'bg-debi-primary' : 'bg-discord-light'}`}
+        >
+          <div className={`w-5 h-5 rounded-full bg-white transform transition-transform ${enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
+      {enabled && (
+        <div className="p-4 bg-discord-dark rounded-lg">
+          <label className="block font-medium text-white mb-2">알림 채널</label>
+          <select
+            value={channelId || ''}
+            onChange={(e) => handleChannel(e.target.value)}
+            className="w-full p-3 bg-discord-darkest border border-discord-light/20 rounded-lg text-white focus:border-debi-primary focus:outline-none"
+          >
+            <option value="">채널 선택...</option>
+            {channels.map(ch => <option key={ch.id} value={ch.id}>#{ch.name}</option>)}
+          </select>
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface ServerSettings {
   id: string
@@ -188,6 +279,27 @@ export default function ServerManagement() {
                     </select>
                   </div>
                 )}
+
+                {/* 알림 설정 */}
+                <div className="pt-4 border-t border-discord-light/10">
+                  <h3 className="text-lg font-medium text-white mb-4">알림 설정</h3>
+                  <div className="space-y-4">
+                    <NotifToggle
+                      title="패치노트 알림"
+                      description="새 패치노트가 올라오면 선택한 채널에 알림"
+                      endpoint="patchnote"
+                      guildId={guildId!}
+                      channels={textChannels}
+                    />
+                    <NotifToggle
+                      title="쿠폰 알림"
+                      description="쿠폰 목록이 업데이트되면 선택한 채널에 고정 메시지로 표시"
+                      endpoint="coupon"
+                      guildId={guildId!}
+                      channels={textChannels}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -246,6 +358,9 @@ export default function ServerManagement() {
 
           {/* 통계 */}
           {activeTab === 'stats' && <ServerStats guildId={guildId!} />}
+
+          {/* 채널 청소 */}
+          {activeTab === 'purge' && <ChannelPurge channels={channels} guildId={guildId!} />}
 
           {/* 온보딩 */}
           {activeTab === 'onboarding' && <OnboardingSettings guildId={guildId!} />}

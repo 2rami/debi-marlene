@@ -71,6 +71,7 @@ def get_guild_features(guild_id):
 
     # 봇에서 설정한 값 가져오기
     announcement_channel_id = guild_settings.get('ANNOUNCEMENT_CHANNEL_ID')
+    chat_channel_id = guild_settings.get('CHAT_CHANNEL_ID')
     tts_channel_id = guild_settings.get('tts_channel_id')
     tts_voice = guild_settings.get('tts_voice', 'debi')
 
@@ -79,6 +80,10 @@ def get_guild_features(guild_id):
         'announcement': {
             'enabled': bool(announcement_channel_id),
             'channelId': announcement_channel_id
+        },
+        'chatChannel': {
+            'enabled': bool(chat_channel_id),
+            'channelId': chat_channel_id
         },
         'welcome': {'enabled': False, 'channelId': None, 'message': '', 'imageEnabled': False},
         'goodbye': {'enabled': False, 'channelId': None, 'message': '', 'imageEnabled': False},
@@ -144,6 +149,13 @@ def save_guild_features(guild_id, features):
             settings['guilds'][guild_id_str]['ANNOUNCEMENT_CHANNEL_ID'] = features['announcement']['channelId']
         elif not features['announcement'].get('enabled'):
             settings['guilds'][guild_id_str]['ANNOUNCEMENT_CHANNEL_ID'] = None
+
+    # 채팅 채널 (봇 명령어 제한)
+    if 'chatChannel' in features:
+        if features['chatChannel'].get('channelId') and features['chatChannel'].get('enabled'):
+            settings['guilds'][guild_id_str]['CHAT_CHANNEL_ID'] = int(features['chatChannel']['channelId'])
+        else:
+            settings['guilds'][guild_id_str].pop('CHAT_CHANNEL_ID', None)
 
     # TTS 채널
     if 'tts' in features:

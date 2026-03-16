@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '../services/api'
 import DashboardLayout from '../components/layout/DashboardLayout'
 import Loading from '../components/common/Loading'
@@ -19,6 +20,7 @@ interface ServerSettings {
   icon: string | null
   features: {
     announcement: { enabled: boolean; channelId: string | null }
+    chatChannel: { enabled: boolean; channelId: string | null }
     welcome: { enabled: boolean; channelId: string | null; message: string; imageEnabled?: boolean }
     goodbye: { enabled: boolean; channelId: string | null; message: string; imageEnabled?: boolean }
     tts: { enabled: boolean; channelId: string | null; character: string; userVoices?: Record<string, string> }
@@ -109,7 +111,7 @@ export default function ServerManagement() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 max-w-4xl">
+      <div className="p-8 max-w-6xl">
         {/* Save Message */}
         {saveMessage && (
           <div className={`mb-4 p-3 rounded-lg ${saveMessage.includes('실패') ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
@@ -118,7 +120,15 @@ export default function ServerManagement() {
         )}
 
         {/* Tab Content */}
-        <div className="bg-discord-darker rounded-xl p-6">
+        <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="bg-discord-darker rounded-xl p-6"
+        >
           {/* 일반 설정 */}
           {activeTab === 'general' && (
             <div className="space-y-6">
@@ -151,6 +161,33 @@ export default function ServerManagement() {
                     {textChannels.map(ch => <option key={ch.id} value={ch.id}>#{ch.name}</option>)}
                   </select>
                 </div>
+                <div className="flex items-center justify-between p-4 bg-discord-dark rounded-lg">
+                  <div>
+                    <p className="font-medium text-white">봇 명령어 채널 제한</p>
+                    <p className="text-sm text-discord-muted">특정 채널에서만 봇 명령어를 사용할 수 있도록 제한</p>
+                  </div>
+                  <button
+                    onClick={() => saveSettings({ chatChannel: { ...settings.features.chatChannel, enabled: !settings.features.chatChannel.enabled } })}
+                    className={`w-12 h-6 rounded-full transition-colors ${settings.features.chatChannel.enabled ? 'bg-debi-primary' : 'bg-discord-light'}`}
+                  >
+                    <div className={`w-5 h-5 rounded-full bg-white transform transition-transform ${settings.features.chatChannel.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {settings.features.chatChannel.enabled && (
+                  <div className="p-4 bg-discord-dark rounded-lg">
+                    <label className="block font-medium text-white mb-2">봇 명령어 채널</label>
+                    <p className="text-xs text-discord-muted mb-2">선택한 채널에서만 봇 명령어를 사용할 수 있습니다.</p>
+                    <select
+                      value={settings.features.chatChannel.channelId || ''}
+                      onChange={(e) => saveSettings({ chatChannel: { ...settings.features.chatChannel, channelId: e.target.value || null } })}
+                      disabled={saving}
+                      className="w-full p-3 bg-discord-darkest border border-discord-light/20 rounded-lg text-white focus:border-debi-primary focus:outline-none"
+                    >
+                      <option value="">채널 선택...</option>
+                      {textChannels.map(ch => <option key={ch.id} value={ch.id}>#{ch.name}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -324,7 +361,8 @@ export default function ServerManagement() {
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
+        </AnimatePresence>
       </div>
     </DashboardLayout>
   )

@@ -233,6 +233,33 @@ def load_removed_servers():
     return {"removed_servers": []}
 
 
+def unmark_removed_server(guild_id):
+    """재참가한 서버를 removed_servers.json에서 제거합니다."""
+    try:
+        removed_data = load_removed_servers()
+        guild_id_str = str(guild_id)
+        original_count = len(removed_data.get("removed_servers", []))
+        removed_data["removed_servers"] = [
+            s for s in removed_data.get("removed_servers", [])
+            if str(s.get("guild_id")) != guild_id_str
+        ]
+        new_count = len(removed_data["removed_servers"])
+        if new_count < original_count:
+            client = get_gcs_client()
+            if client:
+                bucket = client.bucket(GCS_BUCKET)
+                blob = bucket.blob(GCS_REMOVED_SERVERS_KEY)
+                blob.upload_from_string(
+                    json.dumps(removed_data, indent=2, ensure_ascii=False),
+                    content_type='application/json'
+                )
+                print(f"[완료] 재참가 서버 removed_servers에서 제거: {guild_id}", flush=True)
+                return True
+    except Exception as e:
+        print(f"[오류] removed_servers 제거 실패: {e}", flush=True)
+    return False
+
+
 def save_removed_server(guild_id, guild_name, member_count=None):
     """삭제된 서버 정보를 GCS에 저장합니다."""
     from datetime import datetime

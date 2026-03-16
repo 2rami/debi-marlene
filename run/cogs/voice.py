@@ -171,11 +171,18 @@ class VoiceCog(commands.Cog, name="TTS"):
                 guild_settings = settings.get("guilds", {}).get(guild_id, {})
                 tts_channel_id = guild_settings.get("tts_channel_id")
 
-                if tts_channel_id:
-                    tts_channel = interaction.guild.get_channel(int(tts_channel_id))
-                    channel_info = f"읽을 채널: {tts_channel.mention}" if tts_channel else "읽을 채널: (삭제된 채널)"
-                else:
-                    channel_info = "읽을 채널: 미설정 (채널을 설정해주세요)"
+                if not tts_channel_id:
+                    # 채널 미설정 시 /tts를 입력한 채널을 자동 설정
+                    tts_channel_id = str(interaction.channel.id)
+                    if "guilds" not in settings:
+                        settings["guilds"] = {}
+                    if guild_id not in settings["guilds"]:
+                        settings["guilds"][guild_id] = {}
+                    settings["guilds"][guild_id]["tts_channel_id"] = tts_channel_id
+                    save_settings(settings)
+
+                tts_channel = interaction.guild.get_channel(int(tts_channel_id))
+                channel_info = f"읽을 채널: {tts_channel.mention}" if tts_channel else "읽을 채널: (삭제된 채널)"
 
                 # 현재 목소리 정보
                 user_id = str(interaction.user.id)

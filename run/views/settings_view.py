@@ -69,6 +69,8 @@ class SettingsLayoutView(discord.ui.LayoutView):
             tts_channel_text = "모든 채널"
 
         dm_text = "켜짐" if is_subscribed else "꺼짐"
+        tts_auto_delete = full_guild_settings.get("tts_auto_delete_seconds", 0)
+        auto_delete_text = f"{tts_auto_delete}초" if tts_auto_delete else "꺼짐"
 
         # === Container 1: 현재 상태 ===
         status_text = (
@@ -76,6 +78,7 @@ class SettingsLayoutView(discord.ui.LayoutView):
             f"공지 채널: **{channel_text}**\n"
             f"TTS 기본 목소리: **{voice_text}**\n"
             f"TTS 읽을 채널: **{tts_channel_text}**\n"
+            f"TTS 메시지 자동 삭제: **{auto_delete_text}**\n"
             f"DM 알림: **{dm_text}**"
         )
         self.add_item(discord.ui.Container(discord.ui.TextDisplay(status_text)))
@@ -106,6 +109,23 @@ class SettingsLayoutView(discord.ui.LayoutView):
         )
         voice_select.callback = self._on_voice_select
         controls.append(discord.ui.ActionRow(voice_select))
+
+        controls.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # TTS 메시지 자동 삭제
+        controls.append(discord.ui.TextDisplay("**TTS 메시지 자동 삭제** - TTS가 읽은 메시지를 N초 후 삭제"))
+        auto_delete_select = discord.ui.Select(
+            placeholder="자동 삭제 시간",
+            options=[
+                discord.SelectOption(label="꺼짐", value="0", default=(tts_auto_delete == 0)),
+                discord.SelectOption(label="3초", value="3", default=(tts_auto_delete == 3)),
+                discord.SelectOption(label="5초", value="5", default=(tts_auto_delete == 5)),
+                discord.SelectOption(label="10초", value="10", default=(tts_auto_delete == 10)),
+                discord.SelectOption(label="30초", value="30", default=(tts_auto_delete == 30)),
+            ]
+        )
+        auto_delete_select.callback = self._on_auto_delete_select
+        controls.append(discord.ui.ActionRow(auto_delete_select))
 
         self.add_item(discord.ui.Container(*controls))
 
@@ -169,6 +189,20 @@ class SettingsLayoutView(discord.ui.LayoutView):
         if guild_id not in settings["guilds"]:
             settings["guilds"][guild_id] = {}
         settings["guilds"][guild_id]["tts_voice"] = selected
+        config.save_settings(settings)
+
+        await self._rebuild(interaction)
+
+    async def _on_auto_delete_select(self, interaction: discord.Interaction):
+        selected = int(interaction.data["values"][0])
+        guild_id = str(self.guild.id)
+
+        settings = config.load_settings()
+        if "guilds" not in settings:
+            settings["guilds"] = {}
+        if guild_id not in settings["guilds"]:
+            settings["guilds"][guild_id] = {}
+        settings["guilds"][guild_id]["tts_auto_delete_seconds"] = selected
         config.save_settings(settings)
 
         await self._rebuild(interaction)

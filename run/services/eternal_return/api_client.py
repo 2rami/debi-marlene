@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 import urllib.parse
+from datetime import date
 from typing import Optional, Dict, Any, List
 
 # 글로벌 봇 인스턴스 저장
@@ -176,6 +177,37 @@ async def load_character_data_fallback():
             print("[오류] 캐릭터 데이터 대체 로딩 실패")
     except Exception as e:
         print(f"캐릭터 데이터 대체 로딩 오류: {e}")
+
+# 시즌 시작일 (key → 시작 날짜). 시즌 변경 시 여기에 추가.
+SEASON_START_DATES: Dict[str, date] = {
+    "SEASON_10": date(2023, 10, 26),  # 시즌 1
+    "SEASON_11": date(2024, 2, 15),   # 시즌 2
+    "SEASON_12": date(2024, 5, 23),   # 시즌 3
+    "SEASON_13": date(2024, 8, 29),   # 시즌 4
+    "SEASON_14": date(2024, 12, 5),   # 시즌 5
+    "SEASON_15": date(2025, 3, 20),   # 시즌 6
+    "SEASON_16": date(2025, 7, 10),   # 시즌 7
+    "SEASON_17": date(2025, 10, 16),  # 시즌 8
+    "SEASON_18": date(2025, 10, 16),  # 프리시즌 (시즌 9와 동일 시작)
+    "SEASON_19": date(2026, 1, 22),   # 시즌 10
+}
+
+
+def get_current_season_info() -> Dict[str, Any]:
+    """현재 시즌 이름과 경과일 반환"""
+    season_id = game_data.current_season_id
+    if not season_id:
+        return {"name": "알 수 없음", "day": 0, "start_date": None}
+
+    season_info = game_data.seasons.get(str(season_id), {})
+    season_name = season_info.get("name", f"Season {season_id}")
+    season_key = season_info.get("key")
+
+    start_date = SEASON_START_DATES.get(season_key) if season_key else None
+    day = (date.today() - start_date).days + 1 if start_date else 0
+
+    return {"name": season_name, "day": day, "start_date": start_date, "key": season_key}
+
 
 DAKGG_API_BASE = "https://er.dakgg.io/api/v1"
 API_HEADERS = {

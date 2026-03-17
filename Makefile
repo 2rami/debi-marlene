@@ -294,7 +294,7 @@ deploy-webpanel-backend:
 		--command="mkdir -p ~/wb-build && tar -xzf ~/wb-build.tar.gz -C ~/wb-build && cd ~/wb-build && docker build -f Dockerfile.backend -t webpanel-backend:latest . && rm -rf ~/wb-build ~/wb-build.tar.gz"
 	@echo "[3/4] 컨테이너 교체 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker stop webpanel-backend 2>/dev/null || true && docker rm webpanel-backend 2>/dev/null || true && docker run -d --name webpanel-backend -p 8080:8080 --network dashboard-net --env-file ~/debi-marlene/.env --restart unless-stopped webpanel-backend:latest"
+		--command="docker stop webpanel-backend 2>/dev/null || true && docker rm webpanel-backend 2>/dev/null || true && docker run -d --name webpanel-backend -p 8080:8080 --network dashboard-net -v /var/run/docker.sock:/var/run/docker.sock --env-file ~/debi-marlene/.env --restart unless-stopped webpanel-backend:latest"
 	@echo "[4/4] 정리 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker image prune -f"

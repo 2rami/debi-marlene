@@ -8,6 +8,10 @@ import logging
 import requests
 from flask import Blueprint, jsonify, session, request
 from functools import wraps
+try:
+    from dashboard_logger import log_action as log_dashboard_action
+except ImportError:
+    from dashboard.backend.dashboard_logger import log_action as log_dashboard_action
 
 logger = logging.getLogger(__name__)
 
@@ -303,6 +307,15 @@ def update_server_settings(guild_id):
     success = save_guild_features(guild_id, features)
 
     if success:
+        # 대시보드 액션 로그 기록
+        user = session.get('user', {})
+        log_dashboard_action(
+            action_type='settings_update',
+            user_id=user.get('id'),
+            user_name=user.get('username'),
+            guild_id=guild_id,
+            details={'features': list(features.keys())}
+        )
         return jsonify({'success': True})
     else:
         return jsonify({'error': 'Failed to save settings'}), 500

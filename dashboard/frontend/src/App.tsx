@@ -11,6 +11,7 @@ import Docs from './pages/Docs'
 import Terms from './pages/Terms'
 import AuthCallback from './pages/AuthCallback'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import BotGuide from './pages/BotGuide'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/commands" element={<Commands />} />
           <Route path="/docs" element={<Docs />} />
+          <Route path="/bot-guide" element={<BotGuide />} />
           <Route path="/premium" element={<Premium />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/fail" element={<PaymentFail />} />

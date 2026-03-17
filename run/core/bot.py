@@ -41,7 +41,33 @@ if not discord.opus.is_loaded():
 
 # Discord 봇 설정
 intents = discord.Intents.all()  # 모든 Intents 활성화 (Gateway 기능용)
-bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
+
+
+class DebiMarleneBot(commands.Bot):
+    async def close(self):
+        """봇 종료 시 TTS 사용 중인 채널에 재시작 알림 전송"""
+        try:
+            from run.services.voice_manager import voice_manager
+            for guild_id, vc in list(voice_manager.voice_clients.items()):
+                if vc.is_connected():
+                    guild = vc.guild
+                    guild_settings = config.get_guild_settings(guild.id)
+                    tts_channel_id = guild_settings.get("tts_channel_id")
+                    if tts_channel_id:
+                        channel = guild.get_channel(int(tts_channel_id))
+                        if channel:
+                            try:
+                                await channel.send(
+                                    "봇이 재시작됩니다. 업데이트 후 `/tts`를 다시 입력해주세요!"
+                                )
+                            except Exception:
+                                pass
+        except Exception as e:
+            print(f"[경고] 종료 알림 전송 실패: {e}", flush=True)
+        await super().close()
+
+
+bot = DebiMarleneBot(command_prefix='!', intents=intents, help_command=None)
 
 # Gateway 데이터 저장용 전역 변수
 gateway_guild_data = {}  # 서버 데이터

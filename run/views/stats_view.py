@@ -286,19 +286,20 @@ class StatsLayoutView(discord.ui.LayoutView):
                 if graph_path and os.path.exists(graph_path):
                     file_attachment = discord.File(graph_path, filename="mmr_graph.png")
                     self.add_item(discord.ui.MediaGallery(
-                        items=[discord.ui.MediaGalleryItem(media="attachment://mmr_graph.png")]
+                        discord.MediaGalleryItem(media="attachment://mmr_graph.png")
                     ))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"MMR 그래프 생성 오류: {e}")
 
         self._add_navigation_in_container()
 
         if file_attachment:
             await interaction.edit_original_response(view=self, attachments=[file_attachment])
-            if graph_path:
-                os.unlink(graph_path)
         else:
             await interaction.edit_original_response(view=self)
+
+        if graph_path and os.path.exists(graph_path):
+            os.unlink(graph_path)
 
     async def _build_recent_game(self, interaction):
         """최근전적 한 게임을 LayoutView로 표시"""

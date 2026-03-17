@@ -255,7 +255,8 @@ class QuizCog(commands.Cog, name="퀴즈"):
             ),
             color=0x1DB954,
         )
-        await interaction.channel.send(embed=start_embed)
+        stop_view = QuizStopView(guild_id, self)
+        await interaction.channel.send(embed=start_embed, view=stop_view)
         await asyncio.sleep(2)
 
         channel = interaction.channel
@@ -313,7 +314,8 @@ class QuizCog(commands.Cog, name="퀴즈"):
             description=f"총 {total}문제 | 버튼을 눌러 정답을 선택하세요",
             color=0x5865F2,
         )
-        await interaction.channel.send(embed=start_embed)
+        stop_view = QuizStopView(guild_id, self)
+        await interaction.channel.send(embed=start_embed, view=stop_view)
         await asyncio.sleep(2)
 
         channel = interaction.channel
@@ -420,7 +422,8 @@ class QuizCog(commands.Cog, name="퀴즈"):
             ),
             color=0xFF9B00,
         )
-        await channel.send(embed=start_embed)
+        stop_view = QuizStopView(guild_id, self)
+        await channel.send(embed=start_embed, view=stop_view)
         await asyncio.sleep(1)
 
         for i in range(total):
@@ -605,7 +608,7 @@ class QuizStopView(discord.ui.View):
     """진행 중인 퀴즈 중지 뷰"""
 
     def __init__(self, guild_id: str, cog: QuizCog):
-        super().__init__(timeout=30)
+        super().__init__(timeout=None)
         self.guild_id = guild_id
         self.cog = cog
 

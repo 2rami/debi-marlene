@@ -21,6 +21,7 @@ export default function Header() {
     { href: '/', label: 'Home' },
     { href: '/commands', label: 'Commands' },
     { href: '/docs', label: 'Docs' },
+    { href: '/bot-guide', label: 'Bot Guide' },
   ]
 
   const isActive = (href: string) => {

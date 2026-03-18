@@ -62,8 +62,6 @@ export default function Landing() {
   const { scrollY } = useScroll()
   const heroBgY = useTransform(scrollY, [0, 800], [0, 200])
   const heroCharY = useTransform(scrollY, [0, 600], [0, -50])
-  const cloudY = useTransform(scrollY, [400, 1600], [0, -80])
-  const midY = useTransform(scrollY, [1200, 2400], [0, -60])
 
   useEffect(() => {
     const fetchStats = async () => {

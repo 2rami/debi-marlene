@@ -35,7 +35,9 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        maximumFileSizeToCacheInBytes: 50000000,
+        globIgnores: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.svg'],
+        globPatterns: ['**/*.{js,css,html,ico,woff2}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/cdn\.discordapp\.com\/.*/i,

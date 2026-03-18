@@ -1,6 +1,70 @@
 @import "tailwindcss";
 
+/* ── MemomentKkukkukk (Titles & Buttons) ── */
+@font-face {
+  font-family: 'MemomentKkukkukk';
+  src: url('/fonts/MemomentKkukkukk.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Paperlogy (Body Text) ── */
+@font-face {
+  font-family: 'Paperlogy';
+  src: url('/fonts/Paperlogy-4Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Paperlogy';
+  src: url('/fonts/Paperlogy-5Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Paperlogy';
+  src: url('/fonts/Paperlogy-6SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Paperlogy';
+  src: url('/fonts/Paperlogy-7Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── YPairingFont (Display) ── */
+@font-face {
+  font-family: 'YPairingFont';
+  src: url('/fonts/YPairingFont-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'YPairingFont';
+  src: url('/fonts/YPairingFont-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
+  /* Font Families */
+  --font-title: 'MemomentKkukkukk', cursive;
+  --font-body: 'Paperlogy', system-ui, sans-serif;
+  --font-display: 'YPairingFont', system-ui, sans-serif;
+
   /* Discord Colors */
   --color-discord-darkest: #0f0f0f;
   --color-discord-darker: #1a1a1a;
@@ -44,27 +108,14 @@
 body {
   background-color: var(--color-discord-darkest);
   color: var(--color-discord-text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-family: 'Paperlogy', system-ui, sans-serif;
 }
 
 /* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--color-discord-darker);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-discord-light);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-discord-muted);
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--color-discord-darker); }
+::-webkit-scrollbar-thumb { background: var(--color-discord-light); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-discord-muted); }
 
 /* Gradient Text */
 .gradient-text {
@@ -74,11 +125,15 @@ body {
   background-clip: text;
 }
 
-/* Gradient Border */
-.gradient-border {
-  position: relative;
+.gradient-text-title {
+  background: linear-gradient(90deg, #e58fb6, #3cabc9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
+/* Gradient Border */
+.gradient-border { position: relative; }
 .gradient-border::before {
   content: '';
   position: absolute;
@@ -97,25 +152,36 @@ body {
   background: linear-gradient(135deg, var(--color-debi-primary), var(--color-marlene-primary));
   transition: all 0.3s ease;
 }
-
 .btn-gradient:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(0, 199, 206, 0.3);
 }
 
 /* Card Glow Effect */
-.card-glow {
-  transition: box-shadow 0.3s ease;
-}
+.card-glow { transition: box-shadow 0.3s ease; }
+.card-glow:hover { box-shadow: 0 0 30px rgba(0, 199, 206, 0.2); }
 
-.card-glow:hover {
-  box-shadow: 0 0 30px rgba(0, 199, 206, 0.2);
-}
+/* ── Animation Keyframes ── */
 
-/* Animation Keyframes */
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-9px) rotate(2deg); }
+}
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-7px) rotate(-1.5deg); }
+  66% { transform: translateY(5px) rotate(1.5deg); }
 }
 
 @keyframes pulse-glow {
@@ -123,10 +189,8 @@ body {
   50% { box-shadow: 0 0 40px rgba(244, 114, 182, 0.3); }
 }
 
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-float-slow { animation: float-slow 4.5s ease-in-out infinite; }
+.animate-float-medium { animation: float-medium 3.2s ease-in-out infinite; }
+.animate-float-gentle { animation: float-gentle 5.5s ease-in-out infinite; }
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }

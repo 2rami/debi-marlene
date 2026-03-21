@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* ── Class-based dark mode for Tailwind 4 ── */
+@variant dark (&:where(.dark, .dark *));
+
 /* ── MemomentKkukkukk (Titles & Buttons) ── */
 @font-face {
   font-family: 'MemomentKkukkukk';
@@ -104,6 +107,11 @@
   --color-marlene-primary: #f472b6;
 }
 
+/* ── Theme transition ── */
+html {
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
 /* Base Styles */
 body {
   background-color: var(--color-discord-darkest);
@@ -117,7 +125,7 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--color-discord-light); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-discord-muted); }
 
-/* Gradient Text */
+/* ── Gradient Text ── */
 .gradient-text {
   background: linear-gradient(135deg, var(--color-debi-primary), var(--color-marlene-primary));
   -webkit-background-clip: text;
@@ -132,7 +140,7 @@ body {
   background-clip: text;
 }
 
-/* Gradient Border */
+/* ── Gradient Border ── */
 .gradient-border { position: relative; }
 .gradient-border::before {
   content: '';
@@ -147,7 +155,37 @@ body {
   mask-composite: exclude;
 }
 
-/* Button Hover Effects */
+/* ── Animated Gradient Border ── */
+.gradient-border-animated::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--gradient-angle, 0deg),
+    var(--color-debi-primary),
+    var(--color-marlene-primary),
+    var(--color-debi-primary)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: 2px;
+  animation: rotate-gradient 3s linear infinite;
+}
+
+@keyframes rotate-gradient {
+  to { --gradient-angle: 360deg; }
+}
+
+@property --gradient-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* ── Button Hover Effects ── */
 .btn-gradient {
   background: linear-gradient(135deg, var(--color-debi-primary), var(--color-marlene-primary));
   transition: all 0.3s ease;
@@ -157,9 +195,32 @@ body {
   box-shadow: 0 10px 20px rgba(0, 199, 206, 0.3);
 }
 
-/* Card Glow Effect */
+/* ── Card Glow Effect ── */
 .card-glow { transition: box-shadow 0.3s ease; }
 .card-glow:hover { box-shadow: 0 0 30px rgba(0, 199, 206, 0.2); }
+
+/* ── Hero Title Shadow ── */
+.hero-title-shadow {
+  text-shadow: 6px 4px 4px #e58fb6;
+}
+.dark .hero-title-shadow {
+  text-shadow: 4px 3px 8px rgba(229, 143, 182, 0.5);
+}
+
+/* ── Grain Texture Overlay ── */
+.grain-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px;
+}
+
+/* ── Theme Toggle Animation ── */
+.theme-toggle-icon {
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.dark .theme-toggle-icon {
+  transform: rotate(360deg);
+}
 
 /* ── Animation Keyframes ── */
 

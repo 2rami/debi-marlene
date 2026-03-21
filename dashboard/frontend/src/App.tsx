@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import ServerManagement from './pages/ServerManagement'
@@ -15,6 +16,7 @@ import BotGuide from './pages/BotGuide'
 
 function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <div className="min-h-screen bg-discord-darkest">
         <Routes>
@@ -37,6 +39,7 @@ function App() {
         </Routes>
       </div>
     </AuthProvider>
+    </ThemeProvider>
   )
 }
 

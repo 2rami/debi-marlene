@@ -44,6 +44,11 @@ intents = discord.Intents.all()  # 모든 Intents 활성화 (Gateway 기능용)
 
 
 class DebiMarleneBot(commands.Bot):
+    async def setup_hook(self):
+        """봇 연결 전 Cog 등록 (bot.run() 내부에서 호출됨)"""
+        from run.cogs import setup_all_cogs
+        await setup_all_cogs(self)
+
     async def close(self):
         """봇 종료 시 TTS 사용 중인 채널에 재시작 알림 전송"""
         try:
@@ -303,7 +308,7 @@ async def on_ready():
         cmd.allowed_installs = installs
         cmd.allowed_contexts = contexts
 
-    # 명령어 동기화를 최우선으로 실행 (유저가 바로 커맨드를 쓸 수 있도록)
+    # 글로벌 명령어 동기화
     try:
         synced = await bot.tree.sync()
         print(f"[완료] 명령어 동기화 완료 ({len(synced)}개)", flush=True)

@@ -16,15 +16,6 @@ if sys.platform == 'win32':
 
 from run.core.bot import bot
 from run.core import config
-from run.cogs import setup_all_cogs
-
-
-async def setup():
-    """봇 초기화 및 Cog 등록"""
-    # 삭제된 서버 정리는 on_ready에서 실행 (봇 연결 후 현재 서버 목록 확인 가능)
-
-    # 모든 Cog 등록
-    await setup_all_cogs(bot)
 
 
 def run_bot():
@@ -35,10 +26,7 @@ def run_bot():
         print("CRITICAL: DISCORD_TOKEN이 설정되지 않았습니다.")
         return
 
-    # 명령어 등록
-    asyncio.run(setup())
-
-    # Discord 봇 실행
+    # Discord 봇 실행 (Cog 등록은 setup_hook에서 자동 처리)
     bot.run(DISCORD_TOKEN)
 
 

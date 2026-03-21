@@ -1,13 +1,15 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LogOut, Bell } from 'lucide-react'
+import { LogOut, Bell, Sun, Moon } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { motion, useScroll, useMotionValueEvent } from 'framer-motion'
+import { useTheme } from '../../contexts/ThemeContext'
+import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import PatchNotesModal from './PatchNotesModal'
 import featureBg from '../../assets/images/feature-bg.jpg'
 
 export default function Header() {
   const { user, login, logout } = useAuth()
+  const { toggle, isDark } = useTheme()
   const location = useLocation()
   const { scrollY } = useScroll()
   const [isScrolled, setIsScrolled] = useState(false)
@@ -45,12 +47,11 @@ export default function Header() {
           <Link to="/" className="flex items-center gap-3 group">
             <div className="relative">
               <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg group-hover:scale-105 transition-transform duration-300">
-                <img src={featureBg} alt="Debi & Marlene 로고" className="w-full h-full object-cover" />
+                <img src={featureBg} alt="Debi & Marlene" className="w-full h-full object-cover" />
               </div>
               <div className="absolute inset-0 bg-white/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
             </div>
-            <span className={`font-bold text-xl transition-colors duration-300 ${isScrolled ? 'text-white' : 'text-white drop-shadow-md'
-              }`}>
+            <span className={`font-bold text-xl transition-colors duration-300 ${isScrolled ? 'text-white' : 'text-white drop-shadow-md'}`}>
               Debi & Marlene<span className="text-debi-primary">.</span>
             </span>
           </Link>
@@ -81,8 +82,40 @@ export default function Header() {
             </button>
           </nav>
 
-          {/* Auth Button */}
-          <div className="flex items-center gap-4">
+          {/* Right: Theme toggle + Auth */}
+          <div className="flex items-center gap-3">
+            {/* Theme Toggle */}
+            <button
+              onClick={toggle}
+              className="relative w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
+              title={isDark ? '라이트 모드' : '다크 모드'}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {isDark ? (
+                  <motion.div
+                    key="moon"
+                    initial={{ rotate: -90, scale: 0, opacity: 0 }}
+                    animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                    exit={{ rotate: 90, scale: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Moon className="w-4 h-4 text-blue-300" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="sun"
+                    initial={{ rotate: 90, scale: 0, opacity: 0 }}
+                    animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                    exit={{ rotate: -90, scale: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Sun className="w-4 h-4 text-amber-300" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </button>
+
+            {/* Auth */}
             {user ? (
               <div className="flex items-center gap-2">
                 <Link
@@ -134,4 +167,3 @@ export default function Header() {
     </>
   )
 }
-

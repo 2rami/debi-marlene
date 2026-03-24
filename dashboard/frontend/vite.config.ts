@@ -34,9 +34,10 @@ export default defineConfig({
           }
         ]
       },
+      showMaximumFileSizeToCacheInBytesWarning: true,
       workbox: {
         maximumFileSizeToCacheInBytes: 50000000,
-        globIgnores: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.svg'],
+        globIgnores: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.svg', '**/*.map'],
         globPatterns: ['**/*.{js,css,html,ico,woff2}'],
         runtimeCaching: [
           {

@@ -303,6 +303,7 @@ class VoiceCog(commands.Cog, name="TTS"):
                 embed = discord.Embed(title="TTS 입장", description=desc, color=color)
 
             view = TTSControlView(guild_id, user_id, is_admin)
+            view.message = msg
             await msg.edit(embed=embed, view=view)
         except Exception as e:
             logger.warning(f"TTS 서버 상태 확인 실패: {e}")
@@ -314,6 +315,7 @@ class TTSControlView(discord.ui.View):
     def __init__(self, guild_id: str, user_id: int, is_admin: bool):
         super().__init__(timeout=120)
         self.guild_id = guild_id
+        self.message = None
 
         # 내 목소리 선택 드롭다운
         voice_select = discord.ui.Select(
@@ -654,6 +656,11 @@ async def _generate_tts_audio(
                 text_to_read = random.choice(short_msgs)
             else:
                 text_to_read = preprocess_text_for_tts(text_to_read)
+
+            # 전처리 후 빈 문자열이면 TTS 건너뛰기 (멘션/이모지만 있는 메시지)
+            if not text_to_read or not text_to_read.strip():
+                future.set_result(None)
+                return
 
             # CosyVoice3 시도 → 실패 시 Edge TTS 폴백
             try:

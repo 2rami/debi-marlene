@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import CharacterSelect from './pages/CharacterSelect'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import ServerManagement from './pages/ServerManagement'
@@ -21,7 +22,8 @@ function App() {
       <div className="min-h-screen bg-discord-darkest">
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<CharacterSelect />} />
+          <Route path="/landing" element={<Landing />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/commands" element={<Commands />} />
           <Route path="/docs" element={<Docs />} />

@@ -185,14 +185,17 @@ class MusicPlayer:
             vc.stop()
         return skipped
 
-    async def stop(self):
-        """현재 재생을 정지합니다. 대기열은 유지됩니다."""
+    async def stop(self) -> Optional[Song]:
+        """현재 재생을 정지하고 대기열을 비웁니다. 마지막 곡을 반환합니다."""
+        last = self.current
         vc = voice_manager.get_voice_client(self.guild_id)
-        if vc and vc.is_playing():
+        if vc and (vc.is_playing() or vc.is_paused()):
             vc.stop()
+        self.queue.clear()
         self.current = None
         self.is_playing = False
         voice_manager.clear_music_state(self.guild_id)
+        return last
 
     def get_queue(self) -> List[Song]:
         """대기열 목록을 반환합니다."""

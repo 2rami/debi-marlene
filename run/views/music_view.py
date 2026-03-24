@@ -44,11 +44,12 @@ def _build_queue_text(queue: List[Song], max_items: int = 5) -> str:
 class MusicPlayerView(ui.LayoutView):
     """Components V2 음악 플레이어"""
 
-    def __init__(self, guild_id: str, added_song: Song = None, added_position: int = None):
+    def __init__(self, guild_id: str, added_song: Song = None, added_position: int = None, stopped_song: Song = None):
         super().__init__(timeout=None)
         self.guild_id = guild_id
         self._added_song = added_song
         self._added_position = added_position
+        self._stopped_song = stopped_song
         self._build()
 
     def _build(self):
@@ -85,6 +86,35 @@ class MusicPlayerView(ui.LayoutView):
                 added_children.append(ui.TextDisplay(f"{format_duration(added.duration)}  |  {added.requester.display_name}"))
 
             self.add_item(ui.Container(*added_children))
+
+        # === 정지 상태 (stopped_song이 있을 때) ===
+        if self._stopped_song and not song:
+            s = self._stopped_song
+            self.add_item(ui.TextDisplay("### Stopped"))
+            if s.thumbnail:
+                self.add_item(
+                    ui.Section(
+                        ui.TextDisplay(f"**[{s.title}]({s.url})**"),
+                        ui.TextDisplay(f"{format_duration(s.duration)}  |  {s.requester.display_name}"),
+                        accessory=ui.Thumbnail(s.thumbnail),
+                    )
+                )
+            else:
+                self.add_item(ui.TextDisplay(f"**[{s.title}]({s.url})**"))
+                self.add_item(ui.TextDisplay(f"{format_duration(s.duration)}  |  {s.requester.display_name}"))
+
+            # 곡 추가 버튼만 표시
+            container = _PlayerContainer(
+                self.guild_id,
+                ui.ActionRow(
+                    ui.Button(
+                        label="곡 추가", style=discord.ButtonStyle.success,
+                        custom_id="music_add",
+                    ),
+                ),
+            )
+            self.add_item(container)
+            return
 
         # 재생 중인 곡이 없으면 간단 표시
         if not song:
@@ -133,6 +163,10 @@ class MusicPlayerView(ui.LayoutView):
                 emoji=EMOJI_STOP, label="정지",
                 style=discord.ButtonStyle.danger, custom_id="music_stop",
             ),
+            ui.Button(
+                label="곡 추가", style=discord.ButtonStyle.success,
+                custom_id="music_add",
+            ),
         )
         container_children.append(action_row)
 
@@ -146,6 +180,63 @@ class MusicPlayerView(ui.LayoutView):
         self.add_item(container)
 
 
+class AddSongModal(ui.Modal, title="곡 추가"):
+    """YouTube URL 또는 검색어를 입력받는 Modal"""
+
+    query = ui.TextInput(
+        label="YouTube URL 또는 검색어",
+        placeholder="https://youtube.com/watch?v=... 또는 노래 제목",
+        style=discord.TextStyle.short,
+        required=True,
+        max_length=200,
+    )
+
+    def __init__(self, guild_id: str, message: discord.Message):
+        super().__init__()
+        self.guild_id = guild_id
+        self._message = message
+
+    async def on_submit(self, interaction: discord.Interaction):
+        """Modal 제출 시 곡을 검색하고 대기열에 추가"""
+        await interaction.response.defer()
+
+        from run.services.music import MusicManager, YouTubeExtractor
+
+        try:
+            song = await YouTubeExtractor.extract_info(self.query.value, interaction.user)
+            if not song:
+                await interaction.followup.send("검색 결과를 찾을 수 없어요.", ephemeral=True)
+                return
+
+            player = MusicManager.get_player(self.guild_id)
+
+            # 연결 안 되어있으면 유저의 음성 채널로 입장
+            if not player.is_connected():
+                if not interaction.user.voice:
+                    await interaction.followup.send("먼저 음성 채널에 입장해주세요!", ephemeral=True)
+                    return
+                success = await player.join(interaction.user.voice.channel)
+                if not success:
+                    await interaction.followup.send("음성 채널에 입장할 수 없어요.", ephemeral=True)
+                    return
+
+            position = await player.add_song(song)
+
+            if position == 1:
+                await asyncio.sleep(0.3)
+
+            # 메시지 업데이트
+            view = MusicPlayerView(self.guild_id, added_song=song, added_position=position)
+            try:
+                await self._message.edit(view=view)
+            except Exception:
+                pass
+
+        except Exception as e:
+            logger.error(f"곡 추가 실패: {e}", exc_info=True)
+            await interaction.followup.send(f"오류가 발생했어요: {str(e)}", ephemeral=True)
+
+
 class _PlayerContainer(ui.Container):
     """플레이어 컨테이너 - 버튼 인터랙션 처리"""
 
@@ -157,6 +248,12 @@ class _PlayerContainer(ui.Container):
         custom_id = interaction.data.get("custom_id", "")
 
         from run.services.music import MusicManager
+
+        # 곡 추가 Modal
+        if custom_id == "music_add":
+            modal = AddSongModal(self.guild_id, interaction.message)
+            await interaction.response.send_modal(modal)
+            return False
 
         if not MusicManager.has_player(self.guild_id):
             await interaction.response.send_message("재생 중인 음악이 없어요!", ephemeral=True)
@@ -184,8 +281,15 @@ class _PlayerContainer(ui.Container):
             await asyncio.sleep(0.5)
 
         elif custom_id == "music_stop":
-            await player.stop()
+            stopped_song = await player.stop()
             await interaction.response.defer()
+            # Stopped 상태로 뷰 업데이트
+            view = MusicPlayerView(self.guild_id, stopped_song=stopped_song)
+            try:
+                await interaction.message.edit(view=view)
+            except Exception:
+                pass
+            return False
 
         else:
             return True

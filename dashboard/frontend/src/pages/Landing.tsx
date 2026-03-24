@@ -305,7 +305,7 @@ export default function Landing() {
                   className="group relative inline-block hover:scale-105 hover:-rotate-1 active:scale-95 transition-transform duration-200"
                 >
                   <img src={BTN_START} alt="" className="h-[68px] w-auto drop-shadow-xl opacity-90 group-hover:opacity-100 group-hover:drop-shadow-[0_8px_24px_rgba(229,143,182,0.4)] transition-all" />
-                  <span className="absolute inset-0 flex items-center justify-center font-title text-xl text-white pl-2">
+                  <span className="absolute inset-0 flex items-center justify-center font-title text-xl text-[#e8edf3] pl-2">
                     봇 초대하기
                   </span>
                 </a>
@@ -313,8 +313,8 @@ export default function Landing() {
                   onClick={handleDashboard}
                   className="group relative inline-block hover:scale-105 hover:rotate-1 active:scale-95 transition-transform duration-200"
                 >
-                  <img src={BTN_GAME01} alt="" className="h-[63px] w-auto drop-shadow-lg opacity-90 group-hover:opacity-100 group-hover:drop-shadow-[0_8px_24px_rgba(60,171,201,0.4)] transition-all" />
-                  <span className="absolute inset-0 flex items-center justify-center font-title text-lg text-white">
+                  <img src={BTN_GAME01} alt="" className="h-[90px] w-auto drop-shadow-lg opacity-90 group-hover:opacity-100 group-hover:drop-shadow-[0_8px_24px_rgba(60,171,201,0.4)] transition-all" />
+                  <span className="absolute inset-0 flex items-center justify-center pt-3 font-title text-lg text-[#3a3a3a]">
                     대시보드
                   </span>
                 </button>
@@ -433,68 +433,30 @@ export default function Landing() {
               to="/commands"
               className="group relative inline-block hover:scale-105 active:scale-95 transition-transform duration-200"
             >
-              <img src={BTN_GAME02} alt="" className="h-[55px] drop-shadow-lg opacity-90 group-hover:opacity-100 group-hover:drop-shadow-[0_6px_20px_rgba(60,171,201,0.35)] transition-all" />
-              <span className="absolute inset-0 flex items-center justify-center font-title text-base text-white">
+              <img src={BTN_GAME02} alt="" className="h-[80px] drop-shadow-lg opacity-90 group-hover:opacity-100 group-hover:drop-shadow-[0_6px_20px_rgba(60,171,201,0.35)] transition-all" />
+              <span className="absolute inset-0 flex items-center justify-center pt-3 font-title text-base text-[#3a3a3a]">
                 명령어 확인
               </span>
             </Link>
           </motion.div>
         </div>
 
-        {/* Decorative characters */}
-        <motion.img
-          src={CHAR_03}
-          alt=""
-          className="absolute left-[10%] top-[38%] w-28 pointer-events-none z-10"
-          style={{ opacity: isDark ? 0.3 : 0.5 }}
-          animate={{ y: [0, -12, 0], rotate: [0, -3, 0] }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.img
-          src={CHAR_05}
-          alt=""
-          className="absolute right-[7%] top-[32%] w-24 pointer-events-none z-10"
-          style={{ opacity: isDark ? 0.25 : 0.4 }}
-          animate={{ y: [0, -8, 0], rotate: [39, 42, 39] }}
-          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-        />
-        <motion.img
-          src={CHAR_07}
-          alt=""
-          className="absolute right-[14%] top-[8%] w-24 pointer-events-none z-10"
-          style={{ opacity: isDark ? 0.25 : 0.4 }}
-          animate={{ y: [0, -10, 0] }}
-          transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-        />
+        {/* Decorative characters removed — moved to BOARD section */}
 
         {/* Sitting Characters */}
-        <div className="relative z-10 pt-16 min-h-[55vh] flex flex-col justify-end items-center">
+        <div className="relative z-10 pt-16 min-h-[40vh] flex flex-col justify-end items-center">
           <motion.img
             src={CHAR_SITTING}
             alt="Debi & Marlene"
-            className="w-[50%] max-w-[780px] h-auto drop-shadow-[0_12px_40px_rgba(0,0,0,0.25)]"
-            initial={{ opacity: 0, y: 80, scale: 0.92 }}
+            className="w-[35%] max-w-[550px] h-auto drop-shadow-[0_12px_40px_rgba(0,0,0,0.25)]"
+            initial={{ opacity: 0, y: 40, scale: 0.95 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
             viewport={{ once: true, margin: '-60px' }}
-            transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           />
         </div>
 
-        <motion.img src={CURSOR} alt="" className="absolute left-[24%] bottom-[16%] w-20 pointer-events-none z-10"
-          style={{ opacity: isDark ? 0.25 : 0.4 }}
-          animate={{ y: [0, -6, 0], x: [0, 4, 0] }}
-          transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.img src={CHAR_02} alt="" className="absolute right-[11%] bottom-[9%] w-20 pointer-events-none z-10"
-          style={{ opacity: isDark ? 0.25 : 0.4 }}
-          animate={{ y: [0, -8, 0], rotate: [0, 5, 0] }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
-        />
-        <motion.img src={CHAR_06} alt="" className="absolute left-[4%] bottom-[14%] w-28 pointer-events-none z-10"
-          style={{ opacity: isDark ? 0.2 : 0.3 }}
-          animate={{ y: [0, -6, 0], rotate: [33, 36, 33] }}
-          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
-        />
+        {/* Floating decorations removed — moved to BOARD section */}
 
         {/* Bottom blend */}
         <div
@@ -579,6 +541,33 @@ export default function Landing() {
             </div>
           </motion.div>
         </div>
+
+        {/* Decorative characters (moved from FEATURES section) */}
+        <motion.img src={CHAR_03} alt="" className="absolute left-[3%] top-[15%] w-24 pointer-events-none z-20"
+          style={{ opacity: isDark ? 0.3 : 0.5 }}
+          animate={{ y: [0, -12, 0], rotate: [0, -3, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.img src={CHAR_05} alt="" className="absolute right-[3%] top-[20%] w-20 pointer-events-none z-20"
+          style={{ opacity: isDark ? 0.25 : 0.4 }}
+          animate={{ y: [0, -8, 0], rotate: [39, 42, 39] }}
+          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+        />
+        <motion.img src={CURSOR} alt="" className="absolute left-[8%] bottom-[25%] w-16 pointer-events-none z-20"
+          style={{ opacity: isDark ? 0.25 : 0.4 }}
+          animate={{ y: [0, -6, 0], x: [0, 4, 0] }}
+          transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.img src={CHAR_02} alt="" className="absolute right-[5%] bottom-[15%] w-16 pointer-events-none z-20"
+          style={{ opacity: isDark ? 0.25 : 0.4 }}
+          animate={{ y: [0, -8, 0], rotate: [0, 5, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
+        />
+        <motion.img src={CHAR_06} alt="" className="absolute left-[2%] bottom-[10%] w-24 pointer-events-none z-20"
+          style={{ opacity: isDark ? 0.2 : 0.3 }}
+          animate={{ y: [0, -6, 0], rotate: [33, 36, 33] }}
+          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
+        />
 
         {/* Floating game buttons */}
         <motion.img src={BTN_GAME05} alt="" className="absolute left-[7%] top-[58%] w-36 md:w-44 pointer-events-none z-20 drop-shadow-lg"
@@ -674,8 +663,8 @@ export default function Landing() {
                   onClick={() => setIsDonationModalOpen(true)}
                   className="group/btn relative shrink-0 inline-block hover:scale-105 active:scale-95 transition-transform duration-200"
                 >
-                  <img src={BTN_GAME03} alt="" className="h-[65px] drop-shadow-lg opacity-90 group-hover/btn:opacity-100 group-hover/btn:drop-shadow-[0_8px_24px_rgba(229,143,182,0.4)] transition-all" />
-                  <span className="absolute inset-0 flex items-center justify-center font-title text-lg text-white">
+                  <img src={BTN_GAME03} alt="" className="h-[90px] drop-shadow-lg opacity-90 group-hover/btn:opacity-100 group-hover/btn:drop-shadow-[0_8px_24px_rgba(229,143,182,0.4)] transition-all" />
+                  <span className="absolute inset-0 flex items-center justify-center pt-3 font-title text-lg text-[#3a3a3a]">
                     후원하기
                   </span>
                 </button>

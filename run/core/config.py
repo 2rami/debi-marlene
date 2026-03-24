@@ -86,7 +86,6 @@ def load_settings(force_reload=False):
                 settings['guilds'] = {}
             # 캐시 업데이트
             settings_cache = settings.copy()
-            print(f"[GCS] 설정 로드 완료", flush=True)
             return settings
         except Exception as e:
             print(f"[경고] GCS 로드 실패: {e}", flush=True)

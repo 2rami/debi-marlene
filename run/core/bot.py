@@ -280,6 +280,44 @@ async def update_server_info_to_gcs():
         print(f"[오류] 웹 패널 데이터 저장 실패: {e}", flush=True)
 
 
+# ========== CommandNotFound 에러 핸들러 ==========
+
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+    """슬래시 커맨드 에러 처리"""
+    if isinstance(error, discord.app_commands.CommandNotFound):
+        cmd_name = interaction.data.get("name", "?") if interaction.data else "?"
+        guild_name = interaction.guild.name if interaction.guild else "DM"
+        user_name = interaction.user.display_name or interaction.user.name
+        print(f"[경고] 존재하지 않는 커맨드: /{cmd_name} (유저: {user_name}, 서버: {guild_name})", flush=True)
+        try:
+            await interaction.response.send_message(
+                "이 명령어는 더 이상 사용할 수 없어요!\n"
+                "새 명령어: /tts, /음악, /전적, /통계, /시즌, /동접, /퀴즈, /설정, /피드백",
+                ephemeral=True
+            )
+        except Exception:
+            pass
+        return
+    raise error
+
+
+async def _clear_guild_commands():
+    """모든 길드의 잔여 커맨드를 초기화합니다."""
+    cleared = 0
+    for guild in bot.guilds:
+        try:
+            guild_commands = await bot.tree.fetch_commands(guild=guild)
+            if guild_commands:
+                bot.tree.clear_commands(guild=guild)
+                await bot.tree.sync(guild=guild)
+                cleared += 1
+        except Exception:
+            pass
+    if cleared:
+        print(f"[완료] {cleared}개 서버의 옛날 길드 커맨드 초기화 완료", flush=True)
+
+
 # ========== 봇 이벤트 핸들러 ==========
 
 @bot.event
@@ -314,6 +352,9 @@ async def on_ready():
         print(f"[완료] 명령어 동기화 완료 ({len(synced)}개)", flush=True)
     except Exception as e:
         print(f"[오류] 명령어 동기화 실패: {e}", flush=True)
+
+    # 길드별 잔여 커맨드 초기화 (이전 버전에서 등록된 옛날 커맨드 제거)
+    asyncio.create_task(_clear_guild_commands())
 
     # 무거운 초기화를 백그라운드로 실행 (이벤트 루프 차단 방지)
     asyncio.create_task(_background_init())

@@ -295,6 +295,10 @@ class VoiceManager:
 
             logger.info(f"idle 타이머 만료, 자동 퇴장: {guild_id}")
 
+            # leave() 내부에서 cancel_idle_timer()가 이 태스크를 취소하지 않도록
+            # 먼저 idle_tasks에서 자기 자신을 제거
+            self.idle_tasks.pop(guild_id, None)
+
             # 퇴장 알림
             try:
                 await vc.channel.send("음성채널에 아무도 없어서 나갈게!")

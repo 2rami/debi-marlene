@@ -66,5 +66,8 @@
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true
+  },
+  "remote": {
+    "defaultEnvironmentId": "env_01YXPuSTkUFmtKoX2kwnm6V1"
   }
 }

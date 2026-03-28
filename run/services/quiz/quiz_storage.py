@@ -15,7 +15,8 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-GCS_BUCKET = 'debi-marlene-settings'
+import os
+GCS_BUCKET = os.getenv('GCS_BUCKET_NAME', 'debi-marlene-settings')
 GCS_QUIZ_KEY = 'quiz_data.json'
 MAX_SESSIONS_PER_GUILD = 50
 

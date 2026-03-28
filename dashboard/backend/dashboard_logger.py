@@ -7,7 +7,8 @@
 import json
 from datetime import datetime, timezone, timedelta
 
-GCS_BUCKET = 'debi-marlene-settings'
+import os
+GCS_BUCKET = os.getenv('GCS_BUCKET_NAME', 'debi-marlene-settings')
 GCS_DASHBOARD_LOGS_KEY = 'dashboard_logs.json'
 KST = timezone(timedelta(hours=9))
 MAX_LOGS = 500

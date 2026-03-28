@@ -89,8 +89,9 @@ class WelcomeCog(commands.Cog):
         """GCS에서 배경 이미지 다운로드"""
         try:
             from google.cloud import storage
-            client = storage.Client(project='ironic-objectivist-465713-a6')
-            bucket = client.bucket('debi-marlene-settings')
+            from run.core.config import GCP_PROJECT_ID, GCS_BUCKET
+            client = storage.Client(project=GCP_PROJECT_ID)
+            bucket = client.bucket(GCS_BUCKET)
 
             key = 'welcome' if is_welcome else 'goodbye'
             blob_name = f'welcome_images/{guild_id}_{key}_bg.png'

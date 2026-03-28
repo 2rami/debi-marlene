@@ -88,30 +88,28 @@ make status      # VM/컨테이너 상태
 
 ## 인프라
 
-- **VM**: `debi-marlene-bot` (GCP Compute Engine, asia-northeast3-a, IP: `REDACTED_IP`)
-- **Registry**: `asia-northeast3-docker.pkg.dev/ironic-objectivist-465713-a6/debi-marlene`
-- **Storage**: GCS `debi-marlene-settings` 버킷 (봇 설정/DM 채널 저장)
-- **Modal TTS**: `2R4mi/qwen3-tts-debi-light` (0.6B), `2R4mi/qwen3-tts-marlene` (1.7B)
+- **VM**: `debi-marlene-bot` (GCP Compute Engine, asia-northeast3-a)
+  - IP 확인: `gcloud compute instances describe debi-marlene-bot --zone=asia-northeast3-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)'`
+- **Registry**: Makefile의 `REGISTRY` 변수 참고
+- **Storage**: GCS 버킷 (봇 설정/DM 채널 저장) — 버킷 이름은 `.env` 또는 Makefile 참고
+- **Modal TTS**: Modal 앱 설정은 `.env` 참고
 
 ### 도메인
 
-| 도메인 | 용도 | 호스팅 |
-|--------|------|--------|
-| `debimarlene.com` | 대시보드 (메인) | GCP VM (nginx :3080) |
-| `panel.debimarlene.com` | 웹패널 | GCP VM (nginx :8080) |
-| `debi-marlene-webpanel.vercel.app` | 웹패널 (Vercel) | Vercel |
+| 도메인 | 용도 |
+|--------|------|
+| `debimarlene.com` | 대시보드 (메인) |
+| `panel.debimarlene.com` | 웹패널 |
 
 ### 포트 할당
 
 | 서비스 | VM 포트 | 로컬 개발 포트 | 설명 |
 |--------|---------|----------------|------|
 | 봇 (Discord) | - | - | 포트 노출 없음 |
-| 봇 내부 API | 5001 | 5001 | (사용 안 함, 레거시) |
 | Dashboard Backend | 8081 | 8081 | Discord OAuth2 인증 |
 | Dashboard Frontend | 3080 (nginx) | 3002 | React UI |
 | Webpanel Backend | 8080 | 8080 | Discord API 연동 |
 | Webpanel Frontend | (번들됨) | 5173 | React 개발 서버 |
-| Modal TTS API | - | - | Serverless (외부 URL) |
 
 **포트 충돌 방지:**
 - 봇 컨테이너는 5001만 바인딩 (8080 제거됨)
@@ -122,10 +120,8 @@ make status      # VM/컨테이너 상태
 
 ```bash
 # 로컬
-export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
-# 또는
 gcloud auth application-default login
 
 # 확인
-gsutil cat gs://debi-marlene-settings/settings.json
+gsutil cat gs://$(grep BUCKET .env | cut -d= -f2)/settings.json
 ```

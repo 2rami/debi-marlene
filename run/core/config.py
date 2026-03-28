@@ -20,7 +20,8 @@ DAKGG_API_BASE = "https://er.dakgg.io/api/v1"
 ETERNAL_RETURN_CHANNEL_ID = 'UCEOaB76vS9RfiAwEzxB8QGw'
 
 # GCS 설정
-GCS_BUCKET = 'debi-marlene-settings'
+GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
+GCS_BUCKET = os.getenv('GCS_BUCKET_NAME', 'debi-marlene-settings')
 GCS_KEY = 'settings.json'
 GCS_REMOVED_SERVERS_KEY = 'removed_servers.json'
 GCS_COMMAND_LOGS_KEY = 'command_logs.json'
@@ -50,7 +51,7 @@ def get_gcs_client():
 
             from google.cloud import storage
             # authorized_user credentials는 project_id가 없으므로 명시적으로 지정
-            gcs_client = storage.Client(project='ironic-objectivist-465713-a6')
+            gcs_client = storage.Client(project=GCP_PROJECT_ID)
             print(f"[GCS] Client 생성 성공", flush=True)
 
             # 버킷 접근 테스트

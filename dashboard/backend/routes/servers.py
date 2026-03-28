@@ -22,7 +22,7 @@ DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID')
 DISCORD_API_URL = 'https://discord.com/api/v10'
 
 # GCS 설정
-GCS_BUCKET = 'debi-marlene-settings'
+GCS_BUCKET = os.getenv('GCS_BUCKET_NAME', 'debi-marlene-settings')
 GCS_KEY = 'settings.json'
 gcs_client = None
 
@@ -32,7 +32,7 @@ def get_gcs_client():
     if gcs_client is None:
         try:
             from google.cloud import storage
-            gcs_client = storage.Client(project='ironic-objectivist-465713-a6')
+            gcs_client = storage.Client(project=os.getenv('GCP_PROJECT_ID'))
         except Exception as e:
             logger.error(f'GCS 클라이언트 생성 실패: {e}')
             gcs_client = False

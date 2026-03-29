@@ -55,7 +55,9 @@
       "WebFetch(domain:eu-central-1-1.aws.cloud2.influxdata.com)",
       "WebFetch(domain:goenho0613--qwen3-tts-server-ttsmodel-health.modal.run)",
       "WebFetch(domain:goenho0613--qwen3-tts-server-ttsmodel-tts.modal.run)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:registry.npmjs.org)"
     ]
   },
   "enableAllProjectMcpServers": true,

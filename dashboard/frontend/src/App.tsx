@@ -14,6 +14,7 @@ import Terms from './pages/Terms'
 import AuthCallback from './pages/AuthCallback'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import BotGuide from './pages/BotGuide'
+import Portfolio from './pages/Portfolio'
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/fail" element={<PaymentFail />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/portfolio" element={<Portfolio />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>

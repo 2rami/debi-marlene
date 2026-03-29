@@ -16,4 +16,13 @@
 | #1932 | 6:12 PM | ✅ | Character Image Replaced with Gradient Silhouette on Select Page | ~418 |
 | #1929 | 6:09 PM | 🟣 | Portfolio Page Implementation for Job Application | ~730 |
 | #1920 | 5:45 PM | 🔵 | Dashboard Frontend Architecture Analysis for Portfolio Page | ~539 |
+
+### Mar 29, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #2085 | 7:29 PM | ✅ | Landing Page Hero Layering and Icon Drift Animation | ~685 |
+| #2084 | " | 🟣 | Electric Text Effect on Landing Page Features Heading | ~383 |
+| #2083 | 7:28 PM | 🟣 | CharacterSelect Component Migrated to Separate Character Images | ~355 |
+| #2077 | 7:18 PM | 🔄 | Landing Page Complete Redesign to Simplified Light Theme | ~1061 |
 </claude-mem-context>

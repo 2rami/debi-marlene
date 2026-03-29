@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import charImage from '../assets/images/event/imgi_30_ch01.png'
+import debiImage from '../assets/images/event/debi_select.png'
+import marleneImage from '../assets/images/event/marlene_select.png'
 
 type Side = 'left' | 'right' | null
 
@@ -77,9 +78,9 @@ export default function CharacterSelect() {
             transition={{ duration: 0.5 }}
           />
 
-          {/* Character image - cropped to show only Debi (left half) */}
+          {/* Character image - Debi */}
           <motion.div
-            className="absolute bottom-0 h-[85%] w-[140%] -left-[10%]"
+            className="absolute bottom-0 h-[85%] flex items-end justify-center w-full"
             animate={{
               scale: hovered === 'left' ? 1.05 : hovered === 'right' ? 0.92 : 1,
               filter: hovered === 'right'
@@ -89,12 +90,11 @@ export default function CharacterSelect() {
                   : 'brightness(0.85)',
             }}
             transition={{ type: 'spring', stiffness: 150, damping: 25 }}
-            style={{ clipPath: 'inset(0 30% 0 0)' }}
           >
             <img
-              src={charImage}
+              src={debiImage}
               alt="Debi"
-              className="h-full w-full object-contain"
+              className="h-full object-contain"
               draggable={false}
             />
           </motion.div>
@@ -222,9 +222,9 @@ export default function CharacterSelect() {
             transition={{ duration: 0.5 }}
           />
 
-          {/* Character image - cropped to show only Marlene (right half) */}
+          {/* Character image - Marlene */}
           <motion.div
-            className="absolute bottom-0 h-[85%] w-[140%] -right-[10%] left-auto"
+            className="absolute bottom-0 h-[85%] flex items-end justify-center w-full"
             animate={{
               scale: hovered === 'right' ? 1.05 : hovered === 'left' ? 0.92 : 1,
               filter: hovered === 'left'
@@ -234,12 +234,11 @@ export default function CharacterSelect() {
                   : 'brightness(0.85)',
             }}
             transition={{ type: 'spring', stiffness: 150, damping: 25 }}
-            style={{ clipPath: 'inset(0 0 0 35%)' }}
           >
             <img
-              src={charImage}
+              src={marleneImage}
               alt="Marlene"
-              className="h-full w-full object-contain"
+              className="h-full object-contain"
               draggable={false}
             />
           </motion.div>

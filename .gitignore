@@ -106,6 +106,9 @@ webpanel/out/
 # 웹패널 전체 (로컬에만 유지)
 webpanel/
 
+# 지원서류 (개인정보)
+application/
+
 # 스크립트
 scripts/
 

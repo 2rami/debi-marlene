@@ -222,6 +222,15 @@ body {
   transform: rotate(360deg);
 }
 
+/* ── Electric Underline Effect ── */
+@keyframes electric {
+  0% { background-position: 200% 0; opacity: 0.6; }
+  25% { opacity: 1; }
+  50% { background-position: 0% 0; opacity: 0.8; }
+  75% { opacity: 1; }
+  100% { background-position: -200% 0; opacity: 0.6; }
+}
+
 /* ── Animation Keyframes ── */
 
 @keyframes float {

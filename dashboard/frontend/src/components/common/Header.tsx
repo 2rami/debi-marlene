@@ -5,7 +5,6 @@ import { useTheme } from '../../contexts/ThemeContext'
 import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import PatchNotesModal from './PatchNotesModal'
-import featureBg from '../../assets/images/feature-bg.jpg'
 
 export default function Header() {
   const { user, login, logout } = useAuth()
@@ -47,7 +46,7 @@ export default function Header() {
           <Link to="/" className="flex items-center gap-3 group">
             <div className="relative">
               <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg group-hover:scale-105 transition-transform duration-300">
-                <img src={featureBg} alt="Debi & Marlene" className="w-full h-full object-cover" />
+                <img src="" alt="Debi & Marlene" className="w-full h-full object-cover" />
               </div>
               <div className="absolute inset-0 bg-white/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
             </div>

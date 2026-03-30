@@ -4,7 +4,6 @@ import { X, CreditCard, MessageCircle, Copy, ExternalLink } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 
 // Images
-import KAKAO_QR from '../../assets/images/kakao-qr.jpg'
 
 interface DonationModalProps {
     isOpen: boolean
@@ -197,7 +196,7 @@ export default function DonationModal({ isOpen, onClose }: DonationModalProps) {
                                                 level="H"
                                                 includeMargin={true}
                                                 imageSettings={{
-                                                    src: KAKAO_QR,
+                                                    src: '',
                                                     x: undefined,
                                                     y: undefined,
                                                     height: 40,

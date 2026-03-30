@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react'
 import { motion, useInView, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion'
 import Header from '../components/common/Header'
 import FlowingMenu from '../components/common/FlowingMenu'
+import GlassButton from '../components/common/GlassButton'
 
 /* ── Assets ── */
 import BG_SKY from '../assets/images/event/imgi_28_bg01.png'
@@ -41,20 +42,20 @@ function GlobalParticles() {
   useEffect(() => {
     const w = window.innerWidth || 1200;
     const h = window.innerHeight || 800;
-    
+
     // 45여 개의 파티클을 매우 부드럽고 꾸준하게 가로로 흐르도록 수정
     const items = Array.from({ length: 45 }).map((_, i) => {
-      const sizeBase = Math.random() > 0.8 ? 70 : 35; 
+      const sizeBase = Math.random() > 0.8 ? 70 : 35;
       return {
         id: i,
         src: ICONS[i % ICONS.length],
         size: sizeBase + Math.random() * 35,
-        startY: Math.random() * h, 
+        startY: Math.random() * h,
         startX: w + 100 + Math.random() * 400, // 확실하게 화면 우측 밖
         endX: -200 - Math.random() * 200,      // 확실하게 화면 좌측 밖
         animDuration: 10 + Math.random() * 20, // 자연스럽고 약간 빠르게
         delay: -Math.random() * 40,
-        rotationSpeed: (Math.random() > 0.5 ? 1 : -1) * (90 + Math.random() * 270) 
+        rotationSpeed: (Math.random() > 0.5 ? 1 : -1) * (90 + Math.random() * 270)
       };
     });
     setParticles(items);
@@ -113,7 +114,7 @@ function FeatureCard({ title, description, color, delay }: { title: string; desc
    ══════════════════════════════════════════════ */
 export default function Landing() {
   const heroRef = useRef(null)
-  
+
   // 스크롤 패럴랙스 (수직 이동)
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const skyY = useTransform(scrollYProgress, [0, 1], ['0%', '15%'])
@@ -142,7 +143,7 @@ export default function Landing() {
   // 각 레이어별 미세한 마우스 이동값
   const layer1X = useTransform(smoothMouseX, [-1, 1], [-15, 15]);
   const layer1Y = useTransform(smoothMouseY, [-1, 1], [-15, 15]);
-  
+
   const layer2X = useTransform(smoothMouseX, [-1, 1], [-30, 30]);
   const layer2Y = useTransform(smoothMouseY, [-1, 1], [-30, 30]);
 
@@ -158,24 +159,12 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-[#e0f7fa] font-body overflow-x-hidden selection:bg-[#3cabc9]/20 relative z-0">
-      {/* 찐 유리 왜곡(Liquid Glass) 효과를 위한 SVG 필터 정의 */}
-      <svg style={{ display: 'none' }}>
+      {/* 텍스처 SVG 필터 — 텍스트용 (피그마 원본 값) */}
+      <svg style={{ position: 'absolute', width: 0, height: 0 }} aria-hidden="true">
         <defs>
-          <filter id="liquid-glass" x="0%" y="0%" width="100%" height="100%">
-            {/* 울렁거리는 랜덤 노이즈(Turbulence) 삭제! 오목렌즈의 굴곡을 정확히 계산하는 X/Y 그라데이션 정밀 맵 주입 */}
-            <feImage href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cdefs%3E%3ClinearGradient id='gx' x1='0%25' y1='0%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' stop-color='%23000000'/%3E%3Cstop offset='50%25' stop-color='%23800000'/%3E%3Cstop offset='100%25' stop-color='%23ff0000'/%3E%3C/linearGradient%3E%3ClinearGradient id='gy' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23000000'/%3E%3Cstop offset='50%25' stop-color='%23008000'/%3E%3Cstop offset='100%25' stop-color='%2300ff00'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23gx)'/%3E%3Crect width='100' height='100' fill='url(%23gy)' style='mix-blend-mode:screen'/%3E%3C/svg%3E" result="lensMap" preserveAspectRatio="none" x="0" y="0" width="100%" height="100%" />
-            {/* 중앙으로 픽셀을 블랙홀처럼 강하게 끌어당기는 힘! scale을 40에서 120으로 무려 3배 펌핑 */}
-            <feDisplacementMap in="SourceGraphic" in2="lensMap" scale="120" xChannelSelector="R" yChannelSelector="G" result="displaced" />
-            {/* 요청하신 대로 블러값을 2에서 1로 훨씬 더 줄였습니다 */}
-            <feGaussianBlur in="displaced" stdDeviation="1" result="blur" />
-            
-            {/* 피그마의 원본 텍스처 질감(feTurbulence) 부활 후 은은하게 오버레이 코팅 */}
-            <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="3" result="noiseTexture" />
-            <feColorMatrix in="noiseTexture" type="saturate" values="0" result="grayNoise" />
-            <feComponentTransfer in="grayNoise" result="fadedNoise">
-              <feFuncA type="linear" slope="0.15" />
-            </feComponentTransfer>
-            <feBlend mode="overlay" in="fadedNoise" in2="blur" />
+          <filter id="text-texture" x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.339" numOctaves="3" seed="5044" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </defs>
       </svg>
@@ -183,22 +172,22 @@ export default function Landing() {
       <Header />
 
       {/* ══ HERO ══ */}
-      <section 
-        ref={heroRef} 
+      <section
+        ref={heroRef}
         onMouseMove={handleMouseMove}
         className="relative h-screen min-h-[700px] overflow-hidden"
       >
         {/* z-[0]: Sky background (상단바 영역까지 화면 전체를 덮도록 top 0 근처로 확장) */}
-        <motion.div 
-          className="absolute z-[0] top-[-5%] left-[-5%] w-[110%] h-[110%]" 
+        <motion.div
+          className="absolute z-[0] top-0 left-[-5%] w-[110%]"
           style={{ y: skyY, x: layer1X, translateY: layer1Y }}
         >
-          <img src={BG_SKY} alt="" className="w-full h-full object-cover object-top opacity-90" draggable={false} />
+          <img src={BG_SKY} alt="" className="w-full h-auto opacity-90" draggable={false} />
         </motion.div>
 
         {/* z-2: Cloud/leaf overlay — Figma: 1763x886, 122% wide, starts at y=392/1258 = 31% */}
-        <motion.div 
-          className="absolute z-[2] top-[20%] left-[-15%] w-[130%] h-[90%]" 
+        <motion.div
+          className="absolute z-[2] top-[20%] left-[-15%] w-[130%] h-[90%]"
           style={{ y: cloudY, x: layer2X, translateY: layer2Y }}
         >
           <img src={BG_CLOUD} alt="" className="w-full h-full object-cover mix-blend-multiply" draggable={false} />
@@ -213,7 +202,7 @@ export default function Landing() {
         </motion.div>
 
         {/* z-[3]: Hero text content — BEHIND the character */}
-        <motion.div 
+        <motion.div
           className="relative z-[3] max-w-7xl mx-auto px-6 lg:px-12 h-full flex flex-col justify-center pt-20 pointer-events-none"
           style={{ y: textY }}
         >
@@ -234,23 +223,46 @@ export default function Landing() {
             {`데비&마를렌 봇`}
           </motion.p>
 
-          <motion.h1
-            className="font-display text-[72px] md:text-[120px] lg:text-[167px] leading-none font-bold mt-1 whitespace-nowrap"
-            style={{
-              background: 'rgba(97, 239, 255, 0.67)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              WebkitTextStroke: '2.95px #ff9af2',
-              textShadow: '0px 5.613px 1.4px #ff9af2, 0px 4px 4px rgba(0,0,0,0.25)',
-              paintOrder: 'stroke fill',
-            }}
+          <motion.div
+            className="mt-1"
+            style={{ filter: 'url(#text-texture) drop-shadow(3px 0 0 #FFA6D7) drop-shadow(-3px 0 0 #FFA6D7) drop-shadow(0 3px 0 #FFA6D7) drop-shadow(0 -3px 0 #FFA6D7) drop-shadow(0px 5.613px 0px #FF9AF2) drop-shadow(0px 4px 4px #d4679e)' }}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.3 }}
           >
-            대시보드
-          </motion.h1>
+            <svg viewBox="0 0 700 190" className="w-[500px] md:w-[650px] lg:w-[700px] h-auto overflow-visible">
+              <defs>
+                <clipPath id="dashboard-text-clip">
+                  <text x="0" y="150" fontSize="167" fontWeight="bold" fontFamily="'YPairingFont', system-ui, sans-serif">대시보드</text>
+                </clipPath>
+              </defs>
+              {/* 유리 배경 — 텍스트 모양으로 클리핑 */}
+              <foreignObject x="-10" y="-10" width="720" height="210" clipPath="url(#dashboard-text-clip)">
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    backdropFilter: 'url(#glass-lens)',
+                    WebkitBackdropFilter: 'url(#glass-lens)',
+                    background: 'rgba(97, 239, 255, 0.15)',
+                  }}
+                />
+              </foreignObject>
+              {/* 바깥쪽 아웃라인 */}
+              <text
+                x="0" y="150"
+                fontSize="167"
+                fontWeight="bold"
+                fontFamily="'YPairingFont', system-ui, sans-serif"
+                fill="none"
+                stroke="#FFA6D7"
+                strokeWidth="6"
+                paintOrder="stroke"
+              >
+                대시보드
+              </text>
+            </svg>
+          </motion.div>
 
           <motion.div
             className="flex gap-4 mt-10 pointer-events-auto"
@@ -258,36 +270,16 @@ export default function Landing() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
           >
-            <a
+            <GlassButton
               href="https://discord.com/oauth2/authorize?client_id=1393529860793831489&permissions=8&scope=bot%20applications.commands"
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative w-[199px] h-[56px] flex items-center justify-center hover:-translate-y-1 transition-transform duration-300"
             >
-              {/* 유리의 기본 판 (SVG 필터 연동으로 뒤쪽 화면 굴절) */}
-              <div 
-                className="absolute inset-0 bg-white/10 rounded-[15px] shadow-[0px_4px_4px_rgba(0,0,0,0.25)] pointer-events-none"
-                style={{
-                  backdropFilter: 'url(#liquid-glass)',
-                  WebkitBackdropFilter: 'url(#liquid-glass)'
-                }}
-              />
-              <span className="relative z-10 font-title text-[24px] text-black pb-1">봇 초대하기</span>
-            </a>
-            <a
-              href="/dashboard"
-              className="group relative w-[199px] h-[56px] flex items-center justify-center hover:-translate-y-1 transition-transform duration-300"
-            >
-              {/* 유리의 기본 판 (SVG 필터 연동으로 뒤쪽 화면 굴절) */}
-              <div 
-                className="absolute inset-0 bg-white/10 rounded-[15px] shadow-[0px_4px_4px_rgba(0,0,0,0.25)] pointer-events-none"
-                style={{
-                  backdropFilter: 'url(#liquid-glass)',
-                  WebkitBackdropFilter: 'url(#liquid-glass)'
-                }}
-              />
-              <span className="relative z-10 font-title text-[24px] text-black pb-1">대시보드</span>
-            </a>
+              봇 초대하기
+            </GlassButton>
+            <GlassButton href="/dashboard">
+              대시보드
+            </GlassButton>
           </motion.div>
         </motion.div>
 

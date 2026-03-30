@@ -15,7 +15,6 @@ import CHAR_06 from '../assets/images/event/imgi_50_ch06.png'
 import CHAR_07 from '../assets/images/event/imgi_51_ch07.png'
 import NEW_BADGE from '../assets/images/event/imgi_77_new.png'
 import CURSOR from '../assets/images/event/imgi_45_cursor01.png'
-import BTN_BG from '../assets/images/event/btn_bg.svg'
 
 function FadeIn({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useRef(null)

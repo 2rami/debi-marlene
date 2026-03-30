@@ -1,6 +1,5 @@
 import { useState, useRef, forwardRef, useCallback } from 'react'
 import { api } from '../../services/api'
-import defaultBg from '../../assets/images/feature-bg.jpg'
 
 interface Channel {
   id: string
@@ -97,7 +96,7 @@ const LivePreview = forwardRef<HTMLDivElement, { config: ImageConfig }>(function
   const subtitle = resolveVariables(config.welcome_subtitle || '')
   const tags = config.tags || []
   const bgColor = config.background_color || '#1a1a2e'
-  const bgImageUrl = config.background_image_url || defaultBg
+  const bgImageUrl = config.background_image_url || ''
   const memberCountEnabled = config.member_count?.enabled !== false
 
   const avatarRadius =
@@ -202,7 +201,7 @@ export default function WelcomeSettings({ features, channels, saving, guildId, o
     const memberEnabled = cfg.member_count?.enabled !== false
 
     // 1. Background
-    const bgUrl = cfg.background_image_url || defaultBg
+    const bgUrl = cfg.background_image_url || ''
     try {
       const img = new Image()
       img.crossOrigin = 'anonymous'

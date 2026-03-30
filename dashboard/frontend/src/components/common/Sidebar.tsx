@@ -1,6 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import featureBg from '../../assets/images/feature-bg.jpg'
 
 export default function Sidebar() {
   const { user, logout } = useAuth()
@@ -34,7 +33,7 @@ export default function Sidebar() {
         <Link to="/dashboard" className="flex items-center gap-3 group">
           <div className="relative">
             <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg group-hover:scale-105 transition-transform duration-300">
-              <img src={featureBg} alt="Debi & Marlene Logo" className="w-full h-full object-cover" />
+              <img src="" alt="Debi & Marlene Logo" className="w-full h-full object-cover" />
             </div>
             <div className="absolute inset-0 bg-white/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
           </div>

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useLocation, useParams, Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { api } from '../../services/api'
-import featureBg from '../../assets/images/feature-bg.jpg'
 
 const getServerAcronym = (name: string) => {
   const acronym = name.split(/\s+/).map(w => w[0]).join('').substring(0, 3).toUpperCase()
@@ -105,7 +104,7 @@ export default function DashboardLayout({ children }: Props) {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg">
-                <img src={featureBg} alt="Debi & Marlene Logo" className="w-full h-full object-cover" />
+                <img src="" alt="Debi & Marlene Logo" className="w-full h-full object-cover" />
               </div>
               <span className="text-white font-semibold text-lg">Debi & Marlene</span>
             </Link>
@@ -193,7 +192,7 @@ export default function DashboardLayout({ children }: Props) {
           to="/"
           className="w-12 h-12 rounded-2xl bg-discord-dark hover:rounded-xl transition-all group relative overflow-hidden flex items-center justify-center p-0.5"
         >
-          <img src={featureBg} alt="Home" className="w-full h-full object-cover rounded-[14px] group-hover:rounded-[10px] transition-all" />
+          <img src="" alt="Home" className="w-full h-full object-cover rounded-[14px] group-hover:rounded-[10px] transition-all" />
           {/* Tooltip */}
           <div className="absolute left-full ml-4 px-3 py-2 bg-discord-darkest rounded-md text-white text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg">
             홈

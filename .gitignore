@@ -82,6 +82,14 @@ test_*.py
 *.jpg
 *.jpeg
 
+# 대시보드 프론트엔드 에셋은 커밋 허용
+!dashboard/frontend/src/assets/**/*.png
+!dashboard/frontend/src/assets/**/*.jpg
+!dashboard/frontend/src/assets/**/*.jpeg
+!dashboard/frontend/src/assets/**/*.svg
+!dashboard/frontend/src/assets/**/*.gif
+!dashboard/frontend/public/**/*.png
+
 
 
 # GCP 관련 (보안상 제외)

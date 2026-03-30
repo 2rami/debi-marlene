@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { RefreshCw, Download, Sparkles } from 'lucide-react'
-import PREVIEW_BG from '../../assets/images/feature-bg.jpg'
 
 export default function GreetingPreview() {
     const [nickname, setNickname] = useState('여행하는 데비')
@@ -61,7 +60,7 @@ export default function GreetingPreview() {
                     {/* Background Image Area */}
                     <div className="absolute inset-0">
                         <img
-                            src={PREVIEW_BG}
+                            src=""
                             alt="Background"
                             className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
                         />

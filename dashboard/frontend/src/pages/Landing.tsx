@@ -3,6 +3,7 @@ import { motion, useInView, useScroll, useTransform, useMotionValue, useSpring }
 import Header from '../components/common/Header'
 import FlowingMenu from '../components/common/FlowingMenu'
 import GlassButton from '../components/common/GlassButton'
+import DonationModal from '../components/common/DonationModal'
 
 /* ── Assets ── */
 import BG_SKY from '../assets/images/event/imgi_28_bg01.png'
@@ -15,6 +16,10 @@ import CHAR_05 from '../assets/images/event/imgi_49_ch05.png'
 import CHAR_06 from '../assets/images/event/imgi_50_ch06.png'
 import CHAR_07 from '../assets/images/event/imgi_51_ch07.png'
 import NEW_BADGE from '../assets/images/event/imgi_77_new.png'
+import BG_FOOTER from '../assets/images/event/footer_bg.png'
+import FOOTER_PLATFORM from '../assets/images/event/footer_platform.png'
+import FOOTER_CHAR from '../assets/images/event/footer_char.png'
+import TWINS_APPROVE from '../assets/images/event/236_twins_approve.png'
 import CURSOR from '../assets/images/event/imgi_45_cursor01.png'
 
 function FadeIn({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
@@ -33,6 +38,57 @@ function FadeIn({ children, className = '', delay = 0 }: { children: React.React
   )
 }
 
+/* ── Wipe-in effect (GSAP ScrollTrigger) ── */
+function WipeIn({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let ctx: ReturnType<typeof import('gsap').default.context> | undefined
+    import('gsap').then(({ default: gsap }) =>
+      import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
+        gsap.registerPlugin(ScrollTrigger)
+        if (!ref.current) return
+        ctx = gsap.context(() => {
+          gsap.fromTo(ref.current,
+            { clipPath: 'inset(0 100% 0 0)' },
+            {
+              clipPath: 'inset(0 0% 0 0)',
+              duration: 2.5,
+              ease: 'power2.inOut',
+              scrollTrigger: {
+                trigger: ref.current,
+                start: 'top 85%',
+                once: true,
+              },
+            }
+          )
+        })
+      })
+    )
+    return () => ctx?.revert()
+  }, [])
+
+  return (
+    <div ref={ref} className={className} style={{ clipPath: 'inset(0 100% 0 0)' }}>
+      {children}
+    </div>
+  )
+}
+
+/* ── Parallax Strip (스크롤보다 빠르게 올라감) ── */
+function ParallaxStrip({ children, speed = -150 }: { children: React.ReactNode; speed?: number }) {
+  const ref = useRef(null)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
+  const y = useTransform(scrollYProgress, [0, 1], [0, speed])
+  return (
+    <div ref={ref} className="relative z-20">
+      <motion.div style={{ y }}>
+        {children}
+      </motion.div>
+    </div>
+  )
+}
+
 /* ── Global Fast-moving Particles ── */
 const ICONS = [CHAR_02, CHAR_03, CHAR_05, CHAR_06, CHAR_07, CURSOR, NEW_BADGE];
 
@@ -43,18 +99,17 @@ function GlobalParticles() {
     const w = window.innerWidth || 1200;
     const h = window.innerHeight || 800;
 
-    // 45여 개의 파티클을 매우 부드럽고 꾸준하게 가로로 흐르도록 수정
-    const items = Array.from({ length: 45 }).map((_, i) => {
+    const items = Array.from({ length: 70 }).map((_, i) => {
       const sizeBase = Math.random() > 0.8 ? 70 : 35;
       return {
         id: i,
         src: ICONS[i % ICONS.length],
         size: sizeBase + Math.random() * 35,
         startY: Math.random() * h,
-        startX: w + 100 + Math.random() * 400, // 확실하게 화면 우측 밖
-        endX: -200 - Math.random() * 200,      // 확실하게 화면 좌측 밖
-        animDuration: 10 + Math.random() * 20, // 자연스럽고 약간 빠르게
-        delay: -Math.random() * 40,
+        startX: w + 100 + Math.random() * 400,
+        endX: -200 - Math.random() * 200,
+        animDuration: 5 + Math.random() * 10,
+        delay: -Math.random() * 20,
         rotationSpeed: (Math.random() > 0.5 ? 1 : -1) * (90 + Math.random() * 270)
       };
     });
@@ -62,7 +117,7 @@ function GlobalParticles() {
   }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-[1] overflow-hidden">
+    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
       {particles.map((item: any) => (
         <motion.img
           key={item.id}
@@ -114,6 +169,7 @@ function FeatureCard({ title, description, color, delay }: { title: string; desc
    ══════════════════════════════════════════════ */
 export default function Landing() {
   const heroRef = useRef(null)
+  const [isDonationOpen, setIsDonationOpen] = useState(false)
 
   // 스크롤 패럴랙스 (수직 이동)
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
@@ -151,10 +207,7 @@ export default function Landing() {
   const charMoveY = useTransform(smoothMouseY, [-1, 1], [-5, 5]);
 
   const menuItems = [
-    { text: 'TTS' },
-    { text: 'Stats' },
-    { text: 'Music' },
-    { text: 'Quiz' },
+    { text: '\u2192  TTS  \u00B7  Stats  \u00B7  Music  \u00B7  Quiz  \u2192' },
   ]
 
   return (
@@ -175,7 +228,7 @@ export default function Landing() {
       <section
         ref={heroRef}
         onMouseMove={handleMouseMove}
-        className="relative h-screen min-h-[700px] overflow-hidden"
+        className="relative h-[150vh] min-h-[900px] overflow-hidden"
       >
         {/* z-[0]: Sky background (상단바 영역까지 화면 전체를 덮도록 top 0 근처로 확장) */}
         <motion.div
@@ -193,17 +246,21 @@ export default function Landing() {
           <img src={BG_CLOUD} alt="" className="w-full h-full object-cover mix-blend-multiply" draggable={false} />
         </motion.div>
 
-        {/* z-[5]: Main character */}
+        {/* z-[5]: Main character — 데스크톱: 왼쪽 32%, 모바일: 상단 중앙 */}
         <motion.div
-          className="absolute z-[5] bottom-0 right-0 md:right-[3%] w-[90%] md:w-[68%] max-w-[950px] h-[75%] filter drop-shadow-2xl"
+          className="absolute z-[5] filter drop-shadow-2xl
+            bottom-[5%] left-[32%] w-[64%] max-w-[950px] h-[85%]
+            max-md:bottom-auto max-md:top-[8%] max-md:left-[10%] max-md:w-[80%] max-md:h-[50%]"
           style={{ y: charY, x: charMoveX, translateY: charMoveY }}
         >
           <img src={CHAR_HERO} alt="Debi & Marlene" className="w-full h-full object-contain object-bottom" draggable={false} />
         </motion.div>
 
-        {/* z-[3]: Hero text content — BEHIND the character */}
+        {/* z-[3]: Hero text content — 데스크톱: 상단 38vh, 모바일: 하단 배치 */}
         <motion.div
-          className="relative z-[3] max-w-7xl mx-auto px-6 lg:px-12 h-full flex flex-col justify-center pt-20 pointer-events-none"
+          className="relative z-[3] pl-[6%] pr-6 h-full flex flex-col pointer-events-none
+            justify-start pt-[38vh]
+            max-md:justify-end max-md:pb-[12vh] max-md:pt-0 max-md:items-center"
           style={{ y: textY }}
         >
           <motion.div
@@ -225,30 +282,13 @@ export default function Landing() {
 
           <motion.div
             className="mt-1"
-            style={{ filter: 'url(#text-texture) drop-shadow(3px 0 0 #FFA6D7) drop-shadow(-3px 0 0 #FFA6D7) drop-shadow(0 3px 0 #FFA6D7) drop-shadow(0 -3px 0 #FFA6D7) drop-shadow(0px 5.613px 0px #FF9AF2) drop-shadow(0px 4px 4px #d4679e)' }}
+            style={{ filter: 'url(#text-texture)' }}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.3 }}
           >
-            <svg viewBox="0 0 700 190" className="w-[500px] md:w-[650px] lg:w-[700px] h-auto overflow-visible">
-              <defs>
-                <clipPath id="dashboard-text-clip">
-                  <text x="0" y="150" fontSize="167" fontWeight="bold" fontFamily="'YPairingFont', system-ui, sans-serif">대시보드</text>
-                </clipPath>
-              </defs>
-              {/* 유리 배경 — 텍스트 모양으로 클리핑 */}
-              <foreignObject x="-10" y="-10" width="720" height="210" clipPath="url(#dashboard-text-clip)">
-                <div
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    backdropFilter: 'url(#glass-lens)',
-                    WebkitBackdropFilter: 'url(#glass-lens)',
-                    background: 'rgba(97, 239, 255, 0.15)',
-                  }}
-                />
-              </foreignObject>
-              {/* 바깥쪽 아웃라인 */}
+            <svg viewBox="0 0 700 190" className="w-[320px] md:w-[650px] lg:w-[700px] h-auto overflow-visible">
+              {/* 핑크 아웃라인 (아래 레이어) */}
               <text
                 x="0" y="150"
                 fontSize="167"
@@ -256,8 +296,22 @@ export default function Landing() {
                 fontFamily="'YPairingFont', system-ui, sans-serif"
                 fill="none"
                 stroke="#FFA6D7"
-                strokeWidth="6"
+                strokeWidth="12"
                 paintOrder="stroke"
+              >
+                대시보드
+              </text>
+              {/* 시안 채움 (위 레이어) */}
+              <text
+                x="0" y="150"
+                fontSize="167"
+                fontWeight="bold"
+                fontFamily="'YPairingFont', system-ui, sans-serif"
+                fill="#7DE8ED"
+                stroke="#FFA6D7"
+                strokeWidth="5"
+                paintOrder="stroke"
+                style={{ filter: 'drop-shadow(0px 4px 6px rgba(212, 103, 158, 0.4))' }}
               >
                 대시보드
               </text>
@@ -265,7 +319,7 @@ export default function Landing() {
           </motion.div>
 
           <motion.div
-            className="flex gap-4 mt-10 pointer-events-auto"
+            className="flex gap-4 mt-10 pointer-events-auto max-md:mt-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
@@ -284,22 +338,26 @@ export default function Landing() {
         </motion.div>
 
         {/* Bottom gradient fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent z-[4]" />
+
+        {/* ══ FLOWING MENU STRIP (Hero 중간 아래, 캐릭터/텍스트 뒤) ══ */}
+        <div className="absolute left-0 right-0 bottom-[30%] z-[2]">
+          <ParallaxStrip speed={-150}>
+            <FlowingMenu
+              items={menuItems}
+              speed={8}
+              textColor="#fff8e1"
+              bgColor="rgba(255, 214, 100, 0.85)"
+              hoverBgColor="rgba(255, 193, 50, 0.95)"
+              hoverTextColor="#ffffff"
+              borderColor="transparent"
+            />
+          </ParallaxStrip>
+        </div>
       </section>
 
-      {/* ══ FLOWING MENU STRIP ══ */}
-      <FlowingMenu
-        items={menuItems}
-        speed={10}
-        textColor="#374151"
-        bgColor="#fafafa"
-        hoverBgColor="#3cabc9"
-        hoverTextColor="#ffffff"
-        borderColor="#e5e7eb"
-      />
-
       {/* ══ FEATURES ══ */}
-      <section className="py-24 px-6 lg:px-12 relative z-10 bg-white/50 backdrop-blur-sm">
+      <section className="py-24 px-6 lg:px-12 relative z-10 bg-white/50">
         <div className="max-w-6xl mx-auto">
           <FadeIn className="text-center mb-16">
             <p className="font-title text-5xl md:text-[74px] bg-gradient-to-r from-[#e58fb6] to-[#3cabc9] bg-clip-text text-transparent leading-tight">
@@ -346,23 +404,22 @@ export default function Landing() {
       </section>
 
       {/* ══ FLOWING MENU STRIP 2 ══ */}
-      <FlowingMenu
-        items={[
-          { text: 'Welcome' },
-          { text: 'Dashboard' },
-          { text: 'Settings' },
-          { text: 'Premium' },
-        ]}
-        speed={14}
-        textColor="#374151"
-        bgColor="#fafafa"
-        hoverBgColor="#e58fb6"
-        hoverTextColor="#ffffff"
-        borderColor="#e5e7eb"
-      />
+      <ParallaxStrip speed={-0.3}>
+        <FlowingMenu
+          items={[
+            { text: '\u2192  Welcome  \u00B7  Dashboard  \u00B7  Settings  \u00B7  Premium  \u2192' },
+          ]}
+          speed={10}
+          textColor="#ffffff"
+          bgColor="#e58fb6"
+          hoverBgColor="#c97a9e"
+          hoverTextColor="#ffffff"
+          borderColor="transparent"
+        />
+      </ParallaxStrip>
 
       {/* ══ STATS ══ */}
-      <section className="py-20 bg-gradient-to-r from-[#f472b6] to-[#ec4899]">
+      <section className="py-20 bg-gradient-to-r from-[#f472b6] to-[#ec4899] relative z-10">
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-3 gap-8 text-center text-white">
             <FadeIn delay={0.1}>
@@ -381,43 +438,101 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ══ CTA ══ */}
-      <section className="py-24 relative z-10 bg-white/60 backdrop-blur-md">
-        <FadeIn className="max-w-3xl mx-auto px-6 text-center">
-          <p className="font-title text-3xl md:text-4xl text-gray-800 mb-4">
-            봇이 마음에 드셨나요?
-          </p>
-          <p className="text-gray-500 mb-10 leading-relaxed">
-            지금 바로 서버에 초대해서 데비와 마를렌을 만나보세요.
-          </p>
-          <div className="flex justify-center gap-4">
-            <a
-              href="https://discord.com/oauth2/authorize?client_id=1393529860793831489&permissions=8&scope=bot%20applications.commands"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-10 py-4 rounded-2xl font-title text-lg text-white bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
-            >
-              봇 초대하기
-            </a>
-            <a
-              href="/dashboard"
-              className="px-10 py-4 rounded-2xl font-title text-lg text-gray-600 bg-gray-50 border border-gray-200 hover:bg-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
-            >
-              대시보드
-            </a>
-          </div>
-        </FadeIn>
-      </section>
+      {/* ══ DONATION ══ */}
+      <DonationModal isOpen={isDonationOpen} onClose={() => setIsDonationOpen(false)} />
 
-      {/* ══ FOOTER ══ */}
-      <footer className="py-8 border-t border-gray-100 relative z-10 bg-white/80">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="font-title text-lg text-gray-400">
-            Debi & Marlene<span className="text-[#3cabc9]">.</span>
-          </p>
-          <p className="text-xs text-gray-400">
-            Eternal Return and all related content are trademarks of Nimble Neuron.
-          </p>
+      {/* ══ FOOTER (CTA + 후원 + 캐릭터 + 카피라이트) ══ */}
+      <footer className="relative z-10 overflow-hidden">
+        {/* 하늘 배경 — 푸터 전체를 덮음 */}
+        <img
+          src={BG_FOOTER}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover object-bottom"
+          draggable={false}
+        />
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#e0f7fa] to-transparent z-[1]" />
+
+        {/* CTA + 후원 통합 카드 */}
+        <div className="relative z-[2] flex justify-center pt-20 px-6">
+          <FadeIn className="w-full max-w-3xl">
+            <div className="bg-white/60 rounded-3xl border border-white/40 p-8 md:p-12">
+              {/* CTA 영역 */}
+              <div className="text-center mb-8">
+                <p className="font-title text-3xl md:text-4xl text-gray-800 mb-4">
+                  봇이 마음에 드셨나요?
+                </p>
+                <p className="text-gray-500 mb-8 leading-relaxed">
+                  지금 바로 서버에 초대해서 데비와 마를렌을 만나보세요.
+                </p>
+                <div className="flex justify-center gap-4">
+                  <GlassButton
+                    href="https://discord.com/oauth2/authorize?client_id=1393529860793831489&permissions=8&scope=bot%20applications.commands"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    봇 초대하기
+                  </GlassButton>
+                  <GlassButton href="/dashboard">
+                    대시보드
+                  </GlassButton>
+                </div>
+              </div>
+
+              {/* 구분선 */}
+              <div className="border-t border-gray-200/50 my-8" />
+
+              {/* 후원 영역 */}
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="flex-1 text-center md:text-left">
+                  <p className="font-title text-2xl md:text-3xl bg-gradient-to-r from-[#e58fb6] to-[#3cabc9] bg-clip-text text-transparent mb-4">
+                    <ElectricText>개발자 응원하기</ElectricText>
+                  </p>
+                  <p className="font-body text-gray-600 text-sm leading-relaxed mb-6">
+                    여러분의 소중한 후원은 서버 운영과 새로운 기능 개발에 큰 힘이 됩니다.<br className="hidden md:block" />
+                    <span className="text-gray-800 font-semibold">특별한 후원자 배지</span>와 <span className="text-gray-800 font-semibold">우선 지원 혜택</span>을 드립니다.
+                  </p>
+                  <GlassButton
+                    as="button"
+                    onClick={() => setIsDonationOpen(true)}
+                  >
+                    후원하기
+                  </GlassButton>
+                </div>
+                <div className="w-36 h-36 md:w-44 md:h-44 rounded-full bg-white/40 flex items-center justify-center shrink-0">
+                  <img src={TWINS_APPROVE} alt="" className="w-28 md:w-36 h-auto object-contain" draggable={false} />
+                </div>
+              </div>
+            </div>
+          </FadeIn>
+        </div>
+
+        {/* 발판 + 캐릭터 + 카피라이트 (3레이어) */}
+        <div className="relative z-[2] mt-2">
+          {/* 레이어1: 발판 (항상 보임) */}
+          <img
+            src={FOOTER_PLATFORM}
+            alt=""
+            className="w-full h-auto block"
+            draggable={false}
+          />
+          {/* 레이어2: 캐릭터 (wipe 효과) */}
+          <WipeIn className="absolute inset-0 z-[1]">
+            <img
+              src={FOOTER_CHAR}
+              alt="Debi & Marlene"
+              className="w-full h-full object-contain"
+              draggable={false}
+            />
+          </WipeIn>
+          {/* 레이어3: 카피라이트 — 발판 위에 겹침 */}
+          <div className="absolute z-[3] inset-x-0 bottom-2 text-center">
+            <p className="font-title text-lg text-white/80 drop-shadow-md">
+              Debi & Marlene<span className="text-[#7DE8ED]">.</span>
+            </p>
+            <p className="text-xs text-white/60 mt-1 drop-shadow-md">
+              Eternal Return and all related content are trademarks of Nimble Neuron.
+            </p>
+          </div>
         </div>
       </footer>
     </div>

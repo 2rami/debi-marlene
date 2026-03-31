@@ -1,0 +1,230 @@
+- generic [ref=e4]:
+  - generic:
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+    - img
+  - banner [ref=e5]:
+    - generic [ref=e6]:
+      - link "Debi & Marlene" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - img "Debi & Marlene" [ref=e9]
+      - navigation [ref=e10]:
+        - link "Home" [ref=e11] [cursor=pointer]:
+          - /url: /
+        - link "Commands" [ref=e12] [cursor=pointer]:
+          - /url: /commands
+        - link "Docs" [ref=e13] [cursor=pointer]:
+          - /url: /docs
+        - link "Bot Guide" [ref=e14] [cursor=pointer]:
+          - /url: /bot-guide
+        - button "New" [ref=e15]:
+          - img [ref=e16]
+          - generic [ref=e19]: New
+      - generic [ref=e21]:
+        - button "다크 모드" [ref=e22]:
+          - img [ref=e24]
+        - button "Discord Login" [ref=e30]:
+          - generic [ref=e32]:
+            - img [ref=e33]
+            - text: Discord Login
+  - generic [ref=e35]:
+    - img "Debi & Marlene" [ref=e39]
+    - generic:
+      - generic:
+        - img "NEW"
+      - paragraph: 데비&마를렌 봇
+      - generic:
+        - img:
+          - generic: 대시보드
+          - generic: 대시보드
+      - generic [ref=e40]:
+        - link "봇 초대하기" [ref=e41] [cursor=pointer]:
+          - /url: https://discord.com/oauth2/authorize?client_id=1393529860793831489&permissions=8&scope=bot%20applications.commands
+          - generic [ref=e42]: 봇 초대하기
+        - link "대시보드" [ref=e43] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e44]: 대시보드
+  - navigation [ref=e47]:
+    - generic [ref=e48]:
+      - generic [ref=e50] [cursor=pointer]:
+        - generic [ref=e52]: → TTS · Stats · Music · Quiz →
+        - generic [ref=e54]: → TTS · Stats · Music · Quiz →
+        - generic [ref=e56]: → TTS · Stats · Music · Quiz →
+        - generic [ref=e58]: → TTS · Stats · Music · Quiz →
+        - generic [ref=e60]: → TTS · Stats · Music · Quiz →
+        - generic [ref=e62]: → TTS · Stats · Music · Quiz →
+        - generic [ref=e64]: → TTS · Stats · Music · Quiz →
+        - generic [ref=e66]: → TTS · Stats · Music · Quiz →
+      - generic:
+        - generic:
+          - generic:
+            - generic: → TTS · Stats · Music · Quiz →
+          - generic:
+            - generic: → TTS · Stats · Music · Quiz →
+          - generic:
+            - generic: → TTS · Stats · Music · Quiz →
+          - generic:
+            - generic: → TTS · Stats · Music · Quiz →
+          - generic:
+            - generic: → TTS · Stats · Music · Quiz →
+          - generic:
+            - generic: → TTS · Stats · Music · Quiz →
+          - generic:
+            - generic: → TTS · Stats · Music · Quiz →
+          - generic:
+            - generic: → TTS · Stats · Music · Quiz →
+  - generic [ref=e68]:
+    - generic [ref=e69]:
+      - paragraph [ref=e70]:
+        - generic [ref=e71]: 주요 기능
+      - paragraph [ref=e74]: 하나의 봇으로 모든 기능을
+    - generic [ref=e75]:
+      - generic [ref=e77]:
+        - heading "고품질 TTS" [level=3] [ref=e78]
+        - paragraph [ref=e79]: 데비와 마를렌의 목소리로 채팅을 읽어줍니다. AI 파인튜닝 모델 기반의 자연스러운 캐릭터 음성.
+      - generic [ref=e81]:
+        - heading "전적 검색" [level=3] [ref=e82]
+        - paragraph [ref=e83]: 이터널리턴 전적과 캐릭터 통계를 한눈에. MMR 그래프, 팀원 분석까지 Discord 안에서 바로 확인.
+      - generic [ref=e85]:
+        - heading "음악 재생" [level=3] [ref=e86]
+        - paragraph [ref=e87]: 유튜브 검색 기반 음악과 대기열 관리. 노래 퀴즈까지 음성 채널에서 함께 즐기세요.
+  - img "Debi & Marlene" [ref=e90]
+  - navigation [ref=e92]:
+    - generic [ref=e93]:
+      - generic [ref=e95] [cursor=pointer]:
+        - generic [ref=e97]: → Welcome · Dashboard · Settings · Premium →
+        - generic [ref=e99]: → Welcome · Dashboard · Settings · Premium →
+        - generic [ref=e101]: → Welcome · Dashboard · Settings · Premium →
+        - generic [ref=e103]: → Welcome · Dashboard · Settings · Premium →
+        - generic [ref=e105]: → Welcome · Dashboard · Settings · Premium →
+        - generic [ref=e107]: → Welcome · Dashboard · Settings · Premium →
+        - generic [ref=e109]: → Welcome · Dashboard · Settings · Premium →
+        - generic [ref=e111]: → Welcome · Dashboard · Settings · Premium →
+      - generic:
+        - generic:
+          - generic:
+            - generic: → Welcome · Dashboard · Settings · Premium →
+          - generic:
+            - generic: → Welcome · Dashboard · Settings · Premium →
+          - generic:
+            - generic: → Welcome · Dashboard · Settings · Premium →
+          - generic:
+            - generic: → Welcome · Dashboard · Settings · Premium →
+          - generic:
+            - generic: → Welcome · Dashboard · Settings · Premium →
+          - generic:
+            - generic: → Welcome · Dashboard · Settings · Premium →
+          - generic:
+            - generic: → Welcome · Dashboard · Settings · Premium →
+          - generic:
+            - generic: → Welcome · Dashboard · Settings · Premium →
+  - generic [ref=e114]:
+    - generic [ref=e115]:
+      - generic [ref=e116]: 11,799
+      - generic [ref=e117]: 누적 유저
+    - generic [ref=e118]:
+      - generic [ref=e119]: "100"
+      - generic [ref=e120]: 서버
+    - generic [ref=e121]:
+      - generic [ref=e122]: "17"
+      - generic [ref=e123]: 명령어
+  - generic [ref=e125]:
+    - generic [ref=e126]:
+      - paragraph [ref=e127]:
+        - generic [ref=e128]: 개발자 응원하기
+      - paragraph [ref=e131]:
+        - text: 여러분의 소중한 후원은 안정적인 서버 운영과
+        - text: 더 나은 기능을 개발하는 데 큰 힘이 됩니다.
+    - generic [ref=e134]:
+      - generic [ref=e135]:
+        - generic [ref=e136]: 서버 운영 비용
+        - generic [ref=e137]: 새로운 기능 개발
+        - generic [ref=e138]: 쾌적한 서비스 유지
+      - paragraph [ref=e139]:
+        - text: 후원해주신 모든 분들께는 감사의 마음을 담아
+        - text: 특별한 후원자 배지와 우선 지원 혜택을 드립니다.
+      - button "후원하기" [ref=e140]:
+        - generic [ref=e141]: 후원하기
+  - generic [ref=e144]:
+    - paragraph [ref=e145]: 봇이 마음에 드셨나요?
+    - paragraph [ref=e146]: 지금 바로 서버에 초대해서 데비와 마를렌을 만나보세요.
+    - generic [ref=e147]:
+      - link "봇 초대하기" [ref=e148] [cursor=pointer]:
+        - /url: https://discord.com/oauth2/authorize?client_id=1393529860793831489&permissions=8&scope=bot%20applications.commands
+        - generic [ref=e149]: 봇 초대하기
+      - link "대시보드" [ref=e150] [cursor=pointer]:
+        - /url: /dashboard
+        - generic [ref=e151]: 대시보드
+  - contentinfo [ref=e152]:
+    - generic [ref=e155]:
+      - img "Debi & Marlene" [ref=e157]
+      - generic [ref=e158]:
+        - paragraph [ref=e159]: Debi & Marlene.
+        - paragraph [ref=e160]: Eternal Return and all related content are trademarks of Nimble Neuron.

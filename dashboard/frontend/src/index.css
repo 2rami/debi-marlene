@@ -231,6 +231,11 @@ body {
   100% { background-position: -200% 0; opacity: 0.6; }
 }
 
+@keyframes slideRight {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 /* ── Animation Keyframes ── */
 
 @keyframes float {

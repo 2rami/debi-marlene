@@ -44,6 +44,14 @@ export default function Header() {
       onClick: () => navigate('/bot-guide'),
     },
     {
+      label: 'Portfolio',
+      href: '#',
+      ariaLabel: 'Portfolio',
+      rotation: 4,
+      hoverStyles: { bgColor: '#3cabc9', textColor: '#ffffff' },
+      onClick: () => navigate('/portfolio'),
+    },
+    {
       label: 'New',
       href: '#',
       ariaLabel: 'Patch Notes',

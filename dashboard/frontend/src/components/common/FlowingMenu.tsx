@@ -133,8 +133,8 @@ function FlowingRow({
     if (!itemRef.current || !marqueeRef.current || !marqueeInnerRef.current) return
     const r = itemRef.current.getBoundingClientRect()
     const edge = closestEdge(ev.clientX - r.left - r.width / 2, ev.clientY - r.top, r.width, r.height)
-    // Slow down default scroll
-    if (defaultAnimRef.current) defaultAnimRef.current.timeScale(0.3)
+    // Pause default scroll on hover
+    if (defaultAnimRef.current) defaultAnimRef.current.timeScale(0)
     gsap.timeline({ defaults: ease })
       .set(marqueeRef.current, { y: edge === 'top' ? '-101%' : '101%' }, 0)
       .set(marqueeInnerRef.current, { y: edge === 'top' ? '101%' : '-101%' }, 0)

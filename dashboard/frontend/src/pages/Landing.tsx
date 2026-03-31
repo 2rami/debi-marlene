@@ -1,15 +1,18 @@
 import { useRef, useEffect, useState } from 'react'
 import { motion, useInView, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion'
+import Lenis from 'lenis'
 import Header from '../components/common/Header'
 import FlowingMenu from '../components/common/FlowingMenu'
 import GlassButton from '../components/common/GlassButton'
+import GradientText from '../components/common/GradientText'
 import DonationModal from '../components/common/DonationModal'
+import ScrollFloat from '../components/common/ScrollFloat'
 
 /* ── Assets ── */
 import BG_SKY from '../assets/images/event/imgi_28_bg01.png'
 import BG_CLOUD from '../assets/images/event/imgi_31_bg02.png'
-import CHAR_HERO from '../assets/images/event/imgi_30_ch01.png'
-import CHAR_SITTING from '../assets/images/event/imgi_62_ch04.png'
+import CHAR_HERO from '../assets/images/event/imgi_30_ch01_v2.png'
+// import CHAR_SITTING from '../assets/images/event/imgi_62_ch04.png'
 import CHAR_02 from '../assets/images/event/imgi_47_ch02.png'
 import CHAR_03 from '../assets/images/event/imgi_48_ch03.png'
 import CHAR_05 from '../assets/images/event/imgi_49_ch05.png'
@@ -20,6 +23,11 @@ import BG_FOOTER from '../assets/images/event/footer_bg.png'
 import FOOTER_PLATFORM from '../assets/images/event/footer_platform.png'
 import FOOTER_CHAR from '../assets/images/event/footer_char.png'
 import TWINS_APPROVE from '../assets/images/event/236_twins_approve.png'
+import HIGHFIVE_GIF from '../assets/images/event/highfive.gif'
+import CHAR_CLASSROOM from '../assets/images/event/char_classroom.png'
+import CHAR_SUMMER from '../assets/images/event/char_summer.png'
+import CHAR_BATTLE from '../assets/images/event/char_battle.png'
+import CHAR_BATTLE2 from '../assets/images/event/char_battle2.png'
 import CURSOR from '../assets/images/event/imgi_45_cursor01.png'
 
 function FadeIn({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
@@ -81,7 +89,7 @@ function ParallaxStrip({ children, speed = -150 }: { children: React.ReactNode; 
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
   const y = useTransform(scrollYProgress, [0, 1], [0, speed])
   return (
-    <div ref={ref} className="relative z-20">
+    <div ref={ref} className="relative z-[3]">
       <motion.div style={{ y }}>
         {children}
       </motion.div>
@@ -117,7 +125,7 @@ function GlobalParticles() {
   }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div className="fixed inset-0 pointer-events-none z-[2] overflow-hidden">
       {particles.map((item: any) => (
         <motion.img
           key={item.id}
@@ -150,19 +158,7 @@ function ElectricText({ children, className = '' }: { children: React.ReactNode;
   )
 }
 
-/* ── Feature card ── */
-function FeatureCard({ title, description, color, delay }: { title: string; description: string; color: 'cyan' | 'pink'; delay: number }) {
-  const borderColor = color === 'cyan' ? 'border-[#3cabc9]/30 hover:border-[#3cabc9]' : 'border-[#e58fb6]/30 hover:border-[#e58fb6]'
-  const titleColor = color === 'cyan' ? 'text-[#3cabc9]' : 'text-[#e58fb6]'
-  return (
-    <FadeIn delay={delay} className="flex-1 min-w-[260px]">
-      <div className={`p-8 rounded-2xl bg-white/80 backdrop-blur-sm border-2 ${borderColor} transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full`}>
-        <h3 className={`font-title text-2xl mb-3 ${titleColor}`}>{title}</h3>
-        <p className="font-body text-gray-500 text-sm leading-relaxed">{description}</p>
-      </div>
-    </FadeIn>
-  )
-}
+/* ── Feature card (unused, kept for reference) ── */
 
 /* ══════════════════════════════════════════════
    Landing Page
@@ -170,6 +166,14 @@ function FeatureCard({ title, description, color, delay }: { title: string; desc
 export default function Landing() {
   const heroRef = useRef(null)
   const [isDonationOpen, setIsDonationOpen] = useState(false)
+
+  // Lenis 스무스 스크롤
+  useEffect(() => {
+    const lenis = new Lenis({ duration: 2.5, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
+    function raf(time: number) { lenis.raf(time); requestAnimationFrame(raf) }
+    requestAnimationFrame(raf)
+    return () => lenis.destroy()
+  }, [])
 
   // 스크롤 패럴랙스 (수직 이동)
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
@@ -206,12 +210,12 @@ export default function Landing() {
   const charMoveX = useTransform(smoothMouseX, [-1, 1], [-10, 10]);
   const charMoveY = useTransform(smoothMouseY, [-1, 1], [-5, 5]);
 
-  const menuItems = [
-    { text: '\u2192  TTS  \u00B7  Stats  \u00B7  Music  \u00B7  Quiz  \u2192' },
-  ]
+  // 띠 색상 (여기만 바꾸면 전체 반영)
+  const STRIP_CYAN = { bg: '#50d9ff', hover: '#61ddff', text: '#ffffff', hoverText: '#ffffff' }
+  const STRIP_PINK = { bg: '#E58FB6', hover: '#ffa2cc', text: '#ffffff', hoverText: '#ffffff' }
 
   return (
-    <div className="min-h-screen bg-[#e0f7fa] font-body overflow-x-hidden selection:bg-[#3cabc9]/20 relative z-0">
+    <div className="min-h-screen bg-[#f8fcfd] font-body overflow-x-hidden selection:bg-[#3cabc9]/20 relative z-0">
       {/* 텍스처 SVG 필터 — 텍스트용 (피그마 원본 값) */}
       <svg style={{ position: 'absolute', width: 0, height: 0 }} aria-hidden="true">
         <defs>
@@ -228,19 +232,19 @@ export default function Landing() {
       <section
         ref={heroRef}
         onMouseMove={handleMouseMove}
-        className="relative h-[150vh] min-h-[900px] overflow-hidden"
+        className="relative h-screen min-h-[700px]"
       >
         {/* z-[0]: Sky background (상단바 영역까지 화면 전체를 덮도록 top 0 근처로 확장) */}
         <motion.div
           className="absolute z-[0] top-0 left-[-5%] w-[110%]"
           style={{ y: skyY, x: layer1X, translateY: layer1Y }}
         >
-          <img src={BG_SKY} alt="" className="w-full h-auto opacity-90" draggable={false} />
+          <img src={BG_SKY} alt="" className="w-full h-auto" draggable={false} />
         </motion.div>
 
-        {/* z-2: Cloud/leaf overlay — Figma: 1763x886, 122% wide, starts at y=392/1258 = 31% */}
+        {/* z-[3]: Cloud/leaf overlay */}
         <motion.div
-          className="absolute z-[2] top-[20%] left-[-15%] w-[130%] h-[90%]"
+          className="absolute z-[6] top-[20%] left-[-15%] w-[130%] h-[90%] pointer-events-none"
           style={{ y: cloudY, x: layer2X, translateY: layer2Y }}
         >
           <img src={BG_CLOUD} alt="" className="w-full h-full object-cover mix-blend-multiply" draggable={false} />
@@ -248,7 +252,7 @@ export default function Landing() {
 
         {/* z-[5]: Main character — 데스크톱: 왼쪽 32%, 모바일: 상단 중앙 */}
         <motion.div
-          className="absolute z-[5] filter drop-shadow-2xl
+          className="absolute z-[7] pointer-events-none
             bottom-[5%] left-[32%] w-[64%] max-w-[950px] h-[85%]
             max-md:bottom-auto max-md:top-[8%] max-md:left-[10%] max-md:w-[80%] max-md:h-[50%]"
           style={{ y: charY, x: charMoveX, translateY: charMoveY }}
@@ -258,7 +262,7 @@ export default function Landing() {
 
         {/* z-[3]: Hero text content — 데스크톱: 상단 38vh, 모바일: 하단 배치 */}
         <motion.div
-          className="relative z-[3] pl-[6%] pr-6 h-full flex flex-col pointer-events-none
+          className="relative z-[5] pl-[6%] pr-6 h-full flex flex-col pointer-events-none
             justify-start pt-[38vh]
             max-md:justify-end max-md:pb-[12vh] max-md:pt-0 max-md:items-center"
           style={{ y: textY }}
@@ -271,14 +275,20 @@ export default function Landing() {
             <img src={NEW_BADGE} alt="NEW" className="w-24 h-auto mb-2" draggable={false} />
           </motion.div>
 
-          <motion.p
-            className="font-title text-[28px] md:text-[43.08px] leading-normal bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent whitespace-nowrap"
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            {`데비&마를렌 봇`}
-          </motion.p>
+            <GradientText
+              colors={['#3cabc9', '#e58fb6', '#7DE8ED', '#FFA6D7', '#3cabc9']}
+              animationSpeed={5}
+              className="!mx-0 font-title text-[28px] md:text-[43.08px] leading-normal whitespace-nowrap"
+              pauseOnHover
+            >
+              데비&마를렌 봇
+            </GradientText>
+          </motion.div>
 
           <motion.div
             className="mt-1"
@@ -288,33 +298,8 @@ export default function Landing() {
             transition={{ duration: 0.7, delay: 0.3 }}
           >
             <svg viewBox="0 0 700 190" className="w-[320px] md:w-[650px] lg:w-[700px] h-auto overflow-visible">
-              {/* 핑크 아웃라인 (아래 레이어) */}
-              <text
-                x="0" y="150"
-                fontSize="167"
-                fontWeight="bold"
-                fontFamily="'YPairingFont', system-ui, sans-serif"
-                fill="none"
-                stroke="#FFA6D7"
-                strokeWidth="12"
-                paintOrder="stroke"
-              >
-                대시보드
-              </text>
-              {/* 시안 채움 (위 레이어) */}
-              <text
-                x="0" y="150"
-                fontSize="167"
-                fontWeight="bold"
-                fontFamily="'YPairingFont', system-ui, sans-serif"
-                fill="#7DE8ED"
-                stroke="#FFA6D7"
-                strokeWidth="5"
-                paintOrder="stroke"
-                style={{ filter: 'drop-shadow(0px 4px 6px rgba(212, 103, 158, 0.4))' }}
-              >
-                대시보드
-              </text>
+              <text x="0" y="150" fontSize="167" fontWeight="bold" fontFamily="'YPairingFont', system-ui, sans-serif" fill="none" stroke="#FFA6D7" strokeWidth="12" paintOrder="stroke">대시보드</text>
+              <text x="0" y="150" fontSize="167" fontWeight="bold" fontFamily="'YPairingFont', system-ui, sans-serif" fill="#7DE8ED" stroke="#FFA6D7" strokeWidth="5" paintOrder="stroke" style={{ filter: 'drop-shadow(0px 4px 6px rgba(212, 103, 158, 0.4))' }}>대시보드</text>
             </svg>
           </motion.div>
 
@@ -337,112 +322,186 @@ export default function Landing() {
           </motion.div>
         </motion.div>
 
-        {/* Bottom gradient fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent z-[4]" />
+        {/* Bottom gradient fade — 제거됨 */}
 
         {/* ══ FLOWING MENU STRIP (Hero 중간 아래, 캐릭터/텍스트 뒤) ══ */}
-        <div className="absolute left-0 right-0 bottom-[30%] z-[2]">
+        <div className="absolute left-0 right-0 top-[25%] z-[2]">
           <ParallaxStrip speed={-150}>
             <FlowingMenu
-              items={menuItems}
+              items={[{ text: 'TTS  >  Stats  >  Music  >  Quiz  >  Welcome  >' }]}
               speed={8}
-              textColor="#fff8e1"
-              bgColor="rgba(255, 214, 100, 0.85)"
-              hoverBgColor="rgba(255, 193, 50, 0.95)"
-              hoverTextColor="#ffffff"
-              borderColor="transparent"
+              textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText}
+              borderColor="transparent" fontSize="text-4xl md:text-5xl" padding="py-6 md:py-8"
             />
           </ParallaxStrip>
         </div>
       </section>
 
-      {/* ══ FEATURES ══ */}
-      <section className="py-24 px-6 lg:px-12 relative z-10 bg-white/50">
-        <div className="max-w-6xl mx-auto">
-          <FadeIn className="text-center mb-16">
-            <p className="font-title text-5xl md:text-[74px] bg-gradient-to-r from-[#e58fb6] to-[#3cabc9] bg-clip-text text-transparent leading-tight">
-              <ElectricText>주요 기능</ElectricText>
-            </p>
-            <p className="font-title text-xl md:text-3xl text-gray-700 mt-4">
-              하나의 봇으로 모든 기능을
-            </p>
-          </FadeIn>
+      {/* ══ FEATURES (세로 4개 기능 소개) ══ */}
+      <div className="relative z-[5]">
+        {/* 섹션 타이틀 */}
+        <div className="text-center py-24 px-6">
+          <ScrollFloat
+            containerClassName="font-title bg-gradient-to-r from-[#e58fb6] to-[#3cabc9] bg-clip-text text-transparent leading-tight"
+            textClassName="text-5xl md:text-[74px]"
+          >
+            주요 기능
+          </ScrollFloat>
+          <ScrollFloat
+            containerClassName="font-title text-gray-700 mt-4"
+            textClassName="text-xl md:text-3xl"
+            stagger={0.02}
+          >
+            하나의 봇으로 모든 기능을
+          </ScrollFloat>
+        </div>
 
-          <div className="flex flex-wrap gap-6 justify-center">
-            <FeatureCard
-              title="고품질 TTS"
-              description="데비와 마를렌의 목소리로 채팅을 읽어줍니다. AI 파인튜닝 모델 기반의 자연스러운 캐릭터 음성."
-              color="cyan"
-              delay={0.1}
-            />
-            <FeatureCard
-              title="전적 검색"
-              description="이터널리턴 전적과 캐릭터 통계를 한눈에. MMR 그래프, 팀원 분석까지 Discord 안에서 바로 확인."
-              color="cyan"
-              delay={0.2}
-            />
-            <FeatureCard
-              title="음악 재생"
-              description="유튜브 검색 기반 음악과 대기열 관리. 노래 퀴즈까지 음성 채널에서 함께 즐기세요."
-              color="pink"
-              delay={0.3}
-            />
+        {/* 기능 1: TTS */}
+        <div className="relative min-h-screen flex items-center px-6 lg:px-12 overflow-visible">
+          <div className="absolute right-[-10%] top-[10%] w-[60vw] max-w-[800px] z-[3]">
+            <FadeIn><img src={CHAR_CLASSROOM} alt="" className="w-full h-auto object-contain " draggable={false} /></FadeIn>
+          </div>
+          <div className="relative z-[5] max-w-3xl">
+            <ScrollFloat containerClassName="font-title text-[#3cabc9]" textClassName="text-7xl md:text-[120px]">
+              고품질 TTS
+            </ScrollFloat>
+            <FadeIn>
+              <p className="font-body text-gray-600 text-xl md:text-2xl leading-relaxed max-w-lg mt-8">
+                데비와 마를렌의 목소리로 채팅을 읽어줍니다.
+                AI 파인튜닝 모델 기반의 자연스러운 캐릭터 음성.
+              </p>
+              <div className="mt-10 bg-gray-200/40 rounded-2xl h-56 flex items-center justify-center text-gray-400 font-body">
+                스크린샷 추가 예정
+              </div>
+            </FadeIn>
           </div>
         </div>
-      </section>
 
-      {/* ══ CHARACTER ILLUSTRATION ══ */}
-      <section className="relative py-12 overflow-hidden z-10 bg-white/40">
-        <FadeIn className="max-w-4xl mx-auto px-6">
-          <img
-            src={CHAR_SITTING}
-            alt="Debi & Marlene"
-            className="w-full max-w-[700px] mx-auto h-auto object-contain"
-            draggable={false}
+        {/* 띠 1 */}
+        <ParallaxStrip speed={-200}>
+          <FlowingMenu
+            items={[{ text: 'TTS  >  TTS  >  Voice  >  AI  >  Character  >' }]}
+            speed={8} textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText} borderColor="transparent"
+            fontSize="text-4xl md:text-6xl" padding="py-6 md:py-8"
           />
-        </FadeIn>
-      </section>
+        </ParallaxStrip>
 
-      {/* ══ FLOWING MENU STRIP 2 ══ */}
-      <ParallaxStrip speed={-0.3}>
-        <FlowingMenu
-          items={[
-            { text: '\u2192  Welcome  \u00B7  Dashboard  \u00B7  Settings  \u00B7  Premium  \u2192' },
-          ]}
-          speed={10}
-          textColor="#ffffff"
-          bgColor="#e58fb6"
-          hoverBgColor="#c97a9e"
-          hoverTextColor="#ffffff"
-          borderColor="transparent"
-        />
-      </ParallaxStrip>
+        {/* 기능 2: 전적 검색 */}
+        <div className="relative min-h-screen flex items-center justify-end px-6 lg:px-12 overflow-visible">
+          <div className="absolute left-[-10%] top-[5%] w-[60vw] max-w-[800px] z-[3]">
+            <FadeIn><img src={CHAR_SUMMER} alt="" className="w-full h-auto object-contain " draggable={false} /></FadeIn>
+          </div>
+          <div className="relative z-[5] max-w-3xl text-right">
+            <ScrollFloat containerClassName="font-title text-[#3cabc9]" textClassName="text-7xl md:text-[120px]">
+              전적 검색
+            </ScrollFloat>
+            <FadeIn>
+              <p className="font-body text-gray-600 text-xl md:text-2xl leading-relaxed ml-auto max-w-lg mt-8">
+                이터널리턴 전적과 캐릭터 통계를 한눈에.
+                MMR 그래프, 팀원 분석까지 Discord 안에서 바로 확인.
+              </p>
+              <div className="mt-10 bg-gray-200/40 rounded-2xl h-56 flex items-center justify-center text-gray-400 font-body">
+                스크린샷 추가 예정
+              </div>
+            </FadeIn>
+          </div>
+        </div>
+
+        {/* 띠 2 */}
+        <ParallaxStrip speed={-180}>
+          <FlowingMenu
+            items={[{ text: 'Stats  >  Stats  >  MMR  >  Rank  >  Analysis  >' }]}
+            speed={10} textColor={STRIP_PINK.text} bgColor={STRIP_PINK.bg} hoverBgColor={STRIP_PINK.hover} hoverTextColor={STRIP_PINK.hoverText} borderColor="transparent"
+            fontSize="text-4xl md:text-6xl" padding="py-6 md:py-8"
+          />
+        </ParallaxStrip>
+
+        {/* 기능 3: 음악 재생 */}
+        <div className="relative min-h-screen flex items-center px-6 lg:px-12 overflow-visible">
+          <div className="absolute right-[-5%] top-[8%] w-[55vw] max-w-[750px] z-[3]">
+            <FadeIn><img src={CHAR_BATTLE} alt="" className="w-full h-auto object-contain " draggable={false} /></FadeIn>
+          </div>
+          <div className="relative z-[5] max-w-3xl">
+            <ScrollFloat containerClassName="font-title text-[#e58fb6]" textClassName="text-7xl md:text-[120px]">
+              음악 재생
+            </ScrollFloat>
+            <FadeIn>
+              <p className="font-body text-gray-600 text-xl md:text-2xl leading-relaxed max-w-lg mt-8">
+                유튜브 검색 기반 음악과 대기열 관리.
+                노래 퀴즈까지 음성 채널에서 함께 즐기세요.
+              </p>
+              <div className="mt-10 bg-gray-200/40 rounded-2xl h-56 flex items-center justify-center text-gray-400 font-body">
+                스크린샷 추가 예정
+              </div>
+            </FadeIn>
+          </div>
+        </div>
+
+        {/* 띠 3 */}
+        <ParallaxStrip speed={-220}>
+          <FlowingMenu
+            items={[{ text: 'Music  >  Music  >  Queue  >  Quiz  >  YouTube  >' }]}
+            speed={12} textColor={STRIP_PINK.text} bgColor={STRIP_PINK.bg} hoverBgColor={STRIP_PINK.hover} hoverTextColor={STRIP_PINK.hoverText} borderColor="transparent"
+            fontSize="text-4xl md:text-6xl" padding="py-6 md:py-8"
+          />
+        </ParallaxStrip>
+
+        {/* 기능 4: 환영 메시지 */}
+        <div className="relative min-h-screen flex items-center justify-end px-6 lg:px-12 overflow-visible">
+          <div className="absolute left-[0%] top-[10%] w-[50vw] max-w-[650px] z-[3]">
+            <FadeIn><img src={CHAR_BATTLE2} alt="" className="w-full h-auto object-contain " draggable={false} /></FadeIn>
+          </div>
+          <div className="relative z-[5] max-w-3xl text-right">
+            <ScrollFloat containerClassName="font-title text-[#e58fb6]" textClassName="text-7xl md:text-[120px]">
+              환영 메시지
+            </ScrollFloat>
+            <FadeIn>
+              <p className="font-body text-gray-600 text-xl md:text-2xl leading-relaxed ml-auto max-w-lg mt-8">
+                새로운 멤버가 들어오면 자동으로 환영 메시지를 보내줍니다.
+                커스텀 메시지와 채널 설정까지.
+              </p>
+              <div className="mt-10 bg-gray-200/40 rounded-2xl h-56 flex items-center justify-center text-gray-400 font-body">
+                스크린샷 추가 예정
+              </div>
+            </FadeIn>
+          </div>
+        </div>
+
+        {/* 띠 4 */}
+        <ParallaxStrip speed={-160}>
+          <FlowingMenu
+            items={[{ text: 'Welcome  >  Welcome  >  Dashboard  >  Settings  >  Premium  >' }]}
+            speed={10} textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText} borderColor="transparent"
+            fontSize="text-4xl md:text-6xl" padding="py-6 md:py-8"
+          />
+        </ParallaxStrip>
+      </div>
 
       {/* ══ STATS ══ */}
-      <section className="py-20 bg-gradient-to-r from-[#f472b6] to-[#ec4899] relative z-10">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="grid grid-cols-3 gap-8 text-center text-white">
+      <div className="py-20 relative z-[5]">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="grid grid-cols-2 gap-6">
             <FadeIn delay={0.1}>
-              <div className="font-display text-5xl md:text-7xl font-bold">11,799</div>
-              <div className="font-body text-sm md:text-base mt-2 opacity-80">누적 유저</div>
+              <div className="bg-white/60 rounded-2xl p-8 text-center">
+                <div className="font-display text-5xl md:text-7xl font-bold bg-gradient-to-r from-[#e58fb6] to-[#3cabc9] bg-clip-text text-transparent">11,799</div>
+                <div className="font-body text-sm md:text-base mt-2 text-gray-500">유저</div>
+              </div>
             </FadeIn>
             <FadeIn delay={0.2}>
-              <div className="font-display text-5xl md:text-7xl font-bold">100</div>
-              <div className="font-body text-sm md:text-base mt-2 opacity-80">서버</div>
-            </FadeIn>
-            <FadeIn delay={0.3}>
-              <div className="font-display text-5xl md:text-7xl font-bold">17</div>
-              <div className="font-body text-sm md:text-base mt-2 opacity-80">명령어</div>
+              <div className="bg-white/60 rounded-2xl p-8 text-center">
+                <div className="font-display text-5xl md:text-7xl font-bold bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent">100</div>
+                <div className="font-body text-sm md:text-base mt-2 text-gray-500">서버</div>
+              </div>
             </FadeIn>
           </div>
         </div>
-      </section>
+      </div>
 
       {/* ══ DONATION ══ */}
       <DonationModal isOpen={isDonationOpen} onClose={() => setIsDonationOpen(false)} />
 
       {/* ══ FOOTER (CTA + 후원 + 캐릭터 + 카피라이트) ══ */}
-      <footer className="relative z-10 overflow-hidden">
+      <footer className="relative z-[5] overflow-hidden">
         {/* 하늘 배경 — 푸터 전체를 덮음 */}
         <img
           src={BG_FOOTER}
@@ -450,7 +509,7 @@ export default function Landing() {
           className="absolute inset-0 w-full h-full object-cover object-bottom"
           draggable={false}
         />
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#e0f7fa] to-transparent z-[1]" />
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#f8fcfd] to-transparent z-[1]" />
 
         {/* CTA + 후원 통합 카드 */}
         <div className="relative z-[2] flex justify-center pt-20 px-6">
@@ -458,9 +517,12 @@ export default function Landing() {
             <div className="bg-white/60 rounded-3xl border border-white/40 p-8 md:p-12">
               {/* CTA 영역 */}
               <div className="text-center mb-8">
-                <p className="font-title text-3xl md:text-4xl text-gray-800 mb-4">
+                <ScrollFloat
+                  containerClassName="font-title text-gray-800 mb-4"
+                  textClassName="text-3xl md:text-4xl"
+                >
                   봇이 마음에 드셨나요?
-                </p>
+                </ScrollFloat>
                 <p className="text-gray-500 mb-8 leading-relaxed">
                   지금 바로 서버에 초대해서 데비와 마를렌을 만나보세요.
                 </p>
@@ -499,7 +561,7 @@ export default function Landing() {
                   </GlassButton>
                 </div>
                 <div className="w-36 h-36 md:w-44 md:h-44 rounded-full bg-white/40 flex items-center justify-center shrink-0">
-                  <img src={TWINS_APPROVE} alt="" className="w-28 md:w-36 h-auto object-contain" draggable={false} />
+                  <img src={HIGHFIVE_GIF} alt="" className="w-32 md:w-40 h-auto object-contain" draggable={false} />
                 </div>
               </div>
             </div>

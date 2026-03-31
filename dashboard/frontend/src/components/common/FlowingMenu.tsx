@@ -15,6 +15,8 @@ interface FlowingMenuProps {
   hoverTextColor?: string
   borderColor?: string
   className?: string
+  fontSize?: string
+  padding?: string
 }
 
 export default function FlowingMenu({
@@ -26,6 +28,8 @@ export default function FlowingMenu({
   hoverTextColor = '#fff',
   borderColor = '#e5e7eb',
   className = '',
+  fontSize,
+  padding,
 }: FlowingMenuProps) {
   return (
     <div className={`w-full overflow-hidden ${className}`} style={{ backgroundColor: bgColor }}>
@@ -40,6 +44,8 @@ export default function FlowingMenu({
             hoverTextColor={hoverTextColor}
             borderColor={borderColor}
             isFirst={idx === 0}
+            fontSize={fontSize}
+            padding={padding}
           />
         ))}
       </nav>
@@ -56,6 +62,8 @@ function FlowingRow({
   hoverTextColor,
   borderColor,
   isFirst,
+  fontSize,
+  padding,
 }: FlowingMenuItem & {
   speed: number
   textColor: string
@@ -63,6 +71,8 @@ function FlowingRow({
   hoverTextColor: string
   borderColor: string
   isFirst: boolean
+  fontSize?: string
+  padding?: string
 }) {
   const itemRef = useRef<HTMLDivElement>(null)
   const marqueeRef = useRef<HTMLDivElement>(null)
@@ -120,7 +130,7 @@ function FlowingRow({
       animationRef.current?.kill()
       animationRef.current = gsap.to(marqueeInnerRef.current, {
         x: -part.offsetWidth,
-        duration: speed * 0.4,
+        duration: speed * 3,
         ease: 'none',
         repeat: -1,
       })
@@ -133,8 +143,8 @@ function FlowingRow({
     if (!itemRef.current || !marqueeRef.current || !marqueeInnerRef.current) return
     const r = itemRef.current.getBoundingClientRect()
     const edge = closestEdge(ev.clientX - r.left - r.width / 2, ev.clientY - r.top, r.width, r.height)
-    // Pause default scroll on hover
-    if (defaultAnimRef.current) defaultAnimRef.current.timeScale(0)
+    // Almost stop on hover
+    if (defaultAnimRef.current) gsap.to(defaultAnimRef.current, { timeScale: 0.05, duration: 0.8, ease: 'power2.out' })
     gsap.timeline({ defaults: ease })
       .set(marqueeRef.current, { y: edge === 'top' ? '-101%' : '101%' }, 0)
       .set(marqueeInnerRef.current, { y: edge === 'top' ? '101%' : '-101%' }, 0)
@@ -145,16 +155,33 @@ function FlowingRow({
     if (!itemRef.current || !marqueeRef.current || !marqueeInnerRef.current) return
     const r = itemRef.current.getBoundingClientRect()
     const edge = closestEdge(ev.clientX - r.left - r.width / 2, ev.clientY - r.top, r.width, r.height)
-    // Restore default scroll speed
-    if (defaultAnimRef.current) defaultAnimRef.current.timeScale(1)
+    // Slowly restore speed
+    if (defaultAnimRef.current) gsap.to(defaultAnimRef.current, { timeScale: 1, duration: 1.2, ease: 'power2.inOut' })
     gsap.timeline({ defaults: ease })
       .to(marqueeRef.current, { y: edge === 'top' ? '-101%' : '101%' }, 0)
       .to(marqueeInnerRef.current, { y: edge === 'top' ? '101%' : '-101%' }, 0)
   }
 
+  const CircleArrow = () => (
+    <svg className="inline-block mx-4 shrink-0" width="0.8em" height="0.8em" viewBox="0 0 48 48" fill="none">
+      <circle cx="24" cy="24" r="22" stroke="currentColor" strokeWidth="3" />
+      <path d="M20 16l10 8-10 8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+
+  const renderStyledText = (t: string) => {
+    const parts = t.split(/\s*>\s*/).filter(Boolean)
+    return parts.map((word, j) => (
+      <span key={j} className="inline-flex items-center">
+        <span className={j % 2 === 0 ? 'font-normal' : 'font-black'}>{word}</span>
+        <CircleArrow />
+      </span>
+    ))
+  }
+
   const marqueeParts = [...Array(reps)].map((_, i) => (
     <div className="marquee-part flex items-center shrink-0" key={i}>
-      <span className="whitespace-nowrap font-title text-xl md:text-2xl px-[2vw] tracking-wider">{text}</span>
+      <span className={`whitespace-nowrap font-body ${fontSize || 'text-xl md:text-2xl'} px-[2vw] tracking-wider`} style={{ transform: 'scaleY(1.3)', transformOrigin: 'center' }}>{renderStyledText(text)}</span>
       {image && (
         <div className="w-[120px] h-[40px] mx-[1vw] rounded-full bg-cover bg-center" style={{ backgroundImage: `url(${image})` }} />
       )}
@@ -169,7 +196,7 @@ function FlowingRow({
     >
       {/* Default auto-scrolling text */}
       <div
-        className="py-4 md:py-5 cursor-pointer overflow-hidden"
+        className={`${padding || 'py-4 md:py-5'} cursor-pointer overflow-hidden`}
         onMouseEnter={onEnter}
         onMouseLeave={onLeave}
       >
@@ -187,6 +214,8 @@ function FlowingRow({
         <div className="h-full w-fit flex items-center" ref={marqueeInnerRef} style={{ color: hoverTextColor }}>
           {marqueeParts}
         </div>
+        {/* 밑줄 애니메이션 */}
+        <div className="absolute bottom-0 left-0 w-full h-[3px] bg-current opacity-60 animate-[slideRight_2s_linear_infinite]" />
       </div>
     </div>
   )

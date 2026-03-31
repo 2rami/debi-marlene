@@ -72,7 +72,7 @@ const GlassButton = forwardRef<HTMLAnchorElement | HTMLButtonElement, GlassButto
         >
           {/* 유리판: backdrop-blur + SVG 텍스처로 종이 질감 테두리 */}
           <div
-            className="absolute inset-0 rounded-[15px] pointer-events-none"
+            className="absolute inset-0 rounded-[15px] pointer-events-none transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(255,255,255,0.6),0_0_30px_rgba(255,255,255,0.3)] group-hover:border-white/80"
             style={{
               background: 'rgba(255, 255, 255, 0.35)',
               filter: 'url(#glass-texture)',

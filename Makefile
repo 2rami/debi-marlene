@@ -234,13 +234,16 @@ logs-dashboard:
 
 # 대시보드 프론트엔드만 배포 (Docker 재빌드 없이 빠른 배포)
 deploy-dashboard-frontend:
-	@echo "[1/3] 프론트엔드 빌드 중..."
+	@echo "[1/4] 프론트엔드 빌드 중..."
 	@cd dashboard/frontend && npm run build
-	@echo "[2/3] dist를 VM에 업로드 중..."
-	@gcloud compute scp --recurse dashboard/frontend/dist/* $(VM_NAME):~/dashboard-upload/ --zone=$(ZONE)
-	@echo "[3/3] 컨테이너에 복사 + nginx 리로드..."
+	@echo "[2/4] dist를 tar로 압축..."
+	@tar -czf /tmp/dash-dist.tar.gz -C dashboard/frontend/dist .
+	@echo "[3/4] VM에 업로드 중..."
+	@gcloud compute scp /tmp/dash-dist.tar.gz $(VM_NAME):/tmp/dash-dist.tar.gz --zone=$(ZONE)
+	@echo "[4/4] 컨테이너에 복사 + nginx 리로드..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker cp ~/dashboard-upload/. $(DASHBOARD_CONTAINER):/var/www/dashboard/ && docker exec $(DASHBOARD_CONTAINER) nginx -s reload && rm -rf ~/dashboard-upload"
+		--command="mkdir -p ~/dashboard-upload && tar -xzf /tmp/dash-dist.tar.gz -C ~/dashboard-upload && docker cp ~/dashboard-upload/. $(DASHBOARD_CONTAINER):/var/www/dashboard/ && docker exec $(DASHBOARD_CONTAINER) nginx -s reload && rm -rf ~/dashboard-upload /tmp/dash-dist.tar.gz"
+	@rm -f /tmp/dash-dist.tar.gz
 	@echo "대시보드 프론트엔드 배포 완료"
 
 # 대시보드 백엔드만 배포 (Docker 재빌드 없이 빠른 배포)

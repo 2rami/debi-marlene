@@ -10,10 +10,10 @@ import { useTheme } from '../contexts/ThemeContext'
 /* ── Assets ── */
 import CHAR_HERO_LIGHT from '../assets/images/event/imgi_30_ch01_v2.png'
 import CHAR_HERO_DARK from '../assets/images/event/char_twins_dark.png'
-import CHAR_CLASSROOM from '../assets/images/event/char_classroom.png'
-import CHAR_SUMMER from '../assets/images/event/char_summer.png'
-import CHAR_BATTLE from '../assets/images/event/char_battle.png'
-import CHAR_BATTLE2 from '../assets/images/event/char_battle2.png'
+// import CHAR_CLASSROOM from '../assets/images/event/char_classroom.png'
+// import CHAR_SUMMER from '../assets/images/event/char_summer.png'
+// import CHAR_BATTLE from '../assets/images/event/char_battle.png'
+// import CHAR_BATTLE2 from '../assets/images/event/char_battle2.png'
 import TWINS_APPROVE from '../assets/images/event/236_twins_approve.png'
 import BG_FOOTER from '../assets/images/event/footer_bg.png'
 import FOOTER_PLATFORM from '../assets/images/event/footer_platform.png'
@@ -24,7 +24,9 @@ import SS_STATS from '../assets/images/event/screenshot_stats.png'
 import SS_RECORD from '../assets/images/event/screenshot_record.png'
 import SS_RECORD2 from '../assets/images/event/screenshot_record2.png'
 import SS_MUSIC from '../assets/images/event/screenshot_music.png'
-import SS_SEASON from '../assets/images/event/screenshot_season.png'
+import SS_DASHBOARD from '../assets/images/event/screenshot_dashboard.png'
+import SS_TTS_SETTINGS from '../assets/images/event/screenshot_tts_settings.png'
+import SS_WEBPANEL from '../assets/images/event/screenshot_webpanel.png'
 
 /* ── FadeIn ── */
 function FadeIn({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
@@ -44,6 +46,7 @@ function FadeIn({ children, className = '', delay = 0 }: { children: React.React
 }
 
 /* ── WipeIn (GSAP ScrollTrigger) ── */
+// @ts-ignore: reserved for future use
 function WipeIn({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -199,25 +202,64 @@ function Screenshot({ src, alt, delay = 0 }: { src: string; alt: string; delay?:
   )
 }
 
-/* ── Theme Toggle Button ── */
+/* ── Theme Toggle Button (with intro animation) ── */
 function ThemeToggle() {
   const { isDark, toggle } = useTheme()
+  const [expanded, setExpanded] = useState(true)
+  const hasInteracted = useRef(false)
+
+  // 3초 후 자동 축소 (클릭 안 했으면)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!hasInteracted.current) setExpanded(false)
+    }, 3500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const handleClick = () => {
+    toggle()
+    if (expanded) {
+      hasInteracted.current = true
+      setExpanded(false)
+    }
+  }
+
   return (
-    <button
-      onClick={toggle}
-      className={`fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 ${
+    <motion.button
+      onClick={handleClick}
+      layout
+      className={`fixed bottom-6 right-6 z-50 flex items-center justify-center gap-2.5 shadow-lg cursor-pointer ${
+        expanded ? 'rounded-2xl px-5 py-3' : 'rounded-full w-12 h-12'
+      } ${
         isDark ? 'bg-white/10 border border-white/20 text-white' : 'bg-white border border-gray-200 text-gray-700'
       }`}
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.8 }}
+      whileHover={{ scale: expanded ? 1.02 : 1.1 }}
       aria-label="Toggle theme"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 theme-toggle-icon">
+      <motion.svg layout xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 shrink-0 theme-toggle-icon">
         {isDark ? (
           <>{/* Sun */}<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>
         ) : (
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         )}
-      </svg>
-    </button>
+      </motion.svg>
+      <AnimatePresence>
+        {expanded && (
+          <motion.span
+            initial={{ opacity: 0, width: 0 }}
+            animate={{ opacity: 1, width: 'auto' }}
+            exit={{ opacity: 0, width: 0 }}
+            transition={{ duration: 0.3 }}
+            className="text-sm font-medium whitespace-nowrap overflow-hidden"
+          >
+            {isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </motion.button>
   )
 }
 
@@ -229,6 +271,8 @@ const SECTIONS = [
   { id: 'tts', label: 'TTS 엔진' },
   { id: 'architecture', label: '아키텍처' },
   { id: 'techstack', label: '기술 스택' },
+  { id: 'code', label: '코드' },
+  { id: 'deploy', label: '배포 환경' },
   { id: 'process', label: '프로세스' },
   { id: 'match', label: '공고 매칭' },
 ]
@@ -530,6 +574,7 @@ export default function Portfolio() {
             <div className="space-y-4">
               <Screenshot src={SS_RECORD} alt="전적 검색" delay={0.1} />
               <Screenshot src={SS_RECORD2} alt="전적 상세" delay={0.15} />
+              <Screenshot src={SS_STATS} alt="캐릭터 통계" delay={0.2} />
             </div>
           </div>
         </div>
@@ -538,8 +583,7 @@ export default function Portfolio() {
         <div className="max-w-6xl mx-auto px-6 mt-32 mb-32">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="order-2 md:order-1 space-y-4">
-              <Screenshot src={SS_STATS} alt="캐릭터 통계" delay={0.1} />
-              <Screenshot src={SS_MUSIC} alt="음악 재생" delay={0.15} />
+              <Screenshot src={SS_MUSIC} alt="음악 재생" delay={0.1} />
             </div>
             <FadeIn className="order-1 md:order-2">
               <SVGTitle lines={['TTS &', '음악']} />
@@ -555,31 +599,92 @@ export default function Portfolio() {
                   <span key={t} className={`px-3 py-1 rounded-lg text-xs font-medium border ${isDark ? 'bg-white/[0.03] text-gray-400 border-white/[0.06]' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{t}</span>
                 ))}
               </div>
+              {/* TTS 음성 샘플 */}
+              <div className="mt-6 space-y-3">
+                <div className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>CosyVoice3 파인튜닝 음성 샘플</div>
+                {[
+                  { label: '데비', src: '/audio/demo_debi_desc.wav' },
+                  { label: '마를렌', src: '/audio/demo_marlene_desc.wav' },
+                ].map(s => (
+                  <div key={s.label} className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-gray-50 border-gray-200'}`}>
+                    <span className={`shrink-0 text-sm font-bold w-16 ${isDark ? 'text-[#3cabc9]' : 'text-[#3cabc9]'}`}>{s.label}</span>
+                    <audio controls preload="none" className="w-full h-8 [&::-webkit-media-controls-panel]:bg-transparent">
+                      <source src={s.src} type="audio/wav" />
+                    </audio>
+                  </div>
+                ))}
+                <p className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>
+                  * 다른 TTS 엔진(GPT-SoVITS, Qwen3-TTS 등) 비교 샘플은 추후 추가 예정
+                </p>
+              </div>
             </FadeIn>
           </div>
         </div>
 
-        {/* Feature 3: 대시보드 + 시즌 */}
-        <div className="max-w-6xl mx-auto px-6 mt-32">
+        {/* Feature 3: 웹 대시보드 (유저용) */}
+        <div className="max-w-6xl mx-auto px-6 mt-32 mb-32">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <FadeIn>
               <SVGTitle lines={['웹', '대시보드']} />
               <p className={`font-bold text-xl md:text-2xl leading-relaxed mt-8 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
-                Discord OAuth2 기반 웹 관리 시스템.
+                Discord OAuth2 기반 서버 관리.
               </p>
               <p className={`text-base leading-relaxed mt-4 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                서버별 봇 설정, 환영 메시지, TTS 설정, 퀴즈 곡 관리 등을 웹에서 통합 제공.
-                관리자 전용 웹패널로 봇 로그, 서버 현황, 유저 니즈를 분석.
+                서버별 봇 설정, 환영/퇴장 메시지, TTS 음성/속도 커스터마이징,
+                임베드 빌더, 퀴즈 곡 관리 등을 웹에서 통합 제공.
+                Toss Payments 연동으로 후원 기능도 구현.
               </p>
               <div className="flex flex-wrap gap-2 mt-6">
-                {['React 19', 'Flask', 'OAuth2', 'Tailwind 4', 'Cloudflare'].map(t => (
+                {['React 19', 'Flask', 'OAuth2', 'Tailwind 4', 'Toss Payments'].map(t => (
                   <span key={t} className={`px-3 py-1 rounded-lg text-xs font-medium border ${isDark ? 'bg-white/[0.03] text-gray-400 border-white/[0.06]' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{t}</span>
                 ))}
               </div>
             </FadeIn>
-            <div>
-              <Screenshot src={SS_SEASON} alt="시즌 정보" delay={0.1} />
+            <div className="space-y-4">
+              <Screenshot src={SS_DASHBOARD} alt="서버 대시보드" delay={0.1} />
+              <Screenshot src={SS_TTS_SETTINGS} alt="TTS 설정" delay={0.15} />
             </div>
+          </div>
+        </div>
+
+        {/* Feature 4: 웹패널 (관리자용) */}
+        <div className="max-w-6xl mx-auto px-6 mt-32">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="order-2 md:order-1">
+              <Screenshot src={SS_WEBPANEL} alt="웹패널 봇 로그" delay={0.1} />
+            </div>
+            <FadeIn className="order-1 md:order-2">
+              <SVGTitle lines={['웹패널']} />
+              <p className={`font-bold text-xl md:text-2xl leading-relaxed mt-8 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
+                관리자 전용 모니터링 & 운영 도구.
+              </p>
+              <p className={`text-base leading-relaxed mt-4 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                봇 사용 로그, 서버별 사용 현황, 유저 니즈 분석을 위한 관리자 패널.
+                GCS 기반 YouTube 채널 알림, 공지 전송, 서버 상태 모니터링 기능 제공.
+                초기 Electron 데스크톱 앱으로도 배포했으나 업데이트 빈도 문제로 웹 전환.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-6">
+                {['Flask', 'React', 'GCS', 'YouTube API', 'Cloudflare', 'Electron (레거시)'].map(t => (
+                  <span key={t} className={`px-3 py-1 rounded-lg text-xs font-medium border ${isDark ? 'bg-white/[0.03] text-gray-400 border-white/[0.06]' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{t}</span>
+                ))}
+              </div>
+              {/* 웹패널 주요 기능 목록 */}
+              <div className={`mt-6 grid grid-cols-2 gap-2`}>
+                {[
+                  { icon: '>', label: 'YouTube 알림' },
+                  { icon: '>', label: '봇 로그 모니터링' },
+                  { icon: '>', label: '공지 전송' },
+                  { icon: '>', label: '서버 사용 현황' },
+                  { icon: '>', label: 'Components V2 렌더링' },
+                  { icon: '>', label: '음성채널 상태 표시' },
+                ].map(f => (
+                  <div key={f.label} className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <span className="text-[#3cabc9] font-bold">{f.icon}</span>
+                    {f.label}
+                  </div>
+                ))}
+              </div>
+            </FadeIn>
           </div>
         </div>
       </section>
@@ -630,7 +735,7 @@ export default function Portfolio() {
 
       {/* ══ ARCHITECTURE ══ */}
       <section id="architecture" className="py-24 relative">
-        <div className="max-w-5xl mx-auto px-6">
+        <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
             <ScrollFloat
               containerClassName="font-title bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent leading-tight"
@@ -640,78 +745,136 @@ export default function Portfolio() {
             </ScrollFloat>
           </div>
 
-          <FadeIn className={`p-6 md:p-8 rounded-3xl border ${isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white/80 backdrop-blur-sm border-gray-200/80'}`}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Client */}
-              <div>
-                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>Client</h4>
-                <div className="space-y-2">
-                  <div className="px-4 py-3 rounded-xl bg-discord-blurple/10 border border-discord-blurple/20">
-                    <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Discord Users</div>
-                    <div className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Slash Commands / Voice Channel</div>
-                  </div>
-                  {[
-                    { name: 'Web Dashboard', desc: 'debimarlene.com (React)' },
-                    { name: 'Admin Panel', desc: 'panel.debimarlene.com' },
-                  ].map(c => (
-                    <div key={c.name} className={`px-4 py-3 rounded-xl border ${isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-gray-50/80 border-gray-200/50'}`}>
-                      <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{c.name}</div>
-                      <div className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>{c.desc}</div>
-                    </div>
-                  ))}
+          {/* Flow Diagram */}
+          <div className="space-y-6">
+            {/* Row 1: Clients */}
+            <FadeIn>
+              <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>Clients</div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className={`px-4 py-4 rounded-2xl text-center border ${isDark ? 'bg-discord-blurple/10 border-discord-blurple/20' : 'bg-indigo-50 border-indigo-200/50'}`}>
+                  <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Discord</div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Slash Commands / Voice</div>
+                </div>
+                <div className={`px-4 py-4 rounded-2xl text-center border ${isDark ? 'bg-[#3cabc9]/10 border-[#3cabc9]/20' : 'bg-cyan-50 border-cyan-200/50'}`}>
+                  <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Dashboard</div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>debimarlene.com</div>
+                </div>
+                <div className={`px-4 py-4 rounded-2xl text-center border ${isDark ? 'bg-[#e58fb6]/10 border-[#e58fb6]/20' : 'bg-pink-50 border-pink-200/50'}`}>
+                  <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Admin Panel</div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>panel.debimarlene.com</div>
                 </div>
               </div>
+            </FadeIn>
 
-              {/* Service */}
-              <div>
-                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>Service</h4>
-                <div className="space-y-2">
-                  <div className="px-4 py-3 rounded-xl bg-[#3cabc9]/10 border border-[#3cabc9]/20">
+            {/* Arrow */}
+            <div className="flex justify-center">
+              <svg width="24" height="32" viewBox="0 0 24 32" className={isDark ? 'text-white/20' : 'text-gray-300'}>
+                <path d="M12 0 L12 24 M6 18 L12 24 L18 18" fill="none" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+            </div>
+
+            {/* Row 2: GCP VM */}
+            <FadeIn delay={0.1}>
+              <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>GCP Compute Engine VM (Seoul)</div>
+              <div className={`p-5 rounded-2xl border ${isDark ? 'bg-white/[0.03] border-amber-500/20' : 'bg-amber-50/50 border-amber-200/50'}`}>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-[#3cabc9]/10 border-[#3cabc9]/20' : 'bg-white border-cyan-200/50'}`}>
                     <div className="text-sm font-bold text-[#3cabc9]">Discord Bot</div>
-                    <div className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Python / discord.py / Cogs</div>
+                    <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Python / discord.py</div>
                   </div>
-                  <div className="px-4 py-3 rounded-xl bg-[#3cabc9]/10 border border-[#3cabc9]/20">
-                    <div className="text-sm font-bold text-[#3cabc9]">Flask API</div>
-                    <div className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Gunicorn + nginx</div>
+                  <div className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-[#3cabc9]/10 border-[#3cabc9]/20' : 'bg-white border-cyan-200/50'}`}>
+                    <div className="text-sm font-bold text-[#3cabc9]">Flask API x2</div>
+                    <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Dashboard + Panel</div>
                   </div>
-                  <div className="px-4 py-3 rounded-xl bg-violet-500/10 border border-violet-500/20">
-                    <div className="text-sm font-bold text-violet-400">AI TTS (Modal)</div>
-                    <div className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>CosyVoice3 / T4 GPU</div>
+                  <div className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-amber-500/10 border-amber-500/20' : 'bg-white border-amber-200/50'}`}>
+                    <div className="text-sm font-bold text-amber-400">nginx</div>
+                    <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Reverse Proxy + SSL</div>
+                  </div>
+                  <div className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-amber-500/10 border-amber-500/20' : 'bg-white border-amber-200/50'}`}>
+                    <div className="text-sm font-bold text-amber-400">Docker</div>
+                    <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Containerized</div>
                   </div>
                 </div>
               </div>
+            </FadeIn>
 
-              {/* Infra */}
-              <div>
-                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>Infrastructure</h4>
-                <div className="space-y-2">
-                  <div className="px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                    <div className="text-sm font-bold text-amber-400">GCP VM</div>
-                    <div className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Docker + Seoul Region</div>
-                  </div>
-                  {[
-                    { name: 'GCS / Artifact Registry', desc: '설정 저장 / 이미지 레지스트리' },
-                    { name: 'Cloudflare', desc: 'CDN / 도메인 / SSL' },
-                  ].map(c => (
-                    <div key={c.name} className={`px-4 py-3 rounded-xl border ${isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-gray-50/80 border-gray-200/50'}`}>
-                      <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{c.name}</div>
-                      <div className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>{c.desc}</div>
+            {/* Arrows to external */}
+            <div className="flex justify-center gap-16">
+              <svg width="24" height="32" viewBox="0 0 24 32" className={isDark ? 'text-white/20' : 'text-gray-300'}>
+                <path d="M12 0 L12 24 M6 18 L12 24 L18 18" fill="none" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              <svg width="24" height="32" viewBox="0 0 24 32" className={isDark ? 'text-white/20' : 'text-gray-300'}>
+                <path d="M12 0 L12 24 M6 18 L12 24 L18 18" fill="none" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+            </div>
+
+            {/* Row 3: External Services */}
+            <FadeIn delay={0.2}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* AI / Storage */}
+                <div>
+                  <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>AI & Storage</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-violet-500/10 border-violet-500/20' : 'bg-violet-50 border-violet-200/50'}`}>
+                      <div className="text-sm font-bold text-violet-400">Modal TTS</div>
+                      <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>CosyVoice3 / T4</div>
                     </div>
-                  ))}
+                    <div className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-violet-500/10 border-violet-500/20' : 'bg-violet-50 border-violet-200/50'}`}>
+                      <div className="text-sm font-bold text-violet-400">HuggingFace</div>
+                      <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Model Registry</div>
+                    </div>
+                    <div className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-amber-500/10 border-amber-500/20' : 'bg-amber-50 border-amber-200/50'}`}>
+                      <div className="text-sm font-bold text-amber-400">GCS</div>
+                      <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Settings / Data</div>
+                    </div>
+                    <div className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-amber-500/10 border-amber-500/20' : 'bg-amber-50 border-amber-200/50'}`}>
+                      <div className="text-sm font-bold text-amber-400">Artifact Registry</div>
+                      <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>Docker Images</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* External APIs */}
+                <div>
+                  <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>External APIs</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { name: 'dak.gg', desc: '전적 데이터', color: 'rose' },
+                      { name: 'ER API', desc: '게임 데이터', color: 'rose' },
+                      { name: 'YouTube', desc: '음악 / 알림', color: 'rose' },
+                      { name: 'Claude API', desc: 'AI 대화', color: 'rose' },
+                    ].map(api => (
+                      <div key={api.name} className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-rose-500/10 border-rose-500/20' : 'bg-rose-50 border-rose-200/50'}`}>
+                        <div className={`text-sm font-bold ${isDark ? 'text-rose-300' : 'text-rose-500'}`}>{api.name}</div>
+                        <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>{api.desc}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            </FadeIn>
 
-            {/* External APIs */}
-            <div className={`mt-6 pt-5 border-t ${isDark ? 'border-white/[0.06]' : 'border-gray-200/50'}`}>
-              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>External APIs</h4>
-              <div className="flex flex-wrap gap-2">
-                {['dak.gg API', 'Eternal Return API', 'YouTube Data API', 'Discord OAuth2', 'Anthropic Claude API', 'HuggingFace'].map(api => (
-                  <span key={api} className={`px-3 py-1.5 rounded-lg text-xs border ${isDark ? 'bg-white/[0.03] text-discord-muted border-white/[0.06]' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{api}</span>
-                ))}
-              </div>
-            </div>
-          </FadeIn>
+            {/* Bottom: CDN */}
+            <FadeIn delay={0.25} className={`px-4 py-3 rounded-xl text-center border ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-gray-50 border-gray-200/50'}`}>
+              <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-700'}`}>Cloudflare</span>
+              <span className={`text-xs ml-3 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>CDN / DNS / SSL -- debimarlene.com, panel.debimarlene.com</span>
+            </FadeIn>
+          </div>
+
+          {/* Architecture Features */}
+          <div className="grid md:grid-cols-2 gap-4 mt-10">
+            {[
+              { title: '다계층 구조 (Layered Architecture)', desc: 'Commands - Views - Services - Core 계층 분리로 관심사 분리 및 유지보수성 확보. Cog 단위로 기능을 독립적으로 관리.' },
+              { title: '비동기 처리 (Async-First)', desc: 'asyncio + aiohttp 기반 모든 API 호출 동시 처리. 9개 게임 데이터 API를 asyncio.gather()로 병렬 호출.' },
+              { title: '하이브리드 스토리지', desc: 'GCS 우선 + 로컬 백업 폴백 전략. 5초 캐시로 API 부하 최소화. 서버별 설정/퀴즈 목록 등 관리.' },
+              { title: '화자별 TTS 파이프라인', desc: 'CosyVoice3 파인튜닝으로 데비/마를렌 캐릭터 음성 분리. HuggingFace에서 모델 Pull → Modal T4 GPU에서 실시간 합성.' },
+            ].map((f, i) => (
+              <FadeIn key={f.title} delay={0.3 + i * 0.05} className={`p-4 rounded-xl border ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/60 border-gray-200/50'}`}>
+                <h4 className={`text-sm font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-800'}`}>{f.title}</h4>
+                <p className={`text-xs leading-relaxed ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>{f.desc}</p>
+              </FadeIn>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -761,6 +924,278 @@ export default function Portfolio() {
         </div>
       </section>
 
+      {/* ══ CODE HIGHLIGHTS ══ */}
+      <section id="code" className="py-24 relative">
+        <div className={`absolute inset-0 ${isDark ? 'bg-white/[0.01]' : 'bg-gray-50/50'}`} />
+        <div className="relative max-w-5xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <ScrollFloat
+              containerClassName="font-title bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent leading-tight"
+              textClassName="text-4xl md:text-[64px]"
+            >
+              코드 하이라이트
+            </ScrollFloat>
+          </div>
+
+          <div className="space-y-8">
+            {/* Code 1: GCS 하이브리드 스토리지 */}
+            <FadeIn className={`rounded-2xl border overflow-hidden ${isDark ? 'border-white/[0.06]' : 'border-gray-200'}`}>
+              <div className={`px-5 py-3 flex items-center justify-between ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`}>
+                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>GCS 하이브리드 스토리지 시스템</span>
+                <span className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>run/core/config.py</span>
+              </div>
+              <div className={`px-5 py-3 border-b ${isDark ? 'border-white/[0.04] bg-white/[0.02]' : 'border-gray-100 bg-gray-50/50'}`}>
+                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <span className={`font-bold ${isDark ? 'text-white' : 'text-gray-700'}`}>문제:</span> Cloud Run의 일시적 스토리지 한계로 상태 유지 불가
+                </p>
+                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <span className={`font-bold ${isDark ? 'text-white' : 'text-gray-700'}`}>해결:</span> GCS를 주 저장소로, 로컬을 백업으로 사용하는 하이브리드 전략. 5초 캐시로 성능 최적화
+                </p>
+              </div>
+              <pre className={`px-5 py-4 text-xs leading-relaxed overflow-x-auto ${isDark ? 'bg-[#0d1117] text-gray-300' : 'bg-[#1e1e2e] text-gray-300'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>{`def load_settings():
+    """GCS 또는 로컬 백업에서 설정 파일을 로드합니다."""
+    global settings_cache, cache_timestamp
+    current_time = time.time()
+
+    # 캐시된 설정이 있고 아직 유효하면 사용
+    if settings_cache and (current_time - cache_timestamp) < CACHE_DURATION:
+        return settings_cache.copy()
+
+    # 1순위: GCS에서 로드
+    client = get_gcs_client()
+    if client:
+        try:
+            bucket = client.bucket(GCS_BUCKET)
+            blob = bucket.blob(GCS_KEY)
+            settings = json.loads(blob.download_as_text())
+            settings_cache = settings.copy()
+            cache_timestamp = current_time
+            return settings
+        except Exception as e:
+            print(f"[경고] GCS 로드 실패: {e}")
+
+    # 2순위: 로컬 백업 (GCS 실패 시 폴백)
+    if os.path.exists(backup_file):
+        with open(backup_file, 'r') as f:
+            return json.load(f)
+
+    return {"guilds": {}, "users": {}, "global": {}}`}</pre>
+            </FadeIn>
+
+            {/* Code 2: 비동기 병렬 API */}
+            <FadeIn delay={0.1} className={`rounded-2xl border overflow-hidden ${isDark ? 'border-white/[0.06]' : 'border-gray-200'}`}>
+              <div className={`px-5 py-3 flex items-center justify-between ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`}>
+                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>비동기 병렬 API 호출 (9개 동시)</span>
+                <span className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>run/services/eternal_return/api_client.py</span>
+              </div>
+              <div className={`px-5 py-3 border-b ${isDark ? 'border-white/[0.04] bg-white/[0.02]' : 'border-gray-100 bg-gray-50/50'}`}>
+                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <span className={`font-bold ${isDark ? 'text-white' : 'text-gray-700'}`}>특징:</span> 9개의 서로 다른 API를 asyncio.gather()로 동시 호출하여 초기화 시간 단축
+                </p>
+              </div>
+              <pre className={`px-5 py-4 text-xs leading-relaxed overflow-x-auto ${isDark ? 'bg-[#0d1117] text-gray-300' : 'bg-[#1e1e2e] text-gray-300'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>{`async def initialize_game_data():
+    """게임 데이터 초기화 - 9개 API 병렬 호출"""
+    timeout = aiohttp.ClientTimeout(total=15)
+    async with aiohttp.ClientSession(
+        headers=API_HEADERS, timeout=timeout
+    ) as session:
+        tasks = {
+            'current_season': session.get(".../current-season"),
+            'seasons': session.get(f"{BASE}/data/seasons?hl=ko"),
+            'characters': session.get(f"{BASE}/data/characters?hl=ko"),
+            'tiers': session.get(f"{BASE}/data/tiers?hl=ko"),
+            'items': session.get(f"{BASE}/data/items?hl=ko"),
+            'masteries': session.get(f"{BASE}/data/masteries?hl=ko"),
+            'trait_skills': session.get(f"{BASE}/data/trait-skills?hl=ko"),
+            'tactical_skills': session.get(f"{BASE}/data/tactical-skills?hl=ko"),
+            'weathers': session.get(f"{BASE}/data/weathers?hl=ko"),
+        }
+
+        # 모든 응답을 동시에 대기
+        responses = await asyncio.gather(
+            *tasks.values(), return_exceptions=True
+        )`}</pre>
+            </FadeIn>
+
+            {/* Code 3: CosyVoice3 Modal TTS */}
+            <FadeIn delay={0.15} className={`rounded-2xl border overflow-hidden ${isDark ? 'border-white/[0.06]' : 'border-gray-200'}`}>
+              <div className={`px-5 py-3 flex items-center justify-between ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`}>
+                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>CosyVoice3 Modal 서버리스 GPU 배포</span>
+                <span className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>run/services/tts/cosyvoice3_modal_server.py</span>
+              </div>
+              <div className={`px-5 py-3 border-b ${isDark ? 'border-white/[0.04] bg-white/[0.02]' : 'border-gray-100 bg-gray-50/50'}`}>
+                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <span className={`font-bold ${isDark ? 'text-white' : 'text-gray-700'}`}>AI:</span> CosyVoice3 파인튜닝 모델로 캐릭터별 음성 합성. HuggingFace에서 모델 Pull → T4 GPU 실시간 추론
+                </p>
+              </div>
+              <pre className={`px-5 py-4 text-xs leading-relaxed overflow-x-auto ${isDark ? 'bg-[#0d1117] text-gray-300' : 'bg-[#1e1e2e] text-gray-300'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>{`import modal
+
+app = modal.App("cosyvoice3-tts")
+
+@app.cls(gpu="T4", image=tts_image, secrets=[hf_secret])
+class CosyVoice3Service:
+    @modal.enter()
+    def load_model(self):
+        """컨테이너 시작 시 모델 로드 (cold start ~58초)"""
+        from cosyvoice.cli.cosyvoice import CosyVoice3
+        self.model = CosyVoice3("CosyVoice3-0.5B-2512")
+        # 파인튜닝된 체크포인트 로드
+        self.model.load_finetuned("2R4mi/cosyvoice3-eternal-return")
+
+    @modal.method()
+    def synthesize(self, text: str, character: str) -> bytes:
+        """텍스트를 캐릭터 음성으로 변환"""
+        output = self.model.inference_instruct2(
+            text, character,
+            stream=False
+        )
+        # PCM -> WAV 변환 후 반환
+        return audio_to_wav_bytes(output['tts_speech'])`}</pre>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ DEPLOYMENT ══ */}
+      <section id="deploy" className="py-24 relative">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <ScrollFloat
+              containerClassName="font-title bg-gradient-to-r from-[#e58fb6] to-[#3cabc9] bg-clip-text text-transparent leading-tight"
+              textClassName="text-4xl md:text-[64px]"
+            >
+              배포 환경
+            </ScrollFloat>
+          </div>
+
+          {/* 배포 목록 */}
+          <FadeIn>
+            <div className="grid md:grid-cols-2 gap-4">
+              {[
+                { label: '봇 서버', value: 'GCP Compute Engine VM + Docker', color: '#3cabc9' },
+                { label: 'TTS API', value: 'Modal Serverless GPU (T4)', color: '#9c27b0' },
+                { label: '웹 서버', value: 'nginx + Gunicorn + supervisor', color: '#3cabc9' },
+                { label: '스토리지', value: 'Google Cloud Storage (설정/데이터)', color: '#fbbc04' },
+                { label: '이미지 저장소', value: 'GCP Artifact Registry (Docker)', color: '#fbbc04' },
+                { label: '리전', value: 'asia-northeast3 (서울)', color: '#34a853' },
+                { label: 'CDN / 도메인', value: 'Cloudflare (debimarlene.com)', color: '#f48120' },
+                { label: '배포 자동화', value: 'Makefile (60+ 커맨드)', color: '#e58fb6' },
+                { label: '모델 저장소', value: 'HuggingFace (캐릭터별 브랜치)', color: '#9c27b0' },
+                { label: '파인튜닝', value: 'Google Colab (A100 / T4)', color: '#9c27b0' },
+              ].map((item) => (
+                <div key={item.label} className={`flex items-center gap-4 px-4 py-3 rounded-xl border ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/60 border-gray-200/50'}`}>
+                  <div className="w-1 h-8 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <div>
+                    <div className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>{item.label}</div>
+                    <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.value}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </FadeIn>
+
+          {/* 요청 흐름도 */}
+          <FadeIn delay={0.1} className="mt-10">
+            <h3 className={`text-lg font-bold mb-6 ${isDark ? 'text-white' : 'text-gray-800'}`}>
+              도메인 → 서버 요청 흐름
+            </h3>
+            <div className="space-y-3">
+              {/* Step 1: User */}
+              <div className={`px-5 py-4 rounded-2xl border text-center ${isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>유저가 debimarlene.com 접속</div>
+              </div>
+
+              <div className="flex justify-center">
+                <svg width="24" height="24" viewBox="0 0 24 24" className={isDark ? 'text-white/20' : 'text-gray-300'}>
+                  <path d="M12 2 L12 18 M7 13 L12 18 L17 13" fill="none" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+              </div>
+
+              {/* Step 2: Cloudflare */}
+              <div className="px-5 py-4 rounded-2xl border bg-[#f48120]/10 border-[#f48120]/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-bold text-[#f48120]">Cloudflare</div>
+                    <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>DNS + SSL + CDN + DDoS 방어</div>
+                  </div>
+                  <div className={`text-xs max-w-xs text-right ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>
+                    도메인 구매 후 네임서버를 Cloudflare로 변경. HTTPS 암호화 자동 처리. 배포 시 API로 캐시 퍼지.
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <svg width="24" height="24" viewBox="0 0 24 24" className={isDark ? 'text-white/20' : 'text-gray-300'}>
+                  <path d="M12 2 L12 18 M7 13 L12 18 L17 13" fill="none" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+              </div>
+
+              {/* Step 3: nginx-proxy */}
+              <div className="px-5 py-4 rounded-2xl border bg-amber-500/10 border-amber-500/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-bold text-amber-400">nginx-proxy (리버스 프록시)</div>
+                    <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>VM 포트 80/443에서 도메인별 라우팅</div>
+                  </div>
+                  <div className={`text-xs max-w-xs text-right ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>
+                    VIRTUAL_HOST 환경변수로 도메인 → 컨테이너 매핑. 하나의 VM에서 여러 서비스 운영 가능.
+                  </div>
+                </div>
+              </div>
+
+              {/* Split into two branches */}
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Branch A: Dashboard */}
+                <div className="space-y-3">
+                  <div className="flex justify-center">
+                    <svg width="24" height="24" viewBox="0 0 24 24" className={isDark ? 'text-white/20' : 'text-gray-300'}>
+                      <path d="M12 2 L12 18 M7 13 L12 18 L17 13" fill="none" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                  </div>
+                  <div className="px-4 py-4 rounded-2xl border bg-[#3cabc9]/10 border-[#3cabc9]/20">
+                    <div className="text-sm font-bold text-[#3cabc9] mb-2">debimarlene.com</div>
+                    <div className="space-y-1.5">
+                      <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-700'}`}>nginx</span> -- React 정적 파일 서빙 + SPA 라우팅
+                      </div>
+                      <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-700'}`}>/api/*</span> -- Gunicorn (Flask) 프록시
+                      </div>
+                      <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-700'}`}>supervisord</span> -- nginx + gunicorn 프로세스 관리
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Branch B: Webpanel */}
+                <div className="space-y-3">
+                  <div className="flex justify-center">
+                    <svg width="24" height="24" viewBox="0 0 24 24" className={isDark ? 'text-white/20' : 'text-gray-300'}>
+                      <path d="M12 2 L12 18 M7 13 L12 18 L17 13" fill="none" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                  </div>
+                  <div className="px-4 py-4 rounded-2xl border bg-[#e58fb6]/10 border-[#e58fb6]/20">
+                    <div className="text-sm font-bold text-[#e58fb6] mb-2">panel.debimarlene.com</div>
+                    <div className="space-y-1.5">
+                      <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-700'}`}>nginx-proxy</span> -- 정적 파일 직접 서빙 (/home/kasa/)
+                      </div>
+                      <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-700'}`}>/api/*</span> -- Flask 백엔드 (포트 8080)
+                      </div>
+                      <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-700'}`}>SSE 스트리밍</span> -- 실시간 로그 (proxy_buffering off)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
       {/* ══ DEVELOPMENT PROCESS ══ */}
       <section id="process" className="py-24 relative">
         <div className={`absolute inset-0 ${isDark ? 'bg-white/[0.01]' : 'bg-gray-50/50'}`} />
@@ -774,25 +1209,47 @@ export default function Portfolio() {
             </ScrollFloat>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          {/* 2x3 grid */}
+          <div className="grid md:grid-cols-2 gap-5">
             {[
               {
                 num: '01', title: 'AI Native 개발', color: '#3cabc9',
-                desc: 'Claude Code를 핵심 개발 도구로 활용. 아키텍처 설계, 코드 작성, 디버깅까지 AI 에이전트와의 협업으로 빠르게 반복. 이 포트폴리오 페이지도 Claude Code로 제작.',
+                desc: 'Claude Code를 핵심 개발 도구로 활용. GPT 복붙 → VS Code AI → Claude Code로 발전하며 AI 에이전트와의 협업 방식을 체득. 이 포트폴리오 페이지 자체도 Claude Code로 제작.',
+                detail: 'CLAUDE.md로 프로젝트 컨텍스트를 관리하고, 파일 메모리 시스템으로 대화 간 연속성을 유지.',
               },
               {
-                num: '02', title: '컨테이너 배포', color: '#e58fb6',
-                desc: 'Docker 이미지 빌드 후 GCP Artifact Registry에 Push. Makefile 기반 자동화로 빌드/배포/롤백을 단일 커맨드로 처리.',
+                num: '02', title: '문제 발견 → 직접 해결', color: '#e58fb6',
+                desc: '이터널 리턴에 전적 검색봇이 없다는 문제를 발견하고 직접 개발. dak.gg Network 탭에서 API endpoint를 전부 수집하고 문서화하는 것부터 시작.',
+                detail: '공식 API에 없는 데이터는 해시 기반으로 보완. 프로젝트 초기 가장 어려웠던 작업.',
               },
               {
-                num: '03', title: '유저 피드백 반영', color: '#7DE8ED',
-                desc: '웹패널로 봇 사용 현황과 유저 니즈를 파악. TTS 속도 피드백 → 6종 엔진 비교 후 교체. 저작권 이슈 → 유료화를 후원으로 전환.',
+                num: '03', title: '반복적 기술 검증', color: '#7DE8ED',
+                desc: 'TTS 엔진 6종을 직접 테스트하고 비교. 속도/음질/비용을 기준으로 평가하여 CosyVoice3를 최종 채택.',
+                detail: 'GPT-SoVITS → Coqui → XTTS → MeloTTS → Edge+RVC → Qwen3-TTS → CosyVoice3. 각각의 한계를 경험하고 다음 대안을 찾는 과정.',
+              },
+              {
+                num: '04', title: '인프라 시행착오', color: '#3cabc9',
+                desc: 'AWS 비용 폭탄 경험 후 GCP로 전환. Cloud Run의 상시 실행 불가 문제를 발견하고 VM으로 최종 결정.',
+                detail: 'Docker + nginx + Gunicorn + supervisor 스택을 직접 구성. Makefile 60+ 커맨드로 빌드/배포/롤백 자동화.',
+              },
+              {
+                num: '05', title: '유저 피드백 기반 의사결정', color: '#e58fb6',
+                desc: '웹패널로 실제 사용 데이터를 수집하고 유저 니즈를 분석. TTS 속도 불만 → 엔진 교체, 저작권 이슈 → 유료화를 후원으로 전환.',
+                detail: 'Electron 데스크톱 앱 → 업데이트 빈도 문제 → PWA로 전환 시도. 실사용 기반 의사결정.',
+              },
+              {
+                num: '06', title: '지속적 UI/UX 개선', color: '#7DE8ED',
+                desc: 'Discord Embed → Components V2(LayoutView) 전환으로 봇 UI를 대폭 개선. 웹 대시보드도 Tailwind 4 + Framer Motion으로 리뉴얼.',
+                detail: '다크/라이트 테마, 커스텀 폰트, 패럴랙스 효과, 캐릭터 에셋 활용 등 브랜딩에 투자.',
               },
             ].map((item, i) => (
-              <FadeIn key={item.num} delay={i * 0.1} className={`p-6 rounded-2xl border ${isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white/80 backdrop-blur-sm border-gray-200/80'}`}>
-                <div className="text-3xl font-bold font-title mb-2" style={{ color: item.color }}>{item.num}</div>
-                <h3 className={`font-bold mb-3 text-lg ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</h3>
-                <p className={`text-sm leading-relaxed ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>{item.desc}</p>
+              <FadeIn key={item.num} delay={i * 0.05} className={`p-6 rounded-2xl border ${isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white/80 backdrop-blur-sm border-gray-200/80'}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="text-2xl font-bold font-title" style={{ color: item.color }}>{item.num}</div>
+                  <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</h3>
+                </div>
+                <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{item.desc}</p>
+                <p className={`text-xs leading-relaxed mt-2 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>{item.detail}</p>
               </FadeIn>
             ))}
           </div>

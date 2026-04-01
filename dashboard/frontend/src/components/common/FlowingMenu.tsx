@@ -25,8 +25,8 @@ export default function FlowingMenu({
   speed = 12,
   textColor = '#374151',
   bgColor = 'transparent',
-  hoverBgColor = '#3cabc9',
-  hoverTextColor = '#fff',
+  hoverBgColor: _hbg = '#3cabc9',
+  hoverTextColor: _htc = '#fff',
   borderColor = '#e5e7eb',
   className = '',
   fontSize,
@@ -47,8 +47,6 @@ export default function FlowingMenu({
             {...item}
             speed={speed}
             textColor={textColor}
-            hoverBgColor={hoverBgColor}
-            hoverTextColor={hoverTextColor}
             borderColor={borderColor}
             isFirst={idx === 0}
             fontSize={fontSize}
@@ -65,8 +63,6 @@ function FlowingRow({
   image,
   speed,
   textColor,
-  hoverBgColor,
-  hoverTextColor,
   borderColor,
   isFirst,
   fontSize,
@@ -74,32 +70,19 @@ function FlowingRow({
 }: FlowingMenuItem & {
   speed: number
   textColor: string
-  hoverBgColor: string
-  hoverTextColor: string
   borderColor: string
   isFirst: boolean
   fontSize?: string
   padding?: string
 }) {
   const itemRef = useRef<HTMLDivElement>(null)
-  const marqueeRef = useRef<HTMLDivElement>(null)
-  const marqueeInnerRef = useRef<HTMLDivElement>(null)
   const defaultInnerRef = useRef<HTMLDivElement>(null)
-  const animationRef = useRef<gsap.core.Tween | null>(null)
   const defaultAnimRef = useRef<gsap.core.Tween | null>(null)
   const [reps, setReps] = useState(8)
 
-  const ease = { duration: 0.5, ease: 'expo' }
-
-  const closestEdge = (mx: number, my: number, _w: number, h: number) => {
-    const top = mx * mx + my * my
-    const bot = mx * mx + (my - h) * (my - h)
-    return top < bot ? 'top' : 'bottom'
-  }
-
   useEffect(() => {
     const calc = () => {
-      const el = defaultInnerRef.current || marqueeInnerRef.current
+      const el = defaultInnerRef.current
       if (!el) return
       const part = el.querySelector('.marquee-part') as HTMLElement
       if (!part) return
@@ -110,7 +93,6 @@ function FlowingRow({
     return () => window.removeEventListener('resize', calc)
   }, [text])
 
-  // Default auto-scroll (always running)
   useEffect(() => {
     const setup = () => {
       if (!defaultInnerRef.current) return
@@ -127,47 +109,6 @@ function FlowingRow({
     const t = setTimeout(setup, 50)
     return () => { clearTimeout(t); defaultAnimRef.current?.kill() }
   }, [text, reps, speed])
-
-  // Hover marquee scroll
-  useEffect(() => {
-    const setup = () => {
-      if (!marqueeInnerRef.current) return
-      const part = marqueeInnerRef.current.querySelector('.marquee-part') as HTMLElement
-      if (!part || part.offsetWidth === 0) return
-      animationRef.current?.kill()
-      animationRef.current = gsap.to(marqueeInnerRef.current, {
-        x: -part.offsetWidth,
-        duration: speed * 3,
-        ease: 'none',
-        repeat: -1,
-      })
-    }
-    const t = setTimeout(setup, 50)
-    return () => { clearTimeout(t); animationRef.current?.kill() }
-  }, [text, reps, speed])
-
-  const onEnter = (ev: React.MouseEvent<HTMLDivElement>) => {
-    if (!itemRef.current || !marqueeRef.current || !marqueeInnerRef.current) return
-    const r = itemRef.current.getBoundingClientRect()
-    const edge = closestEdge(ev.clientX - r.left - r.width / 2, ev.clientY - r.top, r.width, r.height)
-    // Almost stop on hover
-    if (defaultAnimRef.current) gsap.to(defaultAnimRef.current, { timeScale: 0.05, duration: 0.8, ease: 'power2.out' })
-    gsap.timeline({ defaults: ease })
-      .set(marqueeRef.current, { y: edge === 'top' ? '-101%' : '101%' }, 0)
-      .set(marqueeInnerRef.current, { y: edge === 'top' ? '101%' : '-101%' }, 0)
-      .to([marqueeRef.current, marqueeInnerRef.current], { y: '0%' }, 0)
-  }
-
-  const onLeave = (ev: React.MouseEvent<HTMLDivElement>) => {
-    if (!itemRef.current || !marqueeRef.current || !marqueeInnerRef.current) return
-    const r = itemRef.current.getBoundingClientRect()
-    const edge = closestEdge(ev.clientX - r.left - r.width / 2, ev.clientY - r.top, r.width, r.height)
-    // Slowly restore speed
-    if (defaultAnimRef.current) gsap.to(defaultAnimRef.current, { timeScale: 1, duration: 1.2, ease: 'power2.inOut' })
-    gsap.timeline({ defaults: ease })
-      .to(marqueeRef.current, { y: edge === 'top' ? '-101%' : '101%' }, 0)
-      .to(marqueeInnerRef.current, { y: edge === 'top' ? '101%' : '-101%' }, 0)
-  }
 
   const CircleArrow = () => (
     <svg className="inline-block mx-4 shrink-0" width="0.8em" height="0.8em" viewBox="0 0 48 48" fill="none">

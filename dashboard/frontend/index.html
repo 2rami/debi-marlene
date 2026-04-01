@@ -7,7 +7,6 @@
     <meta name="theme-color" content="#00c7ce" />
     <meta name="description" content="Debi Marlene Discord Bot Dashboard" />
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
     <title>Debi Marlene Dashboard</title>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5829025678144174"
      crossorigin="anonymous"></script>
@@ -15,5 +14,16 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // 이전 Service Worker 제거
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          registrations.forEach(function(registration) { registration.unregister(); });
+        });
+        caches.keys().then(function(names) {
+          names.forEach(function(name) { caches.delete(name); });
+        });
+      }
+    </script>
   </body>
 </html>

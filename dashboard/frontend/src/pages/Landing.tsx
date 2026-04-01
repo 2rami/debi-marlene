@@ -23,18 +23,20 @@ import NEW_BADGE from '../assets/images/event/imgi_77_new.png'
 import BG_FOOTER from '../assets/images/event/footer_bg.png'
 import FOOTER_PLATFORM from '../assets/images/event/footer_platform.png'
 import FOOTER_CHAR from '../assets/images/event/footer_char.png'
-import TWINS_APPROVE from '../assets/images/event/236_twins_approve.png'
+// import TWINS_APPROVE from '../assets/images/event/236_twins_approve.png'
 import HIGHFIVE_GIF from '../assets/images/event/highfive.gif'
 import CHAR_CLASSROOM from '../assets/images/event/char_classroom.png'
 import CHAR_SUMMER from '../assets/images/event/char_summer.png'
 import CHAR_BATTLE from '../assets/images/event/char_battle.png'
 import CHAR_BATTLE2 from '../assets/images/event/char_battle2.png'
 import CURSOR from '../assets/images/event/imgi_45_cursor01.png'
-import SS_STATS from '../assets/images/event/screenshot_stats.png'
+// import SS_STATS from '../assets/images/event/screenshot_stats.png'
 import SS_RECORD from '../assets/images/event/screenshot_record.png'
 import SS_MUSIC from '../assets/images/event/screenshot_music.png'
 import TWINS_CIRCLE from '../assets/images/event/twins_approve_circle.png'
+import EMOTICON_UNIFORM from '../assets/images/event/emoticon_uniform.png'
 import CircularText from '../components/common/CircularText'
+import { useAuth } from '../contexts/AuthContext'
 
 function FadeIn({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useRef(null)
@@ -103,10 +105,56 @@ function ParallaxStrip({ children, speed = -150 }: { children: React.ReactNode; 
   )
 }
 
+/* ── Audio Player ── */
+function AudioPlayer({ label, src }: { label: string; src: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const [playing, setPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+
+  const toggle = () => {
+    if (!audioRef.current) return
+    if (playing) { audioRef.current.pause() }
+    else { audioRef.current.play() }
+    setPlaying(!playing)
+  }
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    const onTime = () => setProgress(audio.duration ? (audio.currentTime / audio.duration) * 100 : 0)
+    const onEnd = () => { setPlaying(false); setProgress(0) }
+    audio.addEventListener('timeupdate', onTime)
+    audio.addEventListener('ended', onEnd)
+    return () => { audio.removeEventListener('timeupdate', onTime); audio.removeEventListener('ended', onEnd) }
+  }, [])
+
+  return (
+    <div
+      className="flex items-center gap-4 bg-white/60 backdrop-blur-md rounded-2xl px-5 py-4 shadow-lg cursor-pointer group"
+      onClick={toggle}
+    >
+      <audio ref={audioRef} src={src} preload="metadata" />
+      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#3cabc9] to-[#e58fb6] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+        {playing ? (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="white"><rect x="3" y="2" width="4" height="12" rx="1" /><rect x="9" y="2" width="4" height="12" rx="1" /></svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="white"><path d="M4 2l10 6-10 6V2z" /></svg>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-title text-sm text-gray-700 truncate">{label}</div>
+        <div className="h-1.5 bg-gray-200 rounded-full mt-1.5 overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Parallax Feature Section ── */
 function ParallaxFeature({
   image, titleLines, description, keywords, align = 'left',
-  titleColor, shadowColor, screenshot,
+  titleColor, shadowColor: _sc, screenshot, audioFiles, children,
 }: {
   image: string
   titleLines: string[]
@@ -116,6 +164,8 @@ function ParallaxFeature({
   titleColor: string
   shadowColor: string
   screenshot?: string
+  audioFiles?: { label: string; src: string }[]
+  children?: React.ReactNode
 }) {
   const ref = useRef(null)
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
@@ -131,8 +181,8 @@ function ParallaxFeature({
     <div ref={ref} className="relative overflow-hidden py-60 md:py-80">
       {/* 캐릭터: absolute, 느린 패럴랙스, 텍스트 반대쪽에 배치 */}
       <motion.div
-        className={`absolute inset-y-0 z-[3] pointer-events-none flex items-center ${isLeft ? 'right-[-10%] justify-end' : 'left-[-10%] justify-start'}`}
-        style={{ y: charY, width: '75%' }}
+        className={`absolute inset-y-0 z-[3] pointer-events-none flex items-center ${isLeft ? 'right-[-15%] justify-end' : 'left-[-15%] justify-start'}`}
+        style={{ y: charY, width: '65%' }}
       >
         <img
           src={image} alt="" className="w-full h-auto object-contain" draggable={false}
@@ -184,13 +234,97 @@ function ParallaxFeature({
             </div>
           </FadeIn>
         )}
+
+        {/* 오디오 플레이어 */}
+        {audioFiles && (
+          <FadeIn className={`mt-16 ${isLeft ? '' : 'flex justify-end'}`}>
+            <div className="flex flex-col gap-4 max-w-sm">
+              {audioFiles.map((af, i) => (
+                <AudioPlayer key={i} label={af.label} src={af.src} />
+              ))}
+            </div>
+          </FadeIn>
+        )}
+
+        {children}
+      </div>
+    </div>
+  )
+}
+
+/* ── Floating Split Button (우측하단) ── */
+function FloatingSplitButton() {
+  const { user, logout } = useAuth()
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <div
+      className="fixed bottom-8 right-8 z-[50] w-[140px] h-[140px] md:w-[160px] md:h-[160px]"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* 유리구름 배경 */}
+      <div
+        className="absolute inset-0 rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.1)] transition-all duration-300"
+        style={{
+          background: 'rgba(255,255,255,0.85)',
+          filter: 'url(#float-cloud)',
+          transform: hovered ? 'scale(1.05)' : 'scale(1)',
+        }}
+      />
+
+      {/* 기본 상태: CircularText + 이미지 */}
+      <div className={`absolute inset-0 transition-all duration-300 ${hovered ? 'opacity-0 scale-90' : 'opacity-100 scale-100'}`}>
+        <CircularText
+          text="DASHBOARD * DEBI & MARLENE * "
+          spinDuration={15}
+          onHover="speedUp"
+          className="w-[140px] h-[140px] md:w-[160px] md:h-[160px] text-gray-500"
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <img src={TWINS_CIRCLE} alt="" className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover" draggable={false} />
+        </div>
+      </div>
+
+      {/* 호버 상태: 스플릿 */}
+      <div className={`absolute inset-0 transition-all duration-300 ${hovered ? 'opacity-100 scale-100' : 'opacity-0 scale-110'}`}>
+        {/* 위쪽 — 대시보드 */}
+        <a
+          href="/dashboard"
+          className="absolute top-0 left-0 right-0 h-1/2 flex flex-col items-center justify-center rounded-t-full overflow-hidden group/top hover:bg-[#3cabc9]/10 transition-colors"
+        >
+          <img src={TWINS_CIRCLE} alt="" className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover group-hover/top:scale-110 transition-transform" draggable={false} />
+          <span className="font-title text-[10px] md:text-xs text-[#3cabc9] mt-1">Dashboard</span>
+        </a>
+        {/* 구분선 */}
+        <div className="absolute top-1/2 left-[15%] right-[15%] h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+        {/* 아래쪽 — 로그아웃 (로그인 시) / 로그인 (비로그인 시) */}
+        {user ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); logout() }}
+            className="absolute bottom-0 left-0 right-0 h-1/2 flex flex-col items-center justify-center rounded-b-full overflow-hidden group/bot hover:bg-[#e58fb6]/10 transition-colors"
+          >
+            <img src={EMOTICON_UNIFORM} alt="" className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover group-hover/bot:scale-110 transition-transform" draggable={false} />
+            <span className="font-title text-[10px] md:text-xs text-[#e58fb6] mt-1">Logout</span>
+          </button>
+        ) : (
+          <a
+            href="/dashboard"
+            className="absolute bottom-0 left-0 right-0 h-1/2 flex flex-col items-center justify-center rounded-b-full overflow-hidden group/bot hover:bg-[#e58fb6]/10 transition-colors"
+          >
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e58fb6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+            <span className="font-title text-[10px] md:text-xs text-[#e58fb6] mt-1">Login</span>
+          </a>
+        )}
       </div>
     </div>
   )
 }
 
 /* ── Global Fast-moving Particles ── */
-const ICONS = [CHAR_02, CHAR_03, CHAR_05, CHAR_06, CHAR_07, CURSOR, NEW_BADGE];
+const ICONS = [CHAR_02, CHAR_03, CHAR_05, CHAR_06, CHAR_07, CURSOR];
 
 function GlobalParticles() {
   const [particles, setParticles] = useState<any[]>([]);
@@ -258,6 +392,7 @@ function ElectricText({ children, className = '' }: { children: React.ReactNode;
 export default function Landing() {
   const heroRef = useRef(null)
   const [isDonationOpen, setIsDonationOpen] = useState(false)
+  // auth는 FloatingSplitButton에서 사용
 
   // Lenis 스무스 스크롤
   useEffect(() => {
@@ -453,79 +588,132 @@ export default function Landing() {
           </ScrollFloat>
         </div>
 
-        {/* 기능 1: TTS */}
-        <ParallaxFeature
-          image={CHAR_CLASSROOM}
-          titleLines={['고품질', 'TTS']}
-          description="데비와 마를렌의 목소리로 채팅을 읽어줍니다. AI 파인튜닝 모델 기반의 자연스러운 캐릭터 음성."
-          keywords={['VOICE', 'AI', 'SPEECH']}
-          align="left"
-          titleColor="text-[#3cabc9]"
-          shadowColor="rgba(60,171,201,0.4)"
-          screenshot={SS_STATS}
-        />
-
-        {/* 기능 2: 전적 검색 */}
-        <ParallaxFeature
-          image={CHAR_SUMMER}
-          titleLines={['전적', '검색']}
-          description="이터널리턴 전적과 캐릭터 통계를 한눈에. MMR 그래프, 팀원 분석까지 Discord 안에서 바로 확인."
-          keywords={['STATS', 'MMR', 'RANK']}
-          align="right"
-          titleColor="text-[#3cabc9]"
-          shadowColor="rgba(60,171,201,0.4)"
-          screenshot={SS_RECORD}
-        />
-
-        {/* 띠 2 */}
-        <ParallaxStrip speed={-180}>
-          <FlowingMenu
-            items={[{ text: 'Stats  >  Stats  >  MMR  >  Rank  >  Analysis  >' }]}
-            speed={10} textColor={STRIP_PINK.text} bgColor={STRIP_PINK.bg} hoverBgColor={STRIP_PINK.hover} hoverTextColor={STRIP_PINK.hoverText} borderColor="transparent"
-            fontSize="text-4xl md:text-6xl" padding="py-8 md:py-12" glassEffect
+        {/* 기능 1: TTS + 띠 (캐릭터 뒤, 상단) */}
+        <div className="relative">
+          <div className="absolute top-[15%] left-0 right-0 z-[2] -rotate-2">
+            <ParallaxStrip speed={-120}>
+              <FlowingMenu
+                items={[{ text: 'TTS  >  Voice  >  AI  >  Character  >  Speech  >' }]}
+                speed={8} textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText} borderColor="transparent"
+                fontSize="text-3xl md:text-5xl" padding="py-6 md:py-10" glassEffect
+              />
+            </ParallaxStrip>
+          </div>
+          <ParallaxFeature
+            image={CHAR_CLASSROOM}
+            titleLines={['고품질', 'TTS']}
+            description="데비와 마를렌의 목소리로 채팅을 읽어줍니다. AI 파인튜닝 모델 기반의 자연스러운 캐릭터 음성."
+            keywords={['VOICE', 'AI', 'SPEECH']}
+            align="left"
+            titleColor="text-[#3cabc9]"
+            shadowColor="rgba(60,171,201,0.4)"
+            audioFiles={[
+              { label: 'Debi Voice Demo', src: '/audio/demo_debi_desc.wav' },
+              { label: 'Marlene Voice Demo', src: '/audio/demo_marlene_desc.wav' },
+            ]}
           />
-        </ParallaxStrip>
+        </div>
 
-        {/* 기능 3: 음악 재생 */}
-        <ParallaxFeature
-          image={CHAR_BATTLE}
-          titleLines={['음악', '재생']}
-          description="유튜브 검색 기반 음악과 대기열 관리. 노래 퀴즈까지 음성 채널에서 함께 즐기세요."
-          keywords={['MUSIC', 'QUEUE', 'PLAY']}
-          align="left"
-          titleColor="text-[#e58fb6]"
-          shadowColor="rgba(229,143,182,0.4)"
-          screenshot={SS_MUSIC}
-        />
+        {/* 섹션 사이 띠 */}
+        <div className="my-16">
+          <ParallaxStrip speed={-200}>
+            <FlowingMenu
+              items={[{ text: 'Stats  >  MMR  >  Rank  >  Analysis  >  Stats  >' }]}
+              speed={10} textColor={STRIP_PINK.text} bgColor={STRIP_PINK.bg} hoverBgColor={STRIP_PINK.hover} hoverTextColor={STRIP_PINK.hoverText} borderColor="transparent"
+              fontSize="text-4xl md:text-6xl" padding="py-8 md:py-12" glassEffect
+            />
+          </ParallaxStrip>
+        </div>
 
-        {/* 띠 3 */}
-        <ParallaxStrip speed={-220}>
-          <FlowingMenu
-            items={[{ text: 'Music  >  Music  >  Queue  >  Quiz  >  YouTube  >' }]}
-            speed={12} textColor={STRIP_PINK.text} bgColor={STRIP_PINK.bg} hoverBgColor={STRIP_PINK.hover} hoverTextColor={STRIP_PINK.hoverText} borderColor="transparent"
-            fontSize="text-4xl md:text-6xl" padding="py-8 md:py-12" glassEffect
+        {/* 기능 2: 전적 검색 + 띠 (캐릭터 뒤, 하단) */}
+        <div className="relative">
+          <div className="absolute bottom-[10%] left-0 right-0 z-[2] rotate-1">
+            <ParallaxStrip speed={-150}>
+              <FlowingMenu
+                items={[{ text: 'Eternal Return  >  Record  >  Search  >  Stats  >' }]}
+                speed={6} textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText} borderColor="transparent"
+                fontSize="text-3xl md:text-5xl" padding="py-6 md:py-10" glassEffect
+              />
+            </ParallaxStrip>
+          </div>
+          <ParallaxFeature
+            image={CHAR_SUMMER}
+            titleLines={['전적', '검색']}
+            description="이터널리턴 전적과 캐릭터 통계를 한눈에. MMR 그래프, 팀원 분석까지 Discord 안에서 바로 확인."
+            keywords={['STATS', 'MMR', 'RANK']}
+            align="right"
+            titleColor="text-[#3cabc9]"
+            shadowColor="rgba(60,171,201,0.4)"
+            screenshot={SS_RECORD}
           />
-        </ParallaxStrip>
+        </div>
 
-        {/* 기능 4: 환영 메시지 */}
-        <ParallaxFeature
-          image={CHAR_BATTLE2}
-          titleLines={['환영', '메시지']}
-          description="새로운 멤버가 들어오면 자동으로 환영 메시지를 보내줍니다. 커스텀 메시지와 채널 설정까지."
-          keywords={['WELCOME', 'GREET', 'JOIN']}
-          align="right"
-          titleColor="text-[#e58fb6]"
-          shadowColor="rgba(229,143,182,0.4)"
-        />
+        {/* 섹션 사이 띠 */}
+        <div className="my-16">
+          <ParallaxStrip speed={-180}>
+            <FlowingMenu
+              items={[{ text: 'Music  >  Queue  >  Quiz  >  YouTube  >  Play  >' }]}
+              speed={12} textColor={STRIP_PINK.text} bgColor={STRIP_PINK.bg} hoverBgColor={STRIP_PINK.hover} hoverTextColor={STRIP_PINK.hoverText} borderColor="transparent"
+              fontSize="text-4xl md:text-6xl" padding="py-8 md:py-12" glassEffect
+            />
+          </ParallaxStrip>
+        </div>
 
-        {/* 띠 4 */}
-        <ParallaxStrip speed={-160}>
-          <FlowingMenu
-            items={[{ text: 'Welcome  >  Welcome  >  Dashboard  >  Settings  >  Premium  >' }]}
-            speed={10} textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText} borderColor="transparent"
-            fontSize="text-4xl md:text-6xl" padding="py-8 md:py-12" glassEffect
+        {/* 기능 3: 음악 재생 + 띠 (캐릭터 위, 중앙) */}
+        <div className="relative">
+          <div className="absolute top-[40%] left-0 right-0 z-[2] -rotate-1">
+            <ParallaxStrip speed={-170}>
+              <FlowingMenu
+                items={[{ text: 'Now Playing  >  Skip  >  Pause  >  Queue  >' }]}
+                speed={9} textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText} borderColor="transparent"
+                fontSize="text-3xl md:text-5xl" padding="py-6 md:py-10" glassEffect
+              />
+            </ParallaxStrip>
+          </div>
+          <ParallaxFeature
+            image={CHAR_BATTLE}
+            titleLines={['음악', '재생']}
+            description="유튜브 검색 기반 음악과 대기열 관리. 노래 퀴즈까지 음성 채널에서 함께 즐기세요."
+            keywords={['MUSIC', 'QUEUE', 'PLAY']}
+            align="left"
+            titleColor="text-[#e58fb6]"
+            shadowColor="rgba(229,143,182,0.4)"
+            screenshot={SS_MUSIC}
           />
-        </ParallaxStrip>
+        </div>
+
+        {/* 섹션 사이 띠 */}
+        <div className="my-16">
+          <ParallaxStrip speed={-140}>
+            <FlowingMenu
+              items={[{ text: 'Welcome  >  Dashboard  >  Settings  >  Premium  >' }]}
+              speed={10} textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText} borderColor="transparent"
+              fontSize="text-4xl md:text-6xl" padding="py-8 md:py-12" glassEffect
+            />
+          </ParallaxStrip>
+        </div>
+
+        {/* 기능 4: 환영 메시지 + 띠 (캐릭터 뒤, 상단) */}
+        <div className="relative">
+          <div className="absolute top-[20%] left-0 right-0 z-[2] rotate-2">
+            <ParallaxStrip speed={-190}>
+              <FlowingMenu
+                items={[{ text: 'Greet  >  Welcome  >  Join  >  Hello  >' }]}
+                speed={7} textColor={STRIP_PINK.text} bgColor={STRIP_PINK.bg} hoverBgColor={STRIP_PINK.hover} hoverTextColor={STRIP_PINK.hoverText} borderColor="transparent"
+                fontSize="text-3xl md:text-5xl" padding="py-6 md:py-10" glassEffect
+              />
+            </ParallaxStrip>
+          </div>
+          <ParallaxFeature
+            image={CHAR_BATTLE2}
+            titleLines={['환영', '메시지']}
+            description="새로운 멤버가 들어오면 자동으로 환영 메시지를 보내줍니다. 커스텀 메시지와 채널 설정까지."
+            keywords={['WELCOME', 'GREET', 'JOIN']}
+            align="right"
+            titleColor="text-[#e58fb6]"
+            shadowColor="rgba(229,143,182,0.4)"
+          />
+        </div>
       </div>
 
       {/* ══ STATS ══ */}
@@ -592,44 +780,16 @@ export default function Landing() {
       {/* ══ DONATION ══ */}
       <DonationModal isOpen={isDonationOpen} onClose={() => setIsDonationOpen(false)} />
 
-      {/* ══ 우측하단 플로팅 원형 버튼 ══ */}
-      <a
-        href="/dashboard"
-        className="fixed bottom-8 right-8 z-[50] w-[140px] h-[140px] md:w-[160px] md:h-[160px] group"
-      >
-        {/* 유리구름 SVG 필터 */}
-        <svg style={{ position: 'absolute', width: 0, height: 0 }} aria-hidden="true">
-          <defs>
-            <filter id="float-cloud" x="-10%" y="-10%" width="120%" height="120%">
-              <feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="4" seed="4242" result="noise" />
-              <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" />
-            </filter>
-          </defs>
-        </svg>
-        {/* 유리구름 배경 */}
-        <div
-          className="absolute inset-0 rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.1)]"
-          style={{ background: 'rgba(255,255,255,0.85)', filter: 'url(#float-cloud)' }}
-        />
-        {/* 회전 텍스트 */}
-        <div className="absolute inset-0">
-          <CircularText
-            text="DASHBOARD * DEBI & MARLENE * "
-            spinDuration={15}
-            onHover="speedUp"
-            className="w-[140px] h-[140px] md:w-[160px] md:h-[160px] text-gray-500"
-          />
-        </div>
-        {/* 중앙 이모티콘 */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <img
-            src={TWINS_CIRCLE}
-            alt="Dashboard"
-            className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover group-hover:scale-110 transition-transform duration-300"
-            draggable={false}
-          />
-        </div>
-      </a>
+      {/* ══ 우측하단 스플릿 플로팅 버튼 ══ */}
+      <svg style={{ position: 'absolute', width: 0, height: 0 }} aria-hidden="true">
+        <defs>
+          <filter id="float-cloud" x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="4" seed="4242" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+      </svg>
+      <FloatingSplitButton />
 
       {/* ══ FOOTER (CTA + 후원 + 캐릭터 + 카피라이트) ══ */}
       <footer className="relative z-[5] overflow-hidden">

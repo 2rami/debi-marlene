@@ -117,6 +117,9 @@ webpanel/
 # 지원서류 (개인정보)
 application/
 
+# 포트폴리오 (개인정보)
+portfolio/
+
 # 스크립트
 scripts/
 

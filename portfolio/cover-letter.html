@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>양건호 - 커버레터</title>
+<style>
+  @page { size: A4; margin: 25mm 22mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Pretendard', -apple-system, 'Noto Sans KR', sans-serif;
+    color: #1a1a1a;
+    line-height: 1.85;
+    font-size: 10.5pt;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 25mm 22mm;
+    background: #fff;
+  }
+  @media print {
+    body { padding: 0; }
+  }
+
+  .header { margin-bottom: 28px; }
+  .header h1 { font-size: 18pt; font-weight: 800; margin-bottom: 2px; }
+  .header .position { font-size: 10pt; color: #555; }
+  .header .line { width: 50px; height: 2px; background: #1a1a1a; margin-top: 12px; }
+
+  .meta { font-size: 9pt; color: #888; margin-bottom: 24px; }
+
+  .body p { margin-bottom: 14px; text-align: justify; }
+  .body .section-label {
+    font-weight: 700;
+    font-size: 10pt;
+    color: #333;
+    margin-top: 20px;
+    margin-bottom: 6px;
+  }
+
+  .closing { margin-top: 32px; text-align: right; font-size: 10pt; color: #333; }
+  .closing .name { font-weight: 700; font-size: 11pt; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>양건호</h1>
+  <div class="position">AI FDE (Forward Deployed Engineer) 지원 -- 크래프톤 AI Transformation Dept.</div>
+  <div class="line"></div>
+</div>
+
+<div class="meta">
+  2026년 4월 | goenho0613@gmail.com | debimarlene.com/portfolio
+</div>
+
+<div class="body">
+
+<p>
+안녕하세요. 시각디자인을 전공하고, Claude Code로 풀스택 서비스를 만들어 운영하고 있는 양건호입니다.
+</p>
+
+<div class="section-label">왜 개발을 시작했는가</div>
+<p>
+저는 원래 코드를 한 줄도 쓸 줄 몰랐습니다. 2025년 초, ChatGPT에게 코드를 받아 복붙하는 것으로 시작했고, 파일 위치를 잘못 넣어서 에러가 나는 일이 일상이었습니다.
+그러다 같은 해 6월, Claude Code가 출시되면서 전환점을 맞았습니다. 파일 시스템 전체에 접근하는 AI 코딩 에이전트를 쓰면서, "방향만 제시하면 만들 수 있겠다"는 확신이 생겼습니다.
+여름 방학에 이터널 리턴이라는 게임의 커뮤니티에 전적 검색 봇이 없다는 것을 발견했고, 직접 만들기로 결정했습니다.
+</p>
+
+<div class="section-label">무엇을 만들었는가</div>
+<p>
+그렇게 시작한 Debi Marlene 프로젝트는 현재 Discord 봇, 웹 대시보드, 웹패널, TTS 음성 합성까지 포함한 풀스택 서비스로 운영되고 있습니다.
+Python으로 봇과 API 서버를 만들고, React + TypeScript로 프론트엔드를 구축했습니다.
+GCP Compute Engine VM에 Docker로 배포하고, Makefile 하나로 빌드부터 배포까지 자동화했습니다.
+</p>
+<p>
+특히 TTS 시스템에서는 6종의 엔진(Coqui, Edge-TTS, Qwen3-TTS, Fish-Speech, GPT-SoVITS, CosyVoice3)을 직접 비교 테스트한 후 CosyVoice3를 선택했고, Colab에서 파인튜닝한 모델을 Modal Serverless의 T4 GPU에 배포해서 운영하고 있습니다.
+기술 선택의 근거를 직접 만들어본 경험이, AI 도구를 "써본 사람"과 "평가할 수 있는 사람"의 차이라고 생각합니다.
+</p>
+
+<div class="section-label">왜 크래프톤 AI FDE인가</div>
+<p>
+이 공고를 보고 "이건 내 이야기다"라고 느꼈습니다.
+Claude Code를 매일 쓰고 있고, LLM API를 직접 서비스에 통합해봤으며, PO 관점에서 문제 정의부터 구현, 배포까지 혼자 해본 경험이 있습니다.
+게임 도메인에서 실제 유저가 쓰는 서비스를 운영하면서, API 문서가 없는 상황에서 Network 탭을 뒤져 endpoint를 수집하는 일도 했습니다.
+</p>
+<p>
+시각디자인 전공이라는 배경은 오히려 강점이라고 생각합니다.
+비개발 직군이 어떤 언어로 소통하는지 이해하고 있고, 디자인 도구(Figma, Photoshop, Illustrator)에도 익숙합니다.
+AI FDE가 비개발 직군의 업무에 AI를 적용하는 역할이라면, 그 간극을 좁히는 데 디자인 배경이 도움이 될 것입니다.
+</p>
+
+<div class="section-label">어떻게 기여하겠는가</div>
+<p>
+저는 새로운 기술을 빠르게 익히고 실제로 돌아가는 것을 만드는 데 집중하는 사람입니다.
+6개월 만에 코드를 전혀 모르는 상태에서 풀스택 서비스를 운영하게 된 것이 그 증거입니다.
+크래프톤에서 AI 도구의 도입과 내재화를 돕고, 현업 팀이 실제로 쓸 수 있는 형태로 만들어내는 일에 기여하고 싶습니다.
+</p>
+
+</div>
+
+<div class="closing">
+  감사합니다.<br>
+  <div class="name">양건호</div>
+</div>
+
+</body>
+</html>

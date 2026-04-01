@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>양건호 - 이력서</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Pretendard', -apple-system, 'Noto Sans KR', sans-serif;
+    color: #1a1a1a;
+    line-height: 1.6;
+    font-size: 10pt;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 20mm 18mm;
+    background: #fff;
+  }
+  @media print {
+    body { padding: 0; }
+  }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1a1a1a; padding-bottom: 14px; margin-bottom: 20px; }
+  .header-left h1 { font-size: 22pt; font-weight: 800; letter-spacing: -0.5px; }
+  .header-left .subtitle { font-size: 10pt; color: #555; margin-top: 2px; }
+  .header-right { text-align: right; font-size: 9pt; color: #444; line-height: 1.7; }
+  .header-right a { color: #1a1a1a; text-decoration: none; }
+
+  /* Section */
+  .section { margin-bottom: 16px; }
+  .section-title {
+    font-size: 11pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #1a1a1a;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 4px;
+    margin-bottom: 10px;
+  }
+
+  /* Education / Experience rows */
+  .row { display: flex; margin-bottom: 8px; }
+  .row-date { width: 100px; flex-shrink: 0; font-size: 9pt; color: #666; padding-top: 1px; }
+  .row-content { flex: 1; }
+  .row-content .title { font-weight: 600; font-size: 10pt; }
+  .row-content .desc { font-size: 9pt; color: #444; margin-top: 1px; }
+
+  /* Skills grid */
+  .skills-grid { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 9.5pt; }
+  .skills-grid .label { font-weight: 600; color: #333; }
+  .skills-grid .value { color: #444; }
+
+  /* Timeline */
+  .timeline-item { display: flex; margin-bottom: 6px; }
+  .timeline-date { width: 100px; flex-shrink: 0; font-size: 9pt; color: #666; }
+  .timeline-desc { flex: 1; font-size: 9.5pt; }
+  .timeline-desc strong { font-weight: 600; }
+
+  /* Two column */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .two-col li { font-size: 9pt; color: #444; margin-left: 14px; }
+
+  ul { list-style: disc; padding-left: 16px; }
+  li { font-size: 9.5pt; color: #444; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <h1>양건호</h1>
+    <div class="subtitle">AI Forward Deployed Engineer</div>
+  </div>
+  <div class="header-right">
+    goenho0613@gmail.com<br>
+    github.com/goenho0613<br>
+    <a href="https://debimarlene.com/portfolio">debimarlene.com/portfolio</a>
+  </div>
+</div>
+
+<!-- Profile -->
+<div class="section">
+  <div class="section-title">Profile</div>
+  <p style="font-size: 9.5pt; color: #333;">
+    Claude Code를 활용해 Discord 봇, 대시보드, TTS 파이프라인, 인프라까지 풀스택으로 설계하고 운영하는 1인 개발자입니다.
+    시각디자인 전공의 디자인 역량과 AI 네이티브 개발 경험을 결합하여, 비개발 직군과의 소통부터 프로덕션 배포까지 독립적으로 수행합니다.
+  </p>
+</div>
+
+<!-- Education -->
+<div class="section">
+  <div class="section-title">Education</div>
+  <div class="row">
+    <div class="row-date">2024.03 - 2026.02</div>
+    <div class="row-content">
+      <div class="title">신구대학교 시각디자인과</div>
+      <div class="desc">졸업 / 커뮤니케이션디자인 전공</div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="row-date">2016.03 - 2018.02</div>
+    <div class="row-content">
+      <div class="title">수내고등학교</div>
+      <div class="desc">졸업</div>
+    </div>
+  </div>
+</div>
+
+<!-- Awards -->
+<div class="section">
+  <div class="section-title">Awards</div>
+  <div class="row">
+    <div class="row-date">2025.07</div>
+    <div class="row-content">
+      <div class="title">커뮤니케이션디자인 국제공모전 입선</div>
+      <div class="desc">한국커뮤니케이션디자인협회</div>
+    </div>
+  </div>
+</div>
+
+<!-- Project -->
+<div class="section">
+  <div class="section-title">Project</div>
+  <div class="row">
+    <div class="row-date">2025.10 - 현재</div>
+    <div class="row-content">
+      <div class="title">Debi Marlene - AI Discord Bot & Dashboard</div>
+      <div class="desc" style="margin-bottom: 4px;">이터널 리턴 게임 커뮤니티를 위한 풀스택 서비스 (1인 개발/운영)</div>
+      <ul>
+        <li>Claude Code로 프로젝트 전체 설계 ~ 배포까지 AI 네이티브 개발</li>
+        <li>Anthropic Claude API 기반 캐릭터 AI 대화 + 프롬프트 엔지니어링</li>
+        <li>CosyVoice3 TTS 파인튜닝 (6종 엔진 비교 후 채택) + Modal Serverless T4 GPU 배포</li>
+        <li>GCP Compute Engine VM + Docker + nginx + Makefile 자동화 배포 파이프라인</li>
+        <li>React 19 + TypeScript + Vite + Tailwind 4 대시보드 (Discord OAuth2 인증)</li>
+        <li>Flask API 서버 2개 (대시보드 백엔드, 웹패널 백엔드) 운영</li>
+        <li>게임 전적 검색 (Eternal Return API, dak.gg API), 음악 재생, 노래 퀴즈, YouTube 모니터링</li>
+        <li>PWA 지원, 다크/라이트 테마, Discord Components V2 (LayoutView)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Skills -->
+<div class="section">
+  <div class="section-title">Skills</div>
+  <div class="skills-grid">
+    <div class="label">AI / ML</div>
+    <div class="value">Claude API, CosyVoice3 Fine-tuning, Modal Serverless (GPU), Prompt Engineering</div>
+
+    <div class="label">Backend</div>
+    <div class="value">Python, discord.py, Flask, Gunicorn, yt-dlp, FFmpeg, Pillow</div>
+
+    <div class="label">Frontend</div>
+    <div class="value">React 19, TypeScript, Vite, Tailwind CSS 4, Framer Motion</div>
+
+    <div class="label">Infrastructure</div>
+    <div class="value">GCP (Compute Engine, GCS, Artifact Registry), Docker, nginx, Cloudflare, Makefile</div>
+
+    <div class="label">Development</div>
+    <div class="value">Claude Code, Git, GitHub</div>
+
+    <div class="label">Design</div>
+    <div class="value">Figma, Aseprite (Pixel Art), Photoshop, Illustrator</div>
+  </div>
+</div>
+
+<!-- AI Tool Proficiency -->
+<div class="section">
+  <div class="section-title">AI Development Experience</div>
+  <div class="timeline-item">
+    <div class="timeline-date">2025.02 - 04</div>
+    <div class="timeline-desc"><strong>ChatGPT</strong> -- 코드 생성/복붙 방식으로 개발 시작</div>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-date">2025.04 - 06</div>
+    <div class="timeline-desc"><strong>ChatGPT + VS Code</strong> -- "Work with Apps" 연동, 파일 단위 접근</div>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-date">2025.06 -</div>
+    <div class="timeline-desc"><strong>Claude Code</strong> -- 파일 시스템 전체 접근, 출시 즉시 채택. 이후 모든 프로젝트에 활용</div>
+  </div>
+  <div class="timeline-item">
+    <div class="timeline-date">2026.01 -</div>
+    <div class="timeline-desc"><strong>TTS 파인튜닝</strong> -- 6종 엔진(Coqui, Edge, Qwen3, Fish-Speech, GPT-SoVITS, CosyVoice3) 비교/평가 후 CosyVoice3 채택</div>
+  </div>
+</div>
+
+</body>
+</html>

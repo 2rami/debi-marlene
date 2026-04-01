@@ -322,7 +322,7 @@ async def _clear_guild_commands():
 
 @bot.event
 async def on_ready():
-    """봇 준비 완료 시 실행"""
+    """봇 준비 완료 시 실행 (RESUME 재연결 시에도 호출됨)"""
     import sys
     print(f'[봇] {bot.user} 봇이 시작되었습니다!', flush=True)
     sys.stdout.flush()
@@ -331,6 +331,12 @@ async def on_ready():
     total_members = sum(guild.member_count for guild in bot.guilds if guild.member_count)
     print(f"[정보] 현재 {guild_count}개 서버에 연결되었습니다, 총 {total_members}명 사용자", flush=True)
     sys.stdout.flush()
+
+    # 최초 1회만 실행 (RESUME 재연결 시 중복 실행 방지)
+    if hasattr(bot, '_ready_once'):
+        print("[정보] RESUME 재연결 - 초기화 건너뜀", flush=True)
+        return
+    bot._ready_once = True
 
     # 삭제된 서버 정리 (현재 접속 중인 서버는 건너뜀)
     try:

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useState } from 'react'
 import PatchNotesModal from './PatchNotesModal'
@@ -8,7 +8,21 @@ import LOGO from '../../assets/images/profile.jpg'
 export default function Header() {
   const { user, login, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [showPatchNotes, setShowPatchNotes] = useState(false)
+
+  const handleLogoClick = () => {
+    if (location.pathname === '/landing' || location.pathname === '/') {
+      const lenis = (window as any).__lenis
+      if (lenis) {
+        lenis.scrollTo(0, { immediate: true })
+      } else {
+        window.scrollTo({ top: 0 })
+      }
+    } else {
+      navigate('/landing')
+    }
+  }
 
   const menuItems = [
     {
@@ -17,7 +31,7 @@ export default function Header() {
       ariaLabel: 'Home',
       rotation: -6,
       hoverStyles: { bgColor: '#3cabc9', textColor: '#ffffff' },
-      onClick: () => navigate('/'),
+      onClick: () => navigate('/landing'),
     },
     {
       label: 'Commands',
@@ -69,6 +83,7 @@ export default function Header() {
     <>
       <BubbleMenu
         logo={logoElement}
+        onLogoClick={handleLogoClick}
         items={menuItems}
         menuAriaLabel="Toggle navigation"
         menuBg="rgba(255, 255, 255, 0.85)"

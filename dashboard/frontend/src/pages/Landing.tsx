@@ -7,6 +7,7 @@ import GlassButton from '../components/common/GlassButton'
 import GradientText from '../components/common/GradientText'
 import DonationModal from '../components/common/DonationModal'
 import ScrollFloat from '../components/common/ScrollFloat'
+import DecryptedText from '../components/common/DecryptedText'
 
 /* ── Assets ── */
 import BG_SKY from '../assets/images/event/imgi_28_bg01.png'
@@ -29,6 +30,11 @@ import CHAR_SUMMER from '../assets/images/event/char_summer.png'
 import CHAR_BATTLE from '../assets/images/event/char_battle.png'
 import CHAR_BATTLE2 from '../assets/images/event/char_battle2.png'
 import CURSOR from '../assets/images/event/imgi_45_cursor01.png'
+import SS_STATS from '../assets/images/event/screenshot_stats.png'
+import SS_RECORD from '../assets/images/event/screenshot_record.png'
+import SS_MUSIC from '../assets/images/event/screenshot_music.png'
+import TWINS_CIRCLE from '../assets/images/event/twins_approve_circle.png'
+import CircularText from '../components/common/CircularText'
 
 function FadeIn({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useRef(null)
@@ -93,6 +99,92 @@ function ParallaxStrip({ children, speed = -150 }: { children: React.ReactNode; 
       <motion.div style={{ y }}>
         {children}
       </motion.div>
+    </div>
+  )
+}
+
+/* ── Parallax Feature Section ── */
+function ParallaxFeature({
+  image, titleLines, description, keywords, align = 'left',
+  titleColor, shadowColor, screenshot,
+}: {
+  image: string
+  titleLines: string[]
+  description: string
+  keywords: string[]
+  align?: 'left' | 'right'
+  titleColor: string
+  shadowColor: string
+  screenshot?: string
+}) {
+  const ref = useRef(null)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
+
+  // 캐릭터: 느리게 (스크롤 대비 적게 움직임)
+  const charY = useTransform(scrollYProgress, [0, 1], [80, -80])
+  // 키워드 장식: 빠르게
+  const decoY = useTransform(scrollYProgress, [0, 1], [150, -250])
+
+  const isLeft = align === 'left'
+
+  return (
+    <div ref={ref} className="relative overflow-hidden py-60 md:py-80">
+      {/* 캐릭터: absolute, 느린 패럴랙스, 텍스트 반대쪽에 배치 */}
+      <motion.div
+        className={`absolute inset-y-0 z-[3] pointer-events-none flex items-center ${isLeft ? 'right-[-10%] justify-end' : 'left-[-10%] justify-start'}`}
+        style={{ y: charY, width: '75%' }}
+      >
+        <img
+          src={image} alt="" className="w-full h-auto object-contain" draggable={false}
+          style={{ animation: 'electricOutline 3s ease-in-out infinite' }}
+        />
+      </motion.div>
+
+      {/* 키워드 장식: 빠른 패럴랙스 */}
+      <motion.div
+        className={`absolute ${isLeft ? 'right-[5%] md:right-[10%]' : 'left-[5%] md:left-[10%]'} top-0 h-full flex flex-col justify-center gap-4 opacity-[0.6] pointer-events-none z-[2]`}
+        style={{ y: decoY }}
+      >
+        {keywords.map((kw, i) => (
+          <span key={i} className={`font-title text-[80px] md:text-[140px] lg:text-[200px] leading-none ${titleColor} whitespace-nowrap`}>
+            {kw}
+          </span>
+        ))}
+      </motion.div>
+
+      {/* 콘텐츠: 일반 스크롤 속도 */}
+      <div className={`relative z-[5] px-6 lg:px-16 ${isLeft ? '' : 'text-right'}`}>
+        {titleLines.map((line, i) => {
+          const charCount = line.length
+          const vw = charCount <= 2 ? 350 * charCount : 280 * charCount
+          return (
+            <div key={i} className={`${isLeft ? '' : 'flex justify-end'}`} style={{ filter: 'url(#text-texture)' }}>
+              <svg viewBox={`0 0 ${vw} 250`} className="w-[350px] md:w-[650px] lg:w-[850px] h-auto overflow-visible block">
+                <text x="0" y="200" fontSize="220" fontWeight="bold" fontFamily="'YPairingFont', system-ui, sans-serif" fill="none" stroke="#FFA6D7" strokeWidth="12" paintOrder="stroke">{line}</text>
+                <text x="0" y="200" fontSize="220" fontWeight="bold" fontFamily="'YPairingFont', system-ui, sans-serif" fill="#7DE8ED" stroke="#FFA6D7" strokeWidth="5" paintOrder="stroke" style={{ filter: 'drop-shadow(0px 4px 6px rgba(212, 103, 158, 0.4))' }}>{line}</text>
+              </svg>
+            </div>
+          )
+        })}
+        <p className={`font-bold text-gray-800 text-2xl md:text-3xl leading-relaxed max-w-xl mt-12 ${isLeft ? '' : 'ml-auto'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
+          {description}
+        </p>
+
+        {/* 스크린샷 */}
+        {screenshot && (
+          <FadeIn className={`mt-16 ${isLeft ? '' : 'flex justify-end'}`}>
+            <div className="relative max-w-xs md:max-w-sm">
+              <div className="absolute -inset-4 bg-gradient-to-br from-[#3cabc9]/20 to-[#e58fb6]/20 rounded-3xl blur-xl" />
+              <img
+                src={screenshot}
+                alt="Bot screenshot"
+                className="relative w-full h-auto rounded-2xl shadow-2xl border border-white/30"
+                draggable={false}
+              />
+            </div>
+          </FadeIn>
+        )}
+      </div>
     </div>
   )
 }
@@ -169,10 +261,11 @@ export default function Landing() {
 
   // Lenis 스무스 스크롤
   useEffect(() => {
-    const lenis = new Lenis({ duration: 2.5, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
+    const lenis = new Lenis({ duration: 5, wheelMultiplier: 0.5, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+    (window as any).__lenis = lenis
     function raf(time: number) { lenis.raf(time); requestAnimationFrame(raf) }
     requestAnimationFrame(raf)
-    return () => lenis.destroy()
+    return () => { lenis.destroy(); (window as any).__lenis = null }
   }, [])
 
   // 스크롤 패럴랙스 (수직 이동)
@@ -215,13 +308,17 @@ export default function Landing() {
   const STRIP_PINK = { bg: '#E58FB6', hover: '#ffa2cc', text: '#ffffff', hoverText: '#ffffff' }
 
   return (
-    <div className="min-h-screen bg-[#f8fcfd] font-body overflow-x-hidden selection:bg-[#3cabc9]/20 relative z-0">
+    <div className="min-h-screen bg-[#f8fcfd] font-body selection:bg-[#3cabc9]/20 relative z-0" style={{ overflowX: 'clip' }}>
       {/* 텍스처 SVG 필터 — 텍스트용 (피그마 원본 값) */}
       <svg style={{ position: 'absolute', width: 0, height: 0 }} aria-hidden="true">
         <defs>
           <filter id="text-texture" x="-10%" y="-10%" width="120%" height="120%">
             <feTurbulence type="fractalNoise" baseFrequency="0.339" numOctaves="3" seed="5044" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <filter id="glass-cloud" x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="4" seed="5730" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </defs>
       </svg>
@@ -324,14 +421,14 @@ export default function Landing() {
 
         {/* Bottom gradient fade — 제거됨 */}
 
-        {/* ══ FLOWING MENU STRIP (Hero 중간 아래, 캐릭터/텍스트 뒤) ══ */}
+        {/* ══ FLOWING MENU STRIP (Hero 중간 아래) ══ */}
         <div className="absolute left-0 right-0 top-[25%] z-[2]">
           <ParallaxStrip speed={-150}>
             <FlowingMenu
               items={[{ text: 'TTS  >  Stats  >  Music  >  Quiz  >  Welcome  >' }]}
               speed={8}
               textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText}
-              borderColor="transparent" fontSize="text-4xl md:text-5xl" padding="py-6 md:py-8"
+              borderColor="transparent" fontSize="text-4xl md:text-5xl" padding="py-8 md:py-12" glassEffect
             />
           </ParallaxStrip>
         </div>
@@ -357,140 +454,135 @@ export default function Landing() {
         </div>
 
         {/* 기능 1: TTS */}
-        <div className="relative min-h-screen flex items-center px-6 lg:px-12 overflow-visible">
-          <div className="absolute right-[-10%] top-[10%] w-[60vw] max-w-[800px] z-[3]">
-            <FadeIn><img src={CHAR_CLASSROOM} alt="" className="w-full h-auto object-contain " draggable={false} /></FadeIn>
-          </div>
-          <div className="relative z-[5] max-w-3xl">
-            <ScrollFloat containerClassName="font-title text-[#3cabc9]" textClassName="text-7xl md:text-[120px]">
-              고품질 TTS
-            </ScrollFloat>
-            <FadeIn>
-              <p className="font-body text-gray-600 text-xl md:text-2xl leading-relaxed max-w-lg mt-8">
-                데비와 마를렌의 목소리로 채팅을 읽어줍니다.
-                AI 파인튜닝 모델 기반의 자연스러운 캐릭터 음성.
-              </p>
-              <div className="mt-10 bg-gray-200/40 rounded-2xl h-56 flex items-center justify-center text-gray-400 font-body">
-                스크린샷 추가 예정
-              </div>
-            </FadeIn>
-          </div>
-        </div>
-
-        {/* 띠 1 */}
-        <ParallaxStrip speed={-200}>
-          <FlowingMenu
-            items={[{ text: 'TTS  >  TTS  >  Voice  >  AI  >  Character  >' }]}
-            speed={8} textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText} borderColor="transparent"
-            fontSize="text-4xl md:text-6xl" padding="py-6 md:py-8"
-          />
-        </ParallaxStrip>
+        <ParallaxFeature
+          image={CHAR_CLASSROOM}
+          titleLines={['고품질', 'TTS']}
+          description="데비와 마를렌의 목소리로 채팅을 읽어줍니다. AI 파인튜닝 모델 기반의 자연스러운 캐릭터 음성."
+          keywords={['VOICE', 'AI', 'SPEECH']}
+          align="left"
+          titleColor="text-[#3cabc9]"
+          shadowColor="rgba(60,171,201,0.4)"
+          screenshot={SS_STATS}
+        />
 
         {/* 기능 2: 전적 검색 */}
-        <div className="relative min-h-screen flex items-center justify-end px-6 lg:px-12 overflow-visible">
-          <div className="absolute left-[-10%] top-[5%] w-[60vw] max-w-[800px] z-[3]">
-            <FadeIn><img src={CHAR_SUMMER} alt="" className="w-full h-auto object-contain " draggable={false} /></FadeIn>
-          </div>
-          <div className="relative z-[5] max-w-3xl text-right">
-            <ScrollFloat containerClassName="font-title text-[#3cabc9]" textClassName="text-7xl md:text-[120px]">
-              전적 검색
-            </ScrollFloat>
-            <FadeIn>
-              <p className="font-body text-gray-600 text-xl md:text-2xl leading-relaxed ml-auto max-w-lg mt-8">
-                이터널리턴 전적과 캐릭터 통계를 한눈에.
-                MMR 그래프, 팀원 분석까지 Discord 안에서 바로 확인.
-              </p>
-              <div className="mt-10 bg-gray-200/40 rounded-2xl h-56 flex items-center justify-center text-gray-400 font-body">
-                스크린샷 추가 예정
-              </div>
-            </FadeIn>
-          </div>
-        </div>
+        <ParallaxFeature
+          image={CHAR_SUMMER}
+          titleLines={['전적', '검색']}
+          description="이터널리턴 전적과 캐릭터 통계를 한눈에. MMR 그래프, 팀원 분석까지 Discord 안에서 바로 확인."
+          keywords={['STATS', 'MMR', 'RANK']}
+          align="right"
+          titleColor="text-[#3cabc9]"
+          shadowColor="rgba(60,171,201,0.4)"
+          screenshot={SS_RECORD}
+        />
 
         {/* 띠 2 */}
         <ParallaxStrip speed={-180}>
           <FlowingMenu
             items={[{ text: 'Stats  >  Stats  >  MMR  >  Rank  >  Analysis  >' }]}
             speed={10} textColor={STRIP_PINK.text} bgColor={STRIP_PINK.bg} hoverBgColor={STRIP_PINK.hover} hoverTextColor={STRIP_PINK.hoverText} borderColor="transparent"
-            fontSize="text-4xl md:text-6xl" padding="py-6 md:py-8"
+            fontSize="text-4xl md:text-6xl" padding="py-8 md:py-12" glassEffect
           />
         </ParallaxStrip>
 
         {/* 기능 3: 음악 재생 */}
-        <div className="relative min-h-screen flex items-center px-6 lg:px-12 overflow-visible">
-          <div className="absolute right-[-5%] top-[8%] w-[55vw] max-w-[750px] z-[3]">
-            <FadeIn><img src={CHAR_BATTLE} alt="" className="w-full h-auto object-contain " draggable={false} /></FadeIn>
-          </div>
-          <div className="relative z-[5] max-w-3xl">
-            <ScrollFloat containerClassName="font-title text-[#e58fb6]" textClassName="text-7xl md:text-[120px]">
-              음악 재생
-            </ScrollFloat>
-            <FadeIn>
-              <p className="font-body text-gray-600 text-xl md:text-2xl leading-relaxed max-w-lg mt-8">
-                유튜브 검색 기반 음악과 대기열 관리.
-                노래 퀴즈까지 음성 채널에서 함께 즐기세요.
-              </p>
-              <div className="mt-10 bg-gray-200/40 rounded-2xl h-56 flex items-center justify-center text-gray-400 font-body">
-                스크린샷 추가 예정
-              </div>
-            </FadeIn>
-          </div>
-        </div>
+        <ParallaxFeature
+          image={CHAR_BATTLE}
+          titleLines={['음악', '재생']}
+          description="유튜브 검색 기반 음악과 대기열 관리. 노래 퀴즈까지 음성 채널에서 함께 즐기세요."
+          keywords={['MUSIC', 'QUEUE', 'PLAY']}
+          align="left"
+          titleColor="text-[#e58fb6]"
+          shadowColor="rgba(229,143,182,0.4)"
+          screenshot={SS_MUSIC}
+        />
 
         {/* 띠 3 */}
         <ParallaxStrip speed={-220}>
           <FlowingMenu
             items={[{ text: 'Music  >  Music  >  Queue  >  Quiz  >  YouTube  >' }]}
             speed={12} textColor={STRIP_PINK.text} bgColor={STRIP_PINK.bg} hoverBgColor={STRIP_PINK.hover} hoverTextColor={STRIP_PINK.hoverText} borderColor="transparent"
-            fontSize="text-4xl md:text-6xl" padding="py-6 md:py-8"
+            fontSize="text-4xl md:text-6xl" padding="py-8 md:py-12" glassEffect
           />
         </ParallaxStrip>
 
         {/* 기능 4: 환영 메시지 */}
-        <div className="relative min-h-screen flex items-center justify-end px-6 lg:px-12 overflow-visible">
-          <div className="absolute left-[0%] top-[10%] w-[50vw] max-w-[650px] z-[3]">
-            <FadeIn><img src={CHAR_BATTLE2} alt="" className="w-full h-auto object-contain " draggable={false} /></FadeIn>
-          </div>
-          <div className="relative z-[5] max-w-3xl text-right">
-            <ScrollFloat containerClassName="font-title text-[#e58fb6]" textClassName="text-7xl md:text-[120px]">
-              환영 메시지
-            </ScrollFloat>
-            <FadeIn>
-              <p className="font-body text-gray-600 text-xl md:text-2xl leading-relaxed ml-auto max-w-lg mt-8">
-                새로운 멤버가 들어오면 자동으로 환영 메시지를 보내줍니다.
-                커스텀 메시지와 채널 설정까지.
-              </p>
-              <div className="mt-10 bg-gray-200/40 rounded-2xl h-56 flex items-center justify-center text-gray-400 font-body">
-                스크린샷 추가 예정
-              </div>
-            </FadeIn>
-          </div>
-        </div>
+        <ParallaxFeature
+          image={CHAR_BATTLE2}
+          titleLines={['환영', '메시지']}
+          description="새로운 멤버가 들어오면 자동으로 환영 메시지를 보내줍니다. 커스텀 메시지와 채널 설정까지."
+          keywords={['WELCOME', 'GREET', 'JOIN']}
+          align="right"
+          titleColor="text-[#e58fb6]"
+          shadowColor="rgba(229,143,182,0.4)"
+        />
 
         {/* 띠 4 */}
         <ParallaxStrip speed={-160}>
           <FlowingMenu
             items={[{ text: 'Welcome  >  Welcome  >  Dashboard  >  Settings  >  Premium  >' }]}
             speed={10} textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText} borderColor="transparent"
-            fontSize="text-4xl md:text-6xl" padding="py-6 md:py-8"
+            fontSize="text-4xl md:text-6xl" padding="py-8 md:py-12" glassEffect
           />
         </ParallaxStrip>
       </div>
 
       {/* ══ STATS ══ */}
-      <div className="py-20 relative z-[5]">
-        <div className="max-w-3xl mx-auto px-6">
-          <div className="grid grid-cols-2 gap-6">
+      <div className="py-28 relative z-[5]">
+        <div className="text-center mb-16">
+          <ScrollFloat
+            containerClassName="font-title bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent"
+            textClassName="text-5xl md:text-[80px]"
+          >
+            Numbers
+          </ScrollFloat>
+        </div>
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="grid grid-cols-3 gap-6 md:gap-10">
             <FadeIn delay={0.1}>
-              <div className="bg-white/60 rounded-2xl p-8 text-center">
-                <div className="font-display text-5xl md:text-7xl font-bold bg-gradient-to-r from-[#e58fb6] to-[#3cabc9] bg-clip-text text-transparent">11,799</div>
-                <div className="font-body text-sm md:text-base mt-2 text-gray-500">유저</div>
+              <div className="p-8 md:p-10 text-center">
+                <DecryptedText
+                  text="11,799"
+                  className="font-title text-5xl md:text-7xl lg:text-8xl font-bold bg-gradient-to-b from-[#3cabc9] to-[#3cabc9]/60 bg-clip-text text-transparent"
+                  encryptedClassName="font-title text-5xl md:text-7xl lg:text-8xl font-bold text-[#3cabc9]/30"
+                  animateOn="inViewHover"
+                  speed={40}
+                  maxIterations={15}
+                  sequential
+                  characters="0123456789,."
+                />
+                <div className="font-body text-sm md:text-lg mt-3 text-gray-500 tracking-wider uppercase">Users</div>
               </div>
             </FadeIn>
             <FadeIn delay={0.2}>
-              <div className="bg-white/60 rounded-2xl p-8 text-center">
-                <div className="font-display text-5xl md:text-7xl font-bold bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent">100</div>
-                <div className="font-body text-sm md:text-base mt-2 text-gray-500">서버</div>
+              <div className="p-8 md:p-10 text-center">
+                <DecryptedText
+                  text="100"
+                  className="font-title text-5xl md:text-7xl lg:text-8xl font-bold bg-gradient-to-b from-[#e58fb6] to-[#e58fb6]/60 bg-clip-text text-transparent"
+                  encryptedClassName="font-title text-5xl md:text-7xl lg:text-8xl font-bold text-[#e58fb6]/30"
+                  animateOn="inViewHover"
+                  speed={40}
+                  maxIterations={15}
+                  sequential
+                  characters="0123456789"
+                />
+                <div className="font-body text-sm md:text-lg mt-3 text-gray-500 tracking-wider uppercase">Servers</div>
+              </div>
+            </FadeIn>
+            <FadeIn delay={0.3}>
+              <div className="p-8 md:p-10 text-center">
+                <DecryptedText
+                  text="17"
+                  className="font-title text-5xl md:text-7xl lg:text-8xl font-bold bg-gradient-to-b from-[#7DE8ED] to-[#7DE8ED]/60 bg-clip-text text-transparent"
+                  encryptedClassName="font-title text-5xl md:text-7xl lg:text-8xl font-bold text-[#7DE8ED]/30"
+                  animateOn="inViewHover"
+                  speed={40}
+                  maxIterations={15}
+                  sequential
+                  characters="0123456789"
+                />
+                <div className="font-body text-sm md:text-lg mt-3 text-gray-500 tracking-wider uppercase">Commands</div>
               </div>
             </FadeIn>
           </div>
@@ -499,6 +591,45 @@ export default function Landing() {
 
       {/* ══ DONATION ══ */}
       <DonationModal isOpen={isDonationOpen} onClose={() => setIsDonationOpen(false)} />
+
+      {/* ══ 우측하단 플로팅 원형 버튼 ══ */}
+      <a
+        href="/dashboard"
+        className="fixed bottom-8 right-8 z-[50] w-[140px] h-[140px] md:w-[160px] md:h-[160px] group"
+      >
+        {/* 유리구름 SVG 필터 */}
+        <svg style={{ position: 'absolute', width: 0, height: 0 }} aria-hidden="true">
+          <defs>
+            <filter id="float-cloud" x="-10%" y="-10%" width="120%" height="120%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="4" seed="4242" result="noise" />
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+          </defs>
+        </svg>
+        {/* 유리구름 배경 */}
+        <div
+          className="absolute inset-0 rounded-full shadow-[0_4px_24px_rgba(0,0,0,0.1)]"
+          style={{ background: 'rgba(255,255,255,0.85)', filter: 'url(#float-cloud)' }}
+        />
+        {/* 회전 텍스트 */}
+        <div className="absolute inset-0">
+          <CircularText
+            text="DASHBOARD * DEBI & MARLENE * "
+            spinDuration={15}
+            onHover="speedUp"
+            className="w-[140px] h-[140px] md:w-[160px] md:h-[160px] text-gray-500"
+          />
+        </div>
+        {/* 중앙 이모티콘 */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <img
+            src={TWINS_CIRCLE}
+            alt="Dashboard"
+            className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover group-hover:scale-110 transition-transform duration-300"
+            draggable={false}
+          />
+        </div>
+      </a>
 
       {/* ══ FOOTER (CTA + 후원 + 캐릭터 + 카피라이트) ══ */}
       <footer className="relative z-[5] overflow-hidden">
@@ -509,7 +640,7 @@ export default function Landing() {
           className="absolute inset-0 w-full h-full object-cover object-bottom"
           draggable={false}
         />
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#f8fcfd] to-transparent z-[1]" />
+        <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-[#f8fcfd] via-[#f8fcfd]/80 to-transparent z-[1]" />
 
         {/* CTA + 후원 통합 카드 */}
         <div className="relative z-[2] flex justify-center pt-20 px-6">

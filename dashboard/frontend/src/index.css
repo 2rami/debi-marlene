@@ -236,6 +236,73 @@ body {
   100% { transform: translateX(100%); }
 }
 
+/* 빛이 테두리를 시계방향으로 따라 이동하는 효과 */
+@keyframes electricOutline {
+  0% {
+    filter:
+      drop-shadow(0 -6px 4px rgba(125,232,237,1))
+      drop-shadow(2px 0 1px rgba(125,232,237,0.3))
+      drop-shadow(0 2px 1px rgba(125,232,237,0.15))
+      drop-shadow(-2px 0 1px rgba(125,232,237,0.15));
+  }
+  12.5% {
+    filter:
+      drop-shadow(4px -4px 4px rgba(165,230,240,1))
+      drop-shadow(2px 2px 1px rgba(125,232,237,0.2))
+      drop-shadow(-2px 0 1px rgba(125,232,237,0.1))
+      drop-shadow(0 2px 1px rgba(125,232,237,0.1));
+  }
+  25% {
+    filter:
+      drop-shadow(6px 0 4px rgba(255,166,215,1))
+      drop-shadow(0 -2px 1px rgba(255,166,215,0.3))
+      drop-shadow(-2px 0 1px rgba(125,232,237,0.15))
+      drop-shadow(0 2px 1px rgba(125,232,237,0.15));
+  }
+  37.5% {
+    filter:
+      drop-shadow(4px 4px 4px rgba(255,166,215,1))
+      drop-shadow(-2px 0 1px rgba(125,232,237,0.2))
+      drop-shadow(0 -2px 1px rgba(125,232,237,0.1))
+      drop-shadow(-2px -2px 1px rgba(125,232,237,0.1));
+  }
+  50% {
+    filter:
+      drop-shadow(0 6px 4px rgba(125,232,237,1))
+      drop-shadow(-2px 0 1px rgba(125,232,237,0.3))
+      drop-shadow(0 -2px 1px rgba(125,232,237,0.15))
+      drop-shadow(2px 0 1px rgba(125,232,237,0.15));
+  }
+  62.5% {
+    filter:
+      drop-shadow(-4px 4px 4px rgba(165,230,240,1))
+      drop-shadow(0 -2px 1px rgba(125,232,237,0.2))
+      drop-shadow(2px 0 1px rgba(125,232,237,0.1))
+      drop-shadow(0 -2px 1px rgba(125,232,237,0.1));
+  }
+  75% {
+    filter:
+      drop-shadow(-6px 0 4px rgba(255,166,215,1))
+      drop-shadow(0 2px 1px rgba(255,166,215,0.3))
+      drop-shadow(2px 0 1px rgba(125,232,237,0.15))
+      drop-shadow(0 -2px 1px rgba(125,232,237,0.15));
+  }
+  87.5% {
+    filter:
+      drop-shadow(-4px -4px 4px rgba(255,166,215,1))
+      drop-shadow(2px 0 1px rgba(125,232,237,0.2))
+      drop-shadow(0 2px 1px rgba(125,232,237,0.1))
+      drop-shadow(2px 2px 1px rgba(125,232,237,0.1));
+  }
+  100% {
+    filter:
+      drop-shadow(0 -6px 4px rgba(125,232,237,1))
+      drop-shadow(2px 0 1px rgba(125,232,237,0.3))
+      drop-shadow(0 2px 1px rgba(125,232,237,0.15))
+      drop-shadow(-2px 0 1px rgba(125,232,237,0.15));
+  }
+}
+
 /* ── Animation Keyframes ── */
 
 @keyframes float {

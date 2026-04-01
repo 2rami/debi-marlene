@@ -17,6 +17,7 @@ interface FlowingMenuProps {
   className?: string
   fontSize?: string
   padding?: string
+  glassEffect?: boolean
 }
 
 export default function FlowingMenu({
@@ -30,10 +31,16 @@ export default function FlowingMenu({
   className = '',
   fontSize,
   padding,
+  glassEffect = false,
 }: FlowingMenuProps) {
   return (
-    <div className={`w-full overflow-hidden ${className}`} style={{ backgroundColor: bgColor }}>
-      <nav className="flex flex-col m-0 p-0">
+    <div className={`w-full overflow-hidden relative ${className}`}>
+      {/* 배경: 유리구름 텍스쳐는 여기만 적용 */}
+      <div
+        className="absolute inset-0"
+        style={{ backgroundColor: bgColor, filter: glassEffect ? 'url(#glass-cloud)' : undefined }}
+      />
+      <nav className="relative z-[1] flex flex-col m-0 p-0">
         {items.map((item, idx) => (
           <FlowingRow
             key={idx}
@@ -172,8 +179,8 @@ function FlowingRow({
   const renderStyledText = (t: string) => {
     const parts = t.split(/\s*>\s*/).filter(Boolean)
     return parts.map((word, j) => (
-      <span key={j} className="inline-flex items-center">
-        <span className={j % 2 === 0 ? 'font-normal' : 'font-black'}>{word}</span>
+      <span key={j} className="inline-flex items-center group/word">
+        <span className={`${j % 2 === 0 ? 'font-normal' : 'font-black'} relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[3px] after:bg-current after:transition-all after:duration-300 group-hover/word:after:w-full`}>{word}</span>
         <CircleArrow />
       </span>
     ))
@@ -181,7 +188,7 @@ function FlowingRow({
 
   const marqueeParts = [...Array(reps)].map((_, i) => (
     <div className="marquee-part flex items-center shrink-0" key={i}>
-      <span className={`whitespace-nowrap font-body ${fontSize || 'text-xl md:text-2xl'} px-[2vw] tracking-wider`} style={{ transform: 'scaleY(1.3)', transformOrigin: 'center' }}>{renderStyledText(text)}</span>
+      <span className={`whitespace-nowrap font-title ${fontSize || 'text-xl md:text-2xl'} px-[2vw] tracking-wider`} style={{ transform: 'scaleY(1.3)', transformOrigin: 'center' }}>{renderStyledText(text)}</span>
       {image && (
         <div className="w-[120px] h-[40px] mx-[1vw] rounded-full bg-cover bg-center" style={{ backgroundImage: `url(${image})` }} />
       )}
@@ -194,28 +201,11 @@ function FlowingRow({
       className="relative overflow-hidden"
       style={{ borderTop: isFirst ? 'none' : `1px solid ${borderColor}`, borderBottom: `1px solid ${borderColor}` }}
     >
-      {/* Default auto-scrolling text */}
-      <div
-        className={`${padding || 'py-4 md:py-5'} cursor-pointer overflow-hidden`}
-        onMouseEnter={onEnter}
-        onMouseLeave={onLeave}
-      >
+      {/* 자동 스크롤 텍스트 */}
+      <div className={`${padding || 'py-4 md:py-5'} overflow-hidden`}>
         <div className="w-fit flex" ref={defaultInnerRef} style={{ color: textColor }}>
           {marqueeParts}
         </div>
-      </div>
-
-      {/* Hover overlay marquee */}
-      <div
-        ref={marqueeRef}
-        className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none translate-y-[101%]"
-        style={{ backgroundColor: hoverBgColor }}
-      >
-        <div className="h-full w-fit flex items-center" ref={marqueeInnerRef} style={{ color: hoverTextColor }}>
-          {marqueeParts}
-        </div>
-        {/* 밑줄 애니메이션 */}
-        <div className="absolute bottom-0 left-0 w-full h-[3px] bg-current opacity-60 animate-[slideRight_2s_linear_infinite]" />
       </div>
     </div>
   )

@@ -16,6 +16,7 @@ type MenuItem = {
 
 export type BubbleMenuProps = {
   logo: ReactNode | string;
+  onLogoClick?: () => void;
   onMenuClick?: (open: boolean) => void;
   className?: string;
   style?: CSSProperties;
@@ -33,6 +34,7 @@ const DEFAULT_ITEMS: MenuItem[] = [];
 
 export default function BubbleMenu({
   logo,
+  onLogoClick,
   onMenuClick,
   className,
   style,
@@ -59,7 +61,7 @@ export default function BubbleMenu({
     useFixedPosition ? 'fixed' : 'absolute',
     'left-0 right-0 top-8',
     'flex items-center justify-between',
-    'gap-4 px-8',
+    'gap-4 px-[6%]',
     'pointer-events-none',
     'z-[1001]',
     className
@@ -215,8 +217,9 @@ export default function BubbleMenu({
 
       <nav className={containerClassName} style={style} aria-label="Main navigation">
         <div
-          className="bubble logo-bubble relative inline-flex items-center justify-center rounded-full pointer-events-auto w-12 h-12 md:w-14 md:h-14 will-change-transform overflow-hidden"
+          className="bubble logo-bubble relative inline-flex items-center justify-center rounded-full pointer-events-auto w-12 h-12 md:w-14 md:h-14 will-change-transform overflow-hidden cursor-pointer"
           aria-label="Logo"
+          onClick={onLogoClick}
         >
           {/* 구름 배경 레이어 */}
           <div className="absolute inset-0 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.12)]" style={{ background: menuBg, filter: 'url(#bubble-cloud)' }} />

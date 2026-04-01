@@ -1,7 +1,7 @@
 """
 유틸리티 Cog
 
-기타 명령어: 피드백
+기타 명령어: 피드백, 공지
 """
 
 import discord
@@ -10,7 +10,6 @@ from discord.ext import commands
 
 from run.core import config
 from run.utils.command_logger import log_command_usage
-
 
 class UtilityCog(commands.Cog, name="기타"):
     """기타 유틸리티 명령어"""
@@ -54,6 +53,31 @@ class UtilityCog(commands.Cog, name="기타"):
             else:
                 embed.add_field(name="서버", value="개인 메시지(DM)", inline=False)
             await owner.send(embed=embed)
+
+            # 피드백 보낸 사람한테 봇이 DM (웹패널에서 확인 가능)
+            try:
+                from run.core.bot import gateway_dm_messages
+                from datetime import datetime, timezone
+                dm_msg = await interaction.user.send(
+                    f"**[피드백 접수]**\n"
+                    f"보낸 내용: {내용}\n\n"
+                    f"피드백이 개발자에게 전달되었습니다!"
+                )
+                # gateway_dm_messages에 추가 (웹패널 표시용)
+                gateway_dm_messages.append({
+                    'id': str(dm_msg.id),
+                    'content': dm_msg.content,
+                    'author': {
+                        'id': str(self.bot.user.id),
+                        'username': self.bot.user.display_name,
+                        'avatar': self.bot.user.display_avatar.url
+                    },
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
+                    'type': 'dm_sent'
+                })
+            except Exception:
+                pass
+
             await interaction.followup.send("소중한 피드백 고마워요! 개발자에게 잘 전달했어요.", ephemeral=True)
         except (ValueError, discord.NotFound):
             await interaction.followup.send("죄송해요, 개발자 정보를 찾을 수 없어서 피드백을 보낼 수 없어요.", ephemeral=True)

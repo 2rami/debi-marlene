@@ -1,16 +1,19 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import Loading from '../common/Loading'
+import { useEffect } from 'react'
 
 export default function ProtectedRoute() {
-  const { user, loading } = useAuth()
+  const { user, loading, login } = useAuth()
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && !user) {
+      login()
+    }
+  }, [loading, user, login])
+
+  if (loading || !user) {
     return <Loading />
-  }
-
-  if (!user) {
-    return <Navigate to="/" replace />
   }
 
   return <Outlet />

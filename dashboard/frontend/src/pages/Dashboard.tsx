@@ -9,8 +9,7 @@ import {
   Search,
   Server as ServerIcon,
   ExternalLink,
-  ChevronRight,
-  Sparkles
+  ChevronRight
 } from 'lucide-react'
 import AnimatedSection from '../components/common/AnimatedSection'
 
@@ -104,15 +103,15 @@ const InteractiveServerCard = ({ server, bgGradient, onHover, onLeave }: { serve
               <div style={{ transform: "translateZ(20px)" }} className="relative">
                 {server.icon ? (
                   <img
-                    src={`https://cdn.discordapp.com/icons/${server.id}/${server.icon}.png?size=256`}
+                    src={`https://cdn.discordapp.com/icons/${server.id}/${server.icon}.webp?size=256`}
                     alt={server.name}
                     className="w-20 h-20 md:w-24 md:h-24 rounded-[1.8rem] shadow-xl object-cover ring-1 ring-white/10 group-hover:ring-white/30 transition-all duration-300"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden') }}
                   />
-                ) : (
-                  <div className={`w-20 h-20 md:w-24 md:h-24 rounded-[1.8rem] flex items-center justify-center text-3xl font-black text-white shadow-xl bg-gradient-to-br ${bgGradient} ring-1 ring-white/10 group-hover:ring-white/30 transition-all duration-300`}>
-                    {getServerAcronym(server.name)}
-                  </div>
-                )}
+                ) : null}
+                <div className={`${server.icon ? 'hidden' : ''} w-20 h-20 md:w-24 md:h-24 rounded-[1.8rem] flex items-center justify-center text-3xl font-black text-white shadow-xl bg-gradient-to-br ${bgGradient} ring-1 ring-white/10 group-hover:ring-white/30 transition-all duration-300`}>
+                  {getServerAcronym(server.name)}
+                </div>
               </div>
               
               <div 
@@ -251,15 +250,11 @@ export default function Dashboard() {
         <AnimatedSection className="mb-12 md:mb-20">
           <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-6 backdrop-blur-md">
-                <Sparkles className="w-4 h-4 text-debi-primary" />
-                <span className="text-xs font-bold tracking-wider text-white/80 uppercase">Portfolio Access</span>
-              </div>
               <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-white/50 tracking-tight leading-tight mb-4">
                 서버 <br className="hidden md:block" />대시보드
               </h1>
               <p className="text-discord-muted text-lg md:text-xl font-medium leading-relaxed max-w-xl">
-                세련된 <span className="text-debi-primary font-bold">인터랙션</span>과 함께 관리할 서버를 선택하세요. 카드 위에 커서를 올려 3D 이펙트를 경험해보세요.
+                관리할 서버를 선택하세요.
               </p>
             </div>
 

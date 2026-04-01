@@ -11,6 +11,7 @@ ETERNAL_RETURN_API_KEY = os.getenv('EternalReturn_API_KEY')
 CLAUDE_API_KEY = os.getenv('CLAUDE_API_KEY')
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
 OWNER_ID = os.getenv('OWNER_ID')
+DISCORD_LOG_WEBHOOK = os.getenv('DISCORD_LOG_WEBHOOK')
 
 # API 베이스 URL
 ETERNAL_RETURN_API_BASE = "https://open-api.bser.io"

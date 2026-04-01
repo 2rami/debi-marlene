@@ -39,8 +39,9 @@ if not discord.opus.is_loaded():
         print("[경고] Opus 로드 실패 - 음성 기능 제한", flush=True)
 
 
-# Discord 봇 설정
-intents = discord.Intents.all()  # 모든 Intents 활성화 (Gateway 기능용)
+# Discord 봇 설정 (Presence Intent 제외 - Discord 인증 미승인)
+intents = discord.Intents.all()
+intents.presences = False
 
 
 class DebiMarleneBot(commands.Bot):
@@ -50,7 +51,10 @@ class DebiMarleneBot(commands.Bot):
         await setup_all_cogs(self)
 
     async def close(self):
-        """봇 종료 시 TTS 사용 중인 채널에 재시작 알림 전송"""
+        """봇 종료 시 TTS 사용 중인 채널에 재시작 알림 전송 + Webhook 알림"""
+        from run.services.webhook_logger import notify_bot_stopping
+        await notify_bot_stopping()
+
         try:
             from run.services.voice_manager import voice_manager
             for guild_id, vc in list(voice_manager.voice_clients.items()):
@@ -282,9 +286,28 @@ async def update_server_info_to_gcs():
 
 # ========== CommandNotFound 에러 핸들러 ==========
 
+@bot.event
+async def on_error(event, *args, **kwargs):
+    """모든 이벤트 핸들러에서 발생하는 에러를 잡아서 Webhook으로 전송"""
+    import sys, traceback
+    from run.services.webhook_logger import notify_error
+
+    exc_type, exc_value, exc_tb = sys.exc_info()
+    if exc_value:
+        await notify_error(exc_value, context=f"이벤트: {event}")
+    traceback.print_exc()
+
+
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
     """슬래시 커맨드 에러 처리"""
+    # Webhook으로 에러 전송 (CommandNotFound 제외)
+    if not isinstance(error, discord.app_commands.CommandNotFound):
+        from run.services.webhook_logger import notify_error
+        cmd_name = interaction.data.get("name", "?") if interaction.data else "?"
+        guild_name = interaction.guild.name if interaction.guild else "DM"
+        await notify_error(error, context=f"명령어: /{cmd_name} (서버: {guild_name})")
+
     if isinstance(error, discord.app_commands.CommandNotFound):
         cmd_name = interaction.data.get("name", "?") if interaction.data else "?"
         guild_name = interaction.guild.name if interaction.guild else "DM"
@@ -331,6 +354,10 @@ async def on_ready():
     total_members = sum(guild.member_count for guild in bot.guilds if guild.member_count)
     print(f"[정보] 현재 {guild_count}개 서버에 연결되었습니다, 총 {total_members}명 사용자", flush=True)
     sys.stdout.flush()
+
+    # 봇 시작 Webhook 알림
+    from run.services.webhook_logger import notify_bot_started
+    await notify_bot_started()
 
     # 최초 1회만 실행 (RESUME 재연결 시 중복 실행 방지)
     if hasattr(bot, '_ready_once'):

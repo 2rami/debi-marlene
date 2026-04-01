@@ -33,7 +33,13 @@ def run_bot():
 def main():
     """메인 실행 함수"""
     print("[시작] 데비&마를렌 봇을 시작합니다...", flush=True)
-    run_bot()
+    try:
+        run_bot()
+    except Exception as e:
+        print(f"[크래시] 봇 프로세스가 예외로 종료되었습니다: {e}", flush=True)
+        from run.services.webhook_logger import notify_crash
+        notify_crash(e)
+        raise
 
 
 if __name__ == "__main__":

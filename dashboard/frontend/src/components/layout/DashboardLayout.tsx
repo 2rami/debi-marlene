@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useLocation, useParams, Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { api } from '../../services/api'
+import LOGO from '../../assets/images/profile.jpg'
+import EMOTICON from '../../assets/images/event/emoticon_uniform.png'
 
 const getServerAcronym = (name: string) => {
   const acronym = name.split(/\s+/).map(w => w[0]).join('').substring(0, 3).toUpperCase()
@@ -100,13 +102,12 @@ export default function DashboardLayout({ children }: Props) {
       <div className="min-h-screen bg-discord-dark">
         {/* Top Header */}
         <header className="h-16 bg-discord-darker border-b border-discord-light/10">
-          <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
+          <div className="max-w-[1600px] mx-auto px-6 md:px-12 lg:px-16 h-full flex items-center justify-between">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-3">
+            <Link to="/landing" className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg">
-                <img src="" alt="Debi & Marlene Logo" className="w-full h-full object-cover" />
+                <img src={LOGO} alt="Logo" className="w-full h-full object-cover" />
               </div>
-              <span className="text-white font-semibold text-lg">Debi & Marlene</span>
             </Link>
 
             {/* Navigation */}
@@ -162,12 +163,10 @@ export default function DashboardLayout({ children }: Props) {
                 <span className="text-sm text-white">{user?.username}</span>
                 <button
                   onClick={logout}
-                  className="p-1.5 text-discord-muted hover:text-discord-red rounded transition-colors"
+                  className="w-8 h-8 rounded-full overflow-hidden hover:scale-110 transition-transform"
                   title="로그아웃"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
+                  <img src={EMOTICON} alt="Logout" className="w-full h-full object-cover" />
                 </button>
               </div>
             </nav>

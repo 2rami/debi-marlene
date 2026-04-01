@@ -16,25 +16,11 @@ interface PatchNote {
 
 const patchNotes: PatchNote[] = [
     {
-        version: '1.2.0',
-        date: '2025.05.20',
+        version: 'beta',
+        date: '2026.04.02',
         type: 'feature',
-        title: '대시보드 & 모바일 최적화',
-        description: '웹패널과 대시보드가 모바일 환경에 최적화되었습니다! 이제 폰에서도 편하게 관리하세요.',
-    },
-    {
-        version: '1.1.5',
-        date: '2025.05.15',
-        type: 'improvement',
-        title: 'PWA 지원',
-        description: '이제 데비&마를렌 대시보드를 앱처럼 홈 화면에 추가하여 사용할 수 있습니다.',
-    },
-    {
-        version: '1.1.0',
-        date: '2025.05.01',
-        type: 'fix',
-        title: '이미지 로딩 & 성능 개선',
-        description: '일부 이미지가 로딩되지 않는 문제를 수정하고 전반적인 로딩 속도를 개선했습니다.',
+        title: '웹 대시보드 페이지 전체 개편',
+        description: '랜딩 페이지가 완전히 새로워졌습니다. 패럴랙스 스크롤, 캐릭터 전기 아웃라인, 봇 기능 소개 섹션, TTS 데모 오디오 플레이어, 인형뽑기 인트로 등 다양한 인터랙티브 요소가 추가되었습니다.',
     },
 ]
 

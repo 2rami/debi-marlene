@@ -337,8 +337,9 @@ const SECTIONS = [
   { id: 'tts', label: 'TTS 엔진' },
   { id: 'architecture', label: '아키텍처' },
   { id: 'techstack', label: '기술 스택' },
-  { id: 'code', label: '코드' },
+  { id: 'ai-workflow', label: 'AI 워크플로우' },
   { id: 'deploy', label: '배포 환경' },
+  { id: 'troubleshoot', label: '트러블슈팅' },
   { id: 'process', label: '프로세스' },
   { id: 'match', label: '공고 매칭' },
 ]
@@ -990,8 +991,8 @@ export default function Portfolio() {
         </div>
       </section>
 
-      {/* ══ CODE HIGHLIGHTS ══ */}
-      <section id="code" className="py-24 relative">
+      {/* ══ AI WORKFLOW ══ */}
+      <section id="ai-workflow" className="py-24 relative">
         <div className={`absolute inset-0 ${isDark ? 'bg-white/[0.01]' : 'bg-gray-50/50'}`} />
         <div className="relative max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
@@ -999,126 +1000,201 @@ export default function Portfolio() {
               containerClassName="font-title bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent leading-tight"
               textClassName="text-4xl md:text-[64px]"
             >
-              코드 하이라이트
+              AI 워크플로우
             </ScrollFloat>
-          </div>
-
-          <div className="space-y-8">
-            {/* Code 1: GCS 하이브리드 스토리지 */}
-            <FadeIn className={`rounded-2xl border overflow-hidden ${isDark ? 'border-white/[0.06]' : 'border-gray-200'}`}>
-              <div className={`px-5 py-3 flex items-center justify-between ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`}>
-                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>GCS 하이브리드 스토리지 시스템</span>
-                <span className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>run/core/config.py</span>
-              </div>
-              <div className={`px-5 py-3 border-b ${isDark ? 'border-white/[0.04] bg-white/[0.02]' : 'border-gray-100 bg-gray-50/50'}`}>
-                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <span className={`font-bold ${isDark ? 'text-white' : 'text-gray-700'}`}>문제:</span> Cloud Run의 일시적 스토리지 한계로 상태 유지 불가
-                </p>
-                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <span className={`font-bold ${isDark ? 'text-white' : 'text-gray-700'}`}>해결:</span> GCS를 주 저장소로, 로컬을 백업으로 사용하는 하이브리드 전략. 5초 캐시로 성능 최적화
-                </p>
-              </div>
-              <pre className={`px-5 py-4 text-xs leading-relaxed overflow-x-auto ${isDark ? 'bg-[#0d1117] text-gray-300' : 'bg-[#1e1e2e] text-gray-300'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>{`def load_settings():
-    """GCS 또는 로컬 백업에서 설정 파일을 로드합니다."""
-    global settings_cache, cache_timestamp
-    current_time = time.time()
-
-    # 캐시된 설정이 있고 아직 유효하면 사용
-    if settings_cache and (current_time - cache_timestamp) < CACHE_DURATION:
-        return settings_cache.copy()
-
-    # 1순위: GCS에서 로드
-    client = get_gcs_client()
-    if client:
-        try:
-            bucket = client.bucket(GCS_BUCKET)
-            blob = bucket.blob(GCS_KEY)
-            settings = json.loads(blob.download_as_text())
-            settings_cache = settings.copy()
-            cache_timestamp = current_time
-            return settings
-        except Exception as e:
-            print(f"[경고] GCS 로드 실패: {e}")
-
-    # 2순위: 로컬 백업 (GCS 실패 시 폴백)
-    if os.path.exists(backup_file):
-        with open(backup_file, 'r') as f:
-            return json.load(f)
-
-    return {"guilds": {}, "users": {}, "global": {}}`}</pre>
-            </FadeIn>
-
-            {/* Code 2: 비동기 병렬 API */}
-            <FadeIn delay={0.1} className={`rounded-2xl border overflow-hidden ${isDark ? 'border-white/[0.06]' : 'border-gray-200'}`}>
-              <div className={`px-5 py-3 flex items-center justify-between ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`}>
-                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>비동기 병렬 API 호출 (9개 동시)</span>
-                <span className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>run/services/eternal_return/api_client.py</span>
-              </div>
-              <div className={`px-5 py-3 border-b ${isDark ? 'border-white/[0.04] bg-white/[0.02]' : 'border-gray-100 bg-gray-50/50'}`}>
-                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <span className={`font-bold ${isDark ? 'text-white' : 'text-gray-700'}`}>특징:</span> 9개의 서로 다른 API를 asyncio.gather()로 동시 호출하여 초기화 시간 단축
-                </p>
-              </div>
-              <pre className={`px-5 py-4 text-xs leading-relaxed overflow-x-auto ${isDark ? 'bg-[#0d1117] text-gray-300' : 'bg-[#1e1e2e] text-gray-300'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>{`async def initialize_game_data():
-    """게임 데이터 초기화 - 9개 API 병렬 호출"""
-    timeout = aiohttp.ClientTimeout(total=15)
-    async with aiohttp.ClientSession(
-        headers=API_HEADERS, timeout=timeout
-    ) as session:
-        tasks = {
-            'current_season': session.get(".../current-season"),
-            'seasons': session.get(f"{BASE}/data/seasons?hl=ko"),
-            'characters': session.get(f"{BASE}/data/characters?hl=ko"),
-            'tiers': session.get(f"{BASE}/data/tiers?hl=ko"),
-            'items': session.get(f"{BASE}/data/items?hl=ko"),
-            'masteries': session.get(f"{BASE}/data/masteries?hl=ko"),
-            'trait_skills': session.get(f"{BASE}/data/trait-skills?hl=ko"),
-            'tactical_skills': session.get(f"{BASE}/data/tactical-skills?hl=ko"),
-            'weathers': session.get(f"{BASE}/data/weathers?hl=ko"),
-        }
-
-        # 모든 응답을 동시에 대기
-        responses = await asyncio.gather(
-            *tasks.values(), return_exceptions=True
-        )`}</pre>
-            </FadeIn>
-
-            {/* Code 3: CosyVoice3 Modal TTS */}
-            <FadeIn delay={0.15} className={`rounded-2xl border overflow-hidden ${isDark ? 'border-white/[0.06]' : 'border-gray-200'}`}>
-              <div className={`px-5 py-3 flex items-center justify-between ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`}>
-                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>CosyVoice3 Modal 서버리스 GPU 배포</span>
-                <span className={`text-xs ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>run/services/tts/cosyvoice3_modal_server.py</span>
-              </div>
-              <div className={`px-5 py-3 border-b ${isDark ? 'border-white/[0.04] bg-white/[0.02]' : 'border-gray-100 bg-gray-50/50'}`}>
-                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <span className={`font-bold ${isDark ? 'text-white' : 'text-gray-700'}`}>AI:</span> CosyVoice3 파인튜닝 모델로 캐릭터별 음성 합성. HuggingFace에서 모델 Pull → T4 GPU 실시간 추론
-                </p>
-              </div>
-              <pre className={`px-5 py-4 text-xs leading-relaxed overflow-x-auto ${isDark ? 'bg-[#0d1117] text-gray-300' : 'bg-[#1e1e2e] text-gray-300'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>{`import modal
-
-app = modal.App("cosyvoice3-tts")
-
-@app.cls(gpu="T4", image=tts_image, secrets=[hf_secret])
-class CosyVoice3Service:
-    @modal.enter()
-    def load_model(self):
-        """컨테이너 시작 시 모델 로드 (cold start ~58초)"""
-        from cosyvoice.cli.cosyvoice import CosyVoice3
-        self.model = CosyVoice3("CosyVoice3-0.5B-2512")
-        # 파인튜닝된 체크포인트 로드
-        self.model.load_finetuned("2R4mi/cosyvoice3-eternal-return")
-
-    @modal.method()
-    def synthesize(self, text: str, character: str) -> bytes:
-        """텍스트를 캐릭터 음성으로 변환"""
-        output = self.model.inference_instruct2(
-            text, character,
-            stream=False
-        )
-        # PCM -> WAV 변환 후 반환
-        return audio_to_wav_bytes(output['tts_speech'])`}</pre>
+            <FadeIn delay={0.1}>
+              <p className={`text-lg max-w-2xl mx-auto mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                이 프로젝트의 모든 코드는 Claude Code CLI로 작성되었습니다.<br />
+                AI를 도구로 활용하기 위해 구축한 환경과 워크플로우.
+              </p>
             </FadeIn>
           </div>
+
+          {/* 1. Claude Code 환경 */}
+          <FadeIn>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#7aa2f7]' : 'text-blue-600'}`}>
+              Claude Code 환경
+            </h3>
+          </FadeIn>
+          <div className="grid md:grid-cols-2 gap-4 mb-12">
+            <FadeIn delay={0.05}>
+              <div className={`rounded-2xl border p-5 h-full ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#7aa2f720' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#7aa2f7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/><path d="M14 2v6h6"/></svg>
+                  </div>
+                  <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>CLAUDE.md</div>
+                </div>
+                <div className={`text-sm space-y-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p>프로젝트 루트에 CLAUDE.md를 작성하여 AI에게 프로젝트 구조, 코딩 규칙, 배포 방법을 알려줌.</p>
+                  <p>새 대화를 시작해도 프로젝트 컨텍스트가 즉시 로드되어 반복 설명이 불필요.</p>
+                  <div className={`text-xs mt-2 px-3 py-2 rounded-lg font-mono ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`}>
+                    포트 할당 / 역할 분리 / 배포 명령어 / 코딩 규칙 등 문서화
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={0.1}>
+              <div className={`rounded-2xl border p-5 h-full ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#73daca20' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#73daca"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  </div>
+                  <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>파일 메모리 시스템</div>
+                </div>
+                <div className={`text-sm space-y-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p>Google Drive에 메모리 디렉토리를 두고 대화 간 연속성 유지. 유저 프로필, 피드백, 프로젝트 컨텍스트를 타입별로 관리.</p>
+                  <p>이전 대화에서 학습한 코딩 스타일과 의사결정을 다음 대화에서도 기억.</p>
+                  <div className={`text-xs mt-2 px-3 py-2 rounded-lg font-mono ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`}>
+                    user / feedback / project / reference 타입으로 구분
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={0.15}>
+              <div className={`rounded-2xl border p-5 h-full ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#e0af6820' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#e0af68"><path d="M12 22c1.1 0 2-.9 2-2h-4a2 2 0 002 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                  </div>
+                  <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>Hooks</div>
+                </div>
+                <div className={`text-sm space-y-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p>UserPromptSubmit 훅으로 매 프롬프트를 세션별 파일로 저장. 상태라인에서 현재 작업 내용을 실시간으로 표시하는 데 활용.</p>
+                  <div className={`text-xs mt-2 px-3 py-2 rounded-lg font-mono ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`}>
+                    settings.json &rarr; hooks.UserPromptSubmit &rarr; Python 스크립트
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={0.2}>
+              <div className={`rounded-2xl border p-5 h-full ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#bb9af720' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#bb9af7"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+                  </div>
+                  <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>커스텀 Statusline</div>
+                </div>
+                <div className={`text-sm space-y-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p>직접 만든 오픈소스 statusline. Nerd Font 아이콘 + Tokyo Night 컬러로 모델명, git 브랜치, 컨텍스트 사용률, 현재 프롬프트를 실시간 표시.</p>
+                  <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>D2CodingLigature Nerd Font 적용 필요. GitHub에 오픈소스로 공개.</p>
+                  <div className={`text-xs mt-2 px-3 py-2 rounded-lg font-mono ${isDark ? 'bg-[#1a1b26] text-[#c0caf5]' : 'bg-[#1a1b26] text-[#c0caf5]'}`}>
+                    <span style={{color:'#7aa2f7'}}>Opus 4.5</span> <span style={{color:'#565f89'}}>|</span> <span style={{color:'#73daca'}}>main</span> <span style={{color:'#565f89'}}>|</span> <span style={{color:'#bb9af7'}}>debi-marlene</span> <span style={{color:'#565f89'}}>|</span> <span style={{color:'#ff9e64'}}>42%</span> <span style={{color:'#565f89'}}>|</span> <span style={{color:'#73daca'}}>deploy...</span>
+                  </div>
+                  <a href="https://github.com/2rami/claude-code-simple-statusline" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs mt-1" style={{color: isDark ? '#7aa2f7' : '#3b82f6'}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    2rami/claude-code-simple-statusline
+                  </a>
+                </div>
+              </div>
+            </FadeIn>
+          </div>
+
+          {/* 2. MCP 서버 */}
+          <FadeIn>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#ff9e64]' : 'text-orange-600'}`}>
+              MCP 서버 (Model Context Protocol)
+            </h3>
+          </FadeIn>
+          <FadeIn delay={0.05}>
+            <div className={`rounded-2xl border p-5 mb-4 ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+              <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Claude Code에 외부 도구를 연결하는 MCP 서버를 활용하여 브라우저 제어, 디자인 시스템 연동, 최신 문서 조회 등을 AI가 직접 수행.
+              </p>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[
+                  { name: 'Context7', desc: '라이브러리/프레임워크 최신 문서를 실시간 조회. 학습 데이터 이후 변경사항도 반영', color: '#43b581' },
+                  { name: 'Figma MCP', desc: '피그마 디자인을 읽어서 코드로 변환. 디자인 토큰과 컴포넌트 구조 자동 추출', color: '#a259ff' },
+                  { name: 'Chrome DevTools', desc: '브라우저를 직접 제어하여 디버깅, 스크린샷 캡처, 네트워크 분석, Lighthouse 감사', color: '#4285f4' },
+                  { name: 'Playwright', desc: 'E2E 테스트 자동화. 폼 입력, 클릭, 네비게이션을 AI가 직접 수행', color: '#45ba4b' },
+                  { name: 'HuggingFace Skills', desc: 'HF Hub 모델/데이터셋 관리, Gradio 앱 빌드, Jobs 실행, 논문 조회', color: '#ff9d00' },
+                  { name: 'Memory (Knowledge Graph)', desc: '엔티티/관계 기반 지식 그래프로 프로젝트 지식을 구조화하여 저장', color: '#e58fb6' },
+                ].map((mcp, i) => (
+                  <div key={i} className={`px-4 py-3 rounded-xl border ${isDark ? 'bg-white/[0.02] border-white/[0.04]' : 'bg-gray-50/80 border-gray-200/50'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: mcp.color }} />
+                      <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{mcp.name}</span>
+                    </div>
+                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{mcp.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </FadeIn>
+
+          {/* 3. Skills + 병렬 에이전트 */}
+          <FadeIn>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 mt-8 ${isDark ? 'text-[#73daca]' : 'text-teal-600'}`}>
+              Skills / 병렬 에이전트
+            </h3>
+          </FadeIn>
+          <div className="grid md:grid-cols-3 gap-4">
+            <FadeIn delay={0.05}>
+              <div className={`rounded-2xl border p-5 h-full ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>커스텀 Skills + CLI 도구</div>
+                <div className={`text-sm space-y-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p>반복 워크플로우를 /slash 명령으로 자동화. Google Workspace CLI로 Gmail/Drive/Calendar 조작, Obsidian CLI로 노트 관리까지 AI가 직접 수행.</p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {['frontend-design', 'chrome-devtools', 'a11y-debugging', 'discord', 'huggingface', 'gws (Google Workspace)', 'obsidian'].map(s => (
+                      <span key={s} className={`text-xs px-2 py-1 rounded-md font-mono ${isDark ? 'bg-white/[0.05] text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                        /{s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={0.1}>
+              <div className={`rounded-2xl border p-5 h-full ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>병렬 에이전트 + tmux</div>
+                <div className={`text-sm space-y-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p>독립적인 작업을 여러 서브 에이전트에게 동시에 위임. tmux 분할로 여러 Claude Code 세션을 동시 실행하고 Teams로 진행 상황을 실시간 공유.</p>
+                  <div className={`text-xs mt-3 px-3 py-2 rounded-lg ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`}>
+                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>예시:</span> 6개 컴포넌트 다크모드 점검을 6개 에이전트가 동시에 수행 (이 포트폴리오 작업 중 실제 사용)
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={0.15}>
+              <div className={`rounded-2xl border p-5 h-full ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>Remote Control (모바일)</div>
+                <div className={`text-sm space-y-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p>Claude Code의 Remote Control 기능으로 폰에서도 개발. 이동 중에 웹 브라우저로 원격 세션에 접속하여 코드 수정, 배포, 디버깅 수행.</p>
+                  <div className={`text-xs mt-3 px-3 py-2 rounded-lg ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`}>
+                    PC의 Claude Code 세션을 폰 브라우저에서 그대로 이어서 작업
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+          </div>
+
+          {/* 워크플로우 요약 */}
+          <FadeIn delay={0.15} className="mt-8">
+            <div className={`rounded-2xl border p-5 ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+              <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>실제 워크플로우</div>
+              <div className="flex flex-col md:flex-row items-stretch gap-3">
+                {[
+                  { step: '01', title: '컨텍스트 로드', desc: 'CLAUDE.md + 메모리에서 프로젝트 상태와 이전 결정사항 자동 로드', color: '#7aa2f7' },
+                  { step: '02', title: '작업 분해', desc: 'TaskCreate로 할 일 목록 생성. 독립 작업은 병렬 에이전트로 위임', color: '#73daca' },
+                  { step: '03', title: '구현 + 검증', desc: 'MCP로 문서 조회 / 브라우저 디버깅. 선택지를 제시하고 유저와 의사결정', color: '#e0af68' },
+                  { step: '04', title: '배포', desc: 'make deploy 한 줄로 빌드 + 업로드 + 캐시 퍼지. 메모리에 결과 기록', color: '#bb9af7' },
+                ].map((item, i) => (
+                  <div key={i} className="flex-1 flex items-start gap-3">
+                    <div className="text-2xl font-black shrink-0" style={{ color: item.color, opacity: 0.3 }}>{item.step}</div>
+                    <div>
+                      <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</div>
+                      <div className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </FadeIn>
         </div>
       </section>
 
@@ -1259,6 +1335,205 @@ class CosyVoice3Service:
               </div>
             </div>
           </FadeIn>
+        </div>
+      </section>
+
+      {/* ══ TROUBLESHOOTING ══ */}
+      <section id="troubleshoot" className="py-24 relative">
+        <div className={`absolute inset-0 ${isDark ? 'bg-white/[0.01]' : 'bg-gray-50/50'}`} />
+        <div className="relative max-w-5xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <ScrollFloat
+              containerClassName="font-title bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent leading-tight"
+              textClassName="text-4xl md:text-[64px]"
+            >
+              트러블슈팅
+            </ScrollFloat>
+            <FadeIn delay={0.1}>
+              <p className={`text-lg max-w-2xl mx-auto mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                개발 중 만난 실제 문제들과 해결 과정.<br />
+                에러 로그를 읽고, 원인을 추적하고, 직접 해결한 기록.
+              </p>
+            </FadeIn>
+          </div>
+
+          {/* TTS 트러블슈팅 */}
+          <FadeIn>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#9c27b0]' : 'text-purple-600'}`}>
+              TTS Engine
+            </h3>
+          </FadeIn>
+          <div className="space-y-4 mb-12">
+            {[
+              {
+                title: 'CosyVoice3 bfloat16 비트박스 현상',
+                problem: 'T4 GPU에서 파인튜닝된 CosyVoice3 모델로 추론하면 음성 대신 비트박스 소리가 출력됨.',
+                cause: 'pretrained checkpoint가 bfloat16로 저장되어 있어서 float16으로 변환해도, 모델 로드 시 weight가 bfloat16으로 다시 덮어써짐. T4는 bfloat16 하드웨어 미지원이라 연산이 깨짐.',
+                solution: 'T4에서도 bfloat16을 소프트웨어 에뮬레이션으로 사용하도록 강제. pretrained 구조를 건드리지 않고 런타임에서 해결.',
+                color: '#9c27b0',
+              },
+              {
+                title: 'Qwen2 Attention 구현체 충돌',
+                problem: 'Qwen2ForCausalLM.from_pretrained()에 attn_implementation 파라미터를 지정하면 비트박스 소리 발생.',
+                cause: 'Qwen2는 Sliding Window Attention(SWA)을 사용하는데, eager/sdpa로 강제하면 attention 패턴이 깨짐. transformers 5.x에서는 기본 attention이 바뀌어 동일 현상 발생.',
+                solution: 'attn_implementation 파라미터를 절대 지정하지 않도록 코드 수정. transformers 4.51.3으로 버전 고정.',
+                color: '#9c27b0',
+              },
+              {
+                title: 'Modal Serverless Cold Start 58초',
+                problem: 'Modal에 TTS 서버를 배포했지만 콜드 스타트가 58초로, 첫 TTS 요청 시 유저가 1분을 기다려야 함.',
+                cause: '매 콜드 스타트마다 HuggingFace에서 600MB+ 모델을 다운로드하고 GPU에 로드하는 시간. 기존에는 채팅 메시지를 보내야 서버가 켜지기 시작.',
+                solution: '/tts 명령으로 봇이 음성채널에 입장하는 순간 Modal 서버를 미리 워밍업. 채팅 컴포넌트에 accent color + 메시지로 워밍업 상태를 시각적으로 표시. Volume 캐싱으로 warm RTF 1.5~2.2x.',
+                color: '#9c27b0',
+              },
+            ].map((item, i) => (
+              <FadeIn key={i} delay={i * 0.05}>
+                <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                  <div className="flex items-stretch">
+                    <div className="w-1 shrink-0" style={{ backgroundColor: item.color }} />
+                    <div className="flex-1 p-5">
+                      <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</div>
+                      <div className="grid md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#ed4245' }}>Problem</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.problem}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#faa61a' }}>Root Cause</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.cause}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#43b581' }}>Solution</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.solution}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+
+          {/* 인프라 트러블슈팅 */}
+          <FadeIn>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#3cabc9]' : 'text-cyan-600'}`}>
+              Infrastructure
+            </h3>
+          </FadeIn>
+          <div className="space-y-4 mb-12">
+            {[
+              {
+                title: 'AWS -> GCP 전환 결정',
+                problem: 'AWS Lambda + API Gateway로 봇을 구성했으나 복잡한 설정과 높은 비용 구조.',
+                cause: 'Discord 봇은 WebSocket 상시 연결이 필요한데, Lambda는 stateless 함수 모델이라 근본적으로 맞지 않음. 매 요청마다 cold start 발생.',
+                solution: 'GCP Compute Engine VM으로 전환. Docker 컨테이너로 봇을 24시간 구동. Cloud Run도 시도했지만 WebSocket 제약으로 최종적으로 VM 확정.',
+                color: '#3cabc9',
+              },
+              {
+                title: 'VM 1GB 메모리 부족으로 봇 크래시',
+                problem: 'GCP VM(e2-micro)에서 봇이 주기적으로 죽음. Docker 로그에 OOM(Out of Memory) 흔적.',
+                cause: 'e2-micro 인스턴스는 메모리 1GB. 봇 + 웹패널 백엔드 + nginx-proxy + Docker 오버헤드를 합치면 물리 메모리 초과. 리눅스 OOM Killer가 가장 큰 프로세스(봇)를 강제 종료.',
+                solution: 'swap 파일을 생성하여 가상 메모리 확보. 디스크 I/O 성능이 약간 떨어지지만 OOM 크래시 완전 해결. 비용 증가 없이 안정성 확보.',
+                color: '#3cabc9',
+              },
+              {
+                title: 'VM 포트 충돌 (봇 vs 웹패널)',
+                problem: '봇 컨테이너와 웹패널 백엔드가 동시에 포트 8080을 사용하려 해서 하나가 실행 불가.',
+                cause: '봇 Docker 컨테이너가 5001과 8080 두 포트를 바인딩하고 있었는데, 웹패널 백엔드도 8080이 필요했음.',
+                solution: '봇 컨테이너에서 불필요한 8080 바인딩을 제거하고 5001만 유지. 웹패널 백엔드가 8080을 단독 사용. nginx-proxy로 도메인별 라우팅.',
+                color: '#3cabc9',
+              },
+              {
+                title: 'PWA Service Worker 캐시 문제',
+                problem: '프론트엔드를 배포해도 유저에게 이전 버전이 계속 보임. 강제 새로고침해도 동일.',
+                cause: 'PWA의 Service Worker가 정적 파일을 로컬에 캐싱하고, Cloudflare CDN까지 이중으로 캐싱. SW가 새 버전을 감지하지 못하면 영원히 이전 버전을 서빙.',
+                solution: 'Makefile 배포 스크립트에 Cloudflare API 캐시 퍼지 단계를 추가. 배포 완료 직후 자동으로 CDN 캐시 무효화하여 SW가 새 버전을 받을 수 있도록 처리.',
+                color: '#3cabc9',
+              },
+            ].map((item, i) => (
+              <FadeIn key={i} delay={i * 0.05}>
+                <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                  <div className="flex items-stretch">
+                    <div className="w-1 shrink-0" style={{ backgroundColor: item.color }} />
+                    <div className="flex-1 p-5">
+                      <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</div>
+                      <div className="grid md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#ed4245' }}>Problem</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.problem}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#faa61a' }}>Root Cause</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.cause}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#43b581' }}>Solution</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.solution}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+
+          {/* 웹패널/대시보드 트러블슈팅 */}
+          <FadeIn>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#e58fb6]' : 'text-pink-600'}`}>
+              Web Panel / Dashboard
+            </h3>
+          </FadeIn>
+          <div className="space-y-4">
+            {[
+              {
+                title: 'API Key 누락 -- 개발/프로덕션 환경 차이',
+                problem: '웹패널에서 멤버 프로필 클릭이 개발 환경에서는 정상이지만 프로덕션에서 401 에러.',
+                cause: 'fetch() 호출 시 API_URL prefix 누락 + X-API-Key 헤더 미포함. 개발 환경에서는 Vite proxy가 자동 처리해서 문제가 드러나지 않음.',
+                solution: '모든 API 호출에 API_URL prefix와 인증 헤더를 통일. 같은 기능의 다른 컴포넌트(ChannelList)에는 있고 MemberList에는 없던 불일치 발견 후 수정.',
+                color: '#e58fb6',
+              },
+              {
+                title: 'SSE 스트리밍 로그가 한 번에 출력',
+                problem: '웹패널의 실시간 봇 로그가 한 줄씩 나오지 않고 수십 줄이 한꺼번에 뭉쳐서 도착.',
+                cause: 'nginx가 기본적으로 proxy 응답을 버퍼링하기 때문에 Server-Sent Events가 버퍼에 쌓였다가 한번에 flush됨.',
+                solution: 'nginx 설정에 proxy_buffering off, X-Accel-Buffering: no 헤더 추가. SSE 연결에서 실시간 스트리밍 정상 동작.',
+                color: '#e58fb6',
+              },
+              {
+                title: 'Discord Components V2 렌더링',
+                problem: 'Discord가 새로 도입한 Components V2(Container, Section, TextDisplay 등)가 웹패널에서 빈 메시지로 표시.',
+                cause: '기존 메시지 렌더러가 Embed만 처리하고, Components V2의 새로운 JSON 구조(components 배열)를 파싱하지 못함.',
+                solution: 'Container, Section, TextDisplay, MediaGallery, Separator, ActionRow, Button 각각의 렌더러를 구현. 재귀적으로 중첩 컴포넌트를 처리.',
+                color: '#e58fb6',
+              },
+            ].map((item, i) => (
+              <FadeIn key={i} delay={i * 0.05}>
+                <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                  <div className="flex items-stretch">
+                    <div className="w-1 shrink-0" style={{ backgroundColor: item.color }} />
+                    <div className="flex-1 p-5">
+                      <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</div>
+                      <div className="grid md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#ed4245' }}>Problem</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.problem}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#faa61a' }}>Root Cause</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.cause}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#43b581' }}>Solution</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.solution}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
         </div>
       </section>
 

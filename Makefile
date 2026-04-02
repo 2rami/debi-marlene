@@ -82,15 +82,18 @@ deploy-webpanel-quick: deploy-webpanel-frontend deploy-webpanel-backend-quick
 # 웹패널 백엔드 빠른 배포 (Docker 리빌드 없이 코드만 교체)
 deploy-webpanel-backend-quick:
 	@echo "[1/3] 웹패널 백엔드 코드를 VM에 업로드 중..."
-	@tar -czf /tmp/wb-quick.tar.gz --exclude='__pycache__' --exclude='*.pyc' webpanel/backend/ run/__init__.py run/core/
-	@gcloud compute scp /tmp/wb-quick.tar.gz $(VM_NAME):~/wb-quick.tar.gz --zone=$(ZONE)
+	@tar -czf ./wb-quick.tar.gz --exclude='__pycache__' --exclude='*.pyc' \
+		$$(ls -d webpanel/backend/ 2>/dev/null) \
+		$$(ls -d run/__init__.py 2>/dev/null) \
+		$$(ls -d run/core/ 2>/dev/null)
+	@gcloud compute scp ./wb-quick.tar.gz $(VM_NAME):~/wb-quick.tar.gz --zone=$(ZONE)
 	@echo "[2/3] 컨테이너에 복사 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="mkdir -p ~/wb-quick && tar -xzf ~/wb-quick.tar.gz -C ~/wb-quick && docker cp ~/wb-quick/webpanel/backend/. webpanel-backend:/app/backend/ && docker cp ~/wb-quick/run/. webpanel-backend:/app/run/ && rm -rf ~/wb-quick ~/wb-quick.tar.gz"
 	@echo "[3/3] 컨테이너 재시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker restart webpanel-backend"
-	@rm -f /tmp/wb-quick.tar.gz
+	@rm -f ./wb-quick.tar.gz
 	@echo "웹패널 백엔드 빠른 배포 완료!"
 
 # ============================================================

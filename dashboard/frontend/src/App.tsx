@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import CharacterSelect from './pages/CharacterSelect'
@@ -16,11 +17,22 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import BotGuide from './pages/BotGuide'
 import Portfolio from './pages/Portfolio'
 
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    const lenis = (window as any).__lenis
+    if (lenis) lenis.scrollTo(0, { immediate: true })
+    else window.scrollTo(0, 0)
+  }, [pathname])
+  return null
+}
+
 function App() {
   return (
     <ThemeProvider>
     <AuthProvider>
       <div className="min-h-screen bg-discord-darkest">
+        <ScrollToTop />
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<CharacterSelect />} />

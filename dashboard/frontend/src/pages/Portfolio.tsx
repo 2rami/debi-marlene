@@ -202,17 +202,16 @@ function Screenshot({ src, alt, delay = 0 }: { src: string; alt: string; delay?:
   )
 }
 
-/* ── Theme Toggle Button (with intro animation) ── */
+/* ── Theme Toggle Button (StarBorder intro → shrink) ── */
 function ThemeToggle() {
   const { isDark, toggle } = useTheme()
   const [expanded, setExpanded] = useState(true)
   const hasInteracted = useRef(false)
 
-  // 3초 후 자동 축소 (클릭 안 했으면)
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!hasInteracted.current) setExpanded(false)
-    }, 3500)
+    }, 4500)
     return () => clearTimeout(timer)
   }, [])
 
@@ -224,41 +223,108 @@ function ThemeToggle() {
     }
   }
 
+  const starColor = isDark ? '#7DE8ED' : '#3cabc9'
+
   return (
     <motion.button
       onClick={handleClick}
       layout
-      className={`fixed bottom-6 right-6 z-50 flex items-center justify-center gap-2.5 shadow-lg cursor-pointer ${
-        expanded ? 'rounded-2xl px-5 py-3' : 'rounded-full w-12 h-12'
-      } ${
-        isDark ? 'bg-white/10 border border-white/20 text-white' : 'bg-white border border-gray-200 text-gray-700'
-      }`}
+      className={`fixed bottom-6 right-6 z-50 cursor-pointer overflow-hidden ${expanded ? 'rounded-2xl' : 'rounded-full'}`}
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.8 }}
-      whileHover={{ scale: expanded ? 1.02 : 1.1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.5 }}
+      whileHover={{ scale: expanded ? 1.03 : 1.1 }}
       aria-label="Toggle theme"
+      style={{ padding: expanded ? '2px 0' : '0' }}
     >
-      <motion.svg layout xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 shrink-0 theme-toggle-icon">
-        {isDark ? (
-          <>{/* Sun */}<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>
-        ) : (
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        )}
-      </motion.svg>
+      {/* Star border light trails — only visible when expanded */}
       <AnimatePresence>
         {expanded && (
-          <motion.span
-            initial={{ opacity: 0, width: 0 }}
-            animate={{ opacity: 1, width: 'auto' }}
-            exit={{ opacity: 0, width: 0 }}
-            transition={{ duration: 0.3 }}
-            className="text-sm font-medium whitespace-nowrap overflow-hidden"
-          >
-            {isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}
-          </motion.span>
+          <>
+            <motion.div
+              className="absolute w-[300%] h-[50%] opacity-70 rounded-full animate-star-bottom z-0"
+              style={{
+                bottom: '-11px',
+                right: '-250%',
+                background: `radial-gradient(circle, ${starColor}, transparent 10%)`,
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.7 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+            />
+            <motion.div
+              className="absolute w-[300%] h-[50%] opacity-70 rounded-full animate-star-top z-0"
+              style={{
+                top: '-10px',
+                left: '-250%',
+                background: `radial-gradient(circle, ${starColor}, transparent 10%)`,
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.7 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+            />
+          </>
         )}
       </AnimatePresence>
+
+      {/* Inner content */}
+      <motion.div
+        layout
+        className={`relative z-[1] flex items-center justify-center overflow-hidden ${
+          expanded
+            ? 'gap-3 rounded-2xl px-6 py-4'
+            : 'rounded-full w-12 h-12'
+        } ${
+          isDark
+            ? 'bg-gradient-to-b from-[#1a1a2e] to-[#16213e] border border-white/15 text-white'
+            : 'bg-gradient-to-b from-white to-gray-50 border border-gray-200 text-gray-700'
+        }`}
+        style={{ boxShadow: expanded
+          ? `0 0 24px ${isDark ? 'rgba(125,232,237,0.25)' : 'rgba(60,171,201,0.2)'}, 0 8px 32px rgba(0,0,0,0.15)`
+          : '0 4px 16px rgba(0,0,0,0.12)'
+        }}
+      >
+        {/* Icon */}
+        <motion.svg
+          layout
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`shrink-0 theme-toggle-icon ${expanded ? 'w-6 h-6' : 'w-5 h-5'}`}
+        >
+          {isDark ? (
+            <>{/* Sun */}<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>
+          ) : (
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          )}
+        </motion.svg>
+
+        {/* Expanded text + hint */}
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: 'auto' }}
+              exit={{ opacity: 0, width: 0 }}
+              transition={{ duration: 0.3 }}
+              className="flex flex-col items-start whitespace-nowrap overflow-hidden"
+            >
+              <span className="text-sm font-semibold leading-tight">
+                {isDark ? 'Light Mode' : 'Dark Mode'}
+              </span>
+              <span className={`text-[11px] leading-tight ${isDark ? 'text-white/50' : 'text-gray-400'}`}>
+                Click to switch
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </motion.button>
   )
 }

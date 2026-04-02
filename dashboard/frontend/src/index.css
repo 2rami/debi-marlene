@@ -336,3 +336,19 @@ body {
 .animate-float-medium { animation: float-medium 3.2s ease-in-out infinite; }
 .animate-float-gentle { animation: float-gentle 5.5s ease-in-out infinite; }
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+/* ── Star Border Animation (Theme Toggle) ── */
+@keyframes star-movement-bottom {
+  0% { transform: translate(0%, 0%); opacity: 1; }
+  100% { transform: translate(-100%, 0%); opacity: 0; }
+}
+@keyframes star-movement-top {
+  0% { transform: translate(0%, 0%); opacity: 1; }
+  100% { transform: translate(100%, 0%); opacity: 0; }
+}
+.animate-star-bottom {
+  animation: star-movement-bottom 4s linear infinite alternate;
+}
+.animate-star-top {
+  animation: star-movement-top 4s linear infinite alternate;
+}

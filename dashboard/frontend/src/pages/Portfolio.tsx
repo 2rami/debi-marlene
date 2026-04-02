@@ -195,7 +195,7 @@ function Screenshot({ src, alt, delay = 0 }: { src: string; alt: string; delay?:
       <img
         src={src}
         alt={alt}
-        className={`relative w-full h-auto rounded-2xl shadow-2xl border ${isDark ? 'border-white/10' : 'border-white/40'}`}
+        className={`relative w-full h-auto max-h-[400px] object-contain object-top rounded-2xl shadow-2xl border ${isDark ? 'border-white/10' : 'border-white/40'}`}
         draggable={false}
       />
     </FadeIn>
@@ -333,13 +333,13 @@ function ThemeToggle() {
 const SECTIONS = [
   { id: 'hero', label: 'Hero' },
   { id: 'journey', label: '개발 여정' },
+  { id: 'troubleshoot', label: '트러블슈팅' },
   { id: 'features', label: '주요 기능' },
   { id: 'tts', label: 'TTS 엔진' },
   { id: 'architecture', label: '아키텍처' },
   { id: 'techstack', label: '기술 스택' },
   { id: 'ai-workflow', label: 'AI 워크플로우' },
   { id: 'deploy', label: '배포 환경' },
-  { id: 'troubleshoot', label: '트러블슈팅' },
   { id: 'process', label: '프로세스' },
   { id: 'match', label: '공고 매칭' },
 ]
@@ -436,9 +436,11 @@ export default function Portfolio() {
   // Lenis smooth scroll
   useEffect(() => {
     const lenis = new Lenis({ duration: 0.25, wheelMultiplier: 0.5, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
+    ;(window as any).__lenis = lenis
+    lenis.scrollTo(0, { immediate: true })
     function raf(time: number) { lenis.raf(time); requestAnimationFrame(raf) }
     requestAnimationFrame(raf)
-    return () => lenis.destroy()
+    return () => { lenis.destroy(); (window as any).__lenis = null }
   }, [])
 
   // Hero parallax
@@ -604,6 +606,205 @@ export default function Portfolio() {
                 desc="Docker + nginx + Gunicorn + supervisor. Makefile로 빌드/배포/롤백을 단일 커맨드로 자동화."
                 techs={['Docker', 'nginx', 'Gunicorn', 'Makefile']} />
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ TROUBLESHOOTING ══ */}
+      <section id="troubleshoot" className="py-24 relative">
+        <div className={`absolute inset-0 ${isDark ? 'bg-white/[0.01]' : 'bg-gray-50/50'}`} />
+        <div className="relative max-w-5xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <ScrollFloat
+              containerClassName="font-title bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent leading-tight"
+              textClassName="text-4xl md:text-[64px]"
+            >
+              트러블슈팅
+            </ScrollFloat>
+            <FadeIn delay={0.1}>
+              <p className={`text-lg max-w-2xl mx-auto mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                개발 중 만난 실제 문제들과 해결 과정.<br />
+                에러 로그를 읽고, 원인을 추적하고, 직접 해결한 기록.
+              </p>
+            </FadeIn>
+          </div>
+
+          {/* TTS 트러블슈팅 */}
+          <FadeIn>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#9c27b0]' : 'text-purple-600'}`}>
+              TTS Engine
+            </h3>
+          </FadeIn>
+          <div className="space-y-4 mb-12">
+            {[
+              {
+                title: 'CosyVoice3 bfloat16 비트박스 현상',
+                problem: 'T4 GPU에서 파인튜닝된 CosyVoice3 모델로 추론하면 음성 대신 비트박스 소리가 출력됨.',
+                cause: 'pretrained checkpoint가 bfloat16로 저장되어 있어서 float16으로 변환해도, 모델 로드 시 weight가 bfloat16으로 다시 덮어써짐. T4는 bfloat16 하드웨어 미지원이라 연산이 깨짐.',
+                solution: 'T4에서도 bfloat16을 소프트웨어 에뮬레이션으로 사용하도록 강제. pretrained 구조를 건드리지 않고 런타임에서 해결.',
+                color: '#9c27b0',
+              },
+              {
+                title: 'Qwen2 Attention 구현체 충돌',
+                problem: 'Qwen2ForCausalLM.from_pretrained()에 attn_implementation 파라미터를 지정하면 비트박스 소리 발생.',
+                cause: 'Qwen2는 Sliding Window Attention(SWA)을 사용하는데, eager/sdpa로 강제하면 attention 패턴이 깨짐. transformers 5.x에서는 기본 attention이 바뀌어 동일 현상 발생.',
+                solution: 'attn_implementation 파라미터를 절대 지정하지 않도록 코드 수정. transformers 4.51.3으로 버전 고정.',
+                color: '#9c27b0',
+              },
+              {
+                title: 'Modal Serverless Cold Start 58초',
+                problem: 'Modal에 TTS 서버를 배포했지만 콜드 스타트가 58초로, 첫 TTS 요청 시 유저가 1분을 기다려야 함.',
+                cause: '매 콜드 스타트마다 HuggingFace에서 600MB+ 모델을 다운로드하고 GPU에 로드하는 시간. 기존에는 채팅 메시지를 보내야 서버가 켜지기 시작.',
+                solution: '/tts 명령으로 봇이 음성채널에 입장하는 순간 Modal 서버를 미리 워밍업. 채팅 컴포넌트에 accent color + 메시지로 워밍업 상태를 시각적으로 표시. Volume 캐싱으로 warm RTF 1.5~2.2x.',
+                color: '#9c27b0',
+              },
+            ].map((item, i) => (
+              <FadeIn key={i} delay={i * 0.05}>
+                <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                  <div className="flex items-stretch">
+                    <div className="w-1 shrink-0" style={{ backgroundColor: item.color }} />
+                    <div className="flex-1 p-5">
+                      <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</div>
+                      <div className="grid md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#ed4245' }}>Problem</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.problem}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#faa61a' }}>Root Cause</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.cause}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#43b581' }}>Solution</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.solution}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+
+          {/* 인프라 트러블슈팅 */}
+          <FadeIn>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#3cabc9]' : 'text-cyan-600'}`}>
+              Infrastructure
+            </h3>
+          </FadeIn>
+          <div className="space-y-4 mb-12">
+            {[
+              {
+                title: 'AWS -> GCP 전환 결정',
+                problem: 'AWS Lambda + API Gateway로 봇을 구성했으나 복잡한 설정과 높은 비용 구조.',
+                cause: 'Discord 봇은 WebSocket 상시 연결이 필요한데, Lambda는 stateless 함수 모델이라 근본적으로 맞지 않음. 매 요청마다 cold start 발생.',
+                solution: 'GCP Compute Engine VM으로 전환. Docker 컨테이너로 봇을 24시간 구동. Cloud Run도 시도했지만 WebSocket 제약으로 최종적으로 VM 확정.',
+                color: '#3cabc9',
+              },
+              {
+                title: 'VM 1GB 메모리 부족으로 봇 크래시',
+                problem: 'GCP VM(e2-micro)에서 봇이 주기적으로 죽음. Docker 로그에 OOM(Out of Memory) 흔적.',
+                cause: 'e2-micro 인스턴스는 메모리 1GB. 봇 + 웹패널 백엔드 + nginx-proxy + Docker 오버헤드를 합치면 물리 메모리 초과. 리눅스 OOM Killer가 가장 큰 프로세스(봇)를 강제 종료.',
+                solution: 'swap 파일을 생성하여 가상 메모리 확보. 디스크 I/O 성능이 약간 떨어지지만 OOM 크래시 완전 해결. 비용 증가 없이 안정성 확보.',
+                color: '#3cabc9',
+              },
+              {
+                title: 'VM 포트 충돌 (봇 vs 웹패널)',
+                problem: '봇 컨테이너와 웹패널 백엔드가 동시에 포트 8080을 사용하려 해서 하나가 실행 불가.',
+                cause: '봇 Docker 컨테이너가 5001과 8080 두 포트를 바인딩하고 있었는데, 웹패널 백엔드도 8080이 필요했음.',
+                solution: '봇 컨테이너에서 불필요한 8080 바인딩을 제거하고 5001만 유지. 웹패널 백엔드가 8080을 단독 사용. nginx-proxy로 도메인별 라우팅.',
+                color: '#3cabc9',
+              },
+              {
+                title: 'PWA Service Worker 캐시 문제',
+                problem: '프론트엔드를 배포해도 유저에게 이전 버전이 계속 보임. 강제 새로고침해도 동일.',
+                cause: 'PWA의 Service Worker가 정적 파일을 로컬에 캐싱하고, Cloudflare CDN까지 이중으로 캐싱. SW가 새 버전을 감지하지 못하면 영원히 이전 버전을 서빙.',
+                solution: 'Makefile 배포 스크립트에 Cloudflare API 캐시 퍼지 단계를 추가. 배포 완료 직후 자동으로 CDN 캐시 무효화하여 SW가 새 버전을 받을 수 있도록 처리.',
+                color: '#3cabc9',
+              },
+            ].map((item, i) => (
+              <FadeIn key={i} delay={i * 0.05}>
+                <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                  <div className="flex items-stretch">
+                    <div className="w-1 shrink-0" style={{ backgroundColor: item.color }} />
+                    <div className="flex-1 p-5">
+                      <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</div>
+                      <div className="grid md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#ed4245' }}>Problem</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.problem}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#faa61a' }}>Root Cause</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.cause}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#43b581' }}>Solution</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.solution}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+
+          {/* 웹패널/대시보드 트러블슈팅 */}
+          <FadeIn>
+            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#e58fb6]' : 'text-pink-600'}`}>
+              Web Panel / Dashboard
+            </h3>
+          </FadeIn>
+          <div className="space-y-4">
+            {[
+              {
+                title: 'API Key 누락 -- 개발/프로덕션 환경 차이',
+                problem: '웹패널에서 멤버 프로필 클릭이 개발 환경에서는 정상이지만 프로덕션에서 401 에러.',
+                cause: 'fetch() 호출 시 API_URL prefix 누락 + X-API-Key 헤더 미포함. 개발 환경에서는 Vite proxy가 자동 처리해서 문제가 드러나지 않음.',
+                solution: '모든 API 호출에 API_URL prefix와 인증 헤더를 통일. 같은 기능의 다른 컴포넌트(ChannelList)에는 있고 MemberList에는 없던 불일치 발견 후 수정.',
+                color: '#e58fb6',
+              },
+              {
+                title: 'SSE 스트리밍 로그가 한 번에 출력',
+                problem: '웹패널의 실시간 봇 로그가 한 줄씩 나오지 않고 수십 줄이 한꺼번에 뭉쳐서 도착.',
+                cause: 'nginx가 기본적으로 proxy 응답을 버퍼링하기 때문에 Server-Sent Events가 버퍼에 쌓였다가 한번에 flush됨.',
+                solution: 'nginx 설정에 proxy_buffering off, X-Accel-Buffering: no 헤더 추가. SSE 연결에서 실시간 스트리밍 정상 동작.',
+                color: '#e58fb6',
+              },
+              {
+                title: 'Discord Components V2 렌더링',
+                problem: 'Discord가 새로 도입한 Components V2(Container, Section, TextDisplay 등)가 웹패널에서 빈 메시지로 표시.',
+                cause: '기존 메시지 렌더러가 Embed만 처리하고, Components V2의 새로운 JSON 구조(components 배열)를 파싱하지 못함.',
+                solution: 'Container, Section, TextDisplay, MediaGallery, Separator, ActionRow, Button 각각의 렌더러를 구현. 재귀적으로 중첩 컴포넌트를 처리.',
+                color: '#e58fb6',
+              },
+            ].map((item, i) => (
+              <FadeIn key={i} delay={i * 0.05}>
+                <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+                  <div className="flex items-stretch">
+                    <div className="w-1 shrink-0" style={{ backgroundColor: item.color }} />
+                    <div className="flex-1 p-5">
+                      <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</div>
+                      <div className="grid md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#ed4245' }}>Problem</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.problem}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#faa61a' }}>Root Cause</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.cause}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#43b581' }}>Solution</div>
+                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.solution}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
           </div>
         </div>
       </section>
@@ -970,7 +1171,7 @@ export default function Portfolio() {
               { name: 'Colab', reason: '로컬 4070 Ti는 학습 중 다른 작업 불가. 셀 단위 실행이 직관적' },
             ]} />
             <TechCard title="Backend" color="text-emerald-400" delay={0.05} items={[
-              { name: 'Python', reason: '넥슨게임즈 ML팀 친누나 추천. AI/ML 라이브러리 연동 용이' },
+              { name: 'Python', reason: 'AI 에이전트 개발에 최적화된 언어. Claude API, HuggingFace 등 ML 생태계와 자연스럽게 통합' },
               { name: 'discord.py', reason: 'Python 선택의 자연스러운 귀결' },
               { name: 'Flask', reason: '경량 웹 프레임워크. 대시보드/웹패널 API 서버' },
               { name: 'Gunicorn', reason: 'Flask 내장 서버는 동시 요청 처리 불가 → 멀티 워커 프로덕션 서버' },
@@ -1335,205 +1536,6 @@ export default function Portfolio() {
               </div>
             </div>
           </FadeIn>
-        </div>
-      </section>
-
-      {/* ══ TROUBLESHOOTING ══ */}
-      <section id="troubleshoot" className="py-24 relative">
-        <div className={`absolute inset-0 ${isDark ? 'bg-white/[0.01]' : 'bg-gray-50/50'}`} />
-        <div className="relative max-w-5xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <ScrollFloat
-              containerClassName="font-title bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent leading-tight"
-              textClassName="text-4xl md:text-[64px]"
-            >
-              트러블슈팅
-            </ScrollFloat>
-            <FadeIn delay={0.1}>
-              <p className={`text-lg max-w-2xl mx-auto mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                개발 중 만난 실제 문제들과 해결 과정.<br />
-                에러 로그를 읽고, 원인을 추적하고, 직접 해결한 기록.
-              </p>
-            </FadeIn>
-          </div>
-
-          {/* TTS 트러블슈팅 */}
-          <FadeIn>
-            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#9c27b0]' : 'text-purple-600'}`}>
-              TTS Engine
-            </h3>
-          </FadeIn>
-          <div className="space-y-4 mb-12">
-            {[
-              {
-                title: 'CosyVoice3 bfloat16 비트박스 현상',
-                problem: 'T4 GPU에서 파인튜닝된 CosyVoice3 모델로 추론하면 음성 대신 비트박스 소리가 출력됨.',
-                cause: 'pretrained checkpoint가 bfloat16로 저장되어 있어서 float16으로 변환해도, 모델 로드 시 weight가 bfloat16으로 다시 덮어써짐. T4는 bfloat16 하드웨어 미지원이라 연산이 깨짐.',
-                solution: 'T4에서도 bfloat16을 소프트웨어 에뮬레이션으로 사용하도록 강제. pretrained 구조를 건드리지 않고 런타임에서 해결.',
-                color: '#9c27b0',
-              },
-              {
-                title: 'Qwen2 Attention 구현체 충돌',
-                problem: 'Qwen2ForCausalLM.from_pretrained()에 attn_implementation 파라미터를 지정하면 비트박스 소리 발생.',
-                cause: 'Qwen2는 Sliding Window Attention(SWA)을 사용하는데, eager/sdpa로 강제하면 attention 패턴이 깨짐. transformers 5.x에서는 기본 attention이 바뀌어 동일 현상 발생.',
-                solution: 'attn_implementation 파라미터를 절대 지정하지 않도록 코드 수정. transformers 4.51.3으로 버전 고정.',
-                color: '#9c27b0',
-              },
-              {
-                title: 'Modal Serverless Cold Start 58초',
-                problem: 'Modal에 TTS 서버를 배포했지만 콜드 스타트가 58초로, 첫 TTS 요청 시 유저가 1분을 기다려야 함.',
-                cause: '매 콜드 스타트마다 HuggingFace에서 600MB+ 모델을 다운로드하고 GPU에 로드하는 시간. 기존에는 채팅 메시지를 보내야 서버가 켜지기 시작.',
-                solution: '/tts 명령으로 봇이 음성채널에 입장하는 순간 Modal 서버를 미리 워밍업. 채팅 컴포넌트에 accent color + 메시지로 워밍업 상태를 시각적으로 표시. Volume 캐싱으로 warm RTF 1.5~2.2x.',
-                color: '#9c27b0',
-              },
-            ].map((item, i) => (
-              <FadeIn key={i} delay={i * 0.05}>
-                <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
-                  <div className="flex items-stretch">
-                    <div className="w-1 shrink-0" style={{ backgroundColor: item.color }} />
-                    <div className="flex-1 p-5">
-                      <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</div>
-                      <div className="grid md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#ed4245' }}>Problem</div>
-                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.problem}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#faa61a' }}>Root Cause</div>
-                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.cause}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#43b581' }}>Solution</div>
-                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.solution}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-
-          {/* 인프라 트러블슈팅 */}
-          <FadeIn>
-            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#3cabc9]' : 'text-cyan-600'}`}>
-              Infrastructure
-            </h3>
-          </FadeIn>
-          <div className="space-y-4 mb-12">
-            {[
-              {
-                title: 'AWS -> GCP 전환 결정',
-                problem: 'AWS Lambda + API Gateway로 봇을 구성했으나 복잡한 설정과 높은 비용 구조.',
-                cause: 'Discord 봇은 WebSocket 상시 연결이 필요한데, Lambda는 stateless 함수 모델이라 근본적으로 맞지 않음. 매 요청마다 cold start 발생.',
-                solution: 'GCP Compute Engine VM으로 전환. Docker 컨테이너로 봇을 24시간 구동. Cloud Run도 시도했지만 WebSocket 제약으로 최종적으로 VM 확정.',
-                color: '#3cabc9',
-              },
-              {
-                title: 'VM 1GB 메모리 부족으로 봇 크래시',
-                problem: 'GCP VM(e2-micro)에서 봇이 주기적으로 죽음. Docker 로그에 OOM(Out of Memory) 흔적.',
-                cause: 'e2-micro 인스턴스는 메모리 1GB. 봇 + 웹패널 백엔드 + nginx-proxy + Docker 오버헤드를 합치면 물리 메모리 초과. 리눅스 OOM Killer가 가장 큰 프로세스(봇)를 강제 종료.',
-                solution: 'swap 파일을 생성하여 가상 메모리 확보. 디스크 I/O 성능이 약간 떨어지지만 OOM 크래시 완전 해결. 비용 증가 없이 안정성 확보.',
-                color: '#3cabc9',
-              },
-              {
-                title: 'VM 포트 충돌 (봇 vs 웹패널)',
-                problem: '봇 컨테이너와 웹패널 백엔드가 동시에 포트 8080을 사용하려 해서 하나가 실행 불가.',
-                cause: '봇 Docker 컨테이너가 5001과 8080 두 포트를 바인딩하고 있었는데, 웹패널 백엔드도 8080이 필요했음.',
-                solution: '봇 컨테이너에서 불필요한 8080 바인딩을 제거하고 5001만 유지. 웹패널 백엔드가 8080을 단독 사용. nginx-proxy로 도메인별 라우팅.',
-                color: '#3cabc9',
-              },
-              {
-                title: 'PWA Service Worker 캐시 문제',
-                problem: '프론트엔드를 배포해도 유저에게 이전 버전이 계속 보임. 강제 새로고침해도 동일.',
-                cause: 'PWA의 Service Worker가 정적 파일을 로컬에 캐싱하고, Cloudflare CDN까지 이중으로 캐싱. SW가 새 버전을 감지하지 못하면 영원히 이전 버전을 서빙.',
-                solution: 'Makefile 배포 스크립트에 Cloudflare API 캐시 퍼지 단계를 추가. 배포 완료 직후 자동으로 CDN 캐시 무효화하여 SW가 새 버전을 받을 수 있도록 처리.',
-                color: '#3cabc9',
-              },
-            ].map((item, i) => (
-              <FadeIn key={i} delay={i * 0.05}>
-                <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
-                  <div className="flex items-stretch">
-                    <div className="w-1 shrink-0" style={{ backgroundColor: item.color }} />
-                    <div className="flex-1 p-5">
-                      <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</div>
-                      <div className="grid md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#ed4245' }}>Problem</div>
-                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.problem}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#faa61a' }}>Root Cause</div>
-                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.cause}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#43b581' }}>Solution</div>
-                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.solution}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-
-          {/* 웹패널/대시보드 트러블슈팅 */}
-          <FadeIn>
-            <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${isDark ? 'text-[#e58fb6]' : 'text-pink-600'}`}>
-              Web Panel / Dashboard
-            </h3>
-          </FadeIn>
-          <div className="space-y-4">
-            {[
-              {
-                title: 'API Key 누락 -- 개발/프로덕션 환경 차이',
-                problem: '웹패널에서 멤버 프로필 클릭이 개발 환경에서는 정상이지만 프로덕션에서 401 에러.',
-                cause: 'fetch() 호출 시 API_URL prefix 누락 + X-API-Key 헤더 미포함. 개발 환경에서는 Vite proxy가 자동 처리해서 문제가 드러나지 않음.',
-                solution: '모든 API 호출에 API_URL prefix와 인증 헤더를 통일. 같은 기능의 다른 컴포넌트(ChannelList)에는 있고 MemberList에는 없던 불일치 발견 후 수정.',
-                color: '#e58fb6',
-              },
-              {
-                title: 'SSE 스트리밍 로그가 한 번에 출력',
-                problem: '웹패널의 실시간 봇 로그가 한 줄씩 나오지 않고 수십 줄이 한꺼번에 뭉쳐서 도착.',
-                cause: 'nginx가 기본적으로 proxy 응답을 버퍼링하기 때문에 Server-Sent Events가 버퍼에 쌓였다가 한번에 flush됨.',
-                solution: 'nginx 설정에 proxy_buffering off, X-Accel-Buffering: no 헤더 추가. SSE 연결에서 실시간 스트리밍 정상 동작.',
-                color: '#e58fb6',
-              },
-              {
-                title: 'Discord Components V2 렌더링',
-                problem: 'Discord가 새로 도입한 Components V2(Container, Section, TextDisplay 등)가 웹패널에서 빈 메시지로 표시.',
-                cause: '기존 메시지 렌더러가 Embed만 처리하고, Components V2의 새로운 JSON 구조(components 배열)를 파싱하지 못함.',
-                solution: 'Container, Section, TextDisplay, MediaGallery, Separator, ActionRow, Button 각각의 렌더러를 구현. 재귀적으로 중첩 컴포넌트를 처리.',
-                color: '#e58fb6',
-              },
-            ].map((item, i) => (
-              <FadeIn key={i} delay={i * 0.05}>
-                <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
-                  <div className="flex items-stretch">
-                    <div className="w-1 shrink-0" style={{ backgroundColor: item.color }} />
-                    <div className="flex-1 p-5">
-                      <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>{item.title}</div>
-                      <div className="grid md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#ed4245' }}>Problem</div>
-                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.problem}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#faa61a' }}>Root Cause</div>
-                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.cause}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#43b581' }}>Solution</div>
-                          <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{item.solution}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
         </div>
       </section>
 

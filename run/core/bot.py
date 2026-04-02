@@ -854,6 +854,9 @@ async def on_message(message):
         except Exception as e:
             print(f'[오류] DM 정보 저장 실패: {e}')
 
+    # 프리픽스 명령어 처리 (!핑 등)
+    await bot.process_commands(message)
+
 
 # ========== 정기 태스크 ==========
 

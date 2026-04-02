@@ -135,6 +135,9 @@ docker-compose.override.yml
 .cache/
 *.cache
 
+# Playwright MCP 로그
+.playwright-mcp/
+
 # YouTube 쿠키 (민감 데이터)
 cookies.txt
 

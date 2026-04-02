@@ -1,9 +1,10 @@
 """
 유틸리티 Cog
 
-기타 명령어: 피드백, 공지
+기타 명령어: 피드백, 공지, 핑
 """
 
+import time
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -16,6 +17,37 @@ class UtilityCog(commands.Cog, name="기타"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.bot_start_time = time.time()
+
+    @commands.command(name="핑")
+    async def ping(self, ctx: commands.Context):
+        """봇 상태 확인 (프리픽스 명령어)"""
+        # WebSocket 지연시간
+        ws_latency = round(self.bot.latency * 1000)
+
+        # API 지연시간 측정
+        start = time.monotonic()
+        msg = await ctx.send("측정 중...")
+        api_latency = round((time.monotonic() - start) * 1000)
+
+        # 업타임 계산
+        uptime_sec = int(time.time() - self.bot_start_time)
+        hours, remainder = divmod(uptime_sec, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        uptime_str = f"{hours}시간 {minutes}분 {seconds}초"
+
+        # 서버/유저 수
+        guild_count = len(self.bot.guilds)
+        member_count = sum(g.member_count for g in self.bot.guilds if g.member_count)
+
+        embed = discord.Embed(color=0x2ECC71)
+        embed.add_field(name="WebSocket", value=f"{ws_latency}ms", inline=True)
+        embed.add_field(name="API", value=f"{api_latency}ms", inline=True)
+        embed.add_field(name="업타임", value=uptime_str, inline=True)
+        embed.add_field(name="서버", value=f"{guild_count}개", inline=True)
+        embed.add_field(name="유저", value=f"{member_count:,}명", inline=True)
+
+        await msg.edit(content=None, embed=embed)
 
     @app_commands.command(name="피드백", description="봇 개발자에게 피드백을 보냅니다")
     @app_commands.describe(내용="보낼 피드백 내용")

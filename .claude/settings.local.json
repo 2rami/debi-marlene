@@ -57,7 +57,9 @@
       "WebFetch(domain:goenho0613--qwen3-tts-server-ttsmodel-tts.modal.run)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:pypi.org)",
-      "WebFetch(domain:registry.npmjs.org)"
+      "WebFetch(domain:registry.npmjs.org)",
+      "WebFetch(domain:huggingface.co)",
+      "WebFetch(domain:files.pythonhosted.org)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -322,7 +322,9 @@ async def on_app_command_error(interaction: discord.Interaction, error: discord.
         except Exception:
             pass
         return
-    raise error
+    # 에러 로그만 남기고 봇은 계속 실행
+    cmd_name = interaction.data.get("name", "?") if interaction.data else "?"
+    print(f"[에러] /{cmd_name}: {error}", flush=True)
 
 
 async def _clear_guild_commands():

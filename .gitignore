@@ -168,3 +168,6 @@ tts_training/Fish_Speech_Finetune.ipynb
 tts_training/cosyvoice3_data/
 tts_training/cosyvoice3_data.zip
 tts_training/style_review.csv
+finetune/adapter_qwen3/
+finetune/thinker_mlx_4bit/
+finetune/__pycache__/

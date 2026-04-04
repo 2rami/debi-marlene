@@ -1,7 +1,10 @@
 """
 데비&마를렌 챗 클라이언트
 
-로컬 MLX 추론 서버(finetune/inference_server.py)에 HTTP 요청
+Modal 또는 로컬 추론 서버에 HTTP 요청.
+CHAT_API_URL: 전체 chat 엔드포인트 URL.
+  Modal: https://...gemma4chat-chat.modal.run
+  로컬: http://localhost:5050/chat
 """
 
 import aiohttp
@@ -11,7 +14,8 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-CHAT_API_URL = os.getenv("CHAT_API_URL", "http://localhost:5050")
+CHAT_API_URL = os.getenv("CHAT_API_URL", "http://localhost:5050/chat")
+CHAT_HEALTH_URL = os.getenv("CHAT_HEALTH_URL", "http://localhost:5050/health")
 
 
 class ChatClient:
@@ -23,7 +27,7 @@ class ChatClient:
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=60)
+                timeout=aiohttp.ClientTimeout(total=120)
             )
         return self._session
 
@@ -37,9 +41,7 @@ class ChatClient:
             payload["context"] = context
 
         try:
-            async with session.post(
-                f"{CHAT_API_URL}/chat", json=payload
-            ) as resp:
+            async with session.post(CHAT_API_URL, json=payload) as resp:
                 if resp.status != 200:
                     logger.error("추론 서버 에러: %s", resp.status)
                     return None
@@ -53,7 +55,7 @@ class ChatClient:
         """서버 상태 확인"""
         session = await self._get_session()
         try:
-            async with session.get(f"{CHAT_API_URL}/health") as resp:
+            async with session.get(CHAT_HEALTH_URL) as resp:
                 return resp.status == 200
         except aiohttp.ClientError:
             return False

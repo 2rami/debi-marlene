@@ -1,0 +1,44 @@
+{{ bos_token }}{%- if messages[0]['role'] == 'system' -%}
+    {%- set first_user_prefix = messages[0]['content'] + '
+
+' -%}
+    {%- set loop_messages = messages[1:] -%}
+{%- else -%}
+    {%- set first_user_prefix = "" -%}
+    {%- set loop_messages = messages -%}
+{%- endif -%}
+{%- for message in loop_messages -%}
+    {%- if (message['role'] == 'user') != (loop.index0 % 2 == 0) -%}
+        {{ raise_exception("Conversation roles must alternate user/assistant/user/assistant/...") }}
+    {%- endif -%}
+    {%- if (message['role'] == 'assistant') -%}
+        {%- set role = "model" -%}
+    {%- else -%}
+        {%- set role = message['role'] -%}
+    {%- endif -%}
+    {{ '<|turn>' + role + '
+' + (first_user_prefix if loop.first else "") }}
+    {%- if message['content'] is string -%}
+        {{ message['content'] | trim }}
+    {%- elif message['content'] is iterable -%}
+        {%- for item in message['content'] -%}
+            {%- if item['type'] == 'audio' -%}
+                {{ '<|audio|>' }}
+            {%- elif item['type'] == 'image' -%}
+                {{ '<|image|>' }}
+            {%- elif item['type'] == 'video' -%}
+                {{ '<|video|>' }}
+            {%- elif item['type'] == 'text' -%}
+                {{ item['text'] | trim }}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- else -%}
+        {{ raise_exception("Invalid content type") }}
+    {%- endif -%}
+    {{ '<turn|>
+' }}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+    {{'<|turn>model
+'}}
+{%- endif -%}

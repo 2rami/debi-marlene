@@ -1,7 +1,7 @@
 """
 Modal Serverless Chat Server - Gemma 4 E4B + LoRA
 
-데비&마를렌 캐릭터 대화 + 패치노트 RAG.
+데비&마를렌 캐릭터 대화. 패치노트 RAG는 봇 cog에서 context로 전달.
 
 배포:
     modal deploy run/services/chat/gemma4_modal_server.py
@@ -17,8 +17,6 @@ import modal
 
 app = modal.App("gemma4-chat-server")
 
-# adapter는 HuggingFace private repo 또는 Drive에서 가져옴
-# 여기서는 Volume에 미리 업로드하는 방식
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
@@ -31,7 +29,6 @@ image = (
         "peft",
         "accelerate",
         "bitsandbytes",
-        "aiohttp",
     )
     .pip_install(
         "fastapi[standard]",
@@ -59,19 +56,6 @@ EMOJI_RE = re.compile(
 )
 CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff]+")
 
-PATCH_KEYWORDS = ["패치", "너프", "버프", "변경", "수정", "밸런스", "상향", "하향", "바뀌"]
-CHARACTER_ALIASES = {
-    "에이든": "에이든", "뎁마": "데비&마를렌", "데비": "데비&마를렌",
-    "마를렌": "데비&마를렌", "알렉스": "알렉스", "현우": "현우",
-    "피오라": "피오라", "에키온": "에키온", "바바라": "바바라",
-    "쇼이치": "쇼이치", "이삭": "이삭", "프리야": "프리야",
-    "코랄린": "코랄린", "클로이": "클로이", "카밀로": "카밀로",
-    "츠바메": "츠바메", "가넷": "가넷", "실비아": "실비아",
-}
-
-PATCHNOTE_LIST_URL = "https://playeternalreturn.com/posts/news?categoryPath=patchnote"
-PATCHNOTE_BASE_URL = "https://playeternalreturn.com/posts/news"
-
 
 @app.cls(
     image=image,
@@ -80,8 +64,8 @@ PATCHNOTE_BASE_URL = "https://playeternalreturn.com/posts/news"
     volumes={"/cache": volume},
     scaledown_window=300,
     max_containers=1,
-    allow_concurrent_inputs=3,
 )
+@modal.concurrent(max_inputs=3)
 class Gemma4Chat:
     """Gemma 4 E4B + LoRA 추론"""
 
@@ -119,9 +103,6 @@ class Gemma4Chat:
         self.model.eval()
         self.tokenizer = get_chat_template(self.tokenizer, chat_template="gemma-4")
 
-        self._patchnote_cache = {}
-        self._patchnote_list = []
-
         vram = torch.cuda.memory_allocated() / 1024**3
         print(f"로드 완료 (VRAM: {vram:.1f} GB)")
 
@@ -133,56 +114,6 @@ class Gemma4Chat:
         lines = [l.strip() for l in text.split("\n")
                  if l.strip() and l.strip() not in ("데비:", "마를렌:")]
         return "\n".join(lines)
-
-    async def _search_patchnote(self, message: str):
-        import aiohttp
-
-        if not any(k in message for k in PATCH_KEYWORDS):
-            return None
-
-        keyword = None
-        for alias, name in CHARACTER_ALIASES.items():
-            if alias in message:
-                keyword = name
-                break
-        if not keyword:
-            keyword = "패치"
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                # 목록
-                async with session.get(PATCHNOTE_LIST_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status != 200:
-                        return None
-                    html = await resp.text()
-                    pat = re.compile(r'href="[^"]*?/posts/news/(\d+)"[^>]*>.*?er-article__title">([^<]+)</h4>', re.DOTALL)
-                    posts = [{"id": m.group(1), "title": m.group(2).strip()} for m in pat.finditer(html)][:3]
-                    if not posts:
-                        return None
-
-                # 본문
-                async with session.get(f"{PATCHNOTE_BASE_URL}/{posts[0]['id']}", headers={"User-Agent": "Mozilla/5.0"}, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status != 200:
-                        return None
-                    html = await resp.text()
-                    body = re.search(r'class="er-post__body">(.*?)</div>\s*</(?:div|main|article)', html, re.DOTALL)
-                    text = re.sub(r"<[^>]+>", "\n", body.group(1) if body else html)
-                    text = re.sub(r"&\w+;", " ", text)
-                    content = "\n".join(l.strip() for l in text.split("\n") if l.strip())
-        except Exception:
-            return None
-
-        lines = content.split("\n")
-        results = []
-        kw = keyword.lower()
-        for i, line in enumerate(lines):
-            if kw in line.lower():
-                s, e = max(0, i - 2), min(len(lines), i + 6)
-                results.append("\n".join(lines[s:e]))
-
-        if results:
-            return f"[{posts[0]['title']}] {keyword} 관련:\n" + "\n---\n".join(results[:3])
-        return f"[{posts[0]['title']}] {keyword}: 이번 패치에 변경사항 없음."
 
     @modal.fastapi_endpoint(method="POST")
     async def chat(self, body: dict):
@@ -197,13 +128,9 @@ class Gemma4Chat:
 
         start = time.time()
 
-        # RAG
-        if not context:
-            context = await self._search_patchnote(message)
-
         system = SYSTEM_PROMPT
         if context:
-            system += f"\n\n[게임 정보]\n{context[:400]}\n위 정보를 바탕으로 대답해. 모르면 모른다고 해."
+            system += f"\n\n[패치노트 정보 - 반드시 아래 수치를 인용해서 대답해]\n{context[:600]}"
 
         messages = [{"role": "system", "content": system}]
         if history:
@@ -229,8 +156,9 @@ class Gemma4Chat:
 
         return {"response": response, "elapsed": round(elapsed, 2)}
 
-    @modal.fastapi_endpoint(method="GET")
-    async def health(self):
+    @modal.method()
+    def health(self):
+        """health check (내부용, 엔드포인트 아님)"""
         import torch
         vram = torch.cuda.memory_allocated() / 1024**3
         return {
@@ -240,6 +168,161 @@ class Gemma4Chat:
             "vram_gb": round(vram, 1),
         }
 
+
+# ========== 오디오 이해 (Gemma 4 E4B omni + LoRA) ==========
+
+audio_image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install("ffmpeg", "libsndfile1")
+    .pip_install(
+        "torch==2.6.0",
+        "torchvision==0.21.0",
+        extra_index_url="https://download.pytorch.org/whl/cu124",
+    )
+    .pip_install(
+        "transformers>=4.52.0",
+        "accelerate",
+        "peft",
+        "bitsandbytes",
+    )
+    .pip_install(
+        "pillow",
+        "soundfile",
+        "librosa",
+        "fastapi[standard]",
+        "python-multipart",
+    )
+)
+
+AUDIO_MODEL_ID = "google/gemma-4-E4B-it"
+
+
+@app.cls(
+    image=audio_image,
+    gpu="A10G",
+    timeout=300,
+    volumes={"/cache": volume},
+    scaledown_window=120,
+    max_containers=1,
+    secrets=[modal.Secret.from_name("huggingface")],
+)
+@modal.concurrent(max_inputs=2)
+class Gemma4Audio:
+    """Gemma 4 E4B omni - 오디오 이해 + LoRA 캐릭터 말투"""
+
+    @modal.enter()
+    def load(self):
+        import torch
+        from transformers import AutoProcessor, AutoModelForMultimodalLM
+
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+        print(f"Loading {AUDIO_MODEL_ID}...")
+
+        self.processor = AutoProcessor.from_pretrained(AUDIO_MODEL_ID)
+        self.model = AutoModelForMultimodalLM.from_pretrained(
+            AUDIO_MODEL_ID,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+        )
+
+        # LoRA 어댑터 적용 (캐릭터 말투)
+        if os.path.exists(ADAPTER_VOLUME_PATH):
+            try:
+                from peft import PeftModel
+                self.model = PeftModel.from_pretrained(self.model, ADAPTER_VOLUME_PATH)
+                print(f"LoRA adapter 적용: {ADAPTER_VOLUME_PATH}")
+            except Exception as e:
+                print(f"LoRA 적용 실패 (기본 모델로 진행): {e}")
+
+        self.model.eval()
+
+        vram = torch.cuda.memory_allocated() / 1024**3
+        print(f"오디오 모델 로드 완료 (VRAM: {vram:.1f} GB)")
+
+    @modal.fastapi_endpoint(method="POST")
+    async def audio_chat(self, body: dict):
+        """오디오 + 텍스트 -> 캐릭터 응답
+
+        body: {"audio_base64": "...", "message": "..."}
+        """
+        import torch
+        import base64
+        import tempfile
+        import soundfile as sf
+
+        audio_b64 = body.get("audio_base64", "")
+        message = body.get("message", "이 사람이 한국어로 뭐라고 했는지 듣고 대답해줘.")
+        use_character = body.get("character", True)  # False면 시스템 프롬프트 없이
+
+        if not audio_b64:
+            return {"error": "audio_base64 required"}
+
+        start = time.time()
+
+        audio_bytes = base64.b64decode(audio_b64)
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp.write(audio_bytes)
+        tmp.flush()
+        audio_path = tmp.name
+
+        import librosa
+        import numpy as np
+
+        audio_data, sr = librosa.load(audio_path, sr=16000, mono=True)
+        duration = len(audio_data) / sr
+        print(f"오디오: {duration:.1f}초, {sr}Hz, samples: {len(audio_data)}")
+
+        os.unlink(audio_path)
+
+        if duration > 30:
+            return {"error": "오디오 최대 30초"}
+
+        messages = []
+        if use_character:
+            messages.append({"role": "system", "content": [{"type": "text", "text": SYSTEM_PROMPT}]})
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "audio", "audio": audio_data},
+                {"type": "text", "text": message},
+            ],
+        })
+
+        inputs = self.processor.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            tokenize=True,
+            return_dict=True,
+            return_tensors="pt",
+            sampling_rate=16000,
+        )
+        # 디버그: 오디오 토큰이 포함됐는지 확인
+        has_features = "input_features" in inputs
+        n_tokens = inputs["input_ids"].shape[1] if "input_ids" in inputs else 0
+        print(f"input_features: {has_features}, tokens: {n_tokens}, keys: {list(inputs.keys())}")
+        inputs = inputs.to(self.model.device, dtype=self.model.dtype)
+
+        with torch.no_grad():
+            output = self.model.generate(
+                **inputs,
+                max_new_tokens=120,
+                temperature=0.5,
+                top_p=0.9,
+                do_sample=True,
+            )
+
+        response = self.processor.batch_decode(
+            output[:, inputs["input_ids"].shape[1]:],
+            skip_special_tokens=True,
+        )[0]
+
+        elapsed = time.time() - start
+
+        return {
+            "response": response,
+            "audio_duration": round(duration, 1),
+            "elapsed": round(elapsed, 2),
+        }
 
 @app.local_entrypoint()
 def upload_adapter():

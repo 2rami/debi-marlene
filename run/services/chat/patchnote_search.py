@@ -1,12 +1,11 @@
 """
 패치노트 검색 서비스
 
-최신 패치노트를 가져와서 키워드로 검색.
-캐릭터 이름 -> 관련 패치 내용 + 관련 아이템 변경사항 추출.
+ER 공식 사이트에서 최신 패치노트를 가져와서 섹션별로 파싱.
+캐릭터/아이템/증강체 등 질문에 해당하는 섹션을 통째로 추출해서 LLM context로 전달.
 """
 
 import re
-import asyncio
 import logging
 import time
 from typing import Optional
@@ -19,44 +18,60 @@ PATCHNOTE_LIST_URL = "https://playeternalreturn.com/posts/news?categoryPath=patc
 PATCHNOTE_BASE_URL = "https://playeternalreturn.com/posts/news"
 
 # 캐시
-_patchnote_cache: dict = {}  # {post_id: {"title": ..., "content": ..., "fetched_at": ...}}
+_parsed_cache: dict = {}
 _patchnote_list: list = []
-CACHE_TTL = 3600  # 1시간
+CACHE_TTL = 3600
 
+PATCH_KEYWORDS = ["패치", "너프", "버프", "변경", "수정", "밸런스", "상향", "하향", "바뀌"]
 
-# 캐릭터 이름 매핑 (별칭 -> 정식명)
+# 캐릭터 별칭 -> 패치노트에 표기되는 한글 정식명
+# 패치노트 실제 표기 기준 (10.6 기준 확인)
 CHARACTER_ALIASES = {
+    # 유저가 부를 수 있는 별칭 -> 패치노트 표기명
     "에이든": "에이든", "아덴": "에이든",
     "뎁마": "데비&마를렌", "데비": "데비&마를렌", "마를렌": "데비&마를렌",
     "알렉스": "알렉스", "알렉": "알렉스",
-    "현우": "현우", "리다이린": "리다이린", "리 다이린": "리다이린",
+    "현우": "현우",
+    "리다이린": "리 다이린", "리 다이린": "리 다이린", "다이린": "리 다이린",
     "피오라": "피오라", "에키온": "에키온",
     "바바라": "바바라", "쇼이치": "쇼이치",
-    "이삭": "이삭", "프리야": "프리야",
-    "코랄린": "코랄린", "클로이": "클로이",
-    "카밀로": "카밀로", "이스트반": "이스트반",
-    "츠바메": "츠바메", "가넷": "가넷",
+    "프리야": "프리야", "가넷": "가넷",
+    "카밀로": "카밀로", "츠바메": "츠바메",
     "라우라": "라우라", "레니": "레니",
-    "레온": "레온", "레노레": "레노레",
-    "마르티나": "마르티나", "마이": "마이",
-    "베르니체": "베르니체", "셀린": "셀린",
-    "수아": "수아", "슈엘린": "슈엘린",
+    "레온": "레온", "마르티나": "마르티나", "마이": "마이",
+    "셀린": "셀린", "수아": "수아",
     "시셀라": "시셀라", "아디나": "아디나",
-    "이솔": "이솔", "알론소": "알론소",
-    "에스텔": "에스텔", "엠마": "엠마",
+    "알론소": "알론소", "에스텔": "에스텔", "엠마": "엠마",
     "유키": "유키", "이렘": "이렘",
-    "카티": "카티", "키아라": "키아라",
-    "펜리르": "펜리르", "실비아": "실비아",
+    "키아라": "키아라", "펜리르": "펜리르", "실비아": "실비아",
+    # 패치노트 표기와 다른 별칭
+    "베르니체": "버니스", "버니스": "버니스",
+    "레노레": "르노어", "르노어": "르노어",
+    "슈엘린": "슈린", "슈린": "슈린",
+    "이솔": "아이솔", "아이솔": "아이솔",
+    "이삭": "아이작", "아이작": "아이작",
+    "이스트반": "이슈트반", "이슈트반": "이슈트반",
+    "카티": "캐시", "캐시": "캐시",
+    "클로이": "클로에", "클로에": "클로에",
+    "코랄린": "코렐라인", "코렐라인": "코렐라인",
+    # 기타
+    "나딘": "나딘", "나타폰": "나타폰",
+    "다니엘": "다니엘", "드라": "드라",
+    "루크": "루크", "리오": "리오",
+    "매그너스": "매그너스", "빅터": "빅터",
+    "아드리아나": "아드리아나", "아야": "아야",
+    "얀": "얀", "재키": "재키",
+    "제니": "제니", "하트": "하트",
+    "하제": "하제", "혜진": "혜진",
+    "보리": "보리", "띠아": "띠아",
+    "미르카": "미르카",
 }
 
 
-async def fetch_patchnote_list() -> list:
+async def _fetch_patchnote_list() -> list:
     """패치노트 목록 가져오기"""
     global _patchnote_list
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept-Language": "ko-KR,ko;q=0.9",
-    }
+    headers = {"User-Agent": "Mozilla/5.0", "Accept-Language": "ko-KR,ko;q=0.9"}
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -71,34 +86,91 @@ async def fetch_patchnote_list() -> list:
                     r'er-article__title">([^<]+)</h4>',
                     re.DOTALL,
                 )
-                posts = []
-                for m in pattern.finditer(html):
-                    post_id, title = m.groups()
-                    posts.append({
-                        "id": post_id,
-                        "title": title.strip(),
-                        "url": f"{PATCHNOTE_BASE_URL}/{post_id}",
-                    })
+                posts = [
+                    {"id": m.group(1), "title": m.group(2).strip()}
+                    for m in pattern.finditer(html)
+                ]
                 _patchnote_list = posts[:5]
                 return _patchnote_list
     except Exception as e:
-        logger.error("패치노트 목록 가져오기 실패: %s", e)
+        logger.error("패치노트 목록 실패: %s", e)
         return _patchnote_list
 
 
-async def fetch_patchnote_content(post_id: str) -> Optional[str]:
-    """패치노트 본문을 WebFetch 스타일로 가져오기 (HTML -> 텍스트)"""
-    # 캐시 확인
-    if post_id in _patchnote_cache:
-        cached = _patchnote_cache[post_id]
+def _html_to_text(html: str) -> str:
+    """HTML -> 텍스트 변환"""
+    text = re.sub(r"<br\s*/?>", "\n", html)
+    text = re.sub(r"</?(?:strong|b)>", "**", text)
+    text = re.sub(r"</?(?:em|i)>", "", text)
+    text = re.sub(r"<li[^>]*>", "\n- ", text)
+    text = re.sub(r"<h[1-6][^>]*>", "\n### ", text)
+    text = re.sub(r"</h[1-6]>", "\n", text)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"&nbsp;", " ", text)
+    text = re.sub(r"&amp;", "&", text)
+    text = re.sub(r"&[a-z]+;", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _parse_character_sections(text: str) -> dict:
+    """실험체 섹션 텍스트에서 캐릭터별 블록 추출.
+
+    패치노트는 줄바꿈 없이 이전 캐릭터 끝에 다음 캐릭터가 붙어있을 수 있음:
+      "- 쿨다운 15초 → **10**초 **라우라**라우라는..."
+    그래서 먼저 **이름** 앞에 줄바꿈을 삽입해서 정규화한 후 파싱.
+    """
+    all_names = sorted(set(CHARACTER_ALIASES.values()), key=len, reverse=True)
+    # 이름 패턴: **가넷**, **데비&마를렌**, **보리 (B0-R1)** 등
+    name_pattern = "|".join(re.escape(n) for n in all_names)
+
+    # **캐릭터명** 앞에 줄바꿈 삽입 (정규화)
+    normalized = re.sub(
+        rf"(?<!\n)\*\*({name_pattern})\s*\*\*",
+        r"\n**\1**",
+        text,
+    )
+
+    # 이제 **이름** 기준으로 분리
+    char_pattern = re.compile(rf"\*\*({name_pattern})\s*\*\*")
+    matches = list(char_pattern.finditer(normalized))
+
+    sections = {}
+    for i, m in enumerate(matches):
+        name = m.group(1).strip()
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(normalized)
+        section_text = normalized[start:end].strip()
+        if section_text:
+            sections[name] = f"{name}\n{section_text}"
+
+    return sections
+
+
+def _find_section_by_keyword(text: str, keyword: str) -> Optional[str]:
+    """전체 텍스트에서 keyword가 제목인 ### 섹션 찾기."""
+    # ### 실험체, ### **무기**, ### 방어구 등 다양한 형태 매칭
+    header_pattern = re.compile(r"^#{2,5}\s+\*{0,2}([^*\n]+?)\*{0,2}\s*$", re.MULTILINE)
+    matches = list(header_pattern.finditer(text))
+
+    for i, m in enumerate(matches):
+        title = m.group(1).strip()
+        if keyword in title:
+            start = m.end()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+            return text[start:end].strip()
+    return None
+
+
+async def _fetch_and_parse(post_id: str) -> Optional[dict]:
+    """패치노트를 가져와서 구조화된 형태로 파싱"""
+    if post_id in _parsed_cache:
+        cached = _parsed_cache[post_id]
         if time.time() - cached["fetched_at"] < CACHE_TTL:
-            return cached["content"]
+            return cached
 
     url = f"{PATCHNOTE_BASE_URL}/{post_id}"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept-Language": "ko-KR,ko;q=0.9",
-    }
+    headers = {"User-Agent": "Mozilla/5.0", "Accept-Language": "ko-KR,ko;q=0.9"}
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -107,112 +179,121 @@ async def fetch_patchnote_content(post_id: str) -> Optional[str]:
                 if resp.status != 200:
                     return None
                 html = await resp.text()
-                # er-post__body 클래스에서 본문 추출
+
                 body_match = re.search(
                     r'class="er-post__body">(.*?)</div>\s*</(?:div|main|article)',
                     html, re.DOTALL,
                 )
-                if body_match:
-                    text = re.sub(r"<[^>]+>", "\n", body_match.group(1))
-                else:
-                    text = re.sub(r"<[^>]+>", "\n", html)
-                text = re.sub(r"&nbsp;", " ", text)
-                text = re.sub(r"&[a-z]+;", " ", text)
-                text = re.sub(r"\n{3,}", "\n\n", text)
-                lines = [l.strip() for l in text.split("\n") if l.strip()]
-                content = "\n".join(lines)
+                body_html = body_match.group(1) if body_match else html
+                content = _html_to_text(body_html)
 
-                _patchnote_cache[post_id] = {
-                    "content": content,
+                # "실험체" 섹션 찾아서 캐릭터별로 파싱
+                char_section_text = _find_section_by_keyword(content, "실험체")
+                char_sections = {}
+                if char_section_text:
+                    char_sections = _parse_character_sections(char_section_text)
+
+                parsed = {
+                    "post_id": post_id,
+                    "characters": char_sections,
+                    "full_text": content,
                     "fetched_at": time.time(),
                 }
-                return content
+                _parsed_cache[post_id] = parsed
+                return parsed
     except Exception as e:
-        logger.error("패치노트 본문 가져오기 실패: %s", e)
+        logger.error("패치노트 파싱 실패: %s", e)
         return None
 
 
-def search_patchnote(content: str, keyword: str) -> str:
-    """패치노트 내용에서 키워드 관련 섹션 추출"""
-    if not content:
-        return ""
+def _parse_changes(section_text: str) -> list:
+    """캐릭터 섹션에서 수치 변경사항을 구조화.
 
-    lines = content.split("\n")
-    results = []
-    keyword_lower = keyword.lower()
+    Returns: [{"skill": "짓뭉개기&꿰뚫기(Q)", "changes": ["이동 속도 감소 35% → 40%"]}, ...]
+    """
+    lines = section_text.split("\n")
+    changes = []
+    current_skill = None
 
-    for i, line in enumerate(lines):
-        if keyword_lower in line.lower():
-            # 키워드가 포함된 줄 + 전후 5줄
-            start = max(0, i - 2)
-            end = min(len(lines), i + 6)
-            chunk = "\n".join(lines[start:end])
-            results.append(chunk)
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith(("*", "#")):
+            continue
 
-    if not results:
-        return ""
+        # - 스킬이름(Q) 형태
+        skill_match = re.match(r"^-\s+(.+?\([A-Za-z패]\))\s*$", line)
+        if skill_match:
+            current_skill = skill_match.group(1)
+            continue
 
-    # 중복 제거 후 합치기
-    return "\n---\n".join(results[:5])  # 최대 5개 섹션
+        # - 수치 변경 (→ 포함)
+        if "→" in line and line.startswith("-"):
+            change_text = line.lstrip("- ").strip()
+            # **bold** 제거
+            change_text = re.sub(r"\*\*([^*]+)\*\*", r"\1", change_text)
+            if current_skill:
+                # 기존 스킬에 추가
+                found = False
+                for c in changes:
+                    if c["skill"] == current_skill:
+                        c["changes"].append(change_text)
+                        found = True
+                        break
+                if not found:
+                    changes.append({"skill": current_skill, "changes": [change_text]})
+            else:
+                # 스킬 없이 기본 스탯 변경 (무기 숙련도 등)
+                changes.append({"skill": "기본", "changes": [change_text]})
+
+    return changes
 
 
-def detect_search_intent(message: str) -> Optional[dict]:
-    """메시지에서 패치노트 검색 의도 감지"""
-    # 패치 관련 키워드
-    patch_keywords = ["패치", "너프", "버프", "변경", "수정", "밸런스", "상향", "하향"]
-    has_patch_keyword = any(k in message for k in patch_keywords)
+async def get_patch_context(message: str) -> tuple:
+    """메시지를 분석해서 (LLM context 문자열, V2 표시용 dict) 반환.
 
+    V2 dict: {"title": "10.6 패치노트", "character": "바바라", "changes": [...]} 또는 None
+    캐릭터 변경사항이 없거나 일반 질문이면 V2 dict는 None.
+    """
+    has_patch_keyword = any(k in message for k in PATCH_KEYWORDS)
     if not has_patch_keyword:
-        return None
+        return None, None
 
-    # 캐릭터 이름 감지
+    posts = await _fetch_patchnote_list()
+    if not posts:
+        return None, None
+
+    # 최신 패치노트부터 검색 (핫픽스에 없으면 메인 패치로 fallback)
+    detected_char = None
     for alias, name in CHARACTER_ALIASES.items():
         if alias in message:
-            return {"type": "character_patch", "character": name, "alias": alias}
+            detected_char = name
+            break
 
-    # 아이템 관련
-    item_keywords = ["아이템", "무기", "방어구", "장비"]
-    for k in item_keywords:
-        if k in message:
-            return {"type": "item_patch", "keyword": k}
+    if detected_char:
+        for post in posts[:3]:
+            parsed = await _fetch_and_parse(post["id"])
+            if not parsed:
+                continue
+            chars = parsed.get("characters", {})
+            if detected_char in chars:
+                section = chars[detected_char]
+                context = f"[{post['title']}] {detected_char} 변경사항:\n{section}"
+                patch_info = {
+                    "title": post["title"],
+                    "character": detected_char,
+                    "changes": _parse_changes(section),
+                }
+                return context, patch_info
+        return f"[{posts[0]['title']}] {detected_char}: 최근 패치에 변경사항 없음.", None
 
-    # 일반 패치 질문
-    return {"type": "general_patch"}
+    # 캐릭터 특정 안 되면 일반 패치
+    section_keywords = {"아이템": "아이템 스킬", "무기": "무기", "방어구": "방어구", "증강": "특성", "전술": "전술 스킬"}
+    for kw, section_name in section_keywords.items():
+        if kw in message:
+            parsed = await _fetch_and_parse(posts[0]["id"])
+            if parsed:
+                section = _find_section_by_keyword(parsed["full_text"], section_name)
+                if section:
+                    return f"[{posts[0]['title']}] {section_name}:\n{section[:600]}", None
 
-
-async def get_patch_context(message: str) -> Optional[str]:
-    """메시지를 분석해서 패치노트 컨텍스트를 반환"""
-    intent = detect_search_intent(message)
-    if not intent:
-        return None
-
-    # 최신 패치노트 목록 가져오기
-    posts = await fetch_patchnote_list()
-    if not posts:
-        return None
-
-    latest = posts[0]
-    content = await fetch_patchnote_content(latest["id"])
-    if not content:
-        return None
-
-    if intent["type"] == "character_patch":
-        char_name = intent["character"]
-        result = search_patchnote(content, char_name)
-        if result:
-            trimmed = result[:400]
-            return f"[{latest['title']}] {char_name} 변경사항:\n{trimmed}"
-        else:
-            return f"[{latest['title']}] {char_name}: 이번 패치에 변경사항 없음."
-
-    elif intent["type"] == "item_patch":
-        keyword = intent["keyword"]
-        result = search_patchnote(content, keyword)
-        if result:
-            trimmed = result[:300]
-            return f"[{latest['title']}] {keyword} 변경:\n{trimmed}"
-        else:
-            return f"[{latest['title']}] {keyword}: 이번 패치에 변경사항 없음."
-
-    else:
-        return f"[{latest['title']}] 최신 패치 적용됨."
+    return f"[{posts[0]['title']}] 최신 패치 적용됨.", None

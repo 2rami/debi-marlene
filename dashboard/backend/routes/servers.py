@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 servers_bp = Blueprint('servers', __name__)
 
-DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
+DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN') or os.getenv('DISCORD_TOKEN')
 DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID')
 DISCORD_API_URL = 'https://discord.com/api/v10'
 
@@ -1310,6 +1310,13 @@ def update_patchnote_notification(guild_id):
         'channelId': channel_id if enabled else None,
     }
 
+    # 토글 끄면 sticky 메시지도 비활성화
+    if not enabled:
+        sticky_id = f"patchnote_{guild_id_str}"
+        for sm in settings['guilds'][guild_id_str].get('sticky_messages', []):
+            if sm.get('id') == sticky_id:
+                sm['enabled'] = False
+
     if save_gcs_settings(settings):
         return jsonify({'success': True})
     else:
@@ -1338,6 +1345,13 @@ def update_coupon_notification(guild_id):
         'enabled': enabled,
         'channelId': channel_id if enabled else None,
     }
+
+    # 토글 끄면 sticky 메시지도 비활성화
+    if not enabled:
+        sticky_id = f"coupon_{guild_id_str}"
+        for sm in settings['guilds'][guild_id_str].get('sticky_messages', []):
+            if sm.get('id') == sticky_id:
+                sm['enabled'] = False
 
     if save_gcs_settings(settings):
         return jsonify({'success': True})

@@ -52,11 +52,15 @@ class ChatClient:
             return None
 
     async def health_check(self) -> bool:
-        """서버 상태 확인"""
+        """서버 상태 확인 (chat 엔드포인트에 빈 요청)"""
         session = await self._get_session()
         try:
-            async with session.get(CHAT_HEALTH_URL) as resp:
-                return resp.status == 200
+            async with session.post(
+                CHAT_API_URL, json={"message": ""},
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as resp:
+                # 빈 메시지 → 400 에러지만 서버는 살아있음
+                return resp.status in (200, 400, 422)
         except aiohttp.ClientError:
             return False
 

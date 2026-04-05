@@ -131,7 +131,7 @@ stop:
 start:
 	@echo "VM에서 최신 이미지 pull 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker pull $(IMAGE_TAG) && docker image prune -f"
+		--command="docker pull $(IMAGE_TAG) && docker image prune -af"
 	@echo "컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env --restart unless-stopped $(IMAGE_TAG)"
@@ -223,7 +223,7 @@ stop-dashboard:
 start-dashboard:
 	@echo "VM에서 대시보드 이미지 pull 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker pull $(DASHBOARD_IMAGE_TAG) && docker image prune -f"
+		--command="docker pull $(DASHBOARD_IMAGE_TAG) && docker image prune -af"
 	@echo "대시보드 컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker run -d --name $(DASHBOARD_CONTAINER) --network dashboard-net -p 3080:80 --env-file ~/dashboard.env --restart unless-stopped $(DASHBOARD_IMAGE_TAG)"
@@ -303,7 +303,7 @@ deploy-webpanel-backend:
 		--command="docker stop webpanel-backend 2>/dev/null || true && docker rm webpanel-backend 2>/dev/null || true && docker run -d --name webpanel-backend -p 8080:8080 --network dashboard-net -v /var/run/docker.sock:/var/run/docker.sock --env-file ~/debi-marlene/.env --restart unless-stopped webpanel-backend:latest"
 	@echo "[4/4] 정리 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker image prune -f"
+		--command="docker image prune -af"
 	@rm -rf /tmp/claude/wb-build /tmp/claude/wb-build.tar.gz
 	@echo "웹패널 백엔드 배포 완료"
 

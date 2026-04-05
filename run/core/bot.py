@@ -682,9 +682,14 @@ async def on_voice_state_update(member, before, after):
 
     # 봇 자신이 음성 채널에 연결/해제된 경우 voice_manager 동기화
     if member.id == bot.user.id:
+        # 듣기 모드(VoiceRecvClient)일 때는 voice_manager 동기화 건너뜀
+        # VoiceListenCog이 직접 관리함
+        guild_id = str((after.channel or before.channel).guild.id)
+        if guild_id in voice_manager.listening_guilds:
+            return
+
         if after.channel and not before.channel:
             # 봇이 음성 채널에 들어감 (RESUME 포함)
-            guild_id = str(after.channel.guild.id)
             vc = after.channel.guild.voice_client
             if vc and guild_id not in voice_manager.voice_clients:
                 voice_manager.voice_clients[guild_id] = vc
@@ -692,7 +697,6 @@ async def on_voice_state_update(member, before, after):
                 print(f"[음성] 연결 동기화: {after.channel.name}", flush=True)
         elif before.channel and not after.channel:
             # 봇이 음성 채널에서 나감 (퇴장, 킥, 연결 끊김 등)
-            guild_id = str(before.channel.guild.id)
             voice_manager.voice_clients.pop(guild_id, None)
             voice_manager.current_type.pop(guild_id, None)
             voice_manager.tts_interrupting.pop(guild_id, None)

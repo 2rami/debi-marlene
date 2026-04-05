@@ -109,7 +109,7 @@ class PatchNoteChecker:
         """패치노트 알림이 활성화된 채널 목록을 가져옵니다."""
         channels = []
         try:
-            settings = await asyncio.to_thread(config.load_settings)
+            settings = await asyncio.to_thread(config.load_settings, force_reload=True)
             guilds = settings.get("guilds", {})
 
             for guild_id, guild_settings in guilds.items():

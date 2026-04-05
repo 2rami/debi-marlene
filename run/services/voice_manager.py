@@ -90,6 +90,9 @@ class VoiceManager:
         # 서버별 idle 타이머 태스크
         self.idle_tasks: Dict[str, asyncio.Task] = {}
 
+        # 서버별 듣기 모드 (VoiceRecvClient 사용 중)
+        self.listening_guilds: set = set()
+
         self._initialized = True
         logger.info("VoiceManager 초기화 완료")
 

@@ -55,7 +55,7 @@ export default function Portfolio() {
 
       <div className="flex flex-col items-center justify-center min-h-screen px-6">
         <ScrollFloat
-          containerClassName="font-heading-en bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent leading-tight mb-4"
+          containerClassName="font-title bg-gradient-to-r from-[#3cabc9] to-[#e58fb6] bg-clip-text text-transparent leading-tight mb-4"
           textClassName="text-4xl md:text-[64px]"
         >
           Portfolio
@@ -106,7 +106,7 @@ export default function Portfolio() {
                     className={`rounded-2xl ${company.logoStyle === 'contain' ? 'w-14 h-14 object-contain' : 'w-full h-full object-cover'} ${isDark && company.invertOnDark ? 'invert' : ''}`}
                   />
                 ) : (
-                  <span className="text-2xl font-bold font-heading-en" style={{ color: company.color }}>
+                  <span className="text-2xl font-bold font-title" style={{ color: company.color }}>
                     {company.name.charAt(0)}
                   </span>
                 )}

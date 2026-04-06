@@ -126,9 +126,9 @@ export default function CharacterSelect() {
               />
             </div>
 
-            {/* 캡슐 (인형뽑기 캡슐) — 중앙 우측, 크게 */}
+            {/* 캡슐 (인형뽑기 캡슐) — 중앙 상단, 카운트업 위 */}
             <div
-              className="absolute right-[5%] top-[8%] z-[6] w-[280px] h-[360px] md:w-[340px] md:h-[440px]"
+              className="absolute left-1/2 -translate-x-1/2 top-[5%] z-[6] w-[200px] h-[260px] md:w-[240px] md:h-[320px]"
               style={{ animation: phase === 'burst' ? 'capsuleShakeHard 0.15s linear infinite' : 'capsuleShake 2s ease-in-out infinite' }}
             >
               {/* 전기 테두리 — StarBorder 스타일 */}

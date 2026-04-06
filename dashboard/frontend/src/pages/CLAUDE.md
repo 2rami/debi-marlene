@@ -31,6 +31,16 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
+| #2347 | 7:58 PM | 🔄 | Simplified Chrono Studio hero section heading hierarchy | ~268 |
+| #2346 | " | ✅ | Replaced coded statusline preview with screenshot image in Chrono portfolio | ~352 |
+| #2345 | 7:57 PM | ✅ | Added statusline preview image to Chrono portfolio | ~202 |
+| #2341 | 7:53 PM | 🔄 | Removed loading animation system from PortfolioChrono | ~265 |
+| #2340 | " | 🔄 | Removed loading screen capsule animation from Chrono portfolio | ~269 |
+| #2339 | " | 🟣 | Loading sequence added to Chrono portfolio page | ~233 |
+| #2330 | 7:49 PM | 🔵 | CountUp component usage pattern identified in CharacterSelect page | ~253 |
+| #2328 | 7:39 PM | ✅ | Added footer visual assets for portfolio footer redesign | ~248 |
+| #2327 | " | 🟣 | Theme-aware footer with layered game imagery for portfolio page | ~412 |
+| #2311 | 7:06 PM | 🟣 | Paginated PDF layout with one section per page | ~247 |
 | #2280 | 6:32 PM | ✅ | Portfolio Content Refinement - Removed MCP Server Count Quantification | ~447 |
 | #2279 | " | 🔄 | PortfolioChrono Hero Section Copy Refinement | ~604 |
 | #2273 | 6:29 PM | 🔴 | Hero section layout changed from fixed to relative positioning | ~261 |

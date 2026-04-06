@@ -7,6 +7,5 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
-| #2148 | 6:56 PM | 🟣 | RAG context injection enabled in inference server for knowledge-augmented responses | ~356 |
-| #2141 | 6:37 PM | ✅ | Reduced response token limit for faster, more concise character dialogue | ~303 |
+| #2158 | 7:08 PM | ✅ | Refined RAG context prompt template for stronger instruction | ~265 |
 </claude-mem-context>

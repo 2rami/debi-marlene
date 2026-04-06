@@ -16,6 +16,9 @@ import AuthCallback from './pages/AuthCallback'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import BotGuide from './pages/BotGuide'
 import Portfolio from './pages/Portfolio'
+import PortfolioKrafton from './pages/PortfolioKrafton'
+import PortfolioChrono from './pages/PortfolioChrono'
+import PortfolioNimbleNeuron from './pages/PortfolioNimbleNeuron'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -46,6 +49,9 @@ function App() {
           <Route path="/payment/fail" element={<PaymentFail />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/portfolio" element={<Portfolio />} />
+          <Route path="/portfolio/krafton" element={<PortfolioKrafton />} />
+          <Route path="/portfolio/chrono" element={<PortfolioChrono />} />
+          <Route path="/portfolio/nimble-neuron" element={<PortfolioNimbleNeuron />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>

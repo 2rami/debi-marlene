@@ -21,8 +21,31 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
+| #2093 | 7:37 PM | 🔴 | Landing Page Floating Icons Z-Index Corrected | ~304 |
 | #2085 | 7:29 PM | ✅ | Landing Page Hero Layering and Icon Drift Animation | ~685 |
 | #2084 | " | 🟣 | Electric Text Effect on Landing Page Features Heading | ~383 |
 | #2083 | 7:28 PM | 🟣 | CharacterSelect Component Migrated to Separate Character Images | ~355 |
 | #2077 | 7:18 PM | 🔄 | Landing Page Complete Redesign to Simplified Light Theme | ~1061 |
+
+### Apr 6, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #2280 | 6:32 PM | ✅ | Portfolio Content Refinement - Removed MCP Server Count Quantification | ~447 |
+| #2279 | " | 🔄 | PortfolioChrono Hero Section Copy Refinement | ~604 |
+| #2273 | 6:29 PM | 🔴 | Hero section layout changed from fixed to relative positioning | ~261 |
+| #2270 | 6:28 PM | ✅ | Removed spotlight overlay effect from portfolio cards | ~228 |
+| #2261 | 6:18 PM | 🔄 | Job Requirements Section Redesigned with Grid Layout | ~514 |
+| #2256 | 6:12 PM | 🔴 | Fixed Unicode Encoding Issues in Portfolio File | ~224 |
+| #2242 | 5:58 PM | 🔄 | Portfolio Asset Management Cleanup | ~268 |
+| #2240 | 5:54 PM | 🟣 | Added Character and Tier Visualizations to Portfolio | ~780 |
+| #2239 | 5:53 PM | 🟣 | Web Portfolio Page for Nimble Neuron Character QA Application | ~918 |
+| #2238 | " | 🟣 | Integrated dak.gg CDN Game Assets into Portfolio | ~655 |
+| #2231 | 5:43 PM | 🔄 | Cleaned Up Unused SectionHeading Title Props | ~297 |
+| #2230 | 5:42 PM | 🟣 | Nimble Neuron QA Portfolio Page Created | ~860 |
+| #2228 | " | 🟣 | Web Portfolio for Nimble Neuron Character QA Position Created | ~744 |
+| #2215 | 5:23 PM | 🟣 | Portfolio PDF Redesigned with Dark Theme and Modern UI | ~783 |
+| #2214 | " | 🟣 | Chrono Studio-Specific Portfolio Page Created | ~853 |
+| #2195 | 5:09 PM | 🔵 | Krafton-Specific Job Matching Section in Portfolio | ~648 |
+| #2192 | " | 🔵 | Portfolio.tsx Full Structure Review | ~694 |
 </claude-mem-context>

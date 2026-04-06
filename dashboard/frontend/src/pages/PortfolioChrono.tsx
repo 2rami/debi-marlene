@@ -5,6 +5,7 @@ import ScrollFloat from '../components/common/ScrollFloat'
 import Galaxy from '../components/common/Galaxy'
 
 import CHRONO_LOGO from '../assets/images/event/chrono_studio_logo.jpeg'
+import STATUSLINE_PREVIEW from '../assets/images/event/statusline_preview.png'
 
 /* ── Colors ── */
 const GOLD = '#C4A265'
@@ -65,8 +66,8 @@ function SectionTitle({ children, sub }: { children: string; sub?: string }) {
   return (
     <div className="mb-16">
       <ScrollFloat
-        containerClassName="font-bold tracking-tight leading-tight"
-        textClassName="text-3xl md:text-5xl"
+        containerClassName="tracking-tight leading-tight [font-family:'Allura',cursive]"
+        textClassName="text-4xl md:text-6xl"
         scrollStart="center bottom+=30%"
         scrollEnd="bottom bottom-=20%"
       >
@@ -203,52 +204,38 @@ export default function PortfolioChrono() {
     return () => observer.disconnect()
   }, [])
 
-  /* ScrollFloat color override via CSS */
+  /* ScrollFloat color override + Space Grotesk font (this page only) */
   useEffect(() => {
     const style = document.createElement('style')
-    style.textContent = `.chrono-scroll-title .word { color: ${GOLD} !important; }`
+    style.textContent = `
+      .chrono-scroll-title .word { color: ${GOLD} !important; }
+      @font-face { font-family: 'Allura'; src: local('Allura'), url('/fonts/Allura-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+    `
     document.head.appendChild(style)
     return () => { document.head.removeChild(style) }
   }, [])
 
   return (
-    <div className="min-h-screen" style={{ background: BG, color: TEXT, fontFamily: "'Pretendard', system-ui, sans-serif" }}>
+    <div className="min-h-screen" style={{ background: BG, color: TEXT, fontFamily: "'Paperlogy', 'Pretendard', system-ui, sans-serif" }}>
       <SideNav active={activeSection} />
 
       {/* ══ HERO (fixed behind — content slides over like a blanket) ══ */}
       <section id="hero" className="fixed top-0 left-0 right-0 h-screen flex flex-col justify-center items-center px-6 overflow-hidden" style={{ zIndex: 0 }}>
-        {/* Galaxy background */}
-        <div className="absolute inset-0 pointer-events-none">
-          <Galaxy
-            hueShift={40}
-            speed={0.3}
-            density={1.2}
-            glowIntensity={0.2}
-            saturation={0.3}
-            rotationSpeed={0.02}
-            twinkleIntensity={0.4}
-            mouseRepulsion={false}
-            mouseInteraction={false}
-          />
+        <div className="absolute inset-0">
+          <Galaxy hueShift={40} speed={0.3} density={1.2} glowIntensity={0.2} saturation={0.3}
+            rotationSpeed={0.02} twinkleIntensity={0.4} mouseRepulsion={true} mouseInteraction={true} />
         </div>
 
         <div className="relative z-10 flex flex-col items-center text-center max-w-3xl">
-          {/* Chrono Studio Logo */}
-          <motion.img
-            src={CHRONO_LOGO} alt="Chrono Studio"
-            className="w-64 md:w-80 h-auto mb-12 opacity-90"
-            draggable={false}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 0.9, scale: 1 }}
-            transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          />
+          <motion.img src={CHRONO_LOGO} alt="Chrono Studio"
+            className="w-64 md:w-80 h-auto mb-8 opacity-90" draggable={false}
+            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 0.9, scale: 1 }}
+            transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }} />
 
-          {/* Divider */}
           <motion.div className="w-16 h-px mb-8" style={{ background: GOLD_DIM }}
             initial={{ scaleX: 0 }} animate={{ scaleX: 1 }}
             transition={{ duration: 0.8, delay: 0.3 }} />
 
-          {/* Position */}
           <motion.h1 className="text-2xl md:text-4xl font-bold tracking-tight mb-3" style={{ color: TEXT }}
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}>
@@ -267,10 +254,9 @@ export default function PortfolioChrono() {
             AI 개발 파이프라인 전체를 1인으로 운영하고 있습니다.
           </motion.p>
 
-          {/* Quick Stats */}
           <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-px mt-14 border" style={{ borderColor: BORDER }}
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.7 }}>
+            transition={{ duration: 0.6, delay: 0.8 }}>
             {[
               { num: '2 Models', label: 'AI 파인튜닝' },
               { num: '60+', label: '자동화 커맨드' },
@@ -284,20 +270,17 @@ export default function PortfolioChrono() {
             ))}
           </motion.div>
 
-          {/* Links with icons */}
           <motion.div className="flex flex-wrap gap-4 mt-10"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.8 }}>
+            transition={{ duration: 0.6, delay: 0.9 }}>
             <LinkButton href="https://github.com/2rami/debi-marlene" icon={<IconGitHub />}>GitHub</LinkButton>
             <LinkButton href="https://debimarlene.com" icon={<IconGlobe />}>Live Service</LinkButton>
             <LinkButton href="https://debimarlene.com/portfolio" icon={<IconFolder />}>Full Portfolio</LinkButton>
           </motion.div>
         </div>
 
-        {/* Scroll indicator */}
         <motion.div className="absolute bottom-10"
-          animate={{ y: [0, 8, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}>
+          animate={{ y: [0, 8, 0] }} transition={{ duration: 2, repeat: Infinity }}>
           <div className="w-px h-12" style={{ background: `linear-gradient(to bottom, transparent, ${GOLD_DIM})` }} />
         </motion.div>
       </section>
@@ -386,22 +369,9 @@ export default function PortfolioChrono() {
                 직접 만든 오픈소스 statusline. Nerd Font 아이콘 + Tokyo Night 컬러로
                 모델명, git 브랜치, 컨텍스트 사용률, 현재 프롬프트를 실시간 표시.
               </p>
-              {/* Statusline preview */}
-              <div className="px-4 py-2.5 font-mono text-sm border" style={{
-                background: '#1a1b26',
-                borderColor: 'rgba(196,162,101,0.1)',
-                color: '#c0caf5',
-              }}>
-                <span style={{color:'#7aa2f7'}}>Opus 4.6</span>
-                <span style={{color:'#565f89'}}> | </span>
-                <span style={{color:'#73daca'}}>main</span>
-                <span style={{color:'#565f89'}}> | </span>
-                <span style={{color:'#bb9af7'}}>debi-marlene</span>
-                <span style={{color:'#565f89'}}> | </span>
-                <span style={{color:'#ff9e64'}}>42%</span>
-                <span style={{color:'#565f89'}}> | </span>
-                <span style={{color:'#73daca'}}>deploy...</span>
-              </div>
+              {/* Statusline preview (screenshot) */}
+              <img src={STATUSLINE_PREVIEW} alt="Statusline preview" className="w-full h-auto border" draggable={false}
+                style={{ borderColor: 'rgba(196,162,101,0.1)', borderRadius: 4 }} />
             </div>
           </FadeIn>
 

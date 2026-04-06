@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import Lenis from 'lenis'
 import Header from '../components/common/Header'
@@ -10,6 +10,10 @@ import ProfileCard from '../components/common/ProfileCard'
 /* ── Assets ── */
 import CHAR_HERO_LIGHT from '../assets/images/event/imgi_30_ch01_v2.png'
 import CHAR_HERO_DARK from '../assets/images/event/char_twins_dark.png'
+import TWINS_APPROVE from '../assets/images/event/236_twins_approve.png'
+import BG_FOOTER from '../assets/images/event/footer_bg.png'
+import FOOTER_PLATFORM from '../assets/images/event/footer_platform.png'
+import FOOTER_CHAR from '../assets/images/event/footer_char.png'
 
 /* ── dak.gg CDN ── */
 const CDN = 'https://cdn.dak.gg/assets/er'
@@ -159,6 +163,66 @@ function LinkButton({ href, children, icon }: { href: string; children: React.Re
   )
 }
 
+/* ── Theme Toggle (StarBorder intro -> shrink) ── */
+function ThemeToggle() {
+  const { isDark, toggle } = useTheme()
+  const [expanded, setExpanded] = useState(true)
+  const hasInteracted = useRef(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => { if (!hasInteracted.current) setExpanded(false) }, 4500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const handleClick = useCallback(() => {
+    toggle()
+    if (expanded) { hasInteracted.current = true; setExpanded(false) }
+  }, [toggle, expanded])
+
+  const starColor = isDark ? '#7DE8ED' : '#3cabc9'
+
+  return (
+    <motion.button onClick={handleClick} layout
+      className={`fixed bottom-6 right-6 z-50 cursor-pointer overflow-hidden ${expanded ? 'rounded-2xl' : 'rounded-full'}`}
+      initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.5 }}
+      whileHover={{ scale: expanded ? 1.03 : 1.1 }}
+      aria-label="Toggle theme" style={{ padding: expanded ? '2px 0' : '0' }}>
+      <AnimatePresence>
+        {expanded && (<>
+          <motion.div className="absolute w-[300%] h-[50%] opacity-70 rounded-full animate-star-bottom z-0"
+            style={{ bottom: '-11px', right: '-250%', background: `radial-gradient(circle, ${starColor}, transparent 10%)` }}
+            initial={{ opacity: 0 }} animate={{ opacity: 0.7 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} />
+          <motion.div className="absolute w-[300%] h-[50%] opacity-70 rounded-full animate-star-top z-0"
+            style={{ top: '-10px', left: '-250%', background: `radial-gradient(circle, ${starColor}, transparent 10%)` }}
+            initial={{ opacity: 0 }} animate={{ opacity: 0.7 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} />
+        </>)}
+      </AnimatePresence>
+      <motion.div layout className={`relative z-[1] flex items-center justify-center overflow-hidden ${
+        expanded ? 'gap-3 rounded-2xl px-6 py-4' : 'rounded-full w-12 h-12'
+      } ${isDark ? 'bg-gradient-to-b from-[#1a1a2e] to-[#16213e] border border-white/15 text-white' : 'bg-gradient-to-b from-white to-gray-50 border border-gray-200 text-gray-700'}`}
+        style={{ boxShadow: expanded ? `0 0 24px ${isDark ? 'rgba(125,232,237,0.25)' : 'rgba(60,171,201,0.2)'}, 0 8px 32px rgba(0,0,0,0.15)` : '0 4px 16px rgba(0,0,0,0.12)' }}>
+        <motion.svg layout xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+          className={`shrink-0 theme-toggle-icon ${expanded ? 'w-6 h-6' : 'w-5 h-5'}`}>
+          {isDark ? (
+            <><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>
+          ) : (<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>)}
+        </motion.svg>
+        <AnimatePresence>
+          {expanded && (
+            <motion.div initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }}
+              transition={{ duration: 0.3 }} className="flex flex-col items-start whitespace-nowrap overflow-hidden">
+              <span className="text-sm font-semibold leading-tight">{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+              <span className={`text-[11px] leading-tight ${isDark ? 'text-white/50' : 'text-gray-400'}`}>Click to switch</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.button>
+  )
+}
+
 /* ── Side Nav ── */
 const NAV_ITEMS = [
   { id: 'hero', label: 'Intro' },
@@ -237,6 +301,7 @@ export default function PortfolioNimbleNeuron() {
       isDark ? 'bg-discord-darkest text-white' : 'bg-[#f8fcfd] text-gray-800'
     }`} style={{ overflowX: 'clip' }}>
       <Header />
+      <ThemeToggle />
       <SideNav />
 
       {/* ══ HERO ══ */}
@@ -711,27 +776,59 @@ export default function PortfolioNimbleNeuron() {
         </section>
 
         {/* ══ FOOTER ══ */}
-        <section className="py-20 relative">
-          <div className="max-w-3xl mx-auto px-6 text-center">
-            <FadeIn>
-              <h2 className={`font-title text-3xl md:text-5xl font-bold mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                이터널 리턴을 가장 많이<br />플레이한 QA가 되겠습니다.
-              </h2>
-            </FadeIn>
-            <FadeIn delay={0.1}>
-              <p className={`text-lg mb-10 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                1,100시간의 코어 플레이 경험과 데이터 분석 역량으로,<br />
-                게임의 품질을 유저 눈높이에서 지키겠습니다.
-              </p>
-            </FadeIn>
-            <FadeIn delay={0.15}>
-              <div className="flex flex-wrap justify-center gap-4">
-                <LinkButton href="https://github.com/2rami/debi-marlene" icon={<IconGitHub />}>GitHub</LinkButton>
-                <LinkButton href="https://debimarlene.com" icon={<IconGlobe />}>debimarlene.com</LinkButton>
+        <footer className="relative z-[5] overflow-hidden">
+          {isDark ? (
+            <div className="py-20">
+              <div className="max-w-5xl mx-auto px-6 text-center">
+                <FadeIn>
+                  <img src={TWINS_APPROVE} alt="" className="w-48 h-auto mx-auto mb-8" draggable={false} />
+                  <h2 className="text-2xl md:text-3xl font-bold text-white mb-3 font-title">
+                    이터널 리턴을 가장 많이 플레이한 QA가 되겠습니다.
+                  </h2>
+                  <p className="text-discord-muted mb-8">
+                    1,100시간의 코어 플레이 경험과 데이터 분석 역량으로,<br />
+                    게임의 품질을 유저 눈높이에서 지키겠습니다.
+                  </p>
+                  <div className="flex justify-center gap-4">
+                    <LinkButton href="https://github.com/2rami/debi-marlene" icon={<IconGitHub />}>GitHub</LinkButton>
+                    <LinkButton href="https://debimarlene.com/portfolio/nimble-neuron" icon={<IconGlobe />}>Web Portfolio</LinkButton>
+                  </div>
+                </FadeIn>
               </div>
-            </FadeIn>
+            </div>
+          ) : (
+            <>
+              <img src={BG_FOOTER} alt="" className="absolute inset-0 w-full h-full object-cover object-bottom" draggable={false} />
+              <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#f8fcfd] to-transparent z-[1]" />
+              <div className="relative z-[2] flex justify-center pt-20 px-6">
+                <FadeIn className="w-full max-w-3xl">
+                  <div className="bg-white/60 rounded-3xl border border-white/40 p-8 md:p-12 text-center backdrop-blur-sm">
+                    <h2 className="font-title text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+                      이터널 리턴을 가장 많이<br />플레이한 QA가 되겠습니다.
+                    </h2>
+                    <p className="text-gray-500 mb-8 leading-relaxed">
+                      1,100시간의 코어 플레이 경험과 데이터 분석 역량으로,<br />
+                      게임의 품질을 유저 눈높이에서 지키겠습니다.
+                    </p>
+                    <div className="flex justify-center gap-4">
+                      <LinkButton href="https://github.com/2rami/debi-marlene" icon={<IconGitHub />}>GitHub</LinkButton>
+                      <LinkButton href="https://debimarlene.com/portfolio/nimble-neuron" icon={<IconGlobe />}>Web Portfolio</LinkButton>
+                    </div>
+                  </div>
+                </FadeIn>
+              </div>
+              <div className="relative z-[2] mt-6">
+                <img src={FOOTER_PLATFORM} alt="" className="w-full h-auto" draggable={false} />
+                <div className="absolute inset-0 z-[1]">
+                  <img src={FOOTER_CHAR} alt="" className="w-full h-full object-contain" draggable={false} />
+                </div>
+              </div>
+            </>
+          )}
+          <div className={`relative z-[3] text-center py-6 text-xs ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>
+            Yang Gunho -- Built with Claude Code
           </div>
-        </section>
+        </footer>
 
       {/* Print styles */}
       <style>{`

@@ -59,7 +59,7 @@ export default function Docs() {
                 관리자 권한이 있는 서버에 봇을 초대할 수 있습니다.
               </p>
               <a
-                href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
+                href={`https://discord.com/api/oauth2/authorize?client_id=${import.meta.env.VITE_DISCORD_CLIENT_ID}&permissions=8&scope=bot%20applications.commands`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-debi-primary hover:underline font-medium"

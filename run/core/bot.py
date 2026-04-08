@@ -67,7 +67,8 @@ class DebiMarleneBot(commands.Bot):
                         if channel:
                             try:
                                 await channel.send(
-                                    "봇이 재시작됩니다. 업데이트 후 `/tts`를 다시 입력해주세요!"
+                                    "봇이 재시작됩니다. 업데이트 후 `/tts`를 다시 입력해주세요!\n"
+                                    "문의: https://discord.com/channels/1466273572115972149/1489047618020442194"
                                 )
                             except Exception:
                                 pass
@@ -301,16 +302,11 @@ async def on_error(event, *args, **kwargs):
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
     """슬래시 커맨드 에러 처리"""
-    # Webhook으로 에러 전송 (CommandNotFound 제외)
-    if not isinstance(error, discord.app_commands.CommandNotFound):
-        from run.services.webhook_logger import notify_error
-        cmd_name = interaction.data.get("name", "?") if interaction.data else "?"
-        guild_name = interaction.guild.name if interaction.guild else "DM"
-        await notify_error(error, context=f"명령어: /{cmd_name} (서버: {guild_name})")
+    cmd_name = interaction.data.get("name", "?") if interaction.data else "?"
+    guild_name = interaction.guild.name if interaction.guild else "DM"
 
+    # CommandNotFound: 삭제된 명령어 안내
     if isinstance(error, discord.app_commands.CommandNotFound):
-        cmd_name = interaction.data.get("name", "?") if interaction.data else "?"
-        guild_name = interaction.guild.name if interaction.guild else "DM"
         user_name = interaction.user.display_name or interaction.user.name
         print(f"[경고] 존재하지 않는 커맨드: /{cmd_name} (유저: {user_name}, 서버: {guild_name})", flush=True)
         try:
@@ -322,8 +318,16 @@ async def on_app_command_error(interaction: discord.Interaction, error: discord.
         except Exception:
             pass
         return
-    # 에러 로그만 남기고 봇은 계속 실행
-    cmd_name = interaction.data.get("name", "?") if interaction.data else "?"
+
+    # Unknown Interaction (10062): 3초 타임아웃, 조치 불가 → 콘솔 로그만
+    original = getattr(error, 'original', None)
+    if isinstance(original, discord.NotFound) and original.code == 10062:
+        print(f"[경고] /{cmd_name}: interaction 만료 (서버: {guild_name})", flush=True)
+        return
+
+    # 그 외 실제 에러 → Webhook 전송
+    from run.services.webhook_logger import notify_error
+    await notify_error(error, context=f"명령어: /{cmd_name} (서버: {guild_name})")
     print(f"[에러] /{cmd_name}: {error}", flush=True)
 
 

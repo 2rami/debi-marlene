@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libnacl-dev \
     libsndfile1 \
     espeak-ng \
+    tini \
     && rm -rf /var/lib/apt/lists/*
 
 # Python 의존성 설치
@@ -28,5 +29,6 @@ COPY . .
 # 포트 노출
 EXPOSE 5001
 
-# 봇 실행
+# tini: PID 1에서 SIGTERM을 Python에 전달 (graceful shutdown)
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["python", "main.py"]

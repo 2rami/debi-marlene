@@ -194,7 +194,7 @@ const InteractiveInviteCard = ({ server, bgGradient, inviteUrl }: { server: Serv
 
 export default function Dashboard() {
   const [servers, setServers] = useState<Server[]>([])
-  const [botClientId, setBotClientId] = useState<string | null>(null)
+  const [botClientId, setBotClientId] = useState<string>(import.meta.env.VITE_DISCORD_CLIENT_ID || '')
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [hoveredGradient, setHoveredGradient] = useState<string | null>(null)
@@ -204,7 +204,7 @@ export default function Dashboard() {
       try {
         const response = await api.get<{ servers: Server[], botClientId: string }>('/servers')
         setServers(response.data.servers.filter(s => s.isAdmin))
-        setBotClientId(response.data.botClientId)
+        if (response.data.botClientId) setBotClientId(response.data.botClientId)
       } catch (error) {
         console.error('Failed to fetch servers:', error)
       } finally {

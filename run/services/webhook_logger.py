@@ -78,7 +78,10 @@ async def notify_bot_started():
     """봇 시작 알림."""
     await send_async(
         "[시작] 봇이 시작되었습니다",
-        "데비&마를렌 봇이 정상적으로 시작되었습니다.",
+        "데비&마를렌 봇이 정상적으로 시작되었습니다.\n\n"
+        "[서포트 서버](https://discord.gg/aDemda3qC9) | "
+        "[채팅 채널](https://discord.com/channels/1466273572115972149/1489047618020442194) | "
+        "[봇 상태](https://debimarlene.com)",
         color=0x2ECC71  # 초록
     )
 

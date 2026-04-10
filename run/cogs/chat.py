@@ -122,7 +122,13 @@ class ChatCog(commands.Cog, name="대화"):
         guild_id = message.guild.id if message.guild else None
 
         try:
-            await log_command_usage("대화", message.author.id, message.author.display_name)
+            await log_command_usage(
+                "대화", message.author.id, message.author.display_name,
+                guild_id=guild_id,
+                guild_name=message.guild.name if message.guild else None,
+                channel_id=message.channel.id,
+                channel_name=getattr(message.channel, 'name', 'DM'),
+            )
         except Exception:
             pass
 

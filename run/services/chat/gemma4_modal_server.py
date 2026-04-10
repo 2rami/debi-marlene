@@ -17,6 +17,23 @@ import modal
 
 app = modal.App("gemma4-chat-server")
 
+MODEL_CACHE_DIR = "/model-cache"
+
+
+def _download_chat_model():
+    """이미지 빌드 시 모델 다운로드 (cold start에서 다운로드 제거)"""
+    from huggingface_hub import snapshot_download
+    snapshot_download("unsloth/gemma-4-E4B-it", local_dir=f"{MODEL_CACHE_DIR}/gemma4-e4b")
+    print("Chat 모델 다운로드 완료")
+
+
+def _download_audio_model():
+    """이미지 빌드 시 오디오 모델 다운로드"""
+    from huggingface_hub import snapshot_download
+    snapshot_download("google/gemma-4-E4B-it", local_dir=f"{MODEL_CACHE_DIR}/gemma4-audio")
+    print("Audio 모델 다운로드 완료")
+
+
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
@@ -24,15 +41,14 @@ image = (
         extra_index_url="https://download.pytorch.org/whl/cu124",
     )
     .pip_install(
-        "unsloth",
-        "unsloth_zoo",
+        "transformers>=4.52.0",
         "peft",
         "accelerate",
-        "bitsandbytes",
     )
     .pip_install(
         "fastapi[standard]",
     )
+    .run_function(_download_chat_model)
 )
 
 volume = modal.Volume.from_name("gemma4-chat-cache", create_if_missing=True)
@@ -72,21 +88,23 @@ class Gemma4Chat:
     @modal.enter()
     def load(self):
         import torch
-        from unsloth import FastModel
-        from unsloth.chat_templates import get_chat_template
+        from transformers import AutoModelForCausalLM, AutoTokenizer
 
         print(f"GPU: {torch.cuda.get_device_name(0)}")
 
-        self.model, self.tokenizer = FastModel.from_pretrained(
-            model_name=BASE_MODEL,
-            max_seq_length=512,
-            load_in_4bit=True,
-            full_finetuning=False,
+        local_path = f"{MODEL_CACHE_DIR}/gemma4-e4b"
+        print(f"모델 로드 (bfloat16): {local_path}")
+
+        self.tokenizer = AutoTokenizer.from_pretrained(local_path)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            local_path,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
         )
 
         # adapter 로드 (volume에 있으면)
         if os.path.exists(ADAPTER_VOLUME_PATH):
-            # ClippableLinear 교체 (PEFT 호환)
+            # Gemma4ClippableLinear → Linear 교체 (PEFT가 인식하도록)
             from transformers.models.gemma4.modeling_gemma4 import Gemma4ClippableLinear
             for name, module in list(self.model.named_modules()):
                 if isinstance(module, Gemma4ClippableLinear):
@@ -101,7 +119,6 @@ class Gemma4Chat:
             print(f"LoRA adapter 적용: {ADAPTER_VOLUME_PATH}")
 
         self.model.eval()
-        self.tokenizer = get_chat_template(self.tokenizer, chat_template="gemma-4")
 
         vram = torch.cuda.memory_allocated() / 1024**3
         print(f"로드 완료 (VRAM: {vram:.1f} GB)")
@@ -192,6 +209,7 @@ audio_image = (
         "fastapi[standard]",
         "python-multipart",
     )
+    .run_function(_download_audio_model, secrets=[modal.Secret.from_name("huggingface")])
 )
 
 AUDIO_MODEL_ID = "google/gemma-4-E4B-it"
@@ -216,11 +234,13 @@ class Gemma4Audio:
         from transformers import AutoProcessor, AutoModelForMultimodalLM
 
         print(f"GPU: {torch.cuda.get_device_name(0)}")
-        print(f"Loading {AUDIO_MODEL_ID}...")
 
-        self.processor = AutoProcessor.from_pretrained(AUDIO_MODEL_ID)
+        local_path = f"{MODEL_CACHE_DIR}/gemma4-audio"
+        print(f"오디오 모델 로드: {local_path}")
+
+        self.processor = AutoProcessor.from_pretrained(local_path)
         self.model = AutoModelForMultimodalLM.from_pretrained(
-            AUDIO_MODEL_ID,
+            local_path,
             torch_dtype=torch.bfloat16,
             device_map="auto",
         )

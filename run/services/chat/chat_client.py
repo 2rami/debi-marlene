@@ -47,7 +47,7 @@ class ChatClient:
                     return None
                 data = await resp.json()
                 return data.get("response")
-        except aiohttp.ClientError as e:
+        except (aiohttp.ClientError, TimeoutError) as e:
             logger.error("추론 서버 연결 실패: %s", e)
             return None
 
@@ -61,7 +61,7 @@ class ChatClient:
             ) as resp:
                 # 빈 메시지 → 400 에러지만 서버는 살아있음
                 return resp.status in (200, 400, 422)
-        except aiohttp.ClientError:
+        except (aiohttp.ClientError, TimeoutError):
             return False
 
     async def close(self):

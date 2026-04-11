@@ -7,6 +7,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import KRAFTON_LOGO from '../assets/images/event/krafton_logo.png'
 import CHRONO_LOGO from '../assets/images/event/chrono_studio_c_logo.png'
 import NIMBLE_LOGO from '../assets/images/event/nimble_neuron_logo.png'
+import NEXON_LOGO from '../assets/images/event/nexon_logo.png'
 
 const companies = [
   {
@@ -42,6 +43,17 @@ const companies = [
     logoStyle: 'contain' as const,
     invertOnDark: true,
   },
+  {
+    id: 'nexon',
+    name: 'NEXON',
+    position: 'AI Agent Full-Stack Engineer',
+    dept: 'AX-Tech / Intelligence Labs',
+    color: '#0B5ED7',
+    ready: true,
+    logo: NEXON_LOGO,
+    logoStyle: 'contain' as const,
+    invertOnDark: false,
+  },
 ]
 
 export default function Portfolio() {
@@ -70,7 +82,7 @@ export default function Portfolio() {
           회사를 선택하세요
         </motion.p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl w-full">
           {companies.map((company, i) => (
             <motion.div
               key={company.id}

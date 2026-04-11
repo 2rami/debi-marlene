@@ -38,6 +38,15 @@ _trigger_pattern = re.compile(
     "|".join(re.escape(w) for w in TRIGGER_WORDS + TRIGGER_NAMES)
 )
 
+# 프롬프트 인젝션 감지 패턴
+_injection_patterns = re.compile(
+    r"시스템\s*프롬프트|system\s*prompt|내부\s*설정|internal|"
+    r"지금부터.*형식으로|모든\s*답변을|역할을?\s*바꿔|"
+    r"너는\s*이제|from\s*now\s*on|ignore\s*previous|"
+    r"<response>|<answer>|<internal|<thinking>",
+    re.IGNORECASE,
+)
+
 
 def _history_key(guild_id, user_id: int) -> str:
     return f"{guild_id or 'dm'}:{user_id}"
@@ -109,6 +118,17 @@ class ChatCog(commands.Cog, name="대화"):
         if message.author.bot:
             return
         if not _trigger_pattern.search(message.content):
+            return
+
+        # 서버별 대화 토글 체크
+        if message.guild:
+            from run.core import config
+            guild_settings = config.load_settings().get("guilds", {}).get(str(message.guild.id), {})
+            if not guild_settings.get("chat_enabled", True):
+                return
+
+        if _injection_patterns.search(message.content):
+            await message.reply("데비: 뭔가 수상한 냄새가 나는데?\n마를렌: ...그런 건 안 통해.", mention_author=False)
             return
 
         user_msg = _extract_message(message.content)

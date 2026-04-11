@@ -1,7 +1,7 @@
 """
 음성 듣기 Cog
 
-음성채널에서 유저 음성을 수신하고 Gemma4 omni로 키워드 감지 + AI 응답.
+음성채널에서 유저 음성을 수신하고 Qwen3.5-Omni로 키워드 감지 + AI 응답.
 
 파이프라인:
   discord-ext-voice-recv (transport 복호화)
@@ -9,7 +9,7 @@
   -> opus -> PCM 디코딩 (discord.opus.Decoder)
   -> WebRTC VAD 음성 감지
   -> pre-buffer 0.5s 포함 녹음
-  -> WAV -> Gemma4Audio (키워드 + 응답)
+  -> WAV -> Qwen3.5-Omni API (키워드 + 응답)
 """
 
 import asyncio
@@ -22,9 +22,11 @@ import threading
 from collections import deque
 from typing import Dict, Optional
 
-import aiohttp
+import os
+
 import discord
 import webrtcvad
+from openai import AsyncOpenAI
 from discord import app_commands
 from discord.ext import commands
 from discord.opus import Decoder as OpusDecoder
@@ -33,6 +35,7 @@ import davey
 import discord.ext.voice_recv as voice_recv
 
 from run.services.voice_manager import VoiceManager
+from run.services.tts import TTSService
 
 logger = logging.getLogger(__name__)
 
@@ -53,11 +56,32 @@ VAD_SAMPLE_RATE = 16000  # webrtcvad는 8k/16k/32k만 지원
 VAD_AGGRESSIVENESS = 3   # 0(느슨) ~ 3(엄격)
 PRE_BUFFER_SEC = 0.5     # 발화 시작 전 포함할 오디오 (초)
 PRE_BUFFER_FRAMES = int(PRE_BUFFER_SEC / (FRAME_DURATION_MS / 1000))  # 25 프레임
-SILENCE_FRAMES = int(1.5 / (FRAME_DURATION_MS / 1000))  # 75 프레임 (1.5초 무음)
-MIN_SPEECH_FRAMES = int(0.5 / (FRAME_DURATION_MS / 1000))  # 25 프레임 (0.5초)
-MAX_SPEECH_SEC = 25
+SILENCE_FRAMES = int(0.7 / (FRAME_DURATION_MS / 1000))  # 35 프레임 (0.7초 무음)
+MIN_SPEECH_FRAMES = int(0.3 / (FRAME_DURATION_MS / 1000))  # 15 프레임 (0.3초)
+MAX_SPEECH_SEC = 8
 
-AUDIO_CHAT_URL = "https://goenho0613--gemma4-chat-server-gemma4audio-audio-chat.modal.run"
+OMNI_MODEL = "qwen3.5-omni-plus"
+SYSTEM_PROMPT = (
+    "너는 이터널 리턴의 쌍둥이 실험체 데비&마를렌이야. 한국어로만 대답해. 이모지 사용하지 마.\n"
+    "데비(언니): 활발, 천진난만, 장난기. 직설적이고 솔직한 10대 소녀 말투.\n"
+    '마를렌(동생): 냉소적이지만 자연스러운 10대 소녀. 말이 짧고 차분함. "..."으로 시작하기도 함.\n'
+    "규칙:\n"
+    "- '데비야/데비' 호출 -> 데비가 메인으로 대답. 마를렌은 가끔 한마디 끼어들기만.\n"
+    "- '마를렌아/마를렌' 호출 -> 마를렌이 메인으로 대답. 데비가 가끔 끼어들기만.\n"
+    "- '뎁마' 호출 -> 둘 다 대답.\n"
+    "- 호출된 캐릭터만 대답해도 됨. 매번 둘 다 말할 필요 없음.\n"
+    "형식: 데비: (대사) 또는 마를렌: (대사). 각자 1-2문장으로 짧게."
+)
+
+# 웨이크워드 응답 음성 (로컬 재생용)
+WAKEWORD_THRESHOLD_SEC = 2.0  # 이 이하면 웨이크워드로 판단
+LISTEN_MODE_TIMEOUT_SEC = 8.0  # 듣기 모드 타임아웃
+
+SFX_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "sfx")
+ACK_AUDIO = {
+    "debi": os.path.join(SFX_DIR, "debi", "Debi_selected_1_01_01.wav"),
+    "marlene": os.path.join(SFX_DIR, "marlene", "Marlene_selected_1_01_01.wav"),
+}
 
 
 def pcm_to_mono_16k(pcm: bytes) -> bytes:
@@ -245,12 +269,35 @@ class ListenSink(voice_recv.AudioSink):
         self.detectors.clear()
 
 
+def parse_character_lines(text: str) -> list[tuple[str, str]]:
+    """응답에서 화자별 대사를 분리.
+
+    Returns: [(speaker, line), ...] — speaker는 "debi" 또는 "marlene"
+    """
+    lines = []
+    for raw in text.split("\n"):
+        raw = raw.strip()
+        if not raw:
+            continue
+        if raw.startswith("데비:") or raw.startswith("데비 :"):
+            lines.append(("debi", raw.split(":", 1)[1].strip()))
+        elif raw.startswith("마를렌:") or raw.startswith("마를렌 :"):
+            lines.append(("marlene", raw.split(":", 1)[1].strip()))
+        else:
+            lines.append(("debi", raw))
+    return lines
+
+
 class VoiceListenCog(commands.Cog, name="음성듣기"):
-    """음성채널에서 듣고 키워드 감지 시 채팅 응답"""
+    """음성채널에서 듣고 키워드 감지 시 음성 + 텍스트 응답"""
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.active_sinks: Dict[str, ListenSink] = {}
+        self.tts_services: Dict[str, TTSService] = {}
+        # 유저별 듣기 모드: {user_id: expiry_time}
+        self.listen_mode: Dict[int, float] = {}
+        self.listen_mode_timers: Dict[int, asyncio.Task] = {}
 
     async def cog_unload(self):
         for guild_id in list(self.active_sinks):
@@ -373,6 +420,37 @@ class VoiceListenCog(commands.Cog, name="음성듣기"):
 
         logger.info(f"[듣기] 중지: {guild_id}")
 
+    def _is_listen_mode(self, user_id: int) -> bool:
+        """유저가 듣기 모드 중인지 확인"""
+        expiry = self.listen_mode.get(user_id)
+        if expiry and time.time() < expiry:
+            return True
+        self.listen_mode.pop(user_id, None)
+        return False
+
+    def _enter_listen_mode(self, user_id: int):
+        """듣기 모드 진입 (타임아웃 후 자동 해제)"""
+        self.listen_mode[user_id] = time.time() + LISTEN_MODE_TIMEOUT_SEC
+        # 이전 타이머 취소
+        old_task = self.listen_mode_timers.pop(user_id, None)
+        if old_task and not old_task.done():
+            old_task.cancel()
+
+        async def _expire():
+            await asyncio.sleep(LISTEN_MODE_TIMEOUT_SEC)
+            self.listen_mode.pop(user_id, None)
+            self.listen_mode_timers.pop(user_id, None)
+            logger.info(f"[듣기] 듣기 모드 타임아웃: {user_id}")
+
+        self.listen_mode_timers[user_id] = asyncio.create_task(_expire())
+
+    def _exit_listen_mode(self, user_id: int):
+        """듣기 모드 해제"""
+        self.listen_mode.pop(user_id, None)
+        old_task = self.listen_mode_timers.pop(user_id, None)
+        if old_task and not old_task.done():
+            old_task.cancel()
+
     async def process_speech(
         self,
         text_channel: discord.TextChannel,
@@ -380,36 +458,104 @@ class VoiceListenCog(commands.Cog, name="음성듣기"):
         wav_bytes: bytes,
         duration: float,
     ):
+        uid = member.id if member else 0
         display = member.display_name if member else "unknown"
-        logger.warning(f"[듣기] Gemma4 전송: {display} {duration:.1f}초")
+        in_listen_mode = self._is_listen_mode(uid)
 
-        audio_b64 = base64.b64encode(wav_bytes).decode()
+        # 하이브리드 분기
+        if in_listen_mode:
+            # 듣기 모드: 키워드 체크 없이 바로 대화
+            self._exit_listen_mode(uid)
+            logger.warning(f"[듣기] 듣기 모드 발화: {display} {duration:.1f}초")
+            await self._respond_with_ai(text_channel, member, wav_bytes, keyword_check=False)
+        elif duration < WAKEWORD_THRESHOLD_SEC:
+            # 짧은 발화: 웨이크워드로 판단 -> ack 재생 + 듣기 모드
+            logger.warning(f"[듣기] 짧은 발화 (웨이크워드?): {display} {duration:.1f}초")
+            await self._play_ack(text_channel, "debi")
+            self._enter_listen_mode(uid)
+        else:
+            # 긴 발화: 키워드 + 응답 한번에
+            logger.warning(f"[듣기] 긴 발화 (원샷): {display} {duration:.1f}초")
+            await self._respond_with_ai(text_channel, member, wav_bytes, keyword_check=True)
 
-        prompt = (
-            "이 오디오를 듣고 판단해:\n"
-            "1. 이 사람이 '데비', '마를렌', '뎁마' 중 하나를 부르고 있으면 캐릭터로 대답해.\n"
-            "2. 너를 부르지 않았으면 정확히 'IGNORE'만 출력해.\n"
-            "반드시 둘 중 하나만 해."
-        )
+    async def _play_ack(self, text_channel: discord.TextChannel, character: str):
+        """웨이크워드 응답 음성 재생 (로컬 파일, API 호출 없음)"""
+        guild_id = str(text_channel.guild.id)
+        vm = VoiceManager()
+        vc = vm.get_voice_client(guild_id)
+        if not vc or not vc.is_connected():
+            return
+
+        ack_path = ACK_AUDIO.get(character)
+        if not ack_path or not os.path.exists(ack_path):
+            return
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    AUDIO_CHAT_URL,
-                    json={
-                        "audio_base64": audio_b64,
-                        "message": prompt,
-                        "character": True,
+            await vm.play_tts(guild_id, ack_path)
+        except Exception as e:
+            logger.error(f"[듣기] ack 재생 실패: {e}")
+
+    async def _respond_with_ai(
+        self,
+        text_channel: discord.TextChannel,
+        member: Optional[discord.Member],
+        wav_bytes: bytes,
+        keyword_check: bool,
+    ):
+        """Qwen3.5-Omni로 응답 생성 + TTS 재생"""
+        display = member.display_name if member else "unknown"
+        audio_b64 = base64.b64encode(wav_bytes).decode()
+
+        if keyword_check:
+            prompt = (
+                "이 오디오를 듣고 판단해:\n"
+                "1. 이 사람이 '데비', '마를렌', '뎁마' 중 하나를 부르고 있으면 캐릭터로 대답해.\n"
+                "2. 너를 부르지 않았으면 정확히 'IGNORE'만 출력해.\n"
+                "반드시 둘 중 하나만 해.\n\n"
+                "응답 형식 (호출된 경우):\n"
+                "[들린 말] 상대방이 말한 내용 그대로\n"
+                "데비: 대사\n"
+                "마를렌: 대사 (선택)\n\n"
+                "주의: 대사에서 상대방이 한 말을 따라하거나 반복하지 마. 자연스럽게 대답만 해."
+            )
+        else:
+            prompt = (
+                "이 오디오를 듣고 캐릭터로 대답해.\n\n"
+                "응답 형식:\n"
+                "[들린 말] 상대방이 말한 내용 그대로\n"
+                "데비: 대사\n"
+                "마를렌: 대사 (선택)\n\n"
+                "주의: 대사에서 상대방이 한 말을 따라하거나 반복하지 마. 자연스럽게 대답만 해."
+            )
+
+        try:
+            client = AsyncOpenAI(
+                api_key=os.getenv("DASHSCOPE_API_KEY"),
+                base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+            )
+            completion = await client.chat.completions.create(
+                model=OMNI_MODEL,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_audio",
+                                "input_audio": {
+                                    "data": f"data:;base64,{audio_b64}",
+                                    "format": "wav",
+                                },
+                            },
+                            {"type": "text", "text": prompt},
+                        ],
                     },
-                    timeout=aiohttp.ClientTimeout(total=60),
-                ) as resp:
-                    if resp.status != 200:
-                        logger.warning(f"[듣기] omni 응답 실패: {resp.status}")
-                        return
-                    data = await resp.json()
-                    response = data.get("response", "").strip()
+                ],
+                modalities=["text"],
+            )
+            response = completion.choices[0].message.content.strip()
         except asyncio.TimeoutError:
-            logger.warning("[듣기] omni 타임아웃 (cold start?)")
+            logger.warning("[듣기] omni 타임아웃")
             return
         except Exception as e:
             logger.error(f"[듣기] omni 에러: {e}")
@@ -419,5 +565,40 @@ class VoiceListenCog(commands.Cog, name="음성듣기"):
             logger.warning(f"[듣기] {display}: IGNORE")
             return
 
-        logger.warning(f"[듣기] {display} -> {response[:80]}")
-        await text_channel.send(response)
+        # [들린 말] 추출
+        heard = ""
+        reply_lines = []
+        for line in response.split("\n"):
+            line = line.strip()
+            if line.startswith("[들린 말]"):
+                heard = line.replace("[들린 말]", "").strip()
+            elif line:
+                reply_lines.append(line)
+        reply_text = "\n".join(reply_lines)
+
+        logger.warning(f"[듣기] {display} -> heard='{heard}' reply='{reply_text[:80]}'")
+
+        # 텍스트 채널에 전송
+        msg = f"**{display}:** {heard}\n{reply_text}" if heard else reply_text
+        await text_channel.send(msg)
+
+        # TTS로 음성채널에서 재생
+        guild_id = str(text_channel.guild.id)
+        vm = VoiceManager()
+        vc = vm.get_voice_client(guild_id)
+        if not vc or not vc.is_connected():
+            return
+
+        try:
+            character_lines = parse_character_lines(reply_text)
+            for speaker, line in character_lines:
+                if not line:
+                    continue
+                if speaker not in self.tts_services:
+                    svc = TTSService(speaker=speaker)
+                    await svc.initialize()
+                    self.tts_services[speaker] = svc
+                audio_path = await self.tts_services[speaker].text_to_speech(text=line)
+                await vm.play_tts(guild_id, audio_path)
+        except Exception as e:
+            logger.error(f"[듣기] TTS 재생 실패: {e}")

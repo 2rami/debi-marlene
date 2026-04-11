@@ -134,23 +134,33 @@ class Gemma4Chat:
 
     @modal.fastapi_endpoint(method="POST")
     async def chat(self, body: dict):
+        """캐릭터 대화 + 범용 요약 겸용
+
+        기본: 데비&마를렌 캐릭터 대화
+        system_prompt 전달 시: 범용 모드 (요약 등)
+        """
         import torch
 
         message = body.get("message", "")
         history = body.get("history", [])
         context = body.get("context")
+        custom_system = body.get("system_prompt")
+        max_tokens = body.get("max_tokens")
 
         if not message:
             return {"error": "message required"}
 
         start = time.time()
 
-        system = SYSTEM_PROMPT
-        if context:
-            system += f"\n\n[패치노트 정보 - 반드시 아래 수치를 인용해서 대답해]\n{context[:600]}"
+        if custom_system:
+            system = custom_system
+        else:
+            system = SYSTEM_PROMPT
+            if context:
+                system += f"\n\n[패치노트 정보 - 반드시 아래 수치를 인용해서 대답해]\n{context[:600]}"
 
         messages = [{"role": "system", "content": system}]
-        if history:
+        if not custom_system and history:
             for h in history[-5:]:
                 messages.append({"role": "user", "content": h["user"]})
                 messages.append({"role": "assistant", "content": h["assistant"]})
@@ -159,16 +169,26 @@ class Gemma4Chat:
         text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         inputs = self.tokenizer(text=[text], return_tensors="pt").to(self.model.device)
 
-        max_tok = 120 if context else 80
+        if max_tokens:
+            max_tok = min(int(max_tokens), 1024)
+        elif context:
+            max_tok = 120
+        else:
+            max_tok = 80
+
+        temp = 0.3 if custom_system else 0.5
 
         with torch.no_grad():
             output = self.model.generate(
                 **inputs, max_new_tokens=max_tok,
-                temperature=0.5, top_p=0.9, do_sample=True,
+                temperature=temp, top_p=0.9, do_sample=True,
             )
 
         response = self.tokenizer.decode(output[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
-        response = self._clean(response)
+        if not custom_system:
+            response = self._clean(response)
+        else:
+            response = response.strip()
         elapsed = time.time() - start
 
         return {"response": response, "elapsed": round(elapsed, 2)}

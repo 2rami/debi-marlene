@@ -68,13 +68,16 @@ class SettingsLayoutView(discord.ui.LayoutView):
         else:
             tts_channel_text = "모든 채널"
 
+        chat_enabled = full_guild_settings.get("chat_enabled", True)
         dm_text = "켜짐" if is_subscribed else "꺼짐"
         tts_auto_delete = full_guild_settings.get("tts_auto_delete_seconds", 0)
         auto_delete_text = f"{tts_auto_delete}초" if tts_auto_delete else "꺼짐"
 
         # === Container 1: 현재 상태 ===
+        chat_text = "켜짐" if chat_enabled else "꺼짐"
         status_text = (
             f"## 서버 설정\n"
+            f"대화: **{chat_text}**\n"
             f"공지 채널: **{channel_text}**\n"
             f"TTS 기본 목소리: **{voice_text}**\n"
             f"TTS 읽을 채널: **{tts_channel_text}**\n"
@@ -130,6 +133,12 @@ class SettingsLayoutView(discord.ui.LayoutView):
         self.add_item(discord.ui.Container(*controls))
 
         # === Container 3: 버튼 ===
+        chat_btn = discord.ui.Button(
+            label=f"대화 {'끄기' if chat_enabled else '켜기'}",
+            style=discord.ButtonStyle.secondary if chat_enabled else discord.ButtonStyle.primary
+        )
+        chat_btn.callback = self._on_chat_toggle
+
         dm_btn = discord.ui.Button(
             label=f"DM 알림 {'끄기' if is_subscribed else '켜기'}",
             style=discord.ButtonStyle.secondary if is_subscribed else discord.ButtonStyle.primary
@@ -143,7 +152,7 @@ class SettingsLayoutView(discord.ui.LayoutView):
             url=f"{DASHBOARD_URL}/servers/{guild.id}"
         )
 
-        btn_items = [dm_btn, dashboard_btn]
+        btn_items = [chat_btn, dm_btn, dashboard_btn]
 
         if is_admin:
             test_btn = discord.ui.Button(label="테스트", style=discord.ButtonStyle.secondary)
@@ -203,6 +212,21 @@ class SettingsLayoutView(discord.ui.LayoutView):
         if guild_id not in settings["guilds"]:
             settings["guilds"][guild_id] = {}
         settings["guilds"][guild_id]["tts_auto_delete_seconds"] = selected
+        config.save_settings(settings)
+
+        await self._rebuild(interaction)
+
+    async def _on_chat_toggle(self, interaction: discord.Interaction):
+        guild_id = str(self.guild.id)
+
+        settings = config.load_settings()
+        if "guilds" not in settings:
+            settings["guilds"] = {}
+        if guild_id not in settings["guilds"]:
+            settings["guilds"][guild_id] = {}
+
+        current = settings["guilds"][guild_id].get("chat_enabled", True)
+        settings["guilds"][guild_id]["chat_enabled"] = not current
         config.save_settings(settings)
 
         await self._rebuild(interaction)

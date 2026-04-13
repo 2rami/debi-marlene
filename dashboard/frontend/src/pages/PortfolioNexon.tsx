@@ -5,6 +5,7 @@ import Header from '../components/common/Header'
 import GlassButton from '../components/common/GlassButton'
 import GradientText from '../components/common/GradientText'
 import ScrollFloat from '../components/common/ScrollFloat'
+import MermaidDiagram from '../components/common/MermaidDiagram'
 import { useTheme } from '../contexts/ThemeContext'
 import { CalendarDays, Layers, BrainCircuit, Bot } from 'lucide-react'
 /* ── Assets ── */
@@ -21,6 +22,100 @@ import SS_AI_CHAT from '../assets/images/event/screenshot_ai_chat.png'
 
 const ACCENT = '#0B5ED7'
 const ACCENT2 = '#6DC8E8'
+
+const ARCHITECTURE_MERMAID = `flowchart LR
+  U1([Discord User])
+  U2([Web User])
+
+  subgraph CLIENT[Client Layer]
+    direction TB
+    D[Discord App]
+    DB[Dashboard Web]
+    AP[Admin Panel]
+  end
+
+  subgraph VM[GCP Compute Engine - Seoul]
+    direction TB
+    NGX{{Nginx Proxy + SSL}}
+    BOT[Discord Bot<br/>discord.py]
+    API1[Dashboard API<br/>Flask + OAuth2]
+    API2[Webpanel API<br/>Flask + SSE]
+    NGX --> API1
+    NGX --> API2
+  end
+
+  subgraph AI[AI Services]
+    direction TB
+    M1[[Modal A10G<br/>Gemma4 LoRA]]
+    M2[[Modal T4<br/>CosyVoice3 TTS]]
+    DS[[DashScope<br/>Qwen3.5-Omni]]
+  end
+
+  subgraph STOR[Storage & CDN]
+    direction TB
+    GCS[(GCS<br/>Memory + Assets)]
+    HF[(HuggingFace<br/>Model Registry)]
+    CF{{Cloudflare<br/>CDN / DNS}}
+  end
+
+  U1 --> D
+  U2 --> DB
+  U2 --> AP
+  D -.Voice/Text.-> BOT
+  DB --> CF
+  AP --> CF
+  CF --> NGX
+
+  BOT -->|Chat RAG| M1
+  BOT -->|TTS Synth| M2
+  BOT -->|Audio Understanding| DS
+  BOT -->|Memory| GCS
+  M1 -.Fine-tuned Weights.-> HF
+  M2 -.Fine-tuned Weights.-> HF
+
+  classDef userNode fill:#818cf8,stroke:#6366f1,color:#fff,stroke-width:2px
+  classDef clientNode fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a,stroke-width:2px
+  classDef serverNode fill:#0B5ED7,stroke:#1e3a8a,color:#fff,stroke-width:2px
+  classDef infraNode fill:#64748b,stroke:#475569,color:#fff,stroke-width:2px
+  classDef aiNode fill:#a855f7,stroke:#7c3aed,color:#fff,stroke-width:2px
+  classDef storeNode fill:#f59e0b,stroke:#d97706,color:#fff,stroke-width:2px
+
+  class U1,U2 userNode
+  class D,DB,AP clientNode
+  class BOT,API1,API2 serverNode
+  class NGX infraNode
+  class M1,M2,DS aiNode
+  class GCS,HF storeNode
+  class CF infraNode
+`
+
+// 실제 LangGraph StateGraph의 draw_mermaid() 출력 그대로.
+// 생성 커맨드: graph.get_graph().draw_mermaid()
+// 점선(-.->)이 conditional edge, 실선(-->)이 일반 edge
+const CHAT_AGENT_MERMAID = `---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+    __start__([START]):::first
+    classify_intent(classify_intent)
+    fetch_patchnote(fetch_patchnote)
+    skip_patchnote(skip_patchnote)
+    fetch_memory(fetch_memory)
+    call_llm(call_llm)
+    __end__([END]):::last
+    __start__ --> classify_intent;
+    classify_intent -. "intent = patch" .-> fetch_patchnote;
+    classify_intent -. "intent = general" .-> skip_patchnote;
+    fetch_memory --> call_llm;
+    fetch_patchnote --> fetch_memory;
+    skip_patchnote --> fetch_memory;
+    call_llm --> __end__;
+    classDef default fill:#e8f4ff,stroke:#0B5ED7,stroke-width:2px,color:#0f172a,line-height:1.2
+    classDef first fill:#0B5ED7,color:#fff,stroke:#1e3a8a
+    classDef last fill:#6DC8E8,color:#0f172a,stroke:#0B5ED7
+`
 
 /* ── FadeIn ── */
 function FadeIn({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
@@ -404,13 +499,19 @@ export default function PortfolioNexon() {
           scrollTrigger: {
             trigger: container,
             pin: true,
-            scrub: 1,
+            pinSpacing: true,
+            anticipatePin: 1,
+            start: 'top top',
+            end: () => '+=' + (container.offsetWidth * (cards.length - 1)),
+            scrub: 0.5,
+            fastScrollEnd: true,
             snap: {
               snapTo: 1 / (cards.length - 1),
-              duration: { min: 0.2, max: 0.6 },
-              ease: 'power2.inOut',
+              duration: { min: 0.15, max: 0.4 },
+              delay: 0,
+              ease: 'power2.out',
+              directional: false,
             },
-            end: () => '+=' + (container.offsetWidth * (cards.length - 1)),
             invalidateOnRefresh: true,
           },
         })
@@ -737,10 +838,10 @@ export default function PortfolioNexon() {
                   transition={{ duration: 0.4, ease: [0.04, 0.62, 0.23, 0.98] }}
                   className="flex flex-col md:flex-row gap-8 md:gap-0 mt-8"
                 >
-                  <PipelineNode step={1} title="키워드 트리거" desc="'데비야', '마를렌아' 등 호출 키워드 감지. 슬래시 커맨드로도 작동." techs={['discord.py', 'Regex']} delay={0} />
-                  <PipelineNode step={2} title="컨텍스트 구성" desc="패치노트 검색(RAG) + GCS 대화 히스토리 + 캐릭터 시스템 프롬프트." techs={['RAG', 'GCS']} delay={0.05} />
-                  <PipelineNode step={3} title="LLM 추론" desc="Modal A10G에서 Gemma4 E4B + LoRA 어댑터로 캐릭터 응답 생성." techs={['Gemma4 LoRA', 'Modal']} delay={0.1} />
-                  <PipelineNode step={4} title="응답 전송" desc="Discord Components V2로 버튼/드롭다운이 포함된 UI 메시지 전송." techs={['Components V2']} delay={0.15} isLast />
+                  <PipelineNode step={1} title="키워드 트리거" desc="'데비야', '마를렌아' 호출 감지. LangGraph StateGraph로 진입." techs={['discord.py', 'LangGraph']} delay={0} />
+                  <PipelineNode step={2} title="의도 분류 (분기)" desc="regex 기반 classify_intent 노드. patch 키워드 있으면 RAG, 없으면 skip." techs={['Conditional Edge']} delay={0.05} />
+                  <PipelineNode step={3} title="컨텍스트 수집" desc="fetch_patchnote (조건부) → fetch_memory (GCS corrections). 필요할 때만 실행." techs={['RAG', 'GCS', 'TypedDict State']} delay={0.1} />
+                  <PipelineNode step={4} title="LLM + 응답 전송" desc="call_llm 노드 → Modal A10G Gemma4 LoRA. Components V2 UI로 Discord 전송." techs={['Gemma4 LoRA', 'Modal', 'Components V2']} delay={0.15} isLast />
                 </motion.div>
               )}
               
@@ -760,6 +861,37 @@ export default function PortfolioNexon() {
                 </motion.div>
               )}
           </div>
+
+          {/* LangGraph StateGraph -- Actual draw_mermaid() output */}
+          {pipelineTab === 'text' && (
+            <FadeIn delay={0.1} className="mt-20">
+              <div className="text-center mb-6">
+                <h3 className={`text-sm font-bold uppercase tracking-wider ${isDark ? 'text-[#6DC8E8]' : 'text-[#0B5ED7]'}`}>
+                  LangGraph StateGraph
+                </h3>
+                <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  아래 다이어그램은 <code className={`px-1.5 py-0.5 rounded ${isDark ? 'bg-white/[0.05] text-[#6DC8E8]' : 'bg-gray-100 text-[#0B5ED7]'}`}>graph.get_graph().draw_mermaid()</code> 실행 결과를 그대로 렌더링한 것.
+                </p>
+              </div>
+              <GlassCard className="p-6 md:p-10 rounded-3xl">
+                <MermaidDiagram chart={CHAT_AGENT_MERMAID} className="[&_svg]:w-full [&_svg]:h-auto [&_svg]:max-w-2xl [&_svg]:mx-auto" />
+              </GlassCard>
+              <div className="grid md:grid-cols-2 gap-4 mt-6">
+                <GlassCard className="p-5 rounded-2xl">
+                  <div className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-red-400' : 'text-red-500'}`}>Before -- 선형 if-else</div>
+                  <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    모든 메시지에 패치노트 RAG 호출 (평균 100~300ms). '데비야 안녕' 같은 잡담도 네트워크 hop 발생.
+                  </p>
+                </GlassCard>
+                <GlassCard className="p-5 rounded-2xl">
+                  <div className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-emerald-400' : 'text-emerald-500'}`}>After -- StateGraph + Conditional Edge</div>
+                  <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    classify_intent가 regex로 patch 키워드를 0.1ms에 판별. 잡담은 skip_patchnote로 우회, RAG 비용 0.
+                  </p>
+                </GlassCard>
+              </div>
+            </FadeIn>
+          )}
 
           {/* Model Selection Journey */}
           <FadeIn delay={0.2} className="mt-16">
@@ -1036,81 +1168,14 @@ export default function PortfolioNexon() {
           </div>
 
           <FadeIn>
-            <GlassCard className="p-8 rounded-3xl">
-             <div className="relative grid md:grid-cols-3 gap-8">
-               <div className={`absolute -top-[100px] left-[50%] -translate-x-[50%] w-[500px] h-[300px] blur-[120px] pointer-events-none ${isDark ? 'bg-[#0B5ED7]/15' : 'bg-[#0B5ED7]/[0.08]'}`}/>
-               
-               {/* Clients Layer */}
-               <div className="relative z-10 md:pr-4 md:border-r border-dashed border-gray-200 dark:border-white/10 flex flex-col">
-                 <div className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                   <span className="w-2 h-2 rounded-full border-2 border-indigo-500 bg-transparent flex items-center justify-center"><span className="w-0.5 h-0.5 rounded-full bg-indigo-500"/></span>
-                   Client Layer
-                 </div>
-                 <div className="flex flex-col gap-4 flex-1 justify-center">
-                   {[{ n: 'Discord', d: 'Text/Voice UI', icon: 'M18 10h-2V8h-4v2H8V8H4v10h4v2h2v-2h4v2h2v-2h4v-8h-2z' }, { n: 'Dashboard', d: 'React App', icon:'M4 4h16v16H4V4zm2 2v12h12V6H6zm2 2h8v2H8V8zm0 4h8v2H8v-2z' }, { n: 'Admin Panel', d: 'Manager Web', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z' }].map(c => (
-                     <div key={c.n} className={`group p-4 flex gap-4 items-center rounded-2xl border transition-all hover:scale-[1.02] ${isDark ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04]' : 'bg-white border-gray-100 shadow-sm hover:shadow-md'}`}>
-                       <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/[0.05]' : 'bg-gray-50'}`}>
-                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className={isDark ? 'text-gray-400' : 'text-gray-400'}><path d={c.icon}/></svg>
-                       </div>
-                       <div>
-                         <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>{c.n}</div>
-                         <div className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{c.d}</div>
-                       </div>
-                     </div>
-                   ))}
-                 </div>
-               </div>
-
-               {/* Core Server Layer */}
-               <div className="space-y-4 relative z-10 md:pr-4 md:border-r border-dashed border-gray-200 dark:border-white/10">
-                 <div className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isDark ? 'text-[#0B5ED7]' : 'text-blue-600'}`}>
-                   <span className="w-2 h-2 rounded-full bg-[#0B5ED7] animate-pulse shadow-[0_0_8px_rgba(11,94,215,0.8)]"></span> 
-                   App Server (GCP)
-                 </div>
-                 <div className={`p-6 rounded-[24px] border h-[calc(100%-40px)] flex flex-col justify-center ${isDark ? 'bg-gradient-to-b from-[#0B5ED7]/10 to-transparent border-[#0B5ED7]/20' : 'bg-blue-50/50 border-blue-200/50'}`}>
-                   <div className="grid grid-cols-2 gap-3">
-                     {[
-                       { n: 'Discord Bot', d: 'discord.py' },
-                       { n: 'Dashboard API', d: 'Flask + OAuth2' },
-                       { n: 'Webpanel API', d: 'Flask + SSE' },
-                       { n: 'Nginx', d: 'Proxy + SSL' },
-                       { n: 'Docker', d: 'Containers' },
-                       { n: 'Gunicorn', d: 'WSGI Server' },
-                     ].map(c => (
-                       <div key={c.n} className={`p-4 rounded-2xl border text-center transition-all hover:scale-[1.05] ${isDark ? 'bg-white/[0.03] border-white/[0.05] hover:border-[#0B5ED7]/30' : 'bg-white/80 border-blue-100 hover:shadow-md'}`}>
-                         <div className={`font-bold text-[13px] ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{c.n}</div>
-                         <div className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{c.d}</div>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-               </div>
-
-               {/* AI & Cloud Services Layer */}
-               <div className="space-y-4 relative z-10">
-                 <div className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isDark ? 'text-[#6DC8E8]' : 'text-sky-500'}`}>
-                   <span className="w-2 h-2 rounded-full bg-[#6DC8E8] animate-pulse shadow-[0_0_8px_rgba(109,200,232,0.8)]"></span>
-                   AI & External Services
-                 </div>
-                 <div className={`p-6 rounded-[24px] border h-[calc(100%-40px)] flex flex-col justify-center ${isDark ? 'bg-gradient-to-b from-[#6DC8E8]/10 to-transparent border-[#6DC8E8]/20' : 'bg-sky-50/50 border-sky-200/50'}`}>
-                   <div className="grid grid-cols-2 gap-3">
-                     {[
-                       { n: 'Modal A10G', d: 'Gemma4 LoRA' },
-                       { n: 'Modal T4', d: 'CosyVoice3 TTS' },
-                       { n: 'DashScope', d: 'Qwen3.5-Omni' },
-                       { n: 'HuggingFace', d: 'Model Registry' },
-                       { n: 'GCS', d: 'Memory / Assets' },
-                       { n: 'Cloudflare', d: 'CDN / DNS' },
-                     ].map(c => (
-                       <div key={c.n} className={`p-4 rounded-2xl border text-center transition-all hover:scale-[1.05] ${isDark ? 'bg-white/[0.03] border-white/[0.05] hover:border-[#6DC8E8]/30' : 'bg-white/80 border-sky-100 hover:shadow-md'}`}>
-                         <div className={`font-bold text-[13px] ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{c.n}</div>
-                         <div className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{c.d}</div>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-               </div>
-             </div>
+            <GlassCard className="p-6 md:p-10 rounded-3xl">
+              <div className="relative">
+                <div className={`absolute -top-[100px] left-[50%] -translate-x-[50%] w-[500px] h-[300px] blur-[120px] pointer-events-none ${isDark ? 'bg-[#0B5ED7]/15' : 'bg-[#0B5ED7]/[0.08]'}`} />
+                <MermaidDiagram chart={ARCHITECTURE_MERMAID} className="relative z-10 [&_svg]:w-full [&_svg]:h-auto [&_svg]:max-w-full" />
+                <p className={`relative z-10 text-center text-xs mt-6 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  * 이 다이어그램은 Mermaid.js로 데이터 기반 렌더링. 서비스 추가 시 하드코딩 없이 텍스트만 수정.
+                </p>
+              </div>
             </GlassCard>
           </FadeIn>
         </div>

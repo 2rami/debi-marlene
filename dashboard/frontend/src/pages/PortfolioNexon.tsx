@@ -96,55 +96,103 @@ function Screenshot({ src, alt, delay = 0 }: { src: string; alt: string; delay?:
   )
 }
 
-/* ── JD Match Card ── */
-function MatchCard({ requirement, evidence, techs, delay = 0 }: {
-  requirement: string; evidence: string; techs: string[]; delay?: number
+/* ── JD Match Card (Hover Bento) ── */
+function MatchCard({ requirement, evidence, techs, delay = 0, className = "" }: {
+  requirement: string; evidence: string; techs: string[]; delay?: number; className?: string;
 }) {
   const { isDark } = useTheme()
   return (
-    <FadeIn delay={delay} className={`p-5 rounded-2xl border ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
-      <div className="flex items-start gap-3 mb-3">
-        <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: `${ACCENT}20`, color: ACCENT }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+    <FadeIn delay={delay} className={`group relative p-6 rounded-3xl border overflow-hidden transition-all duration-500 ${isDark ? 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]' : 'bg-white border-gray-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1'} ${className}`}>
+      {/* Background Glow */}
+      <div className={`absolute top-0 right-0 w-32 h-32 blur-[50px] transition-opacity duration-500 opacity-0 group-hover:opacity-100 ${isDark ? 'bg-[#0B5ED7]/20' : 'bg-[#0B5ED7]/10'}`} />
+      
+      <div className="relative z-10 flex flex-col h-full">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-sm transition-transform duration-300 group-hover:scale-110" style={{ backgroundColor: isDark ? `${ACCENT}25` : `${ACCENT}15`, color: ACCENT }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <div className={`text-base font-bold leading-tight pt-1 w-full pr-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>{requirement}</div>
         </div>
-        <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{requirement}</div>
-      </div>
-      <p className={`text-sm leading-relaxed ml-9 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{evidence}</p>
-      <div className="flex flex-wrap gap-1.5 mt-3 ml-9">
-        {techs.map(t => (
-          <span key={t} className={`px-2 py-0.5 rounded-full text-xs border ${isDark ? 'bg-white/[0.05] text-gray-400 border-white/[0.06]' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{t}</span>
-        ))}
+        
+        {/* Tech tags - always visible at bottom, pushing space */}
+        <div className="mt-auto pt-4 flex flex-wrap gap-2">
+          {techs.map(t => (
+            <span key={t} className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${isDark ? 'bg-white/[0.05] text-gray-300 border-white/[0.06] group-hover:border-white/[0.15]' : 'bg-gray-50 text-gray-600 border-gray-200 group-hover:border-blue-200'}`}>{t}</span>
+          ))}
+        </div>
+
+        {/* Hover Overlay for Evidence */}
+        <div className={`absolute inset-0 p-6 flex flex-col justify-center backdrop-blur-md transition-all duration-500 ease-out opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 ${isDark ? 'bg-[#1a1a2e]/90' : 'bg-white/95'}`}>
+          <div className="flex items-center gap-2 mb-3 text-xs font-bold uppercase tracking-wider text-[#0B5ED7]">
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg> Implementation
+          </div>
+          <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{evidence}</p>
+        </div>
       </div>
     </FadeIn>
   )
 }
 
-/* ── Troubleshoot Card ── */
+/* ── Troubleshoot Accordion ── */
 function TroubleshootCard({ title, problem, cause, solution, color, delay = 0 }: {
   title: string; problem: string; cause: string; solution: string; color: string; delay?: number
 }) {
   const { isDark } = useTheme()
+  const [isOpen, setIsOpen] = useState(false)
+  
   return (
     <FadeIn delay={delay}>
-      <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        className={`group cursor-pointer rounded-2xl border overflow-hidden transition-all duration-300 select-none ${isDark ? 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]' : 'bg-white border-gray-200/50 hover:bg-gray-50'} ${isOpen ? isDark ? 'ring-1 ring-white/10' : 'shadow-md ring-1 ring-gray-200' : ''}`}
+      >
         <div className="flex items-stretch">
-          <div className="w-1 shrink-0" style={{ backgroundColor: color }} />
+          <div className="w-1.5 shrink-0 transition-colors" style={{ backgroundColor: isOpen ? color : `${color}80` }} />
           <div className="flex-1 p-5">
-            <div className={`font-bold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>{title}</div>
-            <div className="grid md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#ed4245' }}>Problem</div>
-                <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{problem}</div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#faa61a' }}>Root Cause</div>
-                <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{cause}</div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#43b581' }}>Solution</div>
-                <div className={isDark ? 'text-gray-400' : 'text-gray-500'}>{solution}</div>
+            <div className={`flex items-center justify-between font-bold text-base ${isDark ? 'text-white' : 'text-gray-800'}`}>
+              <div className="flex items-center gap-3">
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`} style={{ backgroundColor: `${color}20`, color: color }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+                </span>
+                {title}
               </div>
             </div>
+            
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
+                  className="overflow-hidden"
+                >
+                  <div className="grid md:grid-cols-3 gap-6 pt-5 mt-4 border-t border-dashed border-gray-200 dark:border-white/10 text-sm">
+                    <div>
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#ed4245' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        Problem
+                      </div>
+                      <div className={`leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{problem}</div>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#faa61a' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="12 2 2 22 22 22"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                        Root Cause
+                      </div>
+                      <div className={`leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{cause}</div>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#43b581' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        Solution
+                      </div>
+                      <div className={`leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{solution}</div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -152,23 +200,30 @@ function TroubleshootCard({ title, problem, cause, solution, color, delay = 0 }:
   )
 }
 
-/* ── Pipeline Step ── */
-function PipelineStep({ step, title, desc, techs, isLast = false, delay = 0 }: {
+/* ── Pipeline Node (Horizontal) ── */
+function PipelineNode({ step, title, desc, techs, isLast = false, delay = 0 }: {
   step: number; title: string; desc: string; techs: string[]; isLast?: boolean; delay?: number
 }) {
   const { isDark } = useTheme()
   return (
-    <FadeIn delay={delay} className="relative pl-10 pb-8">
-      {!isLast && <div className={`absolute left-[15px] top-10 bottom-0 w-px ${isDark ? 'bg-white/[0.06]' : 'bg-gray-200'}`} />}
-      <div className="absolute left-0 top-0 w-[32px] h-[32px] rounded-full flex items-center justify-center text-xs font-bold" style={{ backgroundColor: `${ACCENT}20`, color: ACCENT }}>
-        {step}
-      </div>
-      <h4 className={`font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-800'}`}>{title}</h4>
-      <p className={`text-sm leading-relaxed mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{desc}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {techs.map(t => (
-          <span key={t} className={`px-2 py-0.5 rounded-full text-xs border ${isDark ? 'bg-white/[0.05] text-gray-400 border-white/[0.06]' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{t}</span>
-        ))}
+    <FadeIn delay={delay} className="relative flex-1 min-w-[240px]">
+      {!isLast && (
+        <div className="hidden md:block absolute top-[24px] left-[60px] right-[-20px] h-px z-0">
+          <div className="w-full h-full border-t-2 border-dashed border-gray-300 dark:border-white/20" />
+          <svg className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-300 dark:text-white/20" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      )}
+      <div className="relative z-10 bg-inherit pr-6 pb-6 md:pb-0">
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold shadow-sm mb-4 transition-transform hover:scale-110`} style={{ backgroundColor: isDark ? `${ACCENT}20` : `${ACCENT}15`, color: ACCENT }}>
+          {step}
+        </div>
+        <h4 className={`font-bold text-base mb-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>{title}</h4>
+        <p className={`text-sm leading-relaxed mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{desc}</p>
+        <div className="flex flex-wrap gap-1.5">
+          {techs.map(t => (
+            <span key={t} className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${isDark ? 'bg-white/[0.05] text-gray-300 border-white/[0.06]' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>{t}</span>
+          ))}
+        </div>
       </div>
     </FadeIn>
   )
@@ -293,6 +348,7 @@ function SectionNav() {
 export default function PortfolioNexon() {
   const { isDark } = useTheme()
   const heroRef = useRef(null)
+  const [pipelineTab, setPipelineTab] = useState<'text' | 'voice'>('text')
 
   useEffect(() => {
     const lenis = new Lenis({ duration: 0.25, wheelMultiplier: 0.5, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
@@ -427,42 +483,48 @@ export default function PortfolioNexon() {
               Requirements
             </h3>
           </FadeIn>
-          <div className="space-y-4 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
             <MatchCard
               delay={0}
               requirement="Python, TypeScript 능숙한 개발"
               evidence="봇 백엔드(Python, discord.py, Flask), 대시보드 프론트엔드(TypeScript, React 19), 웹패널(Flask + React). 두 언어로 전체 서비스를 1인 개발 및 운영 중."
               techs={['Python', 'TypeScript', 'discord.py', 'React 19', 'Flask']}
+              className="md:col-span-2 lg:col-span-2"
             />
             <MatchCard
               delay={0.05}
-              requirement="LLM 등 외부 AI 서비스를 활용한 웹 애플리케이션 개발"
-              evidence="Gemma4 LoRA 파인튜닝(Modal A10G), Qwen3.5-Omni API(DashScope), Claude API 연동. 텍스트 채팅 + 음성 대화 두 채널에서 AI를 활용한 실시간 서비스 운영."
-              techs={['Gemma4 LoRA', 'Qwen3.5-Omni API', 'Claude API', 'Modal Serverless']}
+              requirement="외부 AI 서비스 활용 개발"
+              evidence="Gemma4 LoRA 파인튜닝(Modal API), Qwen3.5-Omni API(DashScope). 텍스트 채팅 + 음성 대화 두 채널에서 실시간 서비스 운영."
+              techs={['Gemma4 LoRA', 'Qwen-Omni', 'API Integration']}
+              className="md:col-span-1 lg:col-span-1"
             />
             <MatchCard
               delay={0.1}
-              requirement="대화형 AI, Agent 설계/개발"
-              evidence="캐릭터 인격을 가진 대화형 AI Agent. 키워드 트리거 + 패치노트 검색(RAG) + 대화 메모리(GCS)로 맥락을 유지하는 멀티턴 대화 시스템 구현."
-              techs={['Prompt Engineering', 'RAG', 'GCS Memory', 'Multi-turn']}
+              requirement="대화형 AI Agent 설계"
+              evidence="캐릭터별 인격을 가진 AI. 발화 트리거 + 패치노트 RAG 맥락 주입 + GCS 메모리로 멀티턴 대화 구현."
+              techs={['Prompt Eng', 'RAG Context', 'GCS Multi-turn']}
+              className="md:col-span-1 lg:col-span-1"
             />
             <MatchCard
               delay={0.15}
-              requirement="업무 자동화 및 생산성 향상을 위한 AI 활용"
-              evidence="Claude Code CLI로 전체 프로젝트 개발. MCP 서버 연동(Figma, Context7, NotebookLM). AI 기반 개발 도구로 6개월간 1인 풀스택 프로젝트 완성."
-              techs={['Claude Code', 'MCP Server', 'Figma MCP', 'AI-assisted Dev']}
+              requirement="업무 자동화 및 생산성 향상"
+              evidence="Claude Code CLI 파이프라인. Figma/Context7 MCP 연동으로 프론트엔드 구현부터 배포까지 AI 기반 자동 생성 도입."
+              techs={['Claude Code', 'MCP Server', 'AI Dev']}
+              className="md:col-span-2 lg:col-span-2"
             />
             <MatchCard
               delay={0.2}
-              requirement="풀스택 역량 -- 프론트엔드부터 백엔드까지"
-              evidence="React 19 + Tailwind 4 + Vite(프론트) / Flask + Gunicorn(백엔드) / Docker + nginx(인프라) / GCP VM + Cloudflare CDN(배포). 기획-개발-배포-운영 전 과정을 단독 수행."
-              techs={['React', 'Flask', 'Docker', 'GCP', 'Cloudflare', 'nginx']}
+              requirement="풀스택 역량 (프론트/백/인프라)"
+              evidence="React 19, Tailwind 4 (프론트) / Flask, Gunicorn (백엔드) / Docker, Nginx, GCP (인프라). 전 과정 1인 풀스택 개발."
+              techs={['React 19', 'Flask', 'Docker', 'GCP', 'Nginx']}
+              className="md:col-span-2 lg:col-span-2"
             />
             <MatchCard
               delay={0.25}
-              requirement="프롬프트 설계, 입력 데이터 구조화로 LLM 활용 품질 개선"
-              evidence="캐릭터별 인격 프롬프트 + 패치노트 컨텍스트 주입 + 대화 히스토리 관리. 음성 대화에서는 '들린 말 반복 금지', '캐릭터별 응답 분리' 등 프롬프트 튜닝으로 품질 개선."
-              techs={['System Prompt', 'Context Injection', 'Response Parsing']}
+              requirement="프롬프트/데이터 구조화 설계"
+              evidence="프롬프트 튜닝으로 '음성 봇이 들린 말을 그대로 대답하는 문제' 파훼. 대사 분리 파서(Speaker Parsing) 구현."
+              techs={['System Prompt', 'LLM Parsing']}
+              className="md:col-span-1 lg:col-span-1"
             />
           </div>
 
@@ -472,30 +534,34 @@ export default function PortfolioNexon() {
               Preferred
             </h3>
           </FadeIn>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <MatchCard
               delay={0}
-              requirement="LLM 챗봇, RAG 설계/개발/운영 경험"
-              evidence="패치노트 RAG: 최신 패치 데이터를 파싱하여 벡터 없이 키워드 기반으로 검색, LLM 컨텍스트에 주입. 대화 메모리를 GCS에 저장하여 세션 간 맥락 유지."
-              techs={['Patchnote RAG', 'GCS', 'Keyword Search', 'Context Window']}
+              requirement="LLM 챗봇, RAG 구축/운영"
+              evidence="최신 게임 패치노트를 벡터 없이 키워드로 컴팩트하게 검색해 LLM 시스템 프롬프트에 주입(Patchnote RAG)."
+              techs={['Patchnote RAG', 'Context Window']}
+              className="md:col-span-1"
             />
             <MatchCard
               delay={0.05}
-              requirement="AI 기반 개발 도구를 능숙하게 활용하여 생산성 향상"
-              evidence="Claude Code CLI를 주 개발 도구로 사용. MCP 서버(Figma, Context7, NotebookLM, Exa)로 외부 도구 연동. 이 포트폴리오 페이지 자체도 Claude Code로 작성."
-              techs={['Claude Code', 'MCP Protocol', 'AI-first Development']}
+              requirement="AI 도구 활용 및 리팩토링"
+              evidence="전체 사이트를 Claude Code와 MCP(Figma, 문서 도구) 기반으로 자동화 설계 및 최적화하여 10배 생산성 확보."
+              techs={['Claude Code', 'AI-first', 'Systematic Gen']}
+              className="md:col-span-1"
             />
             <MatchCard
               delay={0.1}
-              requirement="AX(AI Transformation) 프로젝트 경험"
-              evidence="게임 커뮤니티의 반복 업무(전적 검색, 패치 요약, 음성 안내)를 AI로 자동화. 수동으로 웹사이트를 방문해야 했던 작업을 Discord 안에서 AI가 처리."
-              techs={['Automation', 'Discord Bot', 'AI Integration']}
+              requirement="AX(AI Transformation) 구축"
+              evidence="커뮤니티의 전적 검색이나 패치 질문 같은 반복 소모 업무를 Discord 내 AI 채널로 유도, 완전 자동화 달성."
+              techs={['Community AX', 'Discord Automation']}
+              className="md:col-span-1"
             />
             <MatchCard
               delay={0.15}
-              requirement="AWS 또는 클라우드 환경 서비스 운영 경험"
-              evidence="GCP Compute Engine VM에서 프로덕션 서비스 운영. Docker 컨테이너 + nginx reverse proxy + Cloudflare CDN. Makefile로 빌드/배포/롤백 자동화."
-              techs={['GCP', 'Docker', 'nginx', 'Cloudflare', 'Makefile']}
+              requirement="AWS/클라우드 운영 기반"
+              evidence="GCP Compute Engine 프로덕션 환경 + Docker/nginx. CI/CD를 Makefile 기반으로 파이프라인 관리."
+              techs={['GCP', 'Docker/Nginx', 'Makefile CICD']}
+              className="md:col-span-1"
             />
           </div>
         </div>
@@ -518,34 +584,63 @@ export default function PortfolioNexon() {
             </FadeIn>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12">
-            {/* Text Chat Pipeline */}
-            <div>
-              <FadeIn>
-                <h3 className={`font-bold mb-6 text-lg flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ACCENT }} />
-                  Text Chat -- Gemma4 LoRA
-                </h3>
-              </FadeIn>
-              <PipelineStep step={1} title="키워드 트리거" desc="'데비야', '마를렌아' 등 캐릭터 호출 키워드 감지. 슬래시 커맨드(/대화)로도 트리거 가능." techs={['discord.py', 'Regex']} delay={0} />
-              <PipelineStep step={2} title="컨텍스트 구성" desc="최신 패치노트 검색(RAG) + 대화 히스토리(GCS) + 캐릭터 시스템 프롬프트 조합." techs={['Patchnote RAG', 'GCS Memory']} delay={0.05} />
-              <PipelineStep step={3} title="LLM 추론" desc="Modal A10G에서 Gemma4 E4B + LoRA 어댑터로 캐릭터 인격 기반 응답 생성." techs={['Gemma4', 'LoRA', 'Unsloth', 'Modal']} delay={0.1} />
-              <PipelineStep step={4} title="응답 전송" desc="Discord Components V2(Container, Section, TextDisplay)로 시각적 UI 구성하여 전송." techs={['Components V2', 'LayoutView']} delay={0.15} isLast />
-            </div>
+          <div className="mb-12 flex justify-center">
+            <FadeIn>
+              <div className={`inline-flex p-1.5 rounded-2xl ${isDark ? 'bg-[#000000]/30 border border-white/[0.06]' : 'bg-gray-100/50 border border-gray-200'}`}>
+                <button 
+                  onClick={() => setPipelineTab('text')}
+                  className={`px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${pipelineTab === 'text' ? (isDark ? 'bg-[#0B5ED7]/20 text-white shadow-lg border border-[#0B5ED7]/30' : 'bg-white text-[#0B5ED7] shadow-sm border border-gray-200/50') : (isDark ? 'text-gray-500 hover:text-gray-300 border border-transparent' : 'text-gray-500 hover:text-gray-700 border border-transparent')}`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${pipelineTab === 'text' ? 'animate-pulse' : ''}`} style={{ backgroundColor: ACCENT }} />
+                    Text Chat
+                  </span>
+                </button>
+                <button 
+                  onClick={() => setPipelineTab('voice')}
+                  className={`px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${pipelineTab === 'voice' ? (isDark ? 'bg-[#6DC8E8]/20 text-white shadow-lg border border-[#6DC8E8]/30' : 'bg-white text-[#0B5ED7] shadow-sm border border-gray-200/50') : (isDark ? 'text-gray-500 hover:text-gray-300 border border-transparent' : 'text-gray-500 hover:text-gray-700 border border-transparent')}`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${pipelineTab === 'voice' ? 'animate-pulse' : ''}`} style={{ backgroundColor: ACCENT2 }} />
+                    Voice Chat
+                  </span>
+                </button>
+              </div>
+            </FadeIn>
+          </div>
 
-            {/* Voice Pipeline */}
-            <div>
-              <FadeIn delay={0.1}>
-                <h3 className={`font-bold mb-6 text-lg flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ACCENT2 }} />
-                  Voice Chat -- Qwen3.5-Omni
-                </h3>
-              </FadeIn>
-              <PipelineStep step={1} title="음성 수신 + DAVE 복호화" desc="Discord Voice Gateway에서 음성 패킷 수신. Transport 복호화 후 DAVE E2EE 2차 복호화 (Discord 강제 암호화)." techs={['voice_recv', 'DAVE E2EE', 'davey']} delay={0} />
-              <PipelineStep step={2} title="VAD 발화 감지" desc="Opus -> PCM -> 16kHz 다운샘플 -> WebRTC VAD. 0.5초 pre-buffer로 발화 시작 부분 보존." techs={['WebRTC VAD', 'Opus Decoder']} delay={0.05} />
-              <PipelineStep step={3} title="하이브리드 웨이크워드" desc="짧은 발화(<2초): 게임 음성 즉시 재생 + 듣기 모드 진입. 긴 발화(>=2초): 키워드 체크 + 응답을 한번에." techs={['Hybrid Wakeword', 'Local ACK']} delay={0.1} />
-              <PipelineStep step={4} title="Omni 모델 + TTS" desc="Qwen3.5-Omni API로 오디오 이해 + 응답 생성. 화자별 대사 분리 후 CosyVoice3 파인튜닝 TTS로 음성 재생." techs={['DashScope API', 'CosyVoice3', 'Speaker Parsing']} delay={0.15} isLast />
-            </div>
+          <div className="relative min-h-[300px]">
+             {pipelineTab === 'text' && (
+                <motion.div
+                  key="text"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.4, ease: [0.04, 0.62, 0.23, 0.98] }}
+                  className="flex flex-col md:flex-row gap-8 md:gap-0 mt-8"
+                >
+                  <PipelineNode step={1} title="키워드 트리거" desc="'데비야', '마를렌아' 등 호출 키워드 감지. 슬래시 커맨드로도 작동." techs={['discord.py', 'Regex']} delay={0} />
+                  <PipelineNode step={2} title="컨텍스트 구성" desc="패치노트 검색(RAG) + GCS 대화 히스토리 + 캐릭터 시스템 프롬프트." techs={['RAG', 'GCS']} delay={0.05} />
+                  <PipelineNode step={3} title="LLM 추론" desc="Modal A10G에서 Gemma4 E4B + LoRA 어댑터로 캐릭터 응답 생성." techs={['Gemma4 LoRA', 'Modal']} delay={0.1} />
+                  <PipelineNode step={4} title="응답 전송" desc="Discord Components V2로 버튼/드롭다운이 포함된 UI 메시지 전송." techs={['Components V2']} delay={0.15} isLast />
+                </motion.div>
+              )}
+              
+              {pipelineTab === 'voice' && (
+                <motion.div
+                  key="voice"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.4, ease: [0.04, 0.62, 0.23, 0.98] }}
+                  className="flex flex-col md:flex-row gap-8 md:gap-0 mt-8"
+                >
+                  <PipelineNode step={1} title="음성 수신 / 복호화" desc="음성 패킷 수신. Transport 및 DAVE E2EE 2차 복호화 수행." techs={['voice_recv', 'DAVE E2EE']} delay={0} />
+                  <PipelineNode step={2} title="VAD 발화 감지" desc="16kHz 다운샘플 -> WebRTC VAD. 0.5초 프리버퍼로 시작 영역 보존." techs={['VAD', 'Opus Decoder']} delay={0.05} />
+                  <PipelineNode step={3} title="하이브리드 웨이크워드" desc="짧은 발화: 게임 음성 재생 후 듣기. 긴 발화: 즉시 Omni 모델 추론." techs={['Hybrid Wakeword']} delay={0.1} />
+                  <PipelineNode step={4} title="Omni + TTS" desc="Qwen3.5-Omni로 상황 파악. 화자별 대사 분리 후 CosyVoice3로 재생." techs={['Qwen-Omni', 'CosyTTS']} delay={0.15} isLast />
+                </motion.div>
+              )}
           </div>
 
           {/* Model Selection Journey */}
@@ -816,97 +911,70 @@ export default function PortfolioNexon() {
             </ScrollFloat>
           </div>
 
-          <div className="space-y-6">
-            {/* Clients */}
-            <FadeIn>
-              <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>Clients</div>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { name: 'Discord', desc: 'Text / Voice / Slash Commands', color: 'discord-blurple' },
-                  { name: 'Dashboard', desc: 'debimarlene.com', color: ACCENT },
-                  { name: 'Admin Panel', desc: 'panel.debimarlene.com', color: ACCENT2 },
-                ].map(c => (
-                  <div key={c.name} className={`px-4 py-4 rounded-2xl text-center border ${isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
-                    <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{c.name}</div>
-                    <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>{c.desc}</div>
-                  </div>
-                ))}
-              </div>
-            </FadeIn>
+          <FadeIn>
+            <div className={`p-8 rounded-3xl border grid md:grid-cols-3 gap-8 relative overflow-hidden ${isDark ? 'bg-[url(#text-texture)] bg-[#0a0a0f] border-white/[0.06] shadow-2xl' : 'bg-gray-50/50 border-gray-200/50'}`}>
+               <div className={`absolute -top-[100px] left-[50%] -translate-x-[50%] w-[500px] h-[300px] blur-[120px] pointer-events-none ${isDark ? 'bg-[#0B5ED7]/15' : 'bg-[#0B5ED7]/[0.08]'}`}/>
+               
+               {/* Clients Layer */}
+               <div className="space-y-4 relative z-10 md:pr-4 md:border-r border-dashed border-gray-200 dark:border-white/10">
+                 <div className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                   <span className="w-2 h-2 rounded-full border-2 border-indigo-500 bg-transparent flex items-center justify-center"><span className="w-0.5 h-0.5 rounded-full bg-indigo-500"/></span> 
+                   Client Layer
+                 </div>
+                 {[{ n: 'Discord', d: 'Text/Voice UI', icon: 'M18 10h-2V8h-4v2H8V8H4v10h4v2h2v-2h4v2h2v-2h4v-8h-2z' }, { n: 'Dashboard', d: 'React App', icon:'M4 4h16v16H4V4zm2 2v12h12V6H6zm2 2h8v2H8V8zm0 4h8v2H8v-2z' }, { n: 'Admin Panel', d: 'Manager Web', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z' }].map(c => (
+                   <div key={c.n} className={`group p-4 flex gap-4 items-center rounded-2xl border transition-all hover:scale-[1.02] ${isDark ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04]' : 'bg-white border-gray-100 shadow-sm hover:shadow-md'}`}>
+                     <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/[0.05]' : 'bg-gray-50'}`}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className={isDark ? 'text-gray-400' : 'text-gray-400'}><path d={c.icon}/></svg>
+                     </div>
+                     <div>
+                       <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>{c.n}</div>
+                       <div className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{c.d}</div>
+                     </div>
+                   </div>
+                 ))}
+               </div>
 
-            <div className="flex justify-center">
-              <svg width="24" height="32" viewBox="0 0 24 32" className={isDark ? 'text-white/20' : 'text-gray-300'}>
-                <path d="M12 0 L12 24 M6 18 L12 24 L18 18" fill="none" stroke="currentColor" strokeWidth="2"/>
-              </svg>
+               {/* Core Server Layer */}
+               <div className="space-y-4 relative z-10 md:pr-4 md:border-r border-dashed border-gray-200 dark:border-white/10">
+                 <div className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isDark ? 'text-[#0B5ED7]' : 'text-blue-600'}`}>
+                   <span className="w-2 h-2 rounded-full bg-[#0B5ED7] animate-pulse shadow-[0_0_8px_rgba(11,94,215,0.8)]"></span> 
+                   App Server (GCP)
+                 </div>
+                 <div className={`p-6 rounded-3xl border h-[calc(100%-40px)] flex flex-col justify-center ${isDark ? 'bg-gradient-to-b from-[#0B5ED7]/10 to-transparent border-[#0B5ED7]/20' : 'bg-blue-50/50 border-blue-200/50'}`}>
+                   <div className="grid grid-cols-2 gap-3">
+                     {[
+                       { n: 'Discord Bot', d: 'discord.py' },
+                       { n: 'APIs', d: 'Flask x2' },
+                       { n: 'Proxy', d: 'Nginx + SSL' },
+                       { n: 'Runtime', d: 'Docker' },
+                     ].map(c => (
+                       <div key={c.n} className={`p-4 rounded-2xl border text-center transition-all hover:scale-[1.05] ${isDark ? 'bg-white/[0.03] border-white/[0.05] hover:border-[#0B5ED7]/30' : 'bg-white/80 border-blue-100 hover:shadow-md'}`}>
+                         <div className={`font-bold text-[13px] ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{c.n}</div>
+                         <div className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{c.d}</div>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+               </div>
+
+               {/* AI & Cloud Services Layer */}
+               <div className="space-y-4 relative z-10">
+                 <div className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isDark ? 'text-[#6DC8E8]' : 'text-sky-500'}`}>
+                   <span className="w-2 h-2 rounded-full border-2 border-[#6DC8E8] bg-transparent flex items-center justify-center"><span className="w-0.5 h-0.5 rounded-full bg-[#6DC8E8]"/></span> 
+                   AI & External Services
+                 </div>
+                 {[{ n: 'Modal GPUs', d: 'Gemma4 & CosyVoice3' }, { n: 'DashScope', d: 'Qwen3.5-Omni API' }, { n: 'GCS', d: 'Memory & Assets' }].map(c => (
+                   <div key={c.n} className={`group p-4 flex gap-4 items-center rounded-2xl border transition-all hover:scale-[1.02] ${isDark ? 'bg-white/[0.02] border-white/[0.05] hover:border-[#6DC8E8]/30' : 'bg-white border-gray-100 shadow-sm hover:shadow-md'}`}>
+                     <div className={`w-1 h-8 rounded-full ${isDark ? 'bg-[#6DC8E8]/50' : 'bg-sky-400'}`} />
+                     <div>
+                       <div className={`font-bold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{c.n}</div>
+                       <div className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{c.d}</div>
+                     </div>
+                   </div>
+                 ))}
+               </div>
             </div>
-
-            {/* GCP VM */}
-            <FadeIn delay={0.1}>
-              <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>GCP Compute Engine VM (Seoul)</div>
-              <div className={`p-5 rounded-2xl border ${isDark ? 'bg-white/[0.03] border-[#0B5ED7]/20' : 'bg-blue-50/50 border-blue-200/50'}`}>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { name: 'Discord Bot', desc: 'Python / discord.py' },
-                    { name: 'Flask API x2', desc: 'Dashboard + Panel' },
-                    { name: 'nginx', desc: 'Reverse Proxy + SSL' },
-                    { name: 'Docker', desc: 'Containerized' },
-                  ].map(s => (
-                    <div key={s.name} className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-[#0B5ED7]/10 border-[#0B5ED7]/20' : 'bg-white border-blue-200/50'}`}>
-                      <div className="text-sm font-bold" style={{ color: ACCENT }}>{s.name}</div>
-                      <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>{s.desc}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </FadeIn>
-
-            <div className="flex justify-center gap-16">
-              <svg width="24" height="32" viewBox="0 0 24 32" className={isDark ? 'text-white/20' : 'text-gray-300'}>
-                <path d="M12 0 L12 24 M6 18 L12 24 L18 18" fill="none" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              <svg width="24" height="32" viewBox="0 0 24 32" className={isDark ? 'text-white/20' : 'text-gray-300'}>
-                <path d="M12 0 L12 24 M6 18 L12 24 L18 18" fill="none" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-            </div>
-
-            {/* External Services */}
-            <FadeIn delay={0.2}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>AI Services</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { name: 'Modal A10G', desc: 'Gemma4 Chat' },
-                      { name: 'Modal T4', desc: 'CosyVoice3 TTS' },
-                      { name: 'DashScope', desc: 'Qwen3.5-Omni' },
-                      { name: 'HuggingFace', desc: 'Model Registry' },
-                    ].map(s => (
-                      <div key={s.name} className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-violet-500/10 border-violet-500/20' : 'bg-violet-50 border-violet-200/50'}`}>
-                        <div className="text-sm font-bold text-violet-400">{s.name}</div>
-                        <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>{s.desc}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>Storage & CDN</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { name: 'GCS', desc: 'Settings / Memory' },
-                      { name: 'Artifact Registry', desc: 'Docker Images' },
-                      { name: 'Cloudflare', desc: 'CDN / DNS / SSL' },
-                      { name: 'Colab', desc: 'Fine-tuning (A100/T4)' },
-                    ].map(s => (
-                      <div key={s.name} className={`px-3 py-3 rounded-xl text-center border ${isDark ? 'bg-amber-500/10 border-amber-500/20' : 'bg-amber-50 border-amber-200/50'}`}>
-                        <div className="text-sm font-bold text-amber-400">{s.name}</div>
-                        <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>{s.desc}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </FadeIn>
-          </div>
+          </FadeIn>
         </div>
       </section>
 
@@ -926,7 +994,8 @@ export default function PortfolioNexon() {
             {[
               {
                 title: 'AI / ML',
-                color: `text-[${ACCENT}]`,
+                color: 'text-indigo-400',
+                hex: '#818cf8',
                 items: [
                   { name: 'Gemma4 E4B', desc: 'LoRA 파인튜닝, Unsloth, bfloat16' },
                   { name: 'Qwen3.5-Omni', desc: 'DashScope API, 오디오 이해' },
@@ -937,6 +1006,7 @@ export default function PortfolioNexon() {
               {
                 title: 'Backend',
                 color: 'text-emerald-400',
+                hex: '#34d399',
                 items: [
                   { name: 'Python', desc: 'discord.py 2.6, asyncio' },
                   { name: 'Flask', desc: 'REST API x2, Gunicorn' },
@@ -947,6 +1017,7 @@ export default function PortfolioNexon() {
               {
                 title: 'Frontend',
                 color: 'text-pink-400',
+                hex: '#f472b6',
                 items: [
                   { name: 'React 19', desc: 'TypeScript, Vite' },
                   { name: 'Tailwind 4', desc: 'Utility-first CSS' },
@@ -957,6 +1028,7 @@ export default function PortfolioNexon() {
               {
                 title: 'Infrastructure',
                 color: 'text-amber-400',
+                hex: '#fbbf24',
                 items: [
                   { name: 'GCP VM', desc: 'Compute Engine, Seoul' },
                   { name: 'Docker', desc: '컨테이너 빌드/배포' },
@@ -967,6 +1039,7 @@ export default function PortfolioNexon() {
               {
                 title: 'DevOps',
                 color: 'text-violet-400',
+                hex: '#a78bfa',
                 items: [
                   { name: 'Makefile', desc: '빌드/배포/롤백 자동화' },
                   { name: 'Artifact Registry', desc: 'Docker 이미지 관리' },
@@ -976,7 +1049,8 @@ export default function PortfolioNexon() {
               },
               {
                 title: 'AI Dev Tools',
-                color: `text-[${ACCENT2}]`,
+                color: 'text-sky-400',
+                hex: '#38bdf8',
                 items: [
                   { name: 'Claude Code', desc: '주 개발 도구, CLI' },
                   { name: 'MCP Server', desc: 'Figma, Context7, NLM' },
@@ -985,16 +1059,21 @@ export default function PortfolioNexon() {
                 ],
               },
             ].map((cat, i) => (
-              <FadeIn key={cat.title} delay={i * 0.05} className={`p-5 rounded-2xl border ${isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white/80 backdrop-blur-sm border-gray-200/80'}`}>
-                <h3 className={`text-sm font-semibold uppercase tracking-wider mb-4 ${cat.color}`}>{cat.title}</h3>
-                {cat.items.map(item => (
-                  <div key={item.name} className={`flex items-start gap-3 py-3 border-b last:border-0 ${isDark ? 'border-white/[0.04]' : 'border-gray-100'}`}>
-                    <span className={`shrink-0 px-3 py-1 rounded-lg text-xs font-medium border ${isDark ? 'bg-white/[0.02]' : 'bg-gray-50'} ${cat.color} border-current/20`}>
-                      {item.name}
-                    </span>
-                    <span className={`text-sm leading-relaxed ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>{item.desc}</span>
-                  </div>
-                ))}
+              <FadeIn key={cat.title} delay={i * 0.05} className={`group relative p-8 rounded-[32px] border transition-all duration-300 overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]' : 'bg-white/80 backdrop-blur-sm border-gray-200/80 hover:shadow-xl hover:-translate-y-1'}`}>
+                {/* Dynamic Glow via style property to inject valid hex colors */}
+                <div className={`absolute top-0 right-[-20px] w-32 h-32 blur-[50px] transition-opacity duration-500 opacity-20 group-hover:opacity-100`} style={{ backgroundColor: cat.hex }} />
+                
+                <h3 className={`text-sm font-bold uppercase tracking-widest mb-6 ${cat.color}`}>{cat.title}</h3>
+                <div className="space-y-5 relative z-10">
+                  {cat.items.map(item => (
+                    <div key={item.name} className="flex flex-col gap-1.5">
+                      <span className={`text-[15px] font-bold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                        {item.name}
+                      </span>
+                      <span className={`text-sm leading-relaxed ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{item.desc}</span>
+                    </div>
+                  ))}
+                </div>
               </FadeIn>
             ))}
           </div>
@@ -1019,40 +1098,64 @@ export default function PortfolioNexon() {
           </div>
 
           <FadeIn>
-            <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white/80 border-gray-200/50'}`}>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className={isDark ? 'bg-white/[0.03]' : 'bg-gray-50'}>
-                    <th className={`px-5 py-3 text-left font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Service</th>
-                    <th className={`px-5 py-3 text-left font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Method</th>
-                    <th className={`px-5 py-3 text-right font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Cost/mo</th>
-                    <th className={`px-5 py-3 text-right font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Cold Start</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDark ? 'divide-white/[0.04]' : 'divide-gray-100'}`}>
-                  {[
-                    { service: 'Voice AI (before)', method: 'Gemma4Audio (Modal A10G)', cost: '~$46', cold: '60s+', highlight: false },
-                    { service: 'Voice AI (after)', method: 'Qwen3.5-Omni (DashScope API)', cost: '~$0.27', cold: '0s', highlight: true },
-                    { service: 'Text Chat', method: 'Gemma4 LoRA (Modal A10G)', cost: '~$46', cold: '~30s', highlight: false },
-                    { service: 'TTS', method: 'CosyVoice3 (Modal T4)', cost: '~$15', cold: '~58s', highlight: false },
-                    { service: 'Infra', method: 'GCP VM (e2-micro)', cost: '~$7', cold: '-', highlight: false },
-                  ].map((row, i) => (
-                    <tr key={i} className={row.highlight ? isDark ? 'bg-[#0B5ED7]/[0.06]' : 'bg-blue-50/50' : ''}>
-                      <td className={`px-5 py-3 ${row.highlight ? 'font-bold' : ''} ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{row.service}</td>
-                      <td className={`px-5 py-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{row.method}</td>
-                      <td className={`px-5 py-3 text-right font-mono ${row.highlight ? 'text-[#0B5ED7] font-bold' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>{row.cost}</td>
-                      <td className={`px-5 py-3 text-right ${row.highlight ? 'text-[#0B5ED7] font-bold' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>{row.cold}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </FadeIn>
+            <div className="grid md:grid-cols-2 gap-6 relative">
+              <div className="absolute top-[40%] left-1/2 -translate-x-[50%] -translate-y-1/2 z-10 hidden md:flex items-center justify-center w-12 h-12 rounded-full border shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-transform hover:rotate-180 hover:scale-110 duration-500 cursor-pointer text-gray-500 dark:text-gray-400 bg-white dark:bg-[#1a1a2e] border-gray-100 dark:border-white/10">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </div>
 
-          <FadeIn delay={0.1} className={`mt-6 p-5 rounded-2xl border ${isDark ? 'bg-[#0B5ED7]/[0.06] border-[#0B5ED7]/20' : 'bg-blue-50/50 border-blue-200/50'}`}>
-            <div className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              <span className="font-bold" style={{ color: ACCENT }}>170x</span> cost reduction by switching from self-hosted Gemma4Audio to Qwen3.5-Omni API.
-              OpenAI SDK compatible -- only <code className={`px-1.5 py-0.5 rounded text-xs ${isDark ? 'bg-white/[0.05]' : 'bg-white'}`}>base_url</code> change needed.
+              {/* Before */}
+              <div className={`p-8 rounded-[32px] border transition-opacity duration-300 opacity-70 hover:opacity-100 ${isDark ? 'bg-white/[0.01] border-white/[0.05]' : 'bg-gray-50 border-gray-100'}`}>
+                <div className="text-xs font-bold uppercase tracking-widest text-[#ed4245] flex items-center gap-2 mb-6">
+                   <div className="w-1.5 h-1.5 rounded-full bg-[#ed4245]" />
+                   Before: Self-Hosted Model
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <div className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Voice AI (Modal A10G)</div>
+                    <div className={`text-3xl lg:text-4xl font-bold font-mono ${isDark ? 'text-white' : 'text-gray-800'}`}>~$46<span className="text-base font-normal text-gray-500">/mo</span></div>
+                    <div className="text-sm font-bold text-[#ed4245] mt-2">Cold Start: 60s+</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* After */}
+              <div className={`relative p-8 rounded-[32px] border overflow-hidden group ${isDark ? 'bg-gradient-to-br from-[#0B5ED7]/15 to-transparent border-[#0B5ED7]/30' : 'bg-gradient-to-br from-blue-50 to-white border-blue-200 hover:shadow-2xl transition-all duration-500'}`}>
+                <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#0B5ED7]/20 blur-[60px] rounded-full group-hover:scale-150 transition-transform duration-700" />
+                <div className="text-xs font-bold uppercase tracking-widest text-[#0B5ED7] flex items-center gap-2 mb-6">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#0B5ED7] animate-pulse" />
+                  After: API Transition
+                </div>
+                <div className="space-y-4 relative z-10">
+                  <div>
+                    <div className={`text-sm font-medium mb-1 ${isDark ? 'text-blue-300/80' : 'text-blue-600/80'}`}>Voice AI (DashScope API)</div>
+                    <div className={`text-4xl lg:text-5xl font-bold font-mono text-[#0B5ED7]`}>~$0.27<span className="text-lg font-normal opacity-50">/mo</span></div>
+                    <div className="text-sm text-[#0B5ED7] font-bold mt-2">Cold Start: 0s</div>
+                  </div>
+                </div>
+                
+                <div className="mt-8 pt-6 border-t border-[#0B5ED7]/20 relative z-10">
+                  <div className={`text-sm leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    OpenAI SDK 기반 프록시 전환으로 코드는 유지하며 <span className="font-bold text-[#0B5ED7] bg-[#0B5ED7]/10 px-1 rounded">170배의 비용을 절감</span>했습니다.
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Additional Costs Summary */}
+            <div className={`mt-6 p-6 rounded-[32px] border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white border-gray-100 shadow-sm'}`}>
+              <div className="grid grid-cols-3 gap-4 text-center divide-x divide-gray-200 dark:divide-white/10">
+                {[
+                  { name: 'Text Chat AI', val: '~$46', sub: 'Modal A10G (Gemma4 LoRA)' },
+                  { name: 'Voice TTS', val: '~$15', sub: 'Modal T4 (CosyVoice3)' },
+                  { name: 'Infrastructure', val: '~$7', sub: 'GCP e2-micro VM' },
+                ].map(s => (
+                  <div key={s.name} className="px-4">
+                     <div className={`text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{s.name}</div>
+                     <div className={`text-xl font-bold font-mono ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{s.val}</div>
+                     <div className={`text-[10px] sm:text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{s.sub}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </FadeIn>
         </div>

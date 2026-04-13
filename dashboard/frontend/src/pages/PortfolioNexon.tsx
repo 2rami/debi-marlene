@@ -6,18 +6,18 @@ import GlassButton from '../components/common/GlassButton'
 import GradientText from '../components/common/GradientText'
 import ScrollFloat from '../components/common/ScrollFloat'
 import { useTheme } from '../contexts/ThemeContext'
-
+import { CalendarDays, Layers, BrainCircuit, Bot } from 'lucide-react'
 /* ── Assets ── */
 import CHAR_HERO_LIGHT from '../assets/images/event/imgi_30_ch01_v2.png'
 import CHAR_HERO_DARK from '../assets/images/event/char_twins_dark.png'
 
 /* Screenshots */
 import SS_STATS from '../assets/images/event/screenshot_stats.png'
-import SS_RECORD from '../assets/images/event/screenshot_record.png'
 import SS_DASHBOARD from '../assets/images/event/screenshot_dashboard.png'
 import SS_TTS_SETTINGS from '../assets/images/event/screenshot_tts_settings.png'
 import SS_WEBPANEL from '../assets/images/event/screenshot_webpanel.png'
 import SS_STATUSLINE from '../assets/images/event/statusline_preview.png'
+import SS_AI_CHAT from '../assets/images/event/screenshot_ai_chat.png'
 
 const ACCENT = '#0B5ED7'
 const ACCENT2 = '#6DC8E8'
@@ -36,6 +36,31 @@ function FadeIn({ children, className = '', delay = 0 }: { children: React.React
     >
       {children}
     </motion.div>
+  )
+}
+
+/* ── Glass Card (Cloud Texture wrapper) ── */
+function GlassCard({ children, className = '' }: { children?: React.ReactNode, className?: string }) {
+  const { isDark } = useTheme()
+  return (
+    <div className={`relative rounded-[inherit] overflow-hidden ${className}`}>
+      <div
+        className="absolute inset-0 pointer-events-none transition-all duration-300"
+        style={{
+          zIndex: 0,
+          background: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.72)',
+          filter: 'url(#glass-texture)',
+          boxShadow: isDark
+            ? '0px 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 0 20px rgba(255,255,255,0.05)'
+            : '0px 12px 32px rgba(11, 94, 215, 0.10), 0px 2px 8px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+          border: isDark
+            ? '1.5px solid rgba(255, 255, 255, 0.25)'
+            : '1.5px solid rgba(11, 94, 215, 0.18)',
+          backdropFilter: 'blur(20px)'
+        }}
+      />
+      <div className="relative z-10 w-full h-full">{children}</div>
+    </div>
   )
 }
 
@@ -78,31 +103,14 @@ function SVGTitle({ lines, className = '' }: { lines: string[]; className?: stri
   )
 }
 
-/* ── Screenshot with glow ── */
-function Screenshot({ src, alt, delay = 0 }: { src: string; alt: string; delay?: number }) {
-  const { isDark } = useTheme()
-  return (
-    <FadeIn delay={delay} className="relative group">
-      <div className={`absolute -inset-3 rounded-3xl blur-xl transition-opacity group-hover:opacity-100 ${
-        isDark ? 'bg-[#0B5ED7]/10 opacity-50' : 'bg-gradient-to-br from-[#0B5ED7]/15 to-[#6DC8E8]/15 opacity-60'
-      }`} />
-      <img
-        src={src}
-        alt={alt}
-        className={`relative w-full h-auto max-h-[400px] object-contain object-top rounded-2xl shadow-2xl border ${isDark ? 'border-white/10' : 'border-white/40'}`}
-        draggable={false}
-      />
-    </FadeIn>
-  )
-}
-
 /* ── JD Match Card (Hover Bento) ── */
 function MatchCard({ requirement, evidence, techs, delay = 0, className = "" }: {
   requirement: string; evidence: string; techs: string[]; delay?: number; className?: string;
 }) {
   const { isDark } = useTheme()
   return (
-    <FadeIn delay={delay} className={`group relative p-6 rounded-3xl border overflow-hidden transition-all duration-500 ${isDark ? 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]' : 'bg-white border-gray-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1'} ${className}`}>
+    <FadeIn delay={delay} className={`group h-full ${className}`}>
+      <GlassCard className="relative p-6 rounded-3xl h-full transition-all duration-500 hover:-translate-y-1">
       {/* Background Glow */}
       <div className={`absolute top-0 right-0 w-32 h-32 blur-[50px] transition-opacity duration-500 opacity-0 group-hover:opacity-100 ${isDark ? 'bg-[#0B5ED7]/20' : 'bg-[#0B5ED7]/10'}`} />
       
@@ -129,6 +137,7 @@ function MatchCard({ requirement, evidence, techs, delay = 0, className = "" }: 
           <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{evidence}</p>
         </div>
       </div>
+      </GlassCard>
     </FadeIn>
   )
 }
@@ -348,19 +357,78 @@ function SectionNav() {
 export default function PortfolioNexon() {
   const { isDark } = useTheme()
   const heroRef = useRef(null)
+  const featuresContainerRef = useRef<HTMLDivElement>(null)
+  const featuresTrackRef = useRef<HTMLDivElement>(null)
   const [pipelineTab, setPipelineTab] = useState<'text' | 'voice'>('text')
 
+  // Lenis + GSAP ScrollTrigger 통합 초기화
   useEffect(() => {
-    const lenis = new Lenis({ duration: 0.25, wheelMultiplier: 0.5, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
-    ;(window as any).__lenis = lenis
-    lenis.scrollTo(0, { immediate: true })
-    function raf(time: number) { lenis.raf(time); requestAnimationFrame(raf) }
-    requestAnimationFrame(raf)
-    return () => { lenis.destroy(); (window as any).__lenis = null }
+    let lenis: Lenis | null = null
+    let ctx: ReturnType<typeof import('gsap').default.context> | undefined
+    let cleanup = () => {}
+
+    ;(async () => {
+      const [{ default: gsap }, { ScrollTrigger }] = await Promise.all([
+        import('gsap'),
+        import('gsap/ScrollTrigger'),
+      ])
+      gsap.registerPlugin(ScrollTrigger)
+
+      lenis = new Lenis({
+        duration: 0.25,
+        wheelMultiplier: 0.5,
+        easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      })
+      ;(window as any).__lenis = lenis
+      lenis.scrollTo(0, { immediate: true })
+
+      // Lenis scroll 이벤트마다 ScrollTrigger 갱신
+      lenis.on('scroll', ScrollTrigger.update)
+      // GSAP ticker가 Lenis raf 루프를 구동 (requestAnimationFrame 중복 방지)
+      const tickerFn = (time: number) => { lenis?.raf(time * 1000) }
+      gsap.ticker.add(tickerFn)
+      gsap.ticker.lagSmoothing(0)
+
+      // Features 핀 가로 스크롤
+      ctx = gsap.context(() => {
+        const track = featuresTrackRef.current
+        const container = featuresContainerRef.current
+        if (!track || !container) return
+
+        const cards = gsap.utils.toArray<HTMLElement>('.feature-card', track)
+        if (cards.length === 0) return
+
+        gsap.to(cards, {
+          xPercent: -100 * (cards.length - 1),
+          ease: 'none',
+          scrollTrigger: {
+            trigger: container,
+            pin: true,
+            scrub: 1,
+            snap: {
+              snapTo: 1 / (cards.length - 1),
+              duration: { min: 0.2, max: 0.6 },
+              ease: 'power2.inOut',
+            },
+            end: () => '+=' + (container.offsetWidth * (cards.length - 1)),
+            invalidateOnRefresh: true,
+          },
+        })
+      }, featuresContainerRef)
+
+      cleanup = () => {
+        gsap.ticker.remove(tickerFn)
+        ctx?.revert()
+        lenis?.destroy()
+        ;(window as any).__lenis = null
+        ScrollTrigger.getAll().forEach(t => t.kill())
+      }
+    })()
+
+    return () => cleanup()
   }, [])
 
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
-  const charY = useTransform(scrollYProgress, [0, 1], ['0%', '20%'])
   const textY = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
 
   return (
@@ -380,82 +448,132 @@ export default function PortfolioNexon() {
       <ThemeToggle />
       <SectionNav />
 
-      {/* ══ HERO ══ */}
-      <section id="hero" ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden">
-        <div className={`absolute top-20 left-[10%] w-[600px] h-[600px] rounded-full blur-[150px] pointer-events-none ${isDark ? 'bg-[#0B5ED7]/[0.07]' : 'bg-[#0B5ED7]/[0.12]'}`} />
-        <div className={`absolute top-40 right-[10%] w-[500px] h-[500px] rounded-full blur-[150px] pointer-events-none ${isDark ? 'bg-[#6DC8E8]/[0.05]' : 'bg-[#6DC8E8]/[0.08]'}`} />
-
-        <motion.div
-          className="absolute right-[2%] top-[8%] w-[45%] max-w-[600px] h-[70%] overflow-hidden pointer-events-none z-[2] max-md:hidden"
-          style={{ y: charY }}
-        >
-          <img
-            src={isDark ? CHAR_HERO_DARK : CHAR_HERO_LIGHT}
-            alt=""
-            className="w-full h-auto object-cover object-top transition-opacity duration-500"
-            draggable={false}
-          />
-        </motion.div>
-
-        <motion.div className="relative z-[5] max-w-6xl mx-auto px-6 lg:px-16 py-32" style={{ y: textY }}>
-          <FadeIn>
-            <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase mb-6 ${
-              isDark ? 'bg-white/[0.05] text-discord-muted border border-white/[0.08]' : 'bg-white/70 text-gray-500 border border-gray-200/50'
+      {/* ══ HERO (BENTO REDESIGN) ══ */}
+      <section id="hero" ref={heroRef} className="relative min-h-screen pt-32 pb-24 flex items-center justify-center overflow-hidden">
+        <div className={`absolute top-0 right-0 w-full h-[500px] bg-gradient-to-b from-[#0B5ED7]/10 to-transparent pointer-events-none`} />
+        <div className={`absolute top-[20%] left-[10%] w-[500px] h-[500px] rounded-full blur-[120px] pointer-events-none ${isDark ? 'bg-[#6DC8E8]/[0.08]' : 'bg-[#6DC8E8]/[0.15]'}`} />
+        
+        <motion.div className="relative z-10 w-full max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-6" style={{ y: textY }}>
+          
+          {/* Main Title Block - Span 8 */}
+          <FadeIn className="md:col-span-12 lg:col-span-8 h-full">
+            <GlassCard className="h-full p-10 md:p-14 rounded-[32px] flex flex-col justify-center">
+            <div className={`absolute top-0 right-0 w-[400px] h-[400px] rounded-full blur-[100px] opacity-30 pointer-events-none translate-x-1/3 -translate-y-1/3 ${isDark ? 'bg-[#0B5ED7]' : 'bg-[#0B5ED7]'}`} />
+            
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold tracking-wider uppercase mb-8 border w-max ${
+              isDark ? 'bg-[#0B5ED7]/10 text-[#6DC8E8] border-[#0B5ED7]/30' : 'bg-[#0B5ED7]/5 text-[#0B5ED7] border-[#0B5ED7]/20 bg-blend-multiply'
             }`}>
-              Portfolio -- Yang Gunho
-            </span>
-          </FadeIn>
+              <div className="w-2 h-2 rounded-full bg-[#0B5ED7] animate-pulse" />
+              NEXON Application Portfolio
+            </div>
 
-          <FadeIn delay={0.1}>
             <GradientText
               colors={[ACCENT, ACCENT2, '#4A9BE8', ACCENT2, ACCENT]}
               animationSpeed={5}
-              className="!mx-0 font-title text-[24px] md:text-[36px] leading-normal whitespace-nowrap mb-2"
-              pauseOnHover
+              className="!mx-0 font-title text-[32px] md:text-[48px] lg:text-[56px] leading-[1.1] tracking-tight mb-6"
             >
-              NEXON -- AI Agent Full-Stack Engineer
+              AI Agent<br/>Full-Stack Engineer
             </GradientText>
-          </FadeIn>
-
-          <FadeIn delay={0.15}>
-            <SVGTitle lines={['포트폴리오']} />
-          </FadeIn>
-
-          <FadeIn delay={0.25}>
-            <p className={`text-lg md:text-xl leading-relaxed max-w-xl mt-8 font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
-              LLM 파인튜닝, 음성 AI Agent, RAG 대화 시스템을<br />
-              직접 설계하고 운영한 1인 풀스택 프로젝트.
+            
+            <p className={`text-lg md:text-xl leading-relaxed max-w-2xl font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
+              LLM 파인튜닝, 음성 AI Agent, RAG 대화 시스템을<br className="hidden md:block"/>
+              직접 기획하고 배포까지 운영한 1인 풀스택 엔지니어 <span className={`font-bold py-1 px-2 rounded-lg ${isDark ? 'text-white bg-white/10' : 'text-gray-800 bg-gray-200/60'}`}>양건호</span>입니다.
             </p>
+            </GlassCard>
           </FadeIn>
 
-          <FadeIn delay={0.3}>
-            <div className="flex flex-wrap gap-4 mt-10">
-              <GlassButton href="https://github.com/2rami/debi-marlene" target="_blank" rel="noopener noreferrer" size="sm">
-                <span className="flex items-center gap-2"><svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>GitHub</span>
-              </GlassButton>
-              <GlassButton href="/landing" size="sm">
-                Live Site
-              </GlassButton>
+          {/* Visual Block - Span 4 */}
+          <FadeIn delay={0.1} className="md:col-span-6 lg:col-span-4 h-full">
+            <GlassCard className="h-full rounded-[32px] group">
+            <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 transition-opacity duration-500 opacity-100 lg:opacity-100 ${isDark ? 'opacity-100' : ''}`} />
+            <img
+              src={isDark ? CHAR_HERO_DARK : CHAR_HERO_LIGHT}
+              alt="Character Hero"
+              className="w-full h-full object-cover object-top min-h-[300px] transition-transform duration-700 group-hover:scale-105"
+              draggable={false}
+            />
+            <div className={`absolute bottom-6 left-6 z-20 ${isDark ? '' : 'lg:text-white text-gray-800 drop-shadow-md'}`}>
+              <div className="font-bold tracking-widest text-sm flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> SYSTEM ONLINE
+              </div>
             </div>
+            </GlassCard>
           </FadeIn>
 
-          <FadeIn delay={0.35}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-14 max-w-2xl">
+          {/* Stats Block - Span 5 */}
+          <FadeIn delay={0.15} className="md:col-span-6 lg:col-span-5 h-full">
+            <GlassCard className="h-full p-8 rounded-[32px] flex flex-col justify-center">
+            <div className="grid grid-cols-2 gap-y-10 gap-x-6 w-full">
               {[
-                { v: '6+ months', l: '개발 기간' },
-                { v: 'Full-Stack', l: '1인 개발/운영' },
-                { v: '6 Models', l: 'LLM/TTS 모델 비교' },
-                { v: 'AI Native', l: 'Claude Code 개발' },
+                { 
+                  v: '6+', l: '개발 기간', sub: 'Months Dev Time',
+                  icon: <CalendarDays strokeWidth={1.5} className="w-6 h-6" />
+                },
+                { 
+                  v: 'Full', l: '1인 개발', sub: 'End-to-End Stack',
+                  icon: <Layers strokeWidth={1.5} className="w-6 h-6" />
+                },
+                { 
+                  v: '6개', l: 'LLM & TTS', sub: 'Models Integrated',
+                  icon: <BrainCircuit strokeWidth={1.5} className="w-6 h-6" />
+                },
+                { 
+                  v: 'Native', l: 'AI 주도로 구축', sub: 'Built with AI',
+                  icon: <Bot strokeWidth={1.5} className="w-6 h-6" />
+                },
               ].map((s, i) => (
-                <div key={i} className={`text-center px-4 py-4 rounded-2xl border ${
-                  isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white/60 backdrop-blur-sm border-white/40'
-                }`}>
-                  <div className="text-xl md:text-2xl font-bold bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] bg-clip-text text-transparent">{s.v}</div>
-                  <div className={`text-xs mt-1 ${isDark ? 'text-discord-muted' : 'text-gray-500'}`}>{s.l}</div>
+                <div key={i} className="flex flex-col gap-3 group">
+                  <div className={`p-3 w-max rounded-[14px] transition-colors ${isDark ? 'bg-white/[0.04] text-[#6DC8E8] group-hover:bg-[#0B5ED7]/20 group-hover:text-white' : 'bg-[#0B5ED7]/5 text-[#0B5ED7] group-hover:bg-[#0B5ED7]/10'}`}>
+                    {s.icon}
+                  </div>
+                  <div>
+                    <div className="text-[19px] md:text-[22px] font-bold bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] bg-clip-text text-transparent mb-1 -tracking-wider font-[Paperlogy]">
+                      {s.v}
+                    </div>
+                    <div className={`text-[13px] font-bold mb-0.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{s.l}</div>
+                    <div className={`text-[10px] md:text-[11px] font-medium tracking-widest uppercase ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{s.sub}</div>
+                  </div>
                 </div>
               ))}
             </div>
+            </GlassCard>
           </FadeIn>
+
+          {/* Code/Terminal Block - Span 4 */}
+          <FadeIn delay={0.2} className="md:col-span-6 lg:col-span-4 h-full">
+            <GlassCard className="h-full p-8 rounded-[32px] flex flex-col justify-center">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-3 h-3 rounded-full bg-red-500/80" />
+              <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+              <div className="w-3 h-3 rounded-full bg-green-500/80" />
+            </div>
+            <div className="font-mono text-[13px] sm:text-sm leading-relaxed text-gray-300">
+              <div className="text-[#6DC8E8] font-bold">~$ ./init_competency.sh</div>
+              <div className="text-gray-400 mt-2 mb-1">Loading core architecture...</div>
+              <div><span className="text-[#0B5ED7] font-bold">[OK]</span> Advanced RAG Systems</div>
+              <div><span className="text-[#0B5ED7] font-bold">[OK]</span> Real-time Voice Chat</div>
+              <div><span className="text-[#0B5ED7] font-bold">[OK]</span> Scalable Infra (GCP)</div>
+              <div className="mt-3 text-emerald-400 flex items-center gap-1">Status: Ready <div className="w-2 h-4 bg-emerald-400 animate-pulse" /></div>
+            </div>
+            </GlassCard>
+          </FadeIn>
+
+          {/* Action Block - Span 3 */}
+          <FadeIn delay={0.25} className="md:col-span-6 lg:col-span-3 h-full">
+            <GlassCard className="h-full p-8 rounded-[32px] flex flex-col justify-center gap-4">
+            <div className={`text-xs font-bold uppercase tracking-widest mb-1 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Explore Project</div>
+            <GlassButton href="/landing" size="sm" className="!w-full !h-14 !text-base shadow-md">
+              Live Site Demo
+            </GlassButton>
+            <GlassButton href="https://github.com/2rami/debi-marlene" target="_blank" rel="noopener noreferrer" size="sm" className="!w-full !h-14 !text-base shadow-md">
+               <span className="flex items-center gap-2">
+                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg> 
+                 GitHub Repo
+               </span>
+            </GlassButton>
+            </GlassCard>
+          </FadeIn>
+
         </motion.div>
       </section>
 
@@ -551,9 +669,9 @@ export default function PortfolioNexon() {
             />
             <MatchCard
               delay={0.1}
-              requirement="AX(AI Transformation) 구축"
-              evidence="커뮤니티의 전적 검색이나 패치 질문 같은 반복 소모 업무를 Discord 내 AI 채널로 유도, 완전 자동화 달성."
-              techs={['Community AX', 'Discord Automation']}
+              requirement="AX(AI Transformation) 사례 구축"
+              evidence="웹사이트를 직접 방문해야 했던 전적 검색과 패치노트 확인을 Discord 안으로 이관. 키워드 호출('데비야')만으로 패치노트 RAG가 캐릭터 말투로 답변하고, 슬래시 커맨드로 전적 조회. 유저가 컨텍스트 스위칭 없이 게임 대화 중에 즉시 정보 획득."
+              techs={['Keyword Trigger', 'Patchnote RAG', 'Slash Commands', 'Context Reduction']}
               className="md:col-span-1"
             />
             <MatchCard
@@ -771,131 +889,137 @@ export default function PortfolioNexon() {
       </section>
 
       {/* ══ FEATURES ══ */}
-      <section id="features" className="py-24 relative">
-        <div className="text-center mb-16 px-6">
-          <ScrollFloat
-            containerClassName="font-title bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] bg-clip-text text-transparent leading-tight"
-            textClassName="text-4xl md:text-[64px]"
-          >
+      <section id="features" ref={featuresContainerRef} className="relative overflow-hidden h-screen">
+        {/* Fixed section title while pinned */}
+        <div className="absolute top-8 left-0 right-0 z-20 text-center pointer-events-none">
+          <div className="font-title bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] bg-clip-text text-transparent text-3xl md:text-5xl">
             Features
-          </ScrollFloat>
-        </div>
-
-        {/* AI 대화 */}
-        <div className="max-w-6xl mx-auto px-6 mb-32">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <FadeIn>
-              <SVGTitle lines={['AI', '대화']} />
-              <p className={`font-bold text-xl md:text-2xl leading-relaxed mt-8 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
-                캐릭터 인격 기반 대화형 AI Agent.
-              </p>
-              <p className={`text-base leading-relaxed mt-4 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                Gemma4 LoRA 파인튜닝 모델로 캐릭터 말투와 성격을 학습.
-                패치노트 RAG로 최신 게임 정보를 반영하고,
-                GCS 기반 대화 메모리로 세션 간 맥락을 유지하는 멀티턴 대화.
-              </p>
-              <div className="flex flex-wrap gap-2 mt-6">
-                {['Gemma4 LoRA', 'Modal A10G', 'Patchnote RAG', 'GCS Memory'].map(t => (
-                  <span key={t} className={`px-3 py-1 rounded-lg text-xs font-medium border ${isDark ? 'bg-white/[0.03] text-gray-400 border-white/[0.06]' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{t}</span>
-                ))}
-              </div>
-            </FadeIn>
-            <div className="space-y-4">
-              <Screenshot src={SS_RECORD} alt="AI 대화" delay={0.1} />
-            </div>
+          </div>
+          <div className={`text-xs tracking-[0.3em] uppercase mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+            Scroll down to pan
           </div>
         </div>
 
-        {/* 음성 대화 */}
-        <div className="max-w-6xl mx-auto px-6 mb-32">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="order-2 md:order-1 space-y-4">
-              <Screenshot src={SS_TTS_SETTINGS} alt="TTS 설정" delay={0.1} />
-            </div>
-            <FadeIn className="order-1 md:order-2">
-              <SVGTitle lines={['음성', 'Agent']} />
-              <p className={`font-bold text-xl md:text-2xl leading-relaxed mt-8 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
-                음성 입력, AI 이해, TTS 응답.
-              </p>
-              <p className={`text-base leading-relaxed mt-4 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                Discord 음성채널에서 실시간 음성 수신, DAVE E2EE 복호화,
-                WebRTC VAD로 발화 감지 후 Qwen3.5-Omni로 오디오 이해.
-                화자별 CosyVoice3 파인튜닝 TTS로 캐릭터 음성 응답.
-              </p>
-              <div className="flex flex-wrap gap-2 mt-6">
-                {['Qwen3.5-Omni', 'CosyVoice3', 'WebRTC VAD', 'DAVE E2EE'].map(t => (
-                  <span key={t} className={`px-3 py-1 rounded-lg text-xs font-medium border ${isDark ? 'bg-white/[0.03] text-gray-400 border-white/[0.06]' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{t}</span>
-                ))}
-              </div>
-              {/* TTS 음성 샘플 */}
-              <div className="mt-6 space-y-3">
-                <div className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>CosyVoice3 Fine-tuned Voice Sample</div>
-                {[
-                  { label: 'Debi', src: '/audio/demo_debi_desc.wav' },
-                  { label: 'Marlene', src: '/audio/demo_marlene_desc.wav' },
-                ].map(s => (
-                  <div key={s.label} className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${isDark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-gray-50 border-gray-200'}`}>
-                    <span className={`shrink-0 text-sm font-bold w-16`} style={{ color: ACCENT }}>{s.label}</span>
-                    <audio controls preload="none" className="w-full h-8 [&::-webkit-media-controls-panel]:bg-transparent">
-                      <source src={s.src} type="audio/wav" />
-                    </audio>
+        <div ref={featuresTrackRef} className="flex h-full will-change-transform">
+          {/* Feature 1: AI 대화 */}
+          <div className="feature-card shrink-0 w-screen h-full flex items-center justify-center px-6 md:px-16">
+            <GlassCard className="w-full max-w-6xl p-8 md:p-12 rounded-[32px]">
+              <div className="grid md:grid-cols-2 gap-12 items-center w-full">
+                <div className="space-y-6">
+                  <SVGTitle lines={['AI', '대화']} />
+                  <p className={`font-bold text-xl md:text-2xl leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
+                    캐릭터 인격 기반 대화형 AI Agent.
+                  </p>
+                  <p className={`text-base leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Gemma4 LoRA 파인튜닝 모델로 캐릭터 말투와 성격을 학습.
+                    패치노트 RAG로 최신 게임 정보를 반영하고,
+                    GCS 기반 대화 메모리로 세션 간 맥락을 유지하는 멀티턴 대화.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {['Gemma4 LoRA', 'Modal A10G', 'Patchnote RAG', 'GCS Memory'].map(t => (
+                      <span key={t} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${isDark ? 'bg-white/[0.05] text-[#6DC8E8] border-white/[0.08]' : 'bg-[#0B5ED7]/5 text-[#0B5ED7] border-[#0B5ED7]/20'}`}>{t}</span>
+                    ))}
                   </div>
-                ))}
+                </div>
+                <div>
+                  <img src={SS_AI_CHAT} alt="AI 대화 - 키워드 트리거 + 패치노트 RAG" className="w-full h-auto max-h-[55vh] object-contain rounded-2xl shadow-2xl" draggable={false} />
+                </div>
               </div>
-            </FadeIn>
+            </GlassCard>
+          </div>
+
+          {/* Feature 2: 음성 Agent */}
+          <div className="feature-card shrink-0 w-screen h-full flex items-center justify-center px-6 md:px-16">
+            <GlassCard className="w-full max-w-6xl p-8 md:p-12 rounded-[32px]">
+              <div className="grid md:grid-cols-2 gap-12 items-center w-full">
+                <div className="order-2 md:order-1">
+                  <img src={SS_TTS_SETTINGS} alt="TTS 설정" className="w-full h-auto max-h-[55vh] object-contain rounded-2xl shadow-2xl" draggable={false} />
+                </div>
+                <div className="order-1 md:order-2 space-y-6">
+                  <SVGTitle lines={['음성', 'Agent']} />
+                  <p className={`font-bold text-xl md:text-2xl leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
+                    실시간 음성 이해와 TTS 응답.
+                  </p>
+                  <p className={`text-base leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Discord DAVE E2EE 음성 스트림 수신,
+                    WebRTC VAD 발화 감지, Qwen3.5-Omni 오디오 이해.
+                    화자별 CosyVoice3 파인튜닝으로 캐릭터 음성 생성.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {['Qwen3.5', 'CosyVoice3', 'WebRTC VAD'].map(t => (
+                      <span key={t} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${isDark ? 'bg-white/[0.05] text-[#6DC8E8] border-white/[0.08]' : 'bg-[#0B5ED7]/5 text-[#0B5ED7] border-[#0B5ED7]/20'}`}>{t}</span>
+                    ))}
+                  </div>
+                  <div className="space-y-2 mt-2">
+                    {[ { label: 'Debi', src: '/audio/demo_debi_desc.wav' }, { label: 'Marlene', src: '/audio/demo_marlene_desc.wav' } ].map(s => (
+                      <div key={s.label} className={`flex items-center gap-3 px-4 py-2.5 rounded-[16px] border ${isDark ? 'bg-black/40 border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
+                        <span className="shrink-0 text-xs font-bold w-12" style={{ color: ACCENT }}>{s.label}</span>
+                        <audio controls preload="none" className="w-full h-8 [&::-webkit-media-controls-panel]:bg-transparent"><source src={s.src} type="audio/wav" /></audio>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          </div>
+
+          {/* Feature 3: 웹 대시보드 */}
+          <div className="feature-card shrink-0 w-screen h-full flex items-center justify-center px-6 md:px-16">
+            <GlassCard className="w-full max-w-6xl p-8 md:p-12 rounded-[32px]">
+              <div className="grid md:grid-cols-2 gap-12 items-center w-full">
+                <div className="space-y-6">
+                  <SVGTitle lines={['웹', '대시보드']} />
+                  <p className={`font-bold text-xl md:text-2xl leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
+                    Discord OAuth2 관리 웹앱.
+                  </p>
+                  <p className={`text-base leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    서버별 봇 설정, TTS 속도 등 통합 커스터마이징. Toss Payments SDK 연동으로 후원 시스템 구축.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {['React 19', 'Flask', 'Toss Payments'].map(t => (
+                      <span key={t} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${isDark ? 'bg-white/[0.05] text-[#6DC8E8] border-white/[0.08]' : 'bg-[#0B5ED7]/5 text-[#0B5ED7] border-[#0B5ED7]/20'}`}>{t}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  <img src={SS_DASHBOARD} alt="대시보드" className="w-full h-auto max-h-[26vh] object-contain rounded-2xl shadow-2xl" draggable={false} />
+                  <img src={SS_STATUSLINE} alt="Statusline Preview" className="w-full h-auto max-h-[26vh] object-contain rounded-2xl shadow-2xl" draggable={false} />
+                </div>
+              </div>
+            </GlassCard>
+          </div>
+
+          {/* Feature 4: 운영 도구 */}
+          <div className="feature-card shrink-0 w-screen h-full flex items-center justify-center px-6 md:px-16">
+            <GlassCard className="w-full max-w-6xl p-8 md:p-12 rounded-[32px]">
+              <div className="grid md:grid-cols-2 gap-12 items-center w-full">
+                <div className="order-2 md:order-1 grid grid-cols-1 gap-3">
+                  <img src={SS_STATS} alt="전적 통계" className="w-full h-auto max-h-[26vh] object-contain rounded-2xl shadow-2xl" draggable={false} />
+                  <img src={SS_WEBPANEL} alt="웹패널" className="w-full h-auto max-h-[26vh] object-contain rounded-2xl shadow-2xl" draggable={false} />
+                </div>
+                <div className="order-1 md:order-2 space-y-6">
+                  <SVGTitle lines={['운영', '도구']} />
+                  <p className={`font-bold text-xl md:text-2xl leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
+                    전적 검색 + 관리자 모니터링.
+                  </p>
+                  <p className={`text-base leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    dak.gg API를 리버스 엔지니어링하여 수집. 관리자 웹패널(SSE)로 봇 사용량 및 지연 시간 실시간 스트리밍 모니터링.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {['dak.gg API', 'Flask SSE', 'Nginx', 'Components V2'].map(t => (
+                      <span key={t} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${isDark ? 'bg-white/[0.05] text-[#6DC8E8] border-white/[0.08]' : 'bg-[#0B5ED7]/5 text-[#0B5ED7] border-[#0B5ED7]/20'}`}>{t}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
           </div>
         </div>
 
-        {/* 웹 대시보드 */}
-        <div className="max-w-6xl mx-auto px-6 mb-32">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <FadeIn>
-              <SVGTitle lines={['웹', '대시보드']} />
-              <p className={`font-bold text-xl md:text-2xl leading-relaxed mt-8 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
-                Discord OAuth2 기반 서버 관리 웹앱.
-              </p>
-              <p className={`text-base leading-relaxed mt-4 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                서버별 봇 설정, TTS 음성/속도 커스터마이징,
-                환영/퇴장 메시지 관리, 퀴즈 곡 관리 등을 웹에서 통합 제공.
-                Toss Payments SDK 연동으로 후원 결제 기능 구현.
-              </p>
-              <div className="flex flex-wrap gap-2 mt-6">
-                {['React 19', 'TypeScript', 'Flask', 'OAuth2', 'Tailwind 4', 'Toss Payments'].map(t => (
-                  <span key={t} className={`px-3 py-1 rounded-lg text-xs font-medium border ${isDark ? 'bg-white/[0.03] text-gray-400 border-white/[0.06]' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{t}</span>
-                ))}
-              </div>
-            </FadeIn>
-            <div className="space-y-4">
-              <Screenshot src={SS_DASHBOARD} alt="대시보드" delay={0.1} />
-              <Screenshot src={SS_STATUSLINE} alt="Statusline Preview" delay={0.15} />
-            </div>
-          </div>
-        </div>
-
-        {/* 전적 검색 + 관리자 패널 */}
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="order-2 md:order-1 space-y-4">
-              <Screenshot src={SS_STATS} alt="전적 통계" delay={0.1} />
-              <Screenshot src={SS_WEBPANEL} alt="웹패널" delay={0.15} />
-            </div>
-            <FadeIn className="order-1 md:order-2">
-              <SVGTitle lines={['운영', '도구']} />
-              <p className={`font-bold text-xl md:text-2xl leading-relaxed mt-8 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
-                전적 검색 + 관리자 모니터링.
-              </p>
-              <p className={`text-base leading-relaxed mt-4 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                dak.gg API 리버스 엔지니어링으로 전적/통계 데이터 수집.
-                관리자 전용 웹패널로 봇 사용 로그, 서버 현황, 유저 니즈 분석.
-                SSE 기반 실시간 로그 스트리밍.
-              </p>
-              <div className="flex flex-wrap gap-2 mt-6">
-                {['dak.gg API', 'Components V2', 'Flask SSE', 'nginx'].map(t => (
-                  <span key={t} className={`px-3 py-1 rounded-lg text-xs font-medium border ${isDark ? 'bg-white/[0.03] text-gray-400 border-white/[0.06]' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>{t}</span>
-                ))}
-              </div>
-            </FadeIn>
-          </div>
+        {/* Scroll hint while pinned */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20 pointer-events-none">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`animate-pulse ${isDark ? 'text-gray-500' : 'text-gray-400'}`}><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+          <span className={`text-[11px] font-bold tracking-[0.25em] uppercase ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Scroll</span>
         </div>
       </section>
 
@@ -912,26 +1036,29 @@ export default function PortfolioNexon() {
           </div>
 
           <FadeIn>
-            <div className={`p-8 rounded-3xl border grid md:grid-cols-3 gap-8 relative overflow-hidden ${isDark ? 'bg-[url(#text-texture)] bg-[#0a0a0f] border-white/[0.06] shadow-2xl' : 'bg-gray-50/50 border-gray-200/50'}`}>
+            <GlassCard className="p-8 rounded-3xl">
+             <div className="relative grid md:grid-cols-3 gap-8">
                <div className={`absolute -top-[100px] left-[50%] -translate-x-[50%] w-[500px] h-[300px] blur-[120px] pointer-events-none ${isDark ? 'bg-[#0B5ED7]/15' : 'bg-[#0B5ED7]/[0.08]'}`}/>
                
                {/* Clients Layer */}
-               <div className="space-y-4 relative z-10 md:pr-4 md:border-r border-dashed border-gray-200 dark:border-white/10">
+               <div className="relative z-10 md:pr-4 md:border-r border-dashed border-gray-200 dark:border-white/10 flex flex-col">
                  <div className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                   <span className="w-2 h-2 rounded-full border-2 border-indigo-500 bg-transparent flex items-center justify-center"><span className="w-0.5 h-0.5 rounded-full bg-indigo-500"/></span> 
+                   <span className="w-2 h-2 rounded-full border-2 border-indigo-500 bg-transparent flex items-center justify-center"><span className="w-0.5 h-0.5 rounded-full bg-indigo-500"/></span>
                    Client Layer
                  </div>
-                 {[{ n: 'Discord', d: 'Text/Voice UI', icon: 'M18 10h-2V8h-4v2H8V8H4v10h4v2h2v-2h4v2h2v-2h4v-8h-2z' }, { n: 'Dashboard', d: 'React App', icon:'M4 4h16v16H4V4zm2 2v12h12V6H6zm2 2h8v2H8V8zm0 4h8v2H8v-2z' }, { n: 'Admin Panel', d: 'Manager Web', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z' }].map(c => (
-                   <div key={c.n} className={`group p-4 flex gap-4 items-center rounded-2xl border transition-all hover:scale-[1.02] ${isDark ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04]' : 'bg-white border-gray-100 shadow-sm hover:shadow-md'}`}>
-                     <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/[0.05]' : 'bg-gray-50'}`}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className={isDark ? 'text-gray-400' : 'text-gray-400'}><path d={c.icon}/></svg>
+                 <div className="flex flex-col gap-4 flex-1 justify-center">
+                   {[{ n: 'Discord', d: 'Text/Voice UI', icon: 'M18 10h-2V8h-4v2H8V8H4v10h4v2h2v-2h4v2h2v-2h4v-8h-2z' }, { n: 'Dashboard', d: 'React App', icon:'M4 4h16v16H4V4zm2 2v12h12V6H6zm2 2h8v2H8V8zm0 4h8v2H8v-2z' }, { n: 'Admin Panel', d: 'Manager Web', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z' }].map(c => (
+                     <div key={c.n} className={`group p-4 flex gap-4 items-center rounded-2xl border transition-all hover:scale-[1.02] ${isDark ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04]' : 'bg-white border-gray-100 shadow-sm hover:shadow-md'}`}>
+                       <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/[0.05]' : 'bg-gray-50'}`}>
+                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className={isDark ? 'text-gray-400' : 'text-gray-400'}><path d={c.icon}/></svg>
+                       </div>
+                       <div>
+                         <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>{c.n}</div>
+                         <div className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{c.d}</div>
+                       </div>
                      </div>
-                     <div>
-                       <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>{c.n}</div>
-                       <div className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{c.d}</div>
-                     </div>
-                   </div>
-                 ))}
+                   ))}
+                 </div>
                </div>
 
                {/* Core Server Layer */}
@@ -940,13 +1067,15 @@ export default function PortfolioNexon() {
                    <span className="w-2 h-2 rounded-full bg-[#0B5ED7] animate-pulse shadow-[0_0_8px_rgba(11,94,215,0.8)]"></span> 
                    App Server (GCP)
                  </div>
-                 <div className={`p-6 rounded-3xl border h-[calc(100%-40px)] flex flex-col justify-center ${isDark ? 'bg-gradient-to-b from-[#0B5ED7]/10 to-transparent border-[#0B5ED7]/20' : 'bg-blue-50/50 border-blue-200/50'}`}>
+                 <div className={`p-6 rounded-[24px] border h-[calc(100%-40px)] flex flex-col justify-center ${isDark ? 'bg-gradient-to-b from-[#0B5ED7]/10 to-transparent border-[#0B5ED7]/20' : 'bg-blue-50/50 border-blue-200/50'}`}>
                    <div className="grid grid-cols-2 gap-3">
                      {[
                        { n: 'Discord Bot', d: 'discord.py' },
-                       { n: 'APIs', d: 'Flask x2' },
-                       { n: 'Proxy', d: 'Nginx + SSL' },
-                       { n: 'Runtime', d: 'Docker' },
+                       { n: 'Dashboard API', d: 'Flask + OAuth2' },
+                       { n: 'Webpanel API', d: 'Flask + SSE' },
+                       { n: 'Nginx', d: 'Proxy + SSL' },
+                       { n: 'Docker', d: 'Containers' },
+                       { n: 'Gunicorn', d: 'WSGI Server' },
                      ].map(c => (
                        <div key={c.n} className={`p-4 rounded-2xl border text-center transition-all hover:scale-[1.05] ${isDark ? 'bg-white/[0.03] border-white/[0.05] hover:border-[#0B5ED7]/30' : 'bg-white/80 border-blue-100 hover:shadow-md'}`}>
                          <div className={`font-bold text-[13px] ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{c.n}</div>
@@ -960,20 +1089,29 @@ export default function PortfolioNexon() {
                {/* AI & Cloud Services Layer */}
                <div className="space-y-4 relative z-10">
                  <div className={`text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2 ${isDark ? 'text-[#6DC8E8]' : 'text-sky-500'}`}>
-                   <span className="w-2 h-2 rounded-full border-2 border-[#6DC8E8] bg-transparent flex items-center justify-center"><span className="w-0.5 h-0.5 rounded-full bg-[#6DC8E8]"/></span> 
+                   <span className="w-2 h-2 rounded-full bg-[#6DC8E8] animate-pulse shadow-[0_0_8px_rgba(109,200,232,0.8)]"></span>
                    AI & External Services
                  </div>
-                 {[{ n: 'Modal GPUs', d: 'Gemma4 & CosyVoice3' }, { n: 'DashScope', d: 'Qwen3.5-Omni API' }, { n: 'GCS', d: 'Memory & Assets' }].map(c => (
-                   <div key={c.n} className={`group p-4 flex gap-4 items-center rounded-2xl border transition-all hover:scale-[1.02] ${isDark ? 'bg-white/[0.02] border-white/[0.05] hover:border-[#6DC8E8]/30' : 'bg-white border-gray-100 shadow-sm hover:shadow-md'}`}>
-                     <div className={`w-1 h-8 rounded-full ${isDark ? 'bg-[#6DC8E8]/50' : 'bg-sky-400'}`} />
-                     <div>
-                       <div className={`font-bold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{c.n}</div>
-                       <div className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{c.d}</div>
-                     </div>
+                 <div className={`p-6 rounded-[24px] border h-[calc(100%-40px)] flex flex-col justify-center ${isDark ? 'bg-gradient-to-b from-[#6DC8E8]/10 to-transparent border-[#6DC8E8]/20' : 'bg-sky-50/50 border-sky-200/50'}`}>
+                   <div className="grid grid-cols-2 gap-3">
+                     {[
+                       { n: 'Modal A10G', d: 'Gemma4 LoRA' },
+                       { n: 'Modal T4', d: 'CosyVoice3 TTS' },
+                       { n: 'DashScope', d: 'Qwen3.5-Omni' },
+                       { n: 'HuggingFace', d: 'Model Registry' },
+                       { n: 'GCS', d: 'Memory / Assets' },
+                       { n: 'Cloudflare', d: 'CDN / DNS' },
+                     ].map(c => (
+                       <div key={c.n} className={`p-4 rounded-2xl border text-center transition-all hover:scale-[1.05] ${isDark ? 'bg-white/[0.03] border-white/[0.05] hover:border-[#6DC8E8]/30' : 'bg-white/80 border-sky-100 hover:shadow-md'}`}>
+                         <div className={`font-bold text-[13px] ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{c.n}</div>
+                         <div className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{c.d}</div>
+                       </div>
+                     ))}
                    </div>
-                 ))}
+                 </div>
                </div>
-            </div>
+             </div>
+            </GlassCard>
           </FadeIn>
         </div>
       </section>
@@ -1059,11 +1197,12 @@ export default function PortfolioNexon() {
                 ],
               },
             ].map((cat, i) => (
-              <FadeIn key={cat.title} delay={i * 0.05} className={`group relative p-8 rounded-[32px] border transition-all duration-300 overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]' : 'bg-white/80 backdrop-blur-sm border-gray-200/80 hover:shadow-xl hover:-translate-y-1'}`}>
+              <FadeIn key={cat.title} delay={i * 0.05} className="h-full">
+                <GlassCard className={`group relative p-8 rounded-[32px] transition-all duration-300 h-full ${isDark ? 'hover:bg-white/[0.04]' : 'hover:-translate-y-1'}`}>
                 {/* Dynamic Glow via style property to inject valid hex colors */}
-                <div className={`absolute top-0 right-[-20px] w-32 h-32 blur-[50px] transition-opacity duration-500 opacity-20 group-hover:opacity-100`} style={{ backgroundColor: cat.hex }} />
+                <div className={`absolute top-0 right-[-20px] w-32 h-32 blur-[50px] transition-opacity duration-500 opacity-20 group-hover:opacity-100 z-0 pointer-events-none`} style={{ backgroundColor: cat.hex }} />
                 
-                <h3 className={`text-sm font-bold uppercase tracking-widest mb-6 ${cat.color}`}>{cat.title}</h3>
+                <h3 className={`text-sm font-bold uppercase tracking-widest mb-6 relative z-10 ${cat.color}`}>{cat.title}</h3>
                 <div className="space-y-5 relative z-10">
                   {cat.items.map(item => (
                     <div key={item.name} className="flex flex-col gap-1.5">
@@ -1074,6 +1213,7 @@ export default function PortfolioNexon() {
                     </div>
                   ))}
                 </div>
+                </GlassCard>
               </FadeIn>
             ))}
           </div>
@@ -1104,7 +1244,7 @@ export default function PortfolioNexon() {
               </div>
 
               {/* Before */}
-              <div className={`p-8 rounded-[32px] border transition-opacity duration-300 opacity-70 hover:opacity-100 ${isDark ? 'bg-white/[0.01] border-white/[0.05]' : 'bg-gray-50 border-gray-100'}`}>
+              <GlassCard className="p-8 rounded-[32px] transition-opacity duration-300 opacity-70 hover:opacity-100 h-full">
                 <div className="text-xs font-bold uppercase tracking-widest text-[#ed4245] flex items-center gap-2 mb-6">
                    <div className="w-1.5 h-1.5 rounded-full bg-[#ed4245]" />
                    Before: Self-Hosted Model
@@ -1116,11 +1256,11 @@ export default function PortfolioNexon() {
                     <div className="text-sm font-bold text-[#ed4245] mt-2">Cold Start: 60s+</div>
                   </div>
                 </div>
-              </div>
+              </GlassCard>
 
               {/* After */}
-              <div className={`relative p-8 rounded-[32px] border overflow-hidden group ${isDark ? 'bg-gradient-to-br from-[#0B5ED7]/15 to-transparent border-[#0B5ED7]/30' : 'bg-gradient-to-br from-blue-50 to-white border-blue-200 hover:shadow-2xl transition-all duration-500'}`}>
-                <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#0B5ED7]/20 blur-[60px] rounded-full group-hover:scale-150 transition-transform duration-700" />
+              <GlassCard className="group p-8 rounded-[32px] h-full transition-all duration-500">
+                <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#0B5ED7]/20 blur-[60px] rounded-full group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
                 <div className="text-xs font-bold uppercase tracking-widest text-[#0B5ED7] flex items-center gap-2 mb-6">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#0B5ED7] animate-pulse" />
                   After: API Transition
@@ -1138,11 +1278,11 @@ export default function PortfolioNexon() {
                     OpenAI SDK 기반 프록시 전환으로 코드는 유지하며 <span className="font-bold text-[#0B5ED7] bg-[#0B5ED7]/10 px-1 rounded">170배의 비용을 절감</span>했습니다.
                   </div>
                 </div>
-              </div>
+              </GlassCard>
             </div>
             
             {/* Additional Costs Summary */}
-            <div className={`mt-6 p-6 rounded-[32px] border overflow-hidden ${isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white border-gray-100 shadow-sm'}`}>
+            <GlassCard className="mt-6 p-6 rounded-[32px]">
               <div className="grid grid-cols-3 gap-4 text-center divide-x divide-gray-200 dark:divide-white/10">
                 {[
                   { name: 'Text Chat AI', val: '~$46', sub: 'Modal A10G (Gemma4 LoRA)' },
@@ -1156,7 +1296,7 @@ export default function PortfolioNexon() {
                   </div>
                 ))}
               </div>
-            </div>
+            </GlassCard>
           </FadeIn>
         </div>
       </section>

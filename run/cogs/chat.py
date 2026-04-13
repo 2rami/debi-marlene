@@ -12,13 +12,10 @@ from discord.ext import commands
 from typing import Dict, List, Optional
 import logging
 import re
-import time
 
 from run.services.chat import ChatClient
-from run.services.chat.patchnote_search import get_patch_context
-from run.services.chat.chat_memory import (
-    detect_correction, add_correction, get_corrections_prompt,
-)
+from run.services.chat.chat_agent_graph import build_chat_agent
+from run.services.chat.chat_memory import detect_correction, add_correction
 from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
@@ -109,6 +106,7 @@ class ChatCog(commands.Cog, name="대화"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.client = ChatClient()
+        self.chat_agent = build_chat_agent(self.client)
 
     async def cog_unload(self):
         await self.client.close()
@@ -160,35 +158,30 @@ class ChatCog(commands.Cog, name="대화"):
             add_correction(user_msg)
             print(f"[메모리] 수정 저장: {user_msg[:50]}", flush=True)
 
-        # 패치노트 검색
-        context = None
-        patch_info = None
-        try:
-            context, patch_info = await get_patch_context(user_msg)
-        except Exception as e:
-            logger.warning("패치 검색 실패: %s", e)
-
-        # 수정사항을 context에 합침 (Modal 서버의 시스템 프롬프트에 반영됨)
-        corrections = get_corrections_prompt()
-        if corrections:
-            context = (context or "") + corrections
-
-        # health check -> 콜드스타트 감지
+        # health check -> 콜드스타트 감지 (Discord 쪽 side-effect라 그래프 외부에 둠)
         loading_msg = None
         is_cold = not await self.client.health_check()
         if is_cold:
             loading_msg = await message.reply("...잠깐만, 아직 덜 일어났어.", mention_author=False)
 
-        # typing 표시 + 추론 요청
+        # LangGraph StateGraph 실행: classify → (rag | skip) → memory → llm
         async with message.channel.typing():
-            t0 = time.time()
-            response = await self.client.chat(user_msg, history, context)
-            elapsed = time.time() - t0
+            result = await self.chat_agent.ainvoke({
+                "user_message": user_msg,
+                "history": history,
+            })
+
+        response = result.get("response")
+        elapsed = result.get("elapsed", 0.0)
+        patch_info = result.get("patch_info")
+        corrections = result.get("corrections")
+        intent = result.get("intent", "general")
 
         ctx_tag = " [+patch]" if patch_info else ""
         cold_tag = " [cold]" if is_cold else ""
         mem_tag = " [+mem]" if corrections else ""
-        print(f"[대화] {elapsed:.1f}s{ctx_tag}{mem_tag}{cold_tag} | Q: {user_msg[:30]} | A: {(response or '-')[:40]}", flush=True)
+        intent_tag = f" [{intent}]"
+        print(f"[대화] {elapsed:.1f}s{intent_tag}{ctx_tag}{mem_tag}{cold_tag} | Q: {user_msg[:30]} | A: {(response or '-')[:40]}", flush=True)
 
         if not response:
             fail_text = "...연결이 안 돼."

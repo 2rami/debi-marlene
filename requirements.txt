@@ -25,6 +25,8 @@ pydub==0.25.1
 edge-tts>=7.0.0
 webrtcvad>=2.0.10
 openai>=1.30.0
+# LangGraph agent orchestration for keyword-triggered chat flow
+langgraph>=0.2.0
 # TTS>=0.22.0  # Coqui TTS - removed (using GPT-SoVITS)
 # openai-whisper  # removed (not needed)
 # transformers==4.40.0  # removed (not needed)

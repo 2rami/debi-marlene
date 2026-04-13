@@ -105,6 +105,9 @@ webpanel/release/
 webpanel/.next/
 webpanel/out/
 
+# Dashboard frontend 빌드 파일 (로컬 빌드 후 make deploy-dashboard-frontend로 업로드)
+dashboard/frontend/dist/
+
 # Electron 빌드 파일
 *.asar
 *.dmg

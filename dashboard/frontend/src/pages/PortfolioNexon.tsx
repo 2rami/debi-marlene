@@ -11,6 +11,10 @@ import { CalendarDays, Layers, BrainCircuit, Bot } from 'lucide-react'
 /* ── Assets ── */
 import CHAR_HERO_LIGHT from '../assets/images/event/imgi_30_ch01_v2.png'
 import CHAR_HERO_DARK from '../assets/images/event/char_twins_dark.png'
+import TWINS_APPROVE from '../assets/images/event/236_twins_approve.png'
+import BG_FOOTER from '../assets/images/event/footer_bg.png'
+import FOOTER_PLATFORM from '../assets/images/event/footer_platform.png'
+import FOOTER_CHAR from '../assets/images/event/footer_char.png'
 
 /* Screenshots */
 import SS_STATS from '../assets/images/event/screenshot_stats.png'
@@ -144,7 +148,6 @@ function GlassCard({ children, className = '' }: { children?: React.ReactNode, c
         style={{
           zIndex: 0,
           background: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.72)',
-          filter: 'url(#glass-texture)',
           boxShadow: isDark
             ? '0px 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 0 20px rgba(255,255,255,0.05)'
             : '0px 12px 32px rgba(11, 94, 215, 0.10), 0px 2px 8px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
@@ -334,34 +337,6 @@ function PipelineNode({ step, title, desc, techs, isLast = false, delay = 0 }: {
 }
 
 /* ── Theme Toggle Button ── */
-function ThemeToggle() {
-  const { isDark, toggle } = useTheme()
-  return (
-    <motion.button
-      onClick={toggle}
-      className={`fixed bottom-6 right-6 z-50 cursor-pointer rounded-full w-12 h-12 flex items-center justify-center ${
-        isDark
-          ? 'bg-gradient-to-b from-[#1a1a2e] to-[#16213e] border border-white/15 text-white'
-          : 'bg-gradient-to-b from-white to-gray-50 border border-gray-200 text-gray-700'
-      }`}
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.5 }}
-      whileHover={{ scale: 1.1 }}
-      style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}
-      aria-label="Toggle theme"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        {isDark ? (
-          <><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>
-        ) : (
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        )}
-      </svg>
-    </motion.button>
-  )
-}
-
 /* ── Section Navigator ── */
 const SECTIONS = [
   { id: 'hero', label: 'Hero' },
@@ -371,17 +346,18 @@ const SECTIONS = [
   { id: 'features', label: 'Features' },
   { id: 'architecture', label: 'Architecture' },
   { id: 'techstack', label: 'Tech Stack' },
-  { id: 'cost', label: 'Cost Analysis' },
 ]
 
 function SectionNav() {
-  const { isDark } = useTheme()
+  const { isDark, toggle } = useTheme()
   const [active, setActive] = useState('hero')
-  const [visible, setVisible] = useState(false)
+  const [progress, setProgress] = useState(0)
 
   useEffect(() => {
     const onScroll = () => {
-      setVisible(window.scrollY > window.innerHeight * 0.5)
+      const max = document.documentElement.scrollHeight - window.innerHeight
+      setProgress(max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0)
+
       for (let i = SECTIONS.length - 1; i >= 0; i--) {
         const el = document.getElementById(SECTIONS[i].id)
         if (el) {
@@ -393,55 +369,145 @@ function SectionNav() {
         }
       }
     }
+    onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.nav
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 20 }}
-          transition={{ duration: 0.3 }}
-          className="fixed right-5 top-1/2 -translate-y-1/2 z-40 flex flex-col items-end gap-3 max-md:hidden"
-        >
-          {SECTIONS.map(s => {
+    <motion.nav
+      initial={{ opacity: 0, x: 40 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.9, delay: 1.0, ease: [0.22, 1, 0.36, 1] }}
+      className="fixed right-6 top-1/2 -translate-y-1/2 z-40 max-md:hidden"
+    >
+      <div className={`relative py-6 pr-5 pl-6 rounded-2xl border backdrop-blur-xl ${
+        isDark
+          ? 'bg-white/[0.03] border-white/[0.08] shadow-[0_12px_40px_rgba(0,0,0,0.4)]'
+          : 'bg-white/70 border-[#0B5ED7]/15 shadow-[0_12px_40px_rgba(11,94,215,0.12)]'
+      }`}>
+        {/* Top corner glow */}
+        <div className={`absolute -top-2 -right-2 w-16 h-16 rounded-full blur-2xl pointer-events-none ${
+          isDark ? 'bg-[#6DC8E8]/10' : 'bg-[#0B5ED7]/15'
+        }`} />
+
+        <ul className="relative flex flex-col gap-5">
+          {/* Vertical progress rail — aligned to dot column center */}
+          <div className={`absolute left-[33px] top-2 bottom-2 w-[2px] rounded-full overflow-hidden pointer-events-none ${
+            isDark ? 'bg-white/[0.08]' : 'bg-[#0B5ED7]/10'
+          }`}>
+            <div
+              className="w-full bg-gradient-to-b from-[#0B5ED7] to-[#6DC8E8] origin-top transition-transform duration-300 ease-out"
+              style={{ height: '100%', transform: `scaleY(${progress})` }}
+            />
+          </div>
+
+          {SECTIONS.map((s, i) => {
             const isActive = active === s.id
+            const number = String(i + 1).padStart(2, '0')
             return (
-              <button
-                key={s.id}
-                onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth' })}
-                className="group flex items-center gap-2.5 cursor-pointer"
-              >
-                <span className={`text-xs font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'text-[#0B5ED7] opacity-100'
-                    : isDark ? 'text-white/0 group-hover:text-white/70' : 'text-gray-800/0 group-hover:text-gray-500'
-                }`}>
-                  {s.label}
-                </span>
-                <div className="relative flex items-center justify-center w-3 h-3">
-                  {isActive && (
-                    <motion.div
-                      layoutId="nav-active-nexon"
-                      className="absolute inset-[-3px] rounded-full bg-[#0B5ED7]/20"
-                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                    />
-                  )}
-                  <div className={`w-2.5 h-2.5 rounded-full transition-all duration-200 ${
+              <li key={s.id} className="relative">
+                <button
+                  onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth' })}
+                  className="group flex items-center gap-3 w-full cursor-pointer text-left"
+                >
+                  {/* Section number */}
+                  <span className={`text-[10px] font-mono font-bold tabular-nums tracking-wider transition-colors duration-300 w-[14px] ${
                     isActive
-                      ? 'bg-[#0B5ED7] scale-100'
-                      : isDark ? 'bg-white/20 group-hover:bg-white/50 scale-75' : 'bg-gray-300 group-hover:bg-gray-400 scale-75'
-                  }`} />
-                </div>
-              </button>
+                      ? 'text-[#0B5ED7]'
+                      : isDark
+                        ? 'text-white/25 group-hover:text-white/60'
+                        : 'text-gray-400 group-hover:text-gray-600'
+                  }`}>
+                    {number}
+                  </span>
+
+                  {/* Dot with halo + pulse — sits on top of the rail */}
+                  <div className="relative flex items-center justify-center w-4 h-4 shrink-0 z-10">
+                    {isActive && (
+                      <>
+                        <motion.div
+                          layoutId="nav-halo-nexon"
+                          className="absolute inset-[-7px] rounded-full bg-gradient-to-br from-[#0B5ED7]/50 to-[#6DC8E8]/50 blur-[6px]"
+                          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                        />
+                        <motion.div
+                          className="absolute inset-[-3px] rounded-full border-2 border-[#0B5ED7]/50"
+                          animate={{ scale: [1, 1.4, 1], opacity: [0.8, 0, 0.8] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+                        />
+                      </>
+                    )}
+                    <div className={`rounded-full transition-all duration-300 relative z-10 ${
+                      isActive
+                        ? 'w-[13px] h-[13px] bg-gradient-to-br from-[#0B5ED7] to-[#6DC8E8] shadow-[0_0_14px_rgba(11,94,215,0.7)]'
+                        : isDark
+                          ? 'w-[9px] h-[9px] bg-white/30 group-hover:bg-white/60 group-hover:scale-110'
+                          : 'w-[9px] h-[9px] bg-gray-300 group-hover:bg-[#0B5ED7]/60 group-hover:scale-110'
+                    }`} />
+                  </div>
+
+                  {/* Label always visible */}
+                  <span className={`text-[13px] font-semibold tracking-wide whitespace-nowrap transition-all duration-300 ${
+                    isActive
+                      ? 'text-[#0B5ED7] translate-x-0'
+                      : isDark
+                        ? 'text-white/50 group-hover:text-white group-hover:translate-x-0.5'
+                        : 'text-gray-500 group-hover:text-gray-900 group-hover:translate-x-0.5'
+                  }`}>
+                    {s.label}
+                  </span>
+                </button>
+              </li>
             )
           })}
-        </motion.nav>
-      )}
-    </AnimatePresence>
+        </ul>
+
+        {/* Bottom "scroll %" indicator */}
+        <div className={`mt-5 pt-4 border-t ${isDark ? 'border-white/[0.06]' : 'border-[#0B5ED7]/10'} flex items-center justify-between`}>
+          <span className={`text-[9px] font-mono font-bold tracking-widest uppercase ${
+            isDark ? 'text-white/30' : 'text-gray-400'
+          }`}>
+            Scroll
+          </span>
+          <span className="text-[11px] font-mono font-bold tabular-nums bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] bg-clip-text text-transparent">
+            {Math.round(progress * 100)}%
+          </span>
+        </div>
+
+        {/* Theme toggle — merged from floating button */}
+        <button
+          onClick={toggle}
+          aria-label="Toggle theme"
+          className={`mt-3 w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-300 ${
+            isDark
+              ? 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.05] hover:border-white/[0.12]'
+              : 'bg-white/50 border-[#0B5ED7]/10 hover:bg-[#0B5ED7]/[0.04] hover:border-[#0B5ED7]/20'
+          }`}
+        >
+          <span className={`text-[10px] font-mono font-bold tracking-widest uppercase ${
+            isDark ? 'text-white/40' : 'text-gray-500'
+          }`}>
+            {isDark ? 'Light' : 'Dark'}
+          </span>
+          <motion.div
+            key={isDark ? 'dark' : 'light'}
+            initial={{ rotate: -90, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            className={isDark ? 'text-[#6DC8E8]' : 'text-[#0B5ED7]'}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              {isDark ? (
+                <><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>
+              ) : (
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              )}
+            </svg>
+          </motion.div>
+        </button>
+      </div>
+    </motion.nav>
   )
 }
 
@@ -517,7 +583,32 @@ export default function PortfolioNexon() {
         })
       }, featuresContainerRef)
 
+      // 동적 컨텐츠 변화 대응: TroubleshootCard 아코디언, Mermaid async 렌더링 등으로
+      // document 높이가 변하면 ScrollTrigger 캐시가 stale해져서 Features pin 위치가 어긋남.
+      // ResizeObserver + 디바운스로 body 크기 변화를 감지해 refresh 호출.
+      let refreshTimer: number | null = null
+      const scheduleRefresh = () => {
+        if (refreshTimer !== null) window.clearTimeout(refreshTimer)
+        refreshTimer = window.setTimeout(() => {
+          ScrollTrigger.refresh()
+          refreshTimer = null
+        }, 150)
+      }
+      const resizeObserver = new ResizeObserver(scheduleRefresh)
+      resizeObserver.observe(document.body)
+
+      // 완전 로드 후 한번 더 refresh (폰트/이미지/Mermaid SVG 렌더 반영)
+      const onLoad = () => ScrollTrigger.refresh()
+      if (document.readyState === 'complete') {
+        window.setTimeout(onLoad, 100)
+      } else {
+        window.addEventListener('load', onLoad, { once: true })
+      }
+
       cleanup = () => {
+        if (refreshTimer !== null) window.clearTimeout(refreshTimer)
+        resizeObserver.disconnect()
+        window.removeEventListener('load', onLoad)
         gsap.ticker.remove(tickerFn)
         ctx?.revert()
         lenis?.destroy()
@@ -546,7 +637,6 @@ export default function PortfolioNexon() {
       </svg>
 
       <Header />
-      <ThemeToggle />
       <SectionNav />
 
       {/* ══ HERO (BENTO REDESIGN) ══ */}
@@ -618,8 +708,8 @@ export default function PortfolioNexon() {
                   v: '6개', l: 'LLM & TTS', sub: 'Models Integrated',
                   icon: <BrainCircuit strokeWidth={1.5} className="w-6 h-6" />
                 },
-                { 
-                  v: 'Native', l: 'AI 주도로 구축', sub: 'Built with AI',
+                {
+                  v: 'AI-First', l: 'Claude Code 개발', sub: 'Built with Claude Code',
                   icon: <Bot strokeWidth={1.5} className="w-6 h-6" />
                 },
               ].map((s, i) => (
@@ -661,17 +751,36 @@ export default function PortfolioNexon() {
 
           {/* Action Block - Span 3 */}
           <FadeIn delay={0.25} className="md:col-span-6 lg:col-span-3 h-full">
-            <GlassCard className="h-full p-8 rounded-[32px] flex flex-col justify-center gap-4">
-            <div className={`text-xs font-bold uppercase tracking-widest mb-1 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Explore Project</div>
-            <GlassButton href="/landing" size="sm" className="!w-full !h-14 !text-base shadow-md">
-              Live Site Demo
-            </GlassButton>
-            <GlassButton href="https://github.com/2rami/debi-marlene" target="_blank" rel="noopener noreferrer" size="sm" className="!w-full !h-14 !text-base shadow-md">
-               <span className="flex items-center gap-2">
-                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg> 
-                 GitHub Repo
-               </span>
-            </GlassButton>
+            <GlassCard className="h-full rounded-[32px]">
+              <div className="flex flex-col justify-center h-full w-full p-8">
+                {/* Header with icon — clearly a label, not a button */}
+                <div className={`flex items-center gap-2 mb-6 ${isDark ? 'text-[#6DC8E8]' : 'text-[#0B5ED7]'}`}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 3 21 3 21 9" />
+                    <polyline points="9 21 3 21 3 15" />
+                    <line x1="21" y1="3" x2="14" y2="10" />
+                    <line x1="3" y1="21" x2="10" y2="14" />
+                  </svg>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em]">Explore Project</span>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <GlassButton href="/landing" size="sm" className="!w-full !h-12 !text-sm">
+                    <span className="flex items-center justify-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                      Live Site Demo
+                    </span>
+                  </GlassButton>
+                  <GlassButton href="https://github.com/2rami/debi-marlene" target="_blank" rel="noopener noreferrer" size="sm" className="!w-full !h-12 !text-sm">
+                    <span className="flex items-center justify-center gap-2">
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                      GitHub Repo
+                    </span>
+                  </GlassButton>
+                </div>
+              </div>
             </GlassCard>
           </FadeIn>
 
@@ -683,7 +792,7 @@ export default function PortfolioNexon() {
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
             <ScrollFloat
-              containerClassName={`font-title bg-gradient-to-r from-[${ACCENT}] to-[${ACCENT2}] bg-clip-text text-transparent leading-tight`}
+              containerClassName="font-title bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] bg-clip-text text-transparent leading-tight"
               textClassName="text-4xl md:text-[64px]"
             >
               JD Match
@@ -713,22 +822,22 @@ export default function PortfolioNexon() {
             <MatchCard
               delay={0.05}
               requirement="외부 AI 서비스 활용 개발"
-              evidence="Gemma4 LoRA 파인튜닝(Modal API), Qwen3.5-Omni API(DashScope). 텍스트 채팅 + 음성 대화 두 채널에서 실시간 서비스 운영."
-              techs={['Gemma4 LoRA', 'Qwen-Omni', 'API Integration']}
+              evidence="Gemma4 LoRA 파인튜닝 후 Modal A10G에 배포, Qwen3.5-Omni는 DashScope API 연동. 텍스트 채팅과 음성 대화 두 채널에서 실시간 서비스 운영."
+              techs={['Gemma4 LoRA', 'Qwen3.5-Omni', 'Modal A10G', 'DashScope']}
               className="md:col-span-1 lg:col-span-1"
             />
             <MatchCard
               delay={0.1}
               requirement="대화형 AI Agent 설계"
-              evidence="캐릭터별 인격을 가진 AI. 발화 트리거 + 패치노트 RAG 맥락 주입 + GCS 메모리로 멀티턴 대화 구현."
-              techs={['Prompt Eng', 'RAG Context', 'GCS Multi-turn']}
+              evidence="캐릭터 인격을 가진 대화 AI. 키워드 호출 트리거, 패치노트 RAG 컨텍스트 주입, GCS 기반 멀티턴 메모리를 LangGraph StateGraph로 오케스트레이션."
+              techs={['LangGraph', 'Patchnote RAG', 'Multi-turn Memory']}
               className="md:col-span-1 lg:col-span-1"
             />
             <MatchCard
               delay={0.15}
               requirement="업무 자동화 및 생산성 향상"
-              evidence="Claude Code CLI 파이프라인. Figma/Context7 MCP 연동으로 프론트엔드 구현부터 배포까지 AI 기반 자동 생성 도입."
-              techs={['Claude Code', 'MCP Server', 'AI Dev']}
+              evidence="유저가 웹사이트를 직접 방문해야 했던 전적 조회와 패치노트 확인을 Discord 안에서 즉시 해결. LangGraph 의도 분류로 잡담에는 RAG를 건너뛰도록 최적화하여 응답 지연과 불필요한 네트워크 호출을 제거."
+              techs={['LangGraph', 'Intent Classification', 'Context Reduction']}
               className="md:col-span-2 lg:col-span-2"
             />
             <MatchCard
@@ -741,8 +850,8 @@ export default function PortfolioNexon() {
             <MatchCard
               delay={0.25}
               requirement="프롬프트/데이터 구조화 설계"
-              evidence="프롬프트 튜닝으로 '음성 봇이 들린 말을 그대로 대답하는 문제' 파훼. 대사 분리 파서(Speaker Parsing) 구현."
-              techs={['System Prompt', 'LLM Parsing']}
+              evidence="프롬프트 튜닝으로 '음성 봇이 들린 말을 그대로 반복하는 문제'와 '단일 캐릭터 호출 시 양쪽 캐릭터가 답변하는 문제'를 해결. 화자 태그 기반 응답 파서로 멀티 캐릭터 음성 라우팅 구현."
+              techs={['Prompt Engineering', 'Speaker Parsing']}
               className="md:col-span-1 lg:col-span-1"
             />
           </div>
@@ -763,9 +872,9 @@ export default function PortfolioNexon() {
             />
             <MatchCard
               delay={0.05}
-              requirement="AI 도구 활용 및 리팩토링"
-              evidence="전체 사이트를 Claude Code와 MCP(Figma, 문서 도구) 기반으로 자동화 설계 및 최적화하여 10배 생산성 확보."
-              techs={['Claude Code', 'AI-first', 'Systematic Gen']}
+              requirement="AI 개발 도구 활용 경험"
+              evidence="Claude Code CLI를 주 개발 환경으로 사용. Figma/Context7/NotebookLM MCP 서버 연동으로 디자인 조회, 라이브러리 문서 검색, 장문 URL 요약을 개발 워크플로우에 통합."
+              techs={['Claude Code', 'MCP Protocol', 'Figma MCP', 'Context7']}
               className="md:col-span-1"
             />
             <MatchCard
@@ -778,8 +887,8 @@ export default function PortfolioNexon() {
             <MatchCard
               delay={0.15}
               requirement="AWS/클라우드 운영 기반"
-              evidence="GCP Compute Engine 프로덕션 환경 + Docker/nginx. CI/CD를 Makefile 기반으로 파이프라인 관리."
-              techs={['GCP', 'Docker/Nginx', 'Makefile CICD']}
+              evidence="GCP Compute Engine VM 프로덕션 환경에서 Discord 봇, Dashboard API, Webpanel API를 Docker 컨테이너로 운영. Nginx 리버스 프록시 + SSL, Cloudflare CDN, Makefile 기반 빌드·배포·롤백 자동화."
+              techs={['GCP', 'Docker', 'Nginx', 'Makefile', 'Cloudflare']}
               className="md:col-span-1"
             />
           </div>
@@ -841,7 +950,7 @@ export default function PortfolioNexon() {
                   <PipelineNode step={1} title="키워드 트리거" desc="'데비야', '마를렌아' 호출 감지. LangGraph StateGraph로 진입." techs={['discord.py', 'LangGraph']} delay={0} />
                   <PipelineNode step={2} title="의도 분류 (분기)" desc="regex 기반 classify_intent 노드. patch 키워드 있으면 RAG, 없으면 skip." techs={['Conditional Edge']} delay={0.05} />
                   <PipelineNode step={3} title="컨텍스트 수집" desc="fetch_patchnote (조건부) → fetch_memory (GCS corrections). 필요할 때만 실행." techs={['RAG', 'GCS', 'TypedDict State']} delay={0.1} />
-                  <PipelineNode step={4} title="LLM + 응답 전송" desc="call_llm 노드 → Modal A10G Gemma4 LoRA. Components V2 UI로 Discord 전송." techs={['Gemma4 LoRA', 'Modal', 'Components V2']} delay={0.15} isLast />
+                  <PipelineNode step={4} title="LLM + 응답 전송" desc="call_llm 노드 → Modal A10G Gemma4 LoRA. Components V2 UI로 Discord 전송." techs={['Gemma4 LoRA', 'Modal A10G', 'Components V2']} delay={0.15} isLast />
                 </motion.div>
               )}
               
@@ -857,7 +966,7 @@ export default function PortfolioNexon() {
                   <PipelineNode step={1} title="음성 수신 / 복호화" desc="음성 패킷 수신. Transport 및 DAVE E2EE 2차 복호화 수행." techs={['voice_recv', 'DAVE E2EE']} delay={0} />
                   <PipelineNode step={2} title="VAD 발화 감지" desc="16kHz 다운샘플 -> WebRTC VAD. 0.5초 프리버퍼로 시작 영역 보존." techs={['VAD', 'Opus Decoder']} delay={0.05} />
                   <PipelineNode step={3} title="하이브리드 웨이크워드" desc="짧은 발화: 게임 음성 재생 후 듣기. 긴 발화: 즉시 Omni 모델 추론." techs={['Hybrid Wakeword']} delay={0.1} />
-                  <PipelineNode step={4} title="Omni + TTS" desc="Qwen3.5-Omni로 상황 파악. 화자별 대사 분리 후 CosyVoice3로 재생." techs={['Qwen-Omni', 'CosyTTS']} delay={0.15} isLast />
+                  <PipelineNode step={4} title="Omni + TTS" desc="Qwen3.5-Omni로 상황 파악. 화자별 대사 분리 후 CosyVoice3로 재생." techs={['Qwen3.5-Omni', 'CosyVoice3']} delay={0.15} isLast />
                 </motion.div>
               )}
           </div>
@@ -1078,7 +1187,7 @@ export default function PortfolioNexon() {
                     화자별 CosyVoice3 파인튜닝으로 캐릭터 음성 생성.
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {['Qwen3.5', 'CosyVoice3', 'WebRTC VAD'].map(t => (
+                    {['Qwen3.5-Omni', 'CosyVoice3', 'WebRTC VAD'].map(t => (
                       <span key={t} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${isDark ? 'bg-white/[0.05] text-[#6DC8E8] border-white/[0.08]' : 'bg-[#0B5ED7]/5 text-[#0B5ED7] border-[#0B5ED7]/20'}`}>{t}</span>
                     ))}
                   </div>
@@ -1286,106 +1395,76 @@ export default function PortfolioNexon() {
       </section>
 
       {/* ══ COST ANALYSIS ══ */}
-      <section id="cost" className="py-24 relative">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <ScrollFloat
-              containerClassName="font-title bg-gradient-to-r from-[#6DC8E8] to-[#0B5ED7] bg-clip-text text-transparent leading-tight"
-              textClassName="text-4xl md:text-[64px]"
-            >
-              Cost Analysis
-            </ScrollFloat>
-            <FadeIn delay={0.1}>
-              <p className={`text-lg max-w-2xl mx-auto mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                셀프호스팅 vs API, 비용 최적화 의사결정 과정.
-              </p>
-            </FadeIn>
-          </div>
-
-          <FadeIn>
-            <div className="grid md:grid-cols-2 gap-6 relative">
-              <div className="absolute top-[40%] left-1/2 -translate-x-[50%] -translate-y-1/2 z-10 hidden md:flex items-center justify-center w-12 h-12 rounded-full border shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-transform hover:rotate-180 hover:scale-110 duration-500 cursor-pointer text-gray-500 dark:text-gray-400 bg-white dark:bg-[#1a1a2e] border-gray-100 dark:border-white/10">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-              </div>
-
-              {/* Before */}
-              <GlassCard className="p-8 rounded-[32px] transition-opacity duration-300 opacity-70 hover:opacity-100 h-full">
-                <div className="text-xs font-bold uppercase tracking-widest text-[#ed4245] flex items-center gap-2 mb-6">
-                   <div className="w-1.5 h-1.5 rounded-full bg-[#ed4245]" />
-                   Before: Self-Hosted Model
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <div className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Voice AI (Modal A10G)</div>
-                    <div className={`text-3xl lg:text-4xl font-bold font-mono ${isDark ? 'text-white' : 'text-gray-800'}`}>~$46<span className="text-base font-normal text-gray-500">/mo</span></div>
-                    <div className="text-sm font-bold text-[#ed4245] mt-2">Cold Start: 60s+</div>
-                  </div>
-                </div>
-              </GlassCard>
-
-              {/* After */}
-              <GlassCard className="group p-8 rounded-[32px] h-full transition-all duration-500">
-                <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#0B5ED7]/20 blur-[60px] rounded-full group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
-                <div className="text-xs font-bold uppercase tracking-widest text-[#0B5ED7] flex items-center gap-2 mb-6">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#0B5ED7] animate-pulse" />
-                  After: API Transition
-                </div>
-                <div className="space-y-4 relative z-10">
-                  <div>
-                    <div className={`text-sm font-medium mb-1 ${isDark ? 'text-blue-300/80' : 'text-blue-600/80'}`}>Voice AI (DashScope API)</div>
-                    <div className={`text-4xl lg:text-5xl font-bold font-mono text-[#0B5ED7]`}>~$0.27<span className="text-lg font-normal opacity-50">/mo</span></div>
-                    <div className="text-sm text-[#0B5ED7] font-bold mt-2">Cold Start: 0s</div>
-                  </div>
-                </div>
-                
-                <div className="mt-8 pt-6 border-t border-[#0B5ED7]/20 relative z-10">
-                  <div className={`text-sm leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    OpenAI SDK 기반 프록시 전환으로 코드는 유지하며 <span className="font-bold text-[#0B5ED7] bg-[#0B5ED7]/10 px-1 rounded">170배의 비용을 절감</span>했습니다.
-                  </div>
-                </div>
-              </GlassCard>
-            </div>
-            
-            {/* Additional Costs Summary */}
-            <GlassCard className="mt-6 p-6 rounded-[32px]">
-              <div className="grid grid-cols-3 gap-4 text-center divide-x divide-gray-200 dark:divide-white/10">
-                {[
-                  { name: 'Text Chat AI', val: '~$46', sub: 'Modal A10G (Gemma4 LoRA)' },
-                  { name: 'Voice TTS', val: '~$15', sub: 'Modal T4 (CosyVoice3)' },
-                  { name: 'Infrastructure', val: '~$7', sub: 'GCP e2-micro VM' },
-                ].map(s => (
-                  <div key={s.name} className="px-4">
-                     <div className={`text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{s.name}</div>
-                     <div className={`text-xl font-bold font-mono ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{s.val}</div>
-                     <div className={`text-[10px] sm:text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{s.sub}</div>
-                  </div>
-                ))}
-              </div>
-            </GlassCard>
-          </FadeIn>
-        </div>
-      </section>
-
       {/* ══ FOOTER ══ */}
-      <footer className={`py-16 border-t ${isDark ? 'border-white/[0.06]' : 'border-gray-200'}`}>
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <FadeIn>
-            <GradientText
-              colors={[ACCENT, ACCENT2, '#4A9BE8', ACCENT2, ACCENT]}
-              animationSpeed={5}
-              className="font-title text-2xl md:text-4xl mb-4"
-              pauseOnHover
-            >
-              Yang Gunho
-            </GradientText>
-            <p className={`text-sm ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>
-              NEXON -- AI Agent Full-Stack Engineer
-            </p>
-            <div className="flex justify-center gap-4 mt-6">
-              <GlassButton href="https://github.com/2rami" target="_blank" rel="noopener noreferrer" size="sm">GitHub</GlassButton>
-              <GlassButton href="/portfolio" size="sm">All Portfolios</GlassButton>
+      <footer className="relative z-[5] overflow-hidden">
+        {isDark ? (
+          /* Dark footer */
+          <div className="py-20">
+            <div className="max-w-5xl mx-auto px-6 text-center">
+              <FadeIn>
+                <img src={TWINS_APPROVE} alt="" className="w-48 h-auto mx-auto mb-8" draggable={false} />
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-3 font-title">
+                  더 자세한 내용이 궁금하시면
+                </h2>
+                <p className="text-discord-muted mb-8">
+                  코드와 커밋 히스토리에서 개발 과정을 확인할 수 있습니다.
+                </p>
+                <div className="flex justify-center gap-4 flex-wrap">
+                  <GlassButton href="https://github.com/2rami/debi-marlene" target="_blank" rel="noopener noreferrer" size="sm">
+                    <span className="flex items-center gap-2"><svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>GitHub</span>
+                  </GlassButton>
+                  <GlassButton href="mailto:goenho0613@gmail.com" size="sm">
+                    <span className="flex items-center gap-2"><svg viewBox="0 0 24 24" className="w-5 h-5"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z" fill="none" stroke="currentColor" strokeWidth="2"/><polyline points="22,6 12,13 2,6" fill="none" stroke="currentColor" strokeWidth="2"/></svg>Contact</span>
+                  </GlassButton>
+                  <GlassButton href="/portfolio" size="sm">All Portfolios</GlassButton>
+                </div>
+              </FadeIn>
             </div>
-          </FadeIn>
+          </div>
+        ) : (
+          /* Light footer with sky background */
+          <>
+            <img src={BG_FOOTER} alt="" className="absolute inset-0 w-full h-full object-cover object-bottom" draggable={false} />
+            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#f8fcfd] to-transparent z-[1]" />
+
+            <div className="relative z-[2] flex justify-center pt-20 px-6">
+              <FadeIn className="w-full max-w-3xl">
+                <div className="bg-white/60 rounded-3xl border border-white/40 p-8 md:p-12 text-center backdrop-blur-sm">
+                  <ScrollFloat
+                    containerClassName="font-title text-gray-800 mb-4"
+                    textClassName="text-3xl md:text-4xl"
+                  >
+                    더 자세한 내용이 궁금하시면
+                  </ScrollFloat>
+                  <p className="text-gray-500 mb-8 leading-relaxed">
+                    코드와 커밋 히스토리에서 개발 과정을 확인할 수 있습니다.
+                  </p>
+                  <div className="flex justify-center gap-4 flex-wrap">
+                    <GlassButton href="https://github.com/2rami/debi-marlene" target="_blank" rel="noopener noreferrer" size="sm">
+                      <span className="flex items-center gap-2"><svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>GitHub</span>
+                    </GlassButton>
+                    <GlassButton href="mailto:goenho0613@gmail.com" size="sm">
+                      <span className="flex items-center gap-2"><svg viewBox="0 0 24 24" className="w-5 h-5"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z" fill="none" stroke="currentColor" strokeWidth="2"/><polyline points="22,6 12,13 2,6" fill="none" stroke="currentColor" strokeWidth="2"/></svg>Contact</span>
+                    </GlassButton>
+                    <GlassButton href="/portfolio" size="sm">All Portfolios</GlassButton>
+                  </div>
+                </div>
+              </FadeIn>
+            </div>
+
+            {/* Footer character + platform */}
+            <div className="relative z-[2] mt-6">
+              <img src={FOOTER_PLATFORM} alt="" className="w-full h-auto" draggable={false} />
+              <div className="absolute inset-0 z-[1]">
+                <img src={FOOTER_CHAR} alt="" className="w-full h-full object-contain" draggable={false} />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Copyright */}
+        <div className={`relative z-[3] text-center py-6 text-xs ${isDark ? 'text-discord-muted' : 'text-gray-400'}`}>
+          Yang Gunho -- NEXON AI Agent Full-Stack Engineer -- Built with Claude Code
         </div>
       </footer>
     </div>

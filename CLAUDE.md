@@ -3,37 +3,29 @@
 ## 프로젝트 구조
 
 ```
-run/                    # Discord 봇 메인 코드
-  core/                 # bot.py, config.py (봇 초기화)
-  cogs/                 # 슬래시 커맨드 + 이벤트 핸들러 (eternal_return, music, voice, welcome, stats, quiz, utility, youtube)
-  services/             # 비즈니스 로직 (eternal_return/, music/, tts/, welcome/, voice_manager.py, youtube_service.py)
-  views/                # Discord embed/UI 포맷팅
-  utils/                # 유틸리티
-dashboard/
-  backend/              # Flask API (port 8081), Discord OAuth2 인증
-  frontend/             # React + Vite + Tailwind (port 3002)
-webpanel/
-  backend/              # Flask API (VM port 8080), Discord API 연동
-  src/                  # React 프론트엔드 (로컬 port 5173)
+run/                    # Discord 봇 (core, cogs, services, views, utils)
+dashboard/              # React 대시보드 (backend 8081, frontend 3002)
+webpanel/               # Flask 웹패널 (backend 8080, frontend 5173)
 ```
 
 ## 진입점
 
-| 파일 | 설명 |
-|------|------|
-| `main.py` | 봇 진입점 |
-| `dashboard/backend/app.py` | 대시보드 API 서버 |
-| `dashboard/frontend/src/main.tsx` | 대시보드 프론트엔드 |
-| `webpanel/backend/app.py` | 웹패널 API 서버 |
+`main.py` (봇) · `dashboard/backend/app.py` · `dashboard/frontend/src/main.tsx` · `webpanel/backend/app.py`
 
 ## 기술 스택
 
 - **봇**: Python, discord.py 2.6.4, anthropic (Claude AI), google-cloud-storage
-- **TTS**: Modal Serverless + Qwen3-TTS-0.6B (파인튜닝 모델, T4 GPU)
+- **TTS**: Modal Serverless + **CosyVoice3** 파인튜닝 (T4 GPU) — `run/services/tts/cosyvoice3_modal_server.py`. `qwen3_tts_*`, `edge_tts_*`, `sovits_*`, `fish_*`은 레거시 잔해로 현역 아님
 - **대시보드**: Flask + React 19 + TypeScript + Vite + Tailwind 4
 - **웹패널**: Flask (VM 8080) + React
 - **결제**: TossPayments SDK
 - **인프라**: GCP Compute Engine VM (asia-northeast3-a), Artifact Registry
+
+## 안전 규칙 (중요)
+
+- **`make deploy`는 파괴적** — 빌드 + Registry Push + **프로덕션 VM 재시작**을 즉시 수행. 사용자의 명시적 승인 없이 실행 금지.
+- **로컬 테스트 전 `make stop-vm` 필수** — VM 봇과 로컬 봇이 같은 Discord 토큰으로 동시에 연결되면 세션 충돌로 무한 재연결 발생.
+- **git 브랜치는 main만 사용** — feature 브랜치 만들지 말 것. `archive/legacy-tts`, `archive/legacy-qwen-finetune` 은 레거시 코드 백업용.
 
 ## 로컬 개발
 
@@ -53,7 +45,7 @@ cd webpanel && npm run dev                      # frontend (5173)
 ## 배포
 
 ```bash
-make deploy      # 전체: 빌드 + Registry Push + VM 재시작
+make deploy      # 전체 배포 (승인 필수)
 make stop-vm     # VM 봇 중지 (로컬 테스트 전)
 make start-vm    # VM 봇 시작 (로컬 테스트 후)
 make logs        # 컨테이너 로그
@@ -81,9 +73,8 @@ make status      # VM/컨테이너 상태
 - Section의 Thumbnail(accessory)은 항상 오른쪽, 왼쪽 이미지는 커스텀 이모지로 대체
 - 이모지를 크게 보이려면 헤딩(`##`) 안에 넣기
 
-**기타**
-- 디버그 로그 추가하고 해결되면 삭제
-- `dak gg 사용가능한 api endpoint.md` 참고 (Eternal Return API)
+**참조 파일**
+- `Dak gg api endpoint.md` — Eternal Return / dak.gg API 엔드포인트 문서
 - `.dockerignore`에 `webpanel/` 제외됨 (봇 이미지에 포함 안 됨)
 
 ## 인프라
@@ -106,6 +97,7 @@ make status      # VM/컨테이너 상태
 | 서비스 | VM 포트 | 로컬 개발 포트 | 설명 |
 |--------|---------|----------------|------|
 | 봇 (Discord) | - | - | 포트 노출 없음 |
+| 봇 컨테이너 | 5001 | - | 내부 헬스체크 |
 | Dashboard Backend | 8081 | 8081 | Discord OAuth2 인증 |
 | Dashboard Frontend | 3080 (nginx) | 3002 | React UI |
 | Webpanel Backend | 8080 | 8080 | Discord API 연동 |

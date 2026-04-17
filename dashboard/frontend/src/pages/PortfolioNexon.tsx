@@ -173,7 +173,7 @@ function SVGTitle({ lines, className = '' }: { lines: string[]; className?: stri
         const gradId = `title-grad-${i}`
         return (
           <div key={i}>
-            <svg viewBox={`0 0 ${vw} 250`} className="w-[300px] md:w-[550px] lg:w-[700px] h-auto overflow-visible block">
+            <svg viewBox={`0 0 ${vw} 250`} className="w-[220px] md:w-[380px] lg:w-[480px] h-auto overflow-visible block">
               {isDark && (
                 <defs>
                   <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -379,21 +379,21 @@ function SectionNav() {
       initial={{ opacity: 0, x: 40 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.9, delay: 1.0, ease: [0.22, 1, 0.36, 1] }}
-      className="fixed right-6 top-1/2 -translate-y-1/2 z-40 max-md:hidden"
+      className="group fixed right-3 top-1/2 -translate-y-1/2 z-40 max-md:hidden opacity-30 hover:opacity-100 transition-opacity duration-300"
     >
-      <div className={`relative py-6 pr-5 pl-6 rounded-2xl border backdrop-blur-xl ${
+      <div className={`relative py-3 pr-3 pl-3 group-hover:py-5 group-hover:pr-5 group-hover:pl-5 rounded-2xl border backdrop-blur-md transition-all duration-300 ${
         isDark
-          ? 'bg-white/[0.03] border-white/[0.08] shadow-[0_12px_40px_rgba(0,0,0,0.4)]'
-          : 'bg-white/70 border-[#0B5ED7]/15 shadow-[0_12px_40px_rgba(11,94,215,0.12)]'
+          ? 'bg-white/[0.02] border-white/[0.05] group-hover:bg-white/[0.04] group-hover:border-white/[0.08] shadow-[0_8px_24px_rgba(0,0,0,0.25)]'
+          : 'bg-white/40 border-[#0B5ED7]/10 group-hover:bg-white/70 group-hover:border-[#0B5ED7]/15 shadow-[0_8px_24px_rgba(11,94,215,0.08)]'
       }`}>
         {/* Top corner glow */}
         <div className={`absolute -top-2 -right-2 w-16 h-16 rounded-full blur-2xl pointer-events-none ${
           isDark ? 'bg-[#6DC8E8]/10' : 'bg-[#0B5ED7]/15'
         }`} />
 
-        <ul className="relative flex flex-col gap-5">
+        <ul className="relative flex flex-col gap-4 group-hover:gap-5 transition-all duration-300">
           {/* Vertical progress rail — aligned to dot column center */}
-          <div className={`absolute left-[33px] top-2 bottom-2 w-[2px] rounded-full overflow-hidden pointer-events-none ${
+          <div className={`absolute left-[7px] group-hover:left-[33px] top-2 bottom-2 w-[2px] rounded-full overflow-hidden pointer-events-none transition-all duration-300 ${
             isDark ? 'bg-white/[0.08]' : 'bg-[#0B5ED7]/10'
           }`}>
             <div
@@ -409,15 +409,15 @@ function SectionNav() {
               <li key={s.id} className="relative">
                 <button
                   onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth' })}
-                  className="group flex items-center gap-3 w-full cursor-pointer text-left"
+                  className="flex items-center gap-3 w-full cursor-pointer text-left"
                 >
-                  {/* Section number */}
-                  <span className={`text-[10px] font-mono font-bold tabular-nums tracking-wider transition-colors duration-300 w-[14px] ${
+                  {/* Section number — hidden by default, appears on nav hover */}
+                  <span className={`text-[10px] font-mono font-bold tabular-nums tracking-wider transition-all duration-300 max-w-0 opacity-0 group-hover:max-w-[14px] group-hover:opacity-100 overflow-hidden ${
                     isActive
                       ? 'text-[#0B5ED7]'
                       : isDark
-                        ? 'text-white/25 group-hover:text-white/60'
-                        : 'text-gray-400 group-hover:text-gray-600'
+                        ? 'text-white/60'
+                        : 'text-gray-500'
                   }`}>
                     {number}
                   </span>
@@ -447,13 +447,13 @@ function SectionNav() {
                     }`} />
                   </div>
 
-                  {/* Label always visible */}
-                  <span className={`text-[13px] font-semibold tracking-wide whitespace-nowrap transition-all duration-300 ${
+                  {/* Label — collapsed by default, expands on nav hover */}
+                  <span className={`text-[13px] font-semibold tracking-wide whitespace-nowrap transition-all duration-300 max-w-0 opacity-0 overflow-hidden group-hover:max-w-[120px] group-hover:opacity-100 ${
                     isActive
-                      ? 'text-[#0B5ED7] translate-x-0'
+                      ? 'text-[#0B5ED7]'
                       : isDark
-                        ? 'text-white/50 group-hover:text-white group-hover:translate-x-0.5'
-                        : 'text-gray-500 group-hover:text-gray-900 group-hover:translate-x-0.5'
+                        ? 'text-white/80'
+                        : 'text-gray-700'
                   }`}>
                     {s.label}
                   </span>
@@ -463,8 +463,8 @@ function SectionNav() {
           })}
         </ul>
 
-        {/* Bottom "scroll %" indicator */}
-        <div className={`mt-5 pt-4 border-t ${isDark ? 'border-white/[0.06]' : 'border-[#0B5ED7]/10'} flex items-center justify-between`}>
+        {/* Bottom "scroll %" indicator — collapsed by default */}
+        <div className={`mt-0 pt-0 border-t-0 max-h-0 opacity-0 overflow-hidden group-hover:mt-5 group-hover:pt-4 group-hover:border-t group-hover:max-h-[60px] group-hover:opacity-100 transition-all duration-300 ${isDark ? 'border-white/[0.06]' : 'border-[#0B5ED7]/10'} flex items-center justify-between`}>
           <span className={`text-[9px] font-mono font-bold tracking-widest uppercase ${
             isDark ? 'text-white/30' : 'text-gray-400'
           }`}>
@@ -475,11 +475,11 @@ function SectionNav() {
           </span>
         </div>
 
-        {/* Theme toggle — merged from floating button */}
+        {/* Theme toggle — collapsed by default, expands on nav hover */}
         <button
           onClick={toggle}
           aria-label="Toggle theme"
-          className={`mt-3 w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-300 ${
+          className={`mt-0 w-full flex items-center justify-between gap-2 px-3 py-0 rounded-xl border-0 max-h-0 opacity-0 overflow-hidden cursor-pointer transition-all duration-300 group-hover:mt-3 group-hover:py-2.5 group-hover:border group-hover:max-h-[60px] group-hover:opacity-100 ${
             isDark
               ? 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.05] hover:border-white/[0.12]'
               : 'bg-white/50 border-[#0B5ED7]/10 hover:bg-[#0B5ED7]/[0.04] hover:border-[#0B5ED7]/20'
@@ -513,6 +513,272 @@ function SectionNav() {
 
 
 /* ══════════════════════════════════════════════
+   JD Variant Content (공고별 콘텐츠 분기)
+   ══════════════════════════════════════════════ */
+type JDVariant = 'company' | 'ax'
+
+type MatchData = {
+  requirement: string
+  evidence: string
+  techs: string[]
+  className: string
+}
+
+type TechCat = {
+  title: string
+  color: string
+  hex: string
+  items: { name: string; desc: string }[]
+}
+
+const TECH_CATS = {
+  ai: {
+    title: 'AI / ML',
+    color: 'text-indigo-400',
+    hex: '#818cf8',
+    items: [
+      { name: 'Gemma4 E4B', desc: 'LoRA 파인튜닝, Unsloth, bfloat16' },
+      { name: 'Qwen3.5-Omni', desc: 'DashScope API, 오디오 이해' },
+      { name: 'CosyVoice3', desc: 'TTS 파인튜닝, Modal T4 배포' },
+      { name: 'WebRTC VAD', desc: '실시간 음성 활동 감지' },
+    ],
+  },
+  backend: {
+    title: 'Backend',
+    color: 'text-emerald-400',
+    hex: '#34d399',
+    items: [
+      { name: 'Python', desc: 'discord.py 2.6, asyncio' },
+      { name: 'Flask', desc: 'REST API x2, Gunicorn' },
+      { name: 'Modal', desc: 'Serverless GPU (A10G, T4)' },
+      { name: 'GCS', desc: '설정, 대화 메모리 저장소' },
+    ],
+  },
+  frontend: {
+    title: 'Frontend',
+    color: 'text-pink-400',
+    hex: '#f472b6',
+    items: [
+      { name: 'React 19', desc: 'TypeScript, Vite' },
+      { name: 'Tailwind 4', desc: 'Utility-first CSS' },
+      { name: 'Framer Motion', desc: '애니메이션, 트랜지션' },
+      { name: 'OAuth2', desc: 'Discord 로그인 연동' },
+    ],
+  },
+  infra: {
+    title: 'Infrastructure',
+    color: 'text-amber-400',
+    hex: '#fbbf24',
+    items: [
+      { name: 'GCP VM', desc: 'Compute Engine, Seoul' },
+      { name: 'Docker', desc: '컨테이너 빌드/배포' },
+      { name: 'nginx', desc: 'Reverse proxy, SSL' },
+      { name: 'Cloudflare', desc: 'CDN, DNS, 캐시 퍼지' },
+    ],
+  },
+  devops: {
+    title: 'DevOps',
+    color: 'text-violet-400',
+    hex: '#a78bfa',
+    items: [
+      { name: 'Makefile', desc: '빌드/배포/롤백 자동화' },
+      { name: 'Artifact Registry', desc: 'Docker 이미지 관리' },
+      { name: 'HuggingFace', desc: '모델 버전 관리' },
+      { name: 'Colab', desc: 'A100/T4 파인튜닝' },
+    ],
+  },
+  tools: {
+    title: 'AI Dev Tools',
+    color: 'text-sky-400',
+    hex: '#38bdf8',
+    items: [
+      { name: 'Claude Code', desc: '주 개발 도구, CLI' },
+      { name: 'MCP Server', desc: 'Figma, Context7, NLM' },
+      { name: 'Exa', desc: '시맨틱 웹 검색' },
+      { name: 'Obsidian', desc: '지식 관리, TODO' },
+    ],
+  },
+} as const satisfies Record<string, TechCat>
+
+type TechCatKey = keyof typeof TECH_CATS
+
+const JD_CONTENT: Record<JDVariant, {
+  tabLabel: string
+  badge: string
+  titleLine1: string
+  titleLine2: string
+  terminalCmd: string
+  terminalLoading: string
+  terminalOkLines: [string, string, string]
+  matchSubtitleTop: string
+  matchSubtitleBottom: string
+  requirements: MatchData[]
+  preferred: MatchData[]
+  techStackOrder: TechCatKey[]
+}> = {
+  company: {
+    tabLabel: '컴퍼니솔루션실',
+    badge: 'NEXON 컴퍼니솔루션실 지원',
+    titleLine1: 'Enterprise LLM',
+    titleLine2: 'Solution Engineer',
+    terminalCmd: '~$ ./init_solution.sh',
+    terminalLoading: 'Loading enterprise stack...',
+    terminalOkLines: [
+      'LLM Business Automation',
+      'Full-Stack Web (React + Flask)',
+      'GCP Production Ops',
+    ],
+    matchSubtitleTop: '넥슨 컴퍼니솔루션실 웹 애플리케이션 엔지니어 공고 주요 업무·우대사항과',
+    matchSubtitleBottom: '이 프로젝트에서 실제로 구현한 내용의 매칭.',
+    requirements: [
+      {
+        requirement: '지능형 사내 솔루션 설계 및 개발',
+        evidence: 'Debi Marlene은 커뮤니티 운영을 위한 멀티 컴포넌트 사내 자동화 솔루션. Discord 봇 엔진, 대시보드 웹, 웹패널, 영속 저장소, LLM 추론 서버까지 1인으로 설계·개발·운영 중인 LLM 기반 업무 혁신의 실제 프로덕션 사례.',
+        techs: ['LLM Pipeline', 'Multi-component', '1인 풀스택'],
+        className: 'md:col-span-2 lg:col-span-2',
+      },
+      {
+        requirement: '엔터프라이즈 웹 애플리케이션 구축',
+        evidence: 'Flask REST API 2종(Dashboard, Webpanel)을 Gunicorn + Nginx 리버스 프록시로 VM 프로덕션 운영. Discord OAuth2 인증, 세션 관리, CORS/SSL 포함.',
+        techs: ['Flask', 'Gunicorn', 'OAuth2', 'Nginx'],
+        className: 'md:col-span-1 lg:col-span-1',
+      },
+      {
+        requirement: 'LLM / 외부 AI API 활용 업무 자동화',
+        evidence: 'Anthropic Claude API 프로덕션 연동, Gemma4 LoRA 파인튜닝 + Modal A10G 서빙, Qwen3.5-Omni DashScope 연동. 모델 선택·파인튜닝·서빙·비용 최적화 전 구간을 1인으로 책임.',
+        techs: ['Claude API', 'Gemma4 LoRA', 'Modal', 'DashScope'],
+        className: 'md:col-span-1 lg:col-span-1',
+      },
+      {
+        requirement: '시스템 통합 및 RESTful API 고도화',
+        evidence: 'Discord Bot ↔ Dashboard API ↔ Webpanel API ↔ Modal Serverless ↔ GCS 간 RESTful 통합. 인증 토큰 전파, 상태 동기화, 멀티 서비스 오케스트레이션을 직접 설계·운영.',
+        techs: ['REST API', 'System Integration', 'Multi-service'],
+        className: 'md:col-span-2 lg:col-span-2',
+      },
+      {
+        requirement: '성능 최적화를 위한 시스템 운영 / 유지보수',
+        evidence: 'LangGraph 의도 분류로 불필요한 RAG 호출 제거(응답 100~300ms 절감). 음성 파이프라인은 0.5초 프리버퍼 VAD + 하이브리드 웨이크워드로 지연 최소화. GCS 메모리 조건부 fetch로 I/O 비용 절감.',
+        techs: ['Latency Opt', 'Cost Reduction', 'Conditional Fetch'],
+        className: 'md:col-span-2 lg:col-span-2',
+      },
+      {
+        requirement: '대규모 상태 · 바이너리 데이터 관리',
+        evidence: 'GCS 기반 멀티턴 대화 메모리, HuggingFace 모델 버전 관리, Docker 이미지 Artifact Registry 체계로 대용량 상태·바이너리를 효율적으로 운영.',
+        techs: ['GCS', 'HF Registry', 'Artifact Registry'],
+        className: 'md:col-span-1 lg:col-span-1',
+      },
+    ],
+    preferred: [
+      {
+        requirement: 'LLM API 서비스 개발 / RAG 시스템 구축',
+        evidence: 'Claude API 프로덕션 운영, 패치노트 RAG 키워드 검색으로 LLM 시스템 프롬프트에 실시간 주입. LangGraph StateGraph 조건부 엣지로 잡담/정보 요청 분기.',
+        techs: ['Claude API', 'Patchnote RAG', 'LangGraph'],
+        className: 'md:col-span-1',
+      },
+      {
+        requirement: 'React / 모던 프론트엔드 풀스택',
+        evidence: 'React 19 + TypeScript + Vite + Tailwind 4 기반 대시보드·웹패널 2종 구축. Framer Motion, 상태 동기화, OAuth2 플로우까지 직접 구현.',
+        techs: ['React 19', 'TypeScript', 'Vite', 'Tailwind 4'],
+        className: 'md:col-span-1',
+      },
+      {
+        requirement: 'AWS / GCP 클라우드 + CI/CD 자동화',
+        evidence: 'GCP Compute Engine VM에 Docker 컨테이너로 배포. Artifact Registry + Makefile 파이프라인으로 빌드·푸시·VM 재시작·롤백 자동화. Cloudflare CDN/DNS 연동.',
+        techs: ['GCP', 'Docker', 'Makefile CI/CD', 'Cloudflare'],
+        className: 'md:col-span-1',
+      },
+      {
+        requirement: '요구사항 구조화 + 문서화 / 협업',
+        evidence: 'CLAUDE.md 프로젝트 가이드, Mermaid 아키텍처 다이어그램, 포트폴리오 웹페이지까지 코드 기반 문서화. 분산 시스템 구조를 신규 기여자가 즉시 이해할 수 있는 수준으로 정리.',
+        techs: ['Docs-as-code', 'Mermaid', 'CLAUDE.md'],
+        className: 'md:col-span-1',
+      },
+    ],
+    techStackOrder: ['backend', 'frontend', 'infra', 'devops', 'ai', 'tools'],
+  },
+  ax: {
+    tabLabel: 'AX 채널',
+    badge: 'NEXON AX-Tech Portfolio',
+    titleLine1: 'AI Agent',
+    titleLine2: 'Full-Stack Engineer',
+    terminalCmd: '~$ ./init_competency.sh',
+    terminalLoading: 'Loading core architecture...',
+    terminalOkLines: [
+      'Advanced RAG Systems',
+      'Real-time Voice Chat',
+      'Scalable Infra (GCP)',
+    ],
+    matchSubtitleTop: '넥슨 AX-Tech실 공고 요구사항과',
+    matchSubtitleBottom: '이 프로젝트에서 실제로 구현한 내용의 매칭.',
+    requirements: [
+      {
+        requirement: 'Python, TypeScript 능숙한 개발',
+        evidence: '봇 백엔드(Python, discord.py, Flask), 대시보드 프론트엔드(TypeScript, React 19), 웹패널(Flask + React). 두 언어로 전체 서비스를 1인 개발 및 운영 중.',
+        techs: ['Python', 'TypeScript', 'discord.py', 'React 19', 'Flask'],
+        className: 'md:col-span-2 lg:col-span-2',
+      },
+      {
+        requirement: '외부 AI 서비스 활용 개발',
+        evidence: 'Gemma4 LoRA 파인튜닝 후 Modal A10G에 배포, Qwen3.5-Omni는 DashScope API 연동. 텍스트 채팅과 음성 대화 두 채널에서 실시간 서비스 운영.',
+        techs: ['Gemma4 LoRA', 'Qwen3.5-Omni', 'Modal A10G', 'DashScope'],
+        className: 'md:col-span-1 lg:col-span-1',
+      },
+      {
+        requirement: '대화형 AI Agent 설계',
+        evidence: '캐릭터 인격을 가진 대화 AI. 키워드 호출 트리거, 패치노트 RAG 컨텍스트 주입, GCS 기반 멀티턴 메모리를 LangGraph StateGraph로 오케스트레이션.',
+        techs: ['LangGraph', 'Patchnote RAG', 'Multi-turn Memory'],
+        className: 'md:col-span-1 lg:col-span-1',
+      },
+      {
+        requirement: '업무 자동화 및 생산성 향상',
+        evidence: '유저가 웹사이트를 직접 방문해야 했던 전적 조회와 패치노트 확인을 Discord 안에서 즉시 해결. LangGraph 의도 분류로 잡담에는 RAG를 건너뛰도록 최적화하여 응답 지연과 불필요한 네트워크 호출을 제거.',
+        techs: ['LangGraph', 'Intent Classification', 'Context Reduction'],
+        className: 'md:col-span-2 lg:col-span-2',
+      },
+      {
+        requirement: '풀스택 역량 (프론트/백/인프라)',
+        evidence: 'React 19, Tailwind 4 (프론트) / Flask, Gunicorn (백엔드) / Docker, Nginx, GCP (인프라). 전 과정 1인 풀스택 개발.',
+        techs: ['React 19', 'Flask', 'Docker', 'GCP', 'Nginx'],
+        className: 'md:col-span-2 lg:col-span-2',
+      },
+      {
+        requirement: '프롬프트/데이터 구조화 설계',
+        evidence: "프롬프트 튜닝으로 '음성 봇이 들린 말을 그대로 반복하는 문제'와 '단일 캐릭터 호출 시 양쪽 캐릭터가 답변하는 문제'를 해결. 화자 태그 기반 응답 파서로 멀티 캐릭터 음성 라우팅 구현.",
+        techs: ['Prompt Engineering', 'Speaker Parsing'],
+        className: 'md:col-span-1 lg:col-span-1',
+      },
+    ],
+    preferred: [
+      {
+        requirement: 'LLM 챗봇, RAG 구축/운영',
+        evidence: '최신 게임 패치노트를 벡터 없이 키워드로 컴팩트하게 검색해 LLM 시스템 프롬프트에 주입(Patchnote RAG).',
+        techs: ['Patchnote RAG', 'Context Window'],
+        className: 'md:col-span-1',
+      },
+      {
+        requirement: 'AI 개발 도구 활용 경험',
+        evidence: 'Claude Code CLI를 주 개발 환경으로 사용. Figma/Context7/NotebookLM MCP 서버 연동으로 디자인 조회, 라이브러리 문서 검색, 장문 URL 요약을 개발 워크플로우에 통합.',
+        techs: ['Claude Code', 'MCP Protocol', 'Figma MCP', 'Context7'],
+        className: 'md:col-span-1',
+      },
+      {
+        requirement: 'AX(AI Transformation) 사례 구축',
+        evidence: "웹사이트를 직접 방문해야 했던 전적 검색과 패치노트 확인을 Discord 안으로 이관. 키워드 호출('데비야')만으로 패치노트 RAG가 캐릭터 말투로 답변하고, 슬래시 커맨드로 전적 조회. 유저가 컨텍스트 스위칭 없이 게임 대화 중에 즉시 정보 획득.",
+        techs: ['Keyword Trigger', 'Patchnote RAG', 'Slash Commands', 'Context Reduction'],
+        className: 'md:col-span-1',
+      },
+      {
+        requirement: 'AWS/클라우드 운영 기반',
+        evidence: 'GCP Compute Engine VM 프로덕션 환경에서 Discord 봇, Dashboard API, Webpanel API를 Docker 컨테이너로 운영. Nginx 리버스 프록시 + SSL, Cloudflare CDN, Makefile 기반 빌드·배포·롤백 자동화.',
+        techs: ['GCP', 'Docker', 'Nginx', 'Makefile', 'Cloudflare'],
+        className: 'md:col-span-1',
+      },
+    ],
+    techStackOrder: ['ai', 'backend', 'frontend', 'infra', 'devops', 'tools'],
+  },
+}
+
+/* ══════════════════════════════════════════════
    PortfolioNexon Page
    ══════════════════════════════════════════════ */
 export default function PortfolioNexon() {
@@ -520,6 +786,8 @@ export default function PortfolioNexon() {
   const featuresContainerRef = useRef<HTMLDivElement>(null)
   const featuresTrackRef = useRef<HTMLDivElement>(null)
   const [pipelineTab, setPipelineTab] = useState<'text' | 'voice'>('text')
+  const [jdVariant, setJdVariant] = useState<JDVariant>('company')
+  const jd = JD_CONTENT[jdVariant]
 
   // Lenis + GSAP ScrollTrigger 통합 초기화
   useEffect(() => {
@@ -647,11 +915,41 @@ export default function PortfolioNexon() {
             <GlassCard className="h-full p-10 md:p-14 rounded-[32px] flex flex-col justify-center">
             <div className={`absolute top-0 right-0 w-[400px] h-[400px] rounded-full blur-[100px] opacity-30 pointer-events-none translate-x-1/3 -translate-y-1/3 ${isDark ? 'bg-[#0B5ED7]' : 'bg-[#0B5ED7]'}`} />
             
-            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold tracking-wider uppercase mb-8 border w-max ${
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold tracking-wider uppercase mb-5 border w-max ${
               isDark ? 'bg-[#0B5ED7]/10 text-[#6DC8E8] border-[#0B5ED7]/30' : 'bg-[#0B5ED7]/5 text-[#0B5ED7] border-[#0B5ED7]/20 bg-blend-multiply'
             }`}>
               <div className="w-2 h-2 rounded-full bg-[#0B5ED7] animate-pulse" />
-              NEXON Application Portfolio
+              {jd.badge}
+            </div>
+
+            {/* JD variant tab switcher — inline inside Hero card */}
+            <div className={`inline-flex p-1 rounded-xl mb-7 border w-max ${isDark ? 'bg-black/40 border-white/[0.08]' : 'bg-white/70 border-[#0B5ED7]/15 shadow-[0_4px_16px_rgba(11,94,215,0.06)]'}`}>
+              {(Object.keys(JD_CONTENT) as JDVariant[]).map((key) => {
+                const isActive = jdVariant === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setJdVariant(key)}
+                    className={`px-4 md:px-5 py-2 rounded-lg text-xs md:text-sm font-bold transition-all duration-300 ${
+                      isActive
+                        ? (isDark
+                            ? 'bg-[#0B5ED7]/30 text-white border border-[#0B5ED7]/40'
+                            : 'bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] text-white shadow-[0_2px_10px_rgba(11,94,215,0.3)]')
+                        : (isDark
+                            ? 'text-gray-500 hover:text-gray-200'
+                            : 'text-gray-500 hover:text-[#0B5ED7]')
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${isActive ? 'animate-pulse' : ''}`}
+                        style={{ backgroundColor: isActive ? '#ffffff' : (isDark ? '#6DC8E8' : '#0B5ED7') }}
+                      />
+                      {JD_CONTENT[key].tabLabel}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
 
             <GradientText
@@ -659,12 +957,21 @@ export default function PortfolioNexon() {
               animationSpeed={5}
               className="!mx-0 font-title text-[32px] md:text-[48px] lg:text-[56px] leading-[1.1] tracking-tight mb-6"
             >
-              AI Agent<br/>Full-Stack Engineer
+              {jd.titleLine1}<br/>{jd.titleLine2}
             </GradientText>
-            
+
             <p className={`text-lg md:text-xl leading-relaxed max-w-2xl font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
-              LLM 파인튜닝, 음성 AI Agent, RAG 대화 시스템을<br className="hidden md:block"/>
-              직접 기획하고 배포까지 운영한 1인 풀스택 엔지니어 <span className={`font-bold py-1 px-2 rounded-lg ${isDark ? 'text-white bg-white/10' : 'text-gray-800 bg-gray-200/60'}`}>양건호</span>입니다.
+              {jdVariant === 'company' ? (
+                <>
+                  LLM 기반 사내 자동화 솔루션을 멀티 컴포넌트 웹 시스템으로<br className="hidden md:block"/>
+                  직접 설계·배포·운영해온 1인 풀스택 엔지니어 <span className={`font-bold py-1 px-2 rounded-lg ${isDark ? 'text-white bg-white/10' : 'text-gray-800 bg-gray-200/60'}`}>양건호</span>입니다.
+                </>
+              ) : (
+                <>
+                  LLM 파인튜닝, 음성 AI Agent, RAG 대화 시스템을<br className="hidden md:block"/>
+                  직접 기획하고 배포까지 운영한 1인 풀스택 엔지니어 <span className={`font-bold py-1 px-2 rounded-lg ${isDark ? 'text-white bg-white/10' : 'text-gray-800 bg-gray-200/60'}`}>양건호</span>입니다.
+                </>
+              )}
             </p>
             </GlassCard>
           </FadeIn>
@@ -735,11 +1042,11 @@ export default function PortfolioNexon() {
               <div className="w-3 h-3 rounded-full bg-green-500/80" />
             </div>
             <div className="font-mono text-[13px] sm:text-sm leading-relaxed text-gray-300">
-              <div className="text-[#6DC8E8] font-bold">~$ ./init_competency.sh</div>
-              <div className="text-gray-400 mt-2 mb-1">Loading core architecture...</div>
-              <div><span className="text-[#0B5ED7] font-bold">[OK]</span> Advanced RAG Systems</div>
-              <div><span className="text-[#0B5ED7] font-bold">[OK]</span> Real-time Voice Chat</div>
-              <div><span className="text-[#0B5ED7] font-bold">[OK]</span> Scalable Infra (GCP)</div>
+              <div className="text-[#6DC8E8] font-bold">{jd.terminalCmd}</div>
+              <div className="text-gray-400 mt-2 mb-1">{jd.terminalLoading}</div>
+              {jd.terminalOkLines.map((line) => (
+                <div key={line}><span className="text-[#0B5ED7] font-bold">[OK]</span> {line}</div>
+              ))}
               <div className="mt-3 text-emerald-400 flex items-center gap-1">Status: Ready <div className="w-2 h-4 bg-emerald-400 animate-pulse" /></div>
             </div>
             </GlassCard>
@@ -795,8 +1102,8 @@ export default function PortfolioNexon() {
             </ScrollFloat>
             <FadeIn delay={0.1}>
               <p className={`text-lg max-w-2xl mx-auto mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                넥슨 AX-Tech실 공고 요구사항과<br />
-                이 프로젝트에서 실제로 구현한 내용의 매칭.
+                {jd.matchSubtitleTop}<br />
+                {jd.matchSubtitleBottom}
               </p>
             </FadeIn>
           </div>
@@ -807,49 +1114,17 @@ export default function PortfolioNexon() {
               Requirements
             </h3>
           </FadeIn>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-            <MatchCard
-              delay={0}
-              requirement="Python, TypeScript 능숙한 개발"
-              evidence="봇 백엔드(Python, discord.py, Flask), 대시보드 프론트엔드(TypeScript, React 19), 웹패널(Flask + React). 두 언어로 전체 서비스를 1인 개발 및 운영 중."
-              techs={['Python', 'TypeScript', 'discord.py', 'React 19', 'Flask']}
-              className="md:col-span-2 lg:col-span-2"
-            />
-            <MatchCard
-              delay={0.05}
-              requirement="외부 AI 서비스 활용 개발"
-              evidence="Gemma4 LoRA 파인튜닝 후 Modal A10G에 배포, Qwen3.5-Omni는 DashScope API 연동. 텍스트 채팅과 음성 대화 두 채널에서 실시간 서비스 운영."
-              techs={['Gemma4 LoRA', 'Qwen3.5-Omni', 'Modal A10G', 'DashScope']}
-              className="md:col-span-1 lg:col-span-1"
-            />
-            <MatchCard
-              delay={0.1}
-              requirement="대화형 AI Agent 설계"
-              evidence="캐릭터 인격을 가진 대화 AI. 키워드 호출 트리거, 패치노트 RAG 컨텍스트 주입, GCS 기반 멀티턴 메모리를 LangGraph StateGraph로 오케스트레이션."
-              techs={['LangGraph', 'Patchnote RAG', 'Multi-turn Memory']}
-              className="md:col-span-1 lg:col-span-1"
-            />
-            <MatchCard
-              delay={0.15}
-              requirement="업무 자동화 및 생산성 향상"
-              evidence="유저가 웹사이트를 직접 방문해야 했던 전적 조회와 패치노트 확인을 Discord 안에서 즉시 해결. LangGraph 의도 분류로 잡담에는 RAG를 건너뛰도록 최적화하여 응답 지연과 불필요한 네트워크 호출을 제거."
-              techs={['LangGraph', 'Intent Classification', 'Context Reduction']}
-              className="md:col-span-2 lg:col-span-2"
-            />
-            <MatchCard
-              delay={0.2}
-              requirement="풀스택 역량 (프론트/백/인프라)"
-              evidence="React 19, Tailwind 4 (프론트) / Flask, Gunicorn (백엔드) / Docker, Nginx, GCP (인프라). 전 과정 1인 풀스택 개발."
-              techs={['React 19', 'Flask', 'Docker', 'GCP', 'Nginx']}
-              className="md:col-span-2 lg:col-span-2"
-            />
-            <MatchCard
-              delay={0.25}
-              requirement="프롬프트/데이터 구조화 설계"
-              evidence="프롬프트 튜닝으로 '음성 봇이 들린 말을 그대로 반복하는 문제'와 '단일 캐릭터 호출 시 양쪽 캐릭터가 답변하는 문제'를 해결. 화자 태그 기반 응답 파서로 멀티 캐릭터 음성 라우팅 구현."
-              techs={['Prompt Engineering', 'Speaker Parsing']}
-              className="md:col-span-1 lg:col-span-1"
-            />
+          <div key={`${jdVariant}-req`} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+            {jd.requirements.map((card, i) => (
+              <MatchCard
+                key={`${jdVariant}-req-${i}`}
+                delay={i * 0.05}
+                requirement={card.requirement}
+                evidence={card.evidence}
+                techs={card.techs}
+                className={card.className}
+              />
+            ))}
           </div>
 
           {/* 우대사항 */}
@@ -858,35 +1133,17 @@ export default function PortfolioNexon() {
               Preferred
             </h3>
           </FadeIn>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <MatchCard
-              delay={0}
-              requirement="LLM 챗봇, RAG 구축/운영"
-              evidence="최신 게임 패치노트를 벡터 없이 키워드로 컴팩트하게 검색해 LLM 시스템 프롬프트에 주입(Patchnote RAG)."
-              techs={['Patchnote RAG', 'Context Window']}
-              className="md:col-span-1"
-            />
-            <MatchCard
-              delay={0.05}
-              requirement="AI 개발 도구 활용 경험"
-              evidence="Claude Code CLI를 주 개발 환경으로 사용. Figma/Context7/NotebookLM MCP 서버 연동으로 디자인 조회, 라이브러리 문서 검색, 장문 URL 요약을 개발 워크플로우에 통합."
-              techs={['Claude Code', 'MCP Protocol', 'Figma MCP', 'Context7']}
-              className="md:col-span-1"
-            />
-            <MatchCard
-              delay={0.1}
-              requirement="AX(AI Transformation) 사례 구축"
-              evidence="웹사이트를 직접 방문해야 했던 전적 검색과 패치노트 확인을 Discord 안으로 이관. 키워드 호출('데비야')만으로 패치노트 RAG가 캐릭터 말투로 답변하고, 슬래시 커맨드로 전적 조회. 유저가 컨텍스트 스위칭 없이 게임 대화 중에 즉시 정보 획득."
-              techs={['Keyword Trigger', 'Patchnote RAG', 'Slash Commands', 'Context Reduction']}
-              className="md:col-span-1"
-            />
-            <MatchCard
-              delay={0.15}
-              requirement="AWS/클라우드 운영 기반"
-              evidence="GCP Compute Engine VM 프로덕션 환경에서 Discord 봇, Dashboard API, Webpanel API를 Docker 컨테이너로 운영. Nginx 리버스 프록시 + SSL, Cloudflare CDN, Makefile 기반 빌드·배포·롤백 자동화."
-              techs={['GCP', 'Docker', 'Nginx', 'Makefile', 'Cloudflare']}
-              className="md:col-span-1"
-            />
+          <div key={`${jdVariant}-pref`} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {jd.preferred.map((card, i) => (
+              <MatchCard
+                key={`${jdVariant}-pref-${i}`}
+                delay={i * 0.05}
+                requirement={card.requirement}
+                evidence={card.evidence}
+                techs={card.techs}
+                className={card.className}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -908,9 +1165,11 @@ export default function PortfolioNexon() {
             </FadeIn>
           </div>
 
-          <div className="mb-12 flex justify-center">
+          {/* Sticky range wrapper — Pipeline nodes + LangGraph까지만 탭 고정, Model Selection Journey부턴 해제 */}
+          <div className="relative">
+          <div className="sticky top-4 z-30 mb-12 flex justify-center py-2 pointer-events-none">
             <FadeIn>
-              <div className={`inline-flex p-1.5 rounded-2xl ${isDark ? 'bg-[#000000]/30 border border-white/[0.06]' : 'bg-gray-100/50 border border-gray-200'}`}>
+              <div className={`pointer-events-auto inline-flex p-1.5 rounded-2xl backdrop-blur-xl ${isDark ? 'bg-[#0a0e14]/75 border border-white/[0.1] shadow-[0_8px_24px_rgba(0,0,0,0.4)]' : 'bg-white/85 border border-gray-200 shadow-[0_8px_24px_rgba(0,0,0,0.08)]'}`}>
                 <button 
                   onClick={() => setPipelineTab('text')}
                   className={`px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${pipelineTab === 'text' ? (isDark ? 'bg-[#0B5ED7]/20 text-white shadow-lg border border-[#0B5ED7]/30' : 'bg-white text-[#0B5ED7] shadow-sm border border-gray-200/50') : (isDark ? 'text-gray-500 hover:text-gray-300 border border-transparent' : 'text-gray-500 hover:text-gray-700 border border-transparent')}`}
@@ -997,6 +1256,8 @@ export default function PortfolioNexon() {
               </div>
             </FadeIn>
           )}
+          </div>
+          {/* ── sticky range 끝 ── */}
 
           {/* Model Selection Journey */}
           <FadeIn delay={0.2} className="mt-16">
@@ -1129,7 +1390,7 @@ export default function PortfolioNexon() {
       <section id="features" ref={featuresContainerRef} className="relative overflow-hidden h-screen">
         {/* Fixed section title while pinned */}
         <div className="absolute top-8 left-0 right-0 z-20 text-center pointer-events-none">
-          <div className="font-title bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] bg-clip-text text-transparent text-3xl md:text-5xl">
+          <div className="font-title bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] bg-clip-text text-transparent text-2xl md:text-4xl">
             Features
           </div>
           <div className={`text-xs tracking-[0.3em] uppercase mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -1144,10 +1405,10 @@ export default function PortfolioNexon() {
               <div className="grid md:grid-cols-2 gap-12 items-center w-full">
                 <div className="space-y-6">
                   <SVGTitle lines={['AI', '대화']} />
-                  <p className={`font-bold text-xl md:text-2xl leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
+                  <p className={`font-bold text-base md:text-lg leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
                     캐릭터 인격 기반 대화형 AI Agent.
                   </p>
-                  <p className={`text-base leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     Gemma4 LoRA 파인튜닝 모델로 캐릭터 말투와 성격을 학습.
                     패치노트 RAG로 최신 게임 정보를 반영하고,
                     GCS 기반 대화 메모리로 세션 간 맥락을 유지하는 멀티턴 대화.
@@ -1174,10 +1435,10 @@ export default function PortfolioNexon() {
                 </div>
                 <div className="order-1 md:order-2 space-y-6">
                   <SVGTitle lines={['음성', 'Agent']} />
-                  <p className={`font-bold text-xl md:text-2xl leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
+                  <p className={`font-bold text-base md:text-lg leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
                     실시간 음성 이해와 TTS 응답.
                   </p>
-                  <p className={`text-base leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     Discord DAVE E2EE 음성 스트림 수신,
                     WebRTC VAD 발화 감지, Qwen3.5-Omni 오디오 이해.
                     화자별 CosyVoice3 파인튜닝으로 캐릭터 음성 생성.
@@ -1206,10 +1467,10 @@ export default function PortfolioNexon() {
               <div className="grid md:grid-cols-2 gap-12 items-center w-full">
                 <div className="space-y-6">
                   <SVGTitle lines={['웹', '대시보드']} />
-                  <p className={`font-bold text-xl md:text-2xl leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
+                  <p className={`font-bold text-base md:text-lg leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
                     Discord OAuth2 관리 웹앱.
                   </p>
-                  <p className={`text-base leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     서버별 봇 설정, TTS 속도 등 통합 커스터마이징. Toss Payments SDK 연동으로 후원 시스템 구축.
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -1236,10 +1497,10 @@ export default function PortfolioNexon() {
                 </div>
                 <div className="order-1 md:order-2 space-y-6">
                   <SVGTitle lines={['운영', '도구']} />
-                  <p className={`font-bold text-xl md:text-2xl leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
+                  <p className={`font-bold text-base md:text-lg leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
                     전적 검색 + 관리자 모니터링.
                   </p>
-                  <p className={`text-base leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     dak.gg API를 리버스 엔지니어링하여 수집. 관리자 웹패널(SSE)로 봇 사용량 및 지연 시간 실시간 스트리밍 모니터링.
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -1298,94 +1559,30 @@ export default function PortfolioNexon() {
             </ScrollFloat>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                title: 'AI / ML',
-                color: 'text-indigo-400',
-                hex: '#818cf8',
-                items: [
-                  { name: 'Gemma4 E4B', desc: 'LoRA 파인튜닝, Unsloth, bfloat16' },
-                  { name: 'Qwen3.5-Omni', desc: 'DashScope API, 오디오 이해' },
-                  { name: 'CosyVoice3', desc: 'TTS 파인튜닝, Modal T4 배포' },
-                  { name: 'WebRTC VAD', desc: '실시간 음성 활동 감지' },
-                ],
-              },
-              {
-                title: 'Backend',
-                color: 'text-emerald-400',
-                hex: '#34d399',
-                items: [
-                  { name: 'Python', desc: 'discord.py 2.6, asyncio' },
-                  { name: 'Flask', desc: 'REST API x2, Gunicorn' },
-                  { name: 'Modal', desc: 'Serverless GPU (A10G, T4)' },
-                  { name: 'GCS', desc: '설정, 대화 메모리 저장소' },
-                ],
-              },
-              {
-                title: 'Frontend',
-                color: 'text-pink-400',
-                hex: '#f472b6',
-                items: [
-                  { name: 'React 19', desc: 'TypeScript, Vite' },
-                  { name: 'Tailwind 4', desc: 'Utility-first CSS' },
-                  { name: 'Framer Motion', desc: '애니메이션, 트랜지션' },
-                  { name: 'OAuth2', desc: 'Discord 로그인 연동' },
-                ],
-              },
-              {
-                title: 'Infrastructure',
-                color: 'text-amber-400',
-                hex: '#fbbf24',
-                items: [
-                  { name: 'GCP VM', desc: 'Compute Engine, Seoul' },
-                  { name: 'Docker', desc: '컨테이너 빌드/배포' },
-                  { name: 'nginx', desc: 'Reverse proxy, SSL' },
-                  { name: 'Cloudflare', desc: 'CDN, DNS, 캐시 퍼지' },
-                ],
-              },
-              {
-                title: 'DevOps',
-                color: 'text-violet-400',
-                hex: '#a78bfa',
-                items: [
-                  { name: 'Makefile', desc: '빌드/배포/롤백 자동화' },
-                  { name: 'Artifact Registry', desc: 'Docker 이미지 관리' },
-                  { name: 'HuggingFace', desc: '모델 버전 관리' },
-                  { name: 'Colab', desc: 'A100/T4 파인튜닝' },
-                ],
-              },
-              {
-                title: 'AI Dev Tools',
-                color: 'text-sky-400',
-                hex: '#38bdf8',
-                items: [
-                  { name: 'Claude Code', desc: '주 개발 도구, CLI' },
-                  { name: 'MCP Server', desc: 'Figma, Context7, NLM' },
-                  { name: 'Exa', desc: '시맨틱 웹 검색' },
-                  { name: 'Obsidian', desc: '지식 관리, TODO' },
-                ],
-              },
-            ].map((cat, i) => (
-              <FadeIn key={cat.title} delay={i * 0.05} className="h-full">
-                <GlassCard className={`group relative p-8 rounded-[32px] transition-all duration-300 h-full ${isDark ? 'hover:bg-white/[0.04]' : 'hover:-translate-y-1'}`}>
-                {/* Dynamic Glow via style property to inject valid hex colors */}
-                <div className={`absolute top-0 right-[-20px] w-32 h-32 blur-[50px] transition-opacity duration-500 opacity-20 group-hover:opacity-100 z-0 pointer-events-none`} style={{ backgroundColor: cat.hex }} />
-                
-                <h3 className={`text-sm font-bold uppercase tracking-widest mb-6 relative z-10 ${cat.color}`}>{cat.title}</h3>
-                <div className="space-y-5 relative z-10">
-                  {cat.items.map(item => (
-                    <div key={item.name} className="flex flex-col gap-1.5">
-                      <span className={`text-[15px] font-bold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
-                        {item.name}
-                      </span>
-                      <span className={`text-sm leading-relaxed ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{item.desc}</span>
-                    </div>
-                  ))}
-                </div>
-                </GlassCard>
-              </FadeIn>
-            ))}
+          <div key={`${jdVariant}-tech`} className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {jd.techStackOrder.map((catKey, i) => {
+              const cat = TECH_CATS[catKey]
+              return (
+                <FadeIn key={`${jdVariant}-${catKey}`} delay={i * 0.05} className="h-full">
+                  <GlassCard className={`group relative p-8 rounded-[32px] transition-all duration-300 h-full ${isDark ? 'hover:bg-white/[0.04]' : 'hover:-translate-y-1'}`}>
+                  {/* Dynamic Glow via style property to inject valid hex colors */}
+                  <div className={`absolute top-0 right-[-20px] w-32 h-32 blur-[50px] transition-opacity duration-500 opacity-20 group-hover:opacity-100 z-0 pointer-events-none`} style={{ backgroundColor: cat.hex }} />
+
+                  <h3 className={`text-sm font-bold uppercase tracking-widest mb-6 relative z-10 ${cat.color}`}>{cat.title}</h3>
+                  <div className="space-y-5 relative z-10">
+                    {cat.items.map(item => (
+                      <div key={item.name} className="flex flex-col gap-1.5">
+                        <span className={`text-[15px] font-bold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                          {item.name}
+                        </span>
+                        <span className={`text-sm leading-relaxed ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{item.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                  </GlassCard>
+                </FadeIn>
+              )
+            })}
           </div>
         </div>
       </section>

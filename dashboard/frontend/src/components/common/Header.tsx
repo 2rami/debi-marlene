@@ -72,14 +72,6 @@ export default function Header() {
       hoverStyles: { bgColor: '#FFA6D7', textColor: '#111111' },
       onClick: () => navigate('/bot-guide'),
     },
-    {
-      label: 'Portfolio',
-      href: '#',
-      ariaLabel: 'Portfolio',
-      rotation: 4,
-      hoverStyles: { bgColor: '#3cabc9', textColor: '#ffffff' },
-      onClick: () => navigate('/portfolio'),
-    },
   ]
 
   const logoElement = (

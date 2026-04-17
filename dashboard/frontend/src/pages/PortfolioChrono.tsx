@@ -33,11 +33,6 @@ const IconMail = ({ size = 18 }: { size?: number }) => (
     <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/>
   </svg>
 )
-const IconFolder = ({ size = 18 }: { size?: number }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} width={size} height={size}>
-    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-  </svg>
-)
 const IconExternal = ({ size = 14 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={size} height={size}>
     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
@@ -275,7 +270,6 @@ export default function PortfolioChrono() {
             transition={{ duration: 0.6, delay: 0.9 }}>
             <LinkButton href="https://github.com/2rami/debi-marlene" icon={<IconGitHub />}>GitHub</LinkButton>
             <LinkButton href="https://debimarlene.com" icon={<IconGlobe />}>Live Service</LinkButton>
-            <LinkButton href="https://debimarlene.com/portfolio" icon={<IconFolder />}>Full Portfolio</LinkButton>
           </motion.div>
         </div>
 

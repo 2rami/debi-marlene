@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react'
-import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'framer-motion'
+import { motion, useInView, AnimatePresence } from 'framer-motion'
 import Lenis from 'lenis'
 import Header from '../components/common/Header'
 import GlassButton from '../components/common/GlassButton'
@@ -517,7 +517,6 @@ function SectionNav() {
    ══════════════════════════════════════════════ */
 export default function PortfolioNexon() {
   const { isDark } = useTheme()
-  const heroRef = useRef(null)
   const featuresContainerRef = useRef<HTMLDivElement>(null)
   const featuresTrackRef = useRef<HTMLDivElement>(null)
   const [pipelineTab, setPipelineTab] = useState<'text' | 'voice'>('text')
@@ -620,9 +619,6 @@ export default function PortfolioNexon() {
     return () => cleanup()
   }, [])
 
-  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
-  const textY = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
-
   return (
     <div className={`min-h-screen font-body selection:bg-[#0B5ED7]/20 relative z-0 transition-colors duration-500 ${
       isDark ? 'bg-discord-darkest text-white' : 'bg-[#f8fcfd] text-gray-800'
@@ -640,11 +636,11 @@ export default function PortfolioNexon() {
       <SectionNav />
 
       {/* ══ HERO (BENTO REDESIGN) ══ */}
-      <section id="hero" ref={heroRef} className="relative min-h-screen pt-32 pb-24 flex items-center justify-center overflow-hidden">
+      <section id="hero" className="relative min-h-screen pt-32 pb-24 flex items-center justify-center overflow-hidden">
         <div className={`absolute top-0 right-0 w-full h-[500px] bg-gradient-to-b from-[#0B5ED7]/10 to-transparent pointer-events-none`} />
         <div className={`absolute top-[20%] left-[10%] w-[500px] h-[500px] rounded-full blur-[120px] pointer-events-none ${isDark ? 'bg-[#6DC8E8]/[0.08]' : 'bg-[#6DC8E8]/[0.15]'}`} />
         
-        <motion.div className="relative z-10 w-full max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-6" style={{ y: textY }}>
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-6">
           
           {/* Main Title Block - Span 8 */}
           <FadeIn className="md:col-span-12 lg:col-span-8 h-full">
@@ -784,7 +780,7 @@ export default function PortfolioNexon() {
             </GlassCard>
           </FadeIn>
 
-        </motion.div>
+        </div>
       </section>
 
       {/* ══ JD MATCH ══ */}
@@ -1416,7 +1412,6 @@ export default function PortfolioNexon() {
                   <GlassButton href="mailto:goenho0613@gmail.com" size="sm">
                     <span className="flex items-center gap-2"><svg viewBox="0 0 24 24" className="w-5 h-5"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z" fill="none" stroke="currentColor" strokeWidth="2"/><polyline points="22,6 12,13 2,6" fill="none" stroke="currentColor" strokeWidth="2"/></svg>Contact</span>
                   </GlassButton>
-                  <GlassButton href="/portfolio" size="sm">All Portfolios</GlassButton>
                 </div>
               </FadeIn>
             </div>
@@ -1446,7 +1441,6 @@ export default function PortfolioNexon() {
                     <GlassButton href="mailto:goenho0613@gmail.com" size="sm">
                       <span className="flex items-center gap-2"><svg viewBox="0 0 24 24" className="w-5 h-5"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z" fill="none" stroke="currentColor" strokeWidth="2"/><polyline points="22,6 12,13 2,6" fill="none" stroke="currentColor" strokeWidth="2"/></svg>Contact</span>
                     </GlassButton>
-                    <GlassButton href="/portfolio" size="sm">All Portfolios</GlassButton>
                   </div>
                 </div>
               </FadeIn>

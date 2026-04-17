@@ -58,4 +58,13 @@
 | #2214 | " | 🟣 | Chrono Studio-Specific Portfolio Page Created | ~853 |
 | #2195 | 5:09 PM | 🔵 | Krafton-Specific Job Matching Section in Portfolio | ~648 |
 | #2192 | " | 🔵 | Portfolio.tsx Full Structure Review | ~694 |
+
+### Apr 14, 2026
+
+| ID | Time | T | Title | Read |
+|----|------|---|-------|------|
+| #2409 | 6:40 PM | 🔄 | Marked end of sticky range for Pipeline tab switcher | ~257 |
+| #2398 | 6:29 PM | 🔄 | Removed standalone JD tab switcher, kept inline Hero version | ~272 |
+| #2390 | 6:08 PM | 🟣 | Hero section now adapts to JD variant (company vs AX) | ~321 |
+| #2385 | 5:56 PM | 🔵 | Audited typography hierarchy in Nexon portfolio page | ~294 |
 </claude-mem-context>

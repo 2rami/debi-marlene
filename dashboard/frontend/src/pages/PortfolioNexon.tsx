@@ -1366,6 +1366,14 @@ export default function PortfolioNexon() {
               color={ACCENT2}
               delay={0.15}
             />
+            <TroubleshootCard
+              title="Qwen3-Omni Talker 파인튜닝 가능성 조사 + 기각"
+              problem="CosyVoice3 2단 구조 제거하고 Qwen3-Omni 한 모델로 캐릭터 음색까지 end-to-end 내는 경로 검토. DashScope voice cloning API 16조합 A/B 테스트 + 커스텀 Talker 학습 가능성 전수 조사."
+              cause="DashScope qwen3-tts-vc zero-shot은 음색은 복제되지만 한국어 TTS 특유 억양 평탄함 남음. Talker 직접 학습은 (1) Qwen Discussion #154 3개월 무응답 (2) 공식 cookbook 18개 모두 이해 전용, fine-tune 가이드는 `model.disable_talker()` 권장 (3) ms-swift Issue #3690 1년 Open (4) PKU-Alignment 학계팀 2025-07 실패 선언: 'exceptionally advanced architecture...lacked the necessary engineering expertise'."
+              solution="2~3개월 연구 프로젝트 + 성공률 <30%로 판단. 현 아키텍처(Qwen3.5-Omni 이해 + CosyVoice3 파인튜닝 합성) 유지 확정. zero-shot 실험 결과물은 '외부 API 품질 맹신 없이 실측으로 검증 후 파인튜닝 선택'의 의사결정 근거로 보존."
+              color={ACCENT}
+              delay={0.2}
+            />
           </div>
 
           {/* Infrastructure */}

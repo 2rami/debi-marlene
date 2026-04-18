@@ -353,6 +353,10 @@ function SectionNav() {
   const [active, setActive] = useState('hero')
   const [progress, setProgress] = useState(0)
 
+  // Rail visual fills to the active section dot (discrete), independent of raw scroll.
+  const activeIndex = SECTIONS.findIndex((s) => s.id === active)
+  const railProgress = SECTIONS.length > 1 ? activeIndex / (SECTIONS.length - 1) : 0
+
   useEffect(() => {
     const onScroll = () => {
       const max = document.documentElement.scrollHeight - window.innerHeight
@@ -398,7 +402,7 @@ function SectionNav() {
           }`}>
             <div
               className="w-full bg-gradient-to-b from-[#0B5ED7] to-[#6DC8E8] origin-top transition-transform duration-300 ease-out"
-              style={{ height: '100%', transform: `scaleY(${progress})` }}
+              style={{ height: '100%', transform: `scaleY(${railProgress})` }}
             />
           </div>
 
@@ -619,8 +623,8 @@ const JD_CONTENT: Record<JDVariant, {
   company: {
     tabLabel: '컴퍼니솔루션실',
     badge: 'NEXON 컴퍼니솔루션실 지원',
-    titleLine1: 'Enterprise LLM',
-    titleLine2: 'Solution Engineer',
+    titleLine1: 'Enterprise Web',
+    titleLine2: 'Application Engineer',
     terminalCmd: '~$ ./init_solution.sh',
     terminalLoading: 'Loading enterprise stack...',
     terminalOkLines: [
@@ -633,7 +637,7 @@ const JD_CONTENT: Record<JDVariant, {
     requirements: [
       {
         requirement: '지능형 사내 솔루션 설계 및 개발',
-        evidence: 'Debi Marlene은 커뮤니티 운영을 위한 멀티 컴포넌트 사내 자동화 솔루션. Discord 봇 엔진, 대시보드 웹, 웹패널, 영속 저장소, LLM 추론 서버까지 1인으로 설계·개발·운영 중인 LLM 기반 업무 혁신의 실제 프로덕션 사례.',
+        evidence: '게임 커뮤니티 운영용 멀티 컴포넌트 프로덕션 시스템. Discord 봇 엔진, 대시보드 웹, 웹패널, 영속 저장소, LLM 추론 서버까지 1인 풀스택. 동일 아키텍처·운영 방식을 사내 지능형 솔루션으로 그대로 이식 가능.',
         techs: ['LLM Pipeline', 'Multi-component', '1인 풀스택'],
         className: 'md:col-span-2 lg:col-span-2',
       },
@@ -645,8 +649,8 @@ const JD_CONTENT: Record<JDVariant, {
       },
       {
         requirement: 'LLM / 외부 AI API 활용 업무 자동화',
-        evidence: 'Anthropic Claude API 프로덕션 연동, Gemma4 LoRA 파인튜닝 + Modal A10G 서빙, Qwen3.5-Omni DashScope 연동. 모델 선택·파인튜닝·서빙·비용 최적화 전 구간을 1인으로 책임.',
-        techs: ['Claude API', 'Gemma4 LoRA', 'Modal', 'DashScope'],
+        evidence: 'Gemma4 LoRA 파인튜닝 + Modal A10G 서빙(캐릭터 대화), Qwen3.5-Omni DashScope API 연동(음성 이해), CosyVoice3 자체 파인튜닝(캐릭터 TTS). 용도는 캐릭터 대화지만 모델 선택·파인튜닝·서빙·비용 최적화 파이프라인은 업무 보조 에이전트로 그대로 이식 가능.',
+        techs: ['Gemma4 LoRA', 'Modal A10G', 'Qwen3.5-Omni', 'CosyVoice3'],
         className: 'md:col-span-1 lg:col-span-1',
       },
       {
@@ -657,13 +661,13 @@ const JD_CONTENT: Record<JDVariant, {
       },
       {
         requirement: '성능 최적화를 위한 시스템 운영 / 유지보수',
-        evidence: 'LangGraph 의도 분류로 불필요한 RAG 호출 제거(응답 100~300ms 절감). 음성 파이프라인은 0.5초 프리버퍼 VAD + 하이브리드 웨이크워드로 지연 최소화. GCS 메모리 조건부 fetch로 I/O 비용 절감.',
+        evidence: 'LangGraph 의도 분류로 불필요한 RAG 호출 제거(응답 수백 ms 단위 단축). 음성 파이프라인은 0.5초 프리버퍼 VAD + 하이브리드 웨이크워드로 설계 (현재 프로토타입 단계). GCS 메모리 조건부 fetch로 I/O 비용 절감.',
         techs: ['Latency Opt', 'Cost Reduction', 'Conditional Fetch'],
         className: 'md:col-span-2 lg:col-span-2',
       },
       {
         requirement: '대규모 상태 · 바이너리 데이터 관리',
-        evidence: 'GCS 기반 멀티턴 대화 메모리, HuggingFace 모델 버전 관리, Docker 이미지 Artifact Registry 체계로 대용량 상태·바이너리를 효율적으로 운영.',
+        evidence: 'GCS 기반 멀티턴 대화 메모리, HuggingFace 모델 버전 관리, Docker 이미지 Artifact Registry 체계로 상태·바이너리를 버전·비용 관점에서 운영.',
         techs: ['GCS', 'HF Registry', 'Artifact Registry'],
         className: 'md:col-span-1 lg:col-span-1',
       },
@@ -671,8 +675,8 @@ const JD_CONTENT: Record<JDVariant, {
     preferred: [
       {
         requirement: 'LLM API 서비스 개발 / RAG 시스템 구축',
-        evidence: 'Claude API 프로덕션 운영, 패치노트 RAG 키워드 검색으로 LLM 시스템 프롬프트에 실시간 주입. LangGraph StateGraph 조건부 엣지로 잡담/정보 요청 분기.',
-        techs: ['Claude API', 'Patchnote RAG', 'LangGraph'],
+        evidence: 'Gemma4 LoRA를 Modal A10G에 프로덕션 서빙, 패치노트 RAG 키워드 검색으로 LLM 시스템 프롬프트에 실시간 주입. LangGraph StateGraph 조건부 엣지로 잡담/정보 요청 분기.',
+        techs: ['Gemma4 LoRA', 'Patchnote RAG', 'LangGraph'],
         className: 'md:col-span-1',
       },
       {
@@ -683,13 +687,13 @@ const JD_CONTENT: Record<JDVariant, {
       },
       {
         requirement: 'AWS / GCP 클라우드 + CI/CD 자동화',
-        evidence: 'GCP Compute Engine VM에 Docker 컨테이너로 배포. Artifact Registry + Makefile 파이프라인으로 빌드·푸시·VM 재시작·롤백 자동화. Cloudflare CDN/DNS 연동.',
+        evidence: 'GCP Compute Engine VM에 Docker 컨테이너로 배포. Artifact Registry + Makefile 파이프라인으로 빌드·푸시·VM 재시작·롤백을 커맨드 한 줄 배포 자동화(CD) 구축. 커밋 트리거 CI는 미구축이지만 이식 용이. Cloudflare CDN/DNS 연동.',
         techs: ['GCP', 'Docker', 'Makefile CI/CD', 'Cloudflare'],
         className: 'md:col-span-1',
       },
       {
         requirement: '요구사항 구조화 + 문서화 / 협업',
-        evidence: 'CLAUDE.md 프로젝트 가이드, Mermaid 아키텍처 다이어그램, 포트폴리오 웹페이지까지 코드 기반 문서화. 분산 시스템 구조를 신규 기여자가 즉시 이해할 수 있는 수준으로 정리.',
+        evidence: 'CLAUDE.md 프로젝트 가이드, Mermaid 아키텍처 다이어그램, 포트폴리오 웹페이지까지 코드 기반 문서화. 분산 시스템 구조를 신규 기여자가 즉시 이해할 수 있는 수준으로 정리. 1인 개발이라 팀 협업 경험은 제한적 — 입사 후 본격화 예정.',
         techs: ['Docs-as-code', 'Mermaid', 'CLAUDE.md'],
         className: 'md:col-span-1',
       },
@@ -719,7 +723,7 @@ const JD_CONTENT: Record<JDVariant, {
       },
       {
         requirement: '외부 AI 서비스 활용 개발',
-        evidence: 'Gemma4 LoRA 파인튜닝 후 Modal A10G에 배포, Qwen3.5-Omni는 DashScope API 연동. 텍스트 채팅과 음성 대화 두 채널에서 실시간 서비스 운영.',
+        evidence: 'Gemma4 LoRA 파인튜닝 후 Modal A10G에 배포, Qwen3.5-Omni는 DashScope API 연동. 텍스트 채팅은 프로덕션 운영 중, 음성 대화는 파이프라인 프로토타입 완성 후 안정화 진행 중.',
         techs: ['Gemma4 LoRA', 'Qwen3.5-Omni', 'Modal A10G', 'DashScope'],
         className: 'md:col-span-1 lg:col-span-1',
       },
@@ -787,6 +791,7 @@ export default function PortfolioNexon() {
   const featuresTrackRef = useRef<HTMLDivElement>(null)
   const [pipelineTab, setPipelineTab] = useState<'text' | 'voice'>('text')
   const [jdVariant, setJdVariant] = useState<JDVariant>('company')
+  const [featuresProgress, setFeaturesProgress] = useState(0)
   const jd = JD_CONTENT[jdVariant]
 
   // Lenis + GSAP ScrollTrigger 통합 초기화
@@ -804,7 +809,7 @@ export default function PortfolioNexon() {
 
       lenis = new Lenis({
         duration: 0.25,
-        wheelMultiplier: 0.5,
+        wheelMultiplier: 1.0,
         easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       })
       ;(window as any).__lenis = lenis
@@ -835,17 +840,18 @@ export default function PortfolioNexon() {
             pinSpacing: true,
             anticipatePin: 1,
             start: 'top top',
-            end: () => '+=' + (container.offsetWidth * (cards.length - 1)),
+            end: () => '+=' + (container.offsetWidth * 0.5 * (cards.length - 1)),
             scrub: 0.5,
             fastScrollEnd: true,
             snap: {
               snapTo: 1 / (cards.length - 1),
-              duration: { min: 0.15, max: 0.4 },
+              duration: { min: 0.1, max: 0.25 },
               delay: 0,
               ease: 'power2.out',
               directional: false,
             },
             invalidateOnRefresh: true,
+            onUpdate: (self) => setFeaturesProgress(self.progress),
           },
         })
       }, featuresContainerRef)
@@ -904,10 +910,42 @@ export default function PortfolioNexon() {
       <SectionNav />
 
       {/* ══ HERO (BENTO REDESIGN) ══ */}
-      <section id="hero" className="relative min-h-screen pt-32 pb-24 flex items-center justify-center overflow-hidden">
+      <section id="hero" className="relative min-h-screen pt-32 pb-24 flex flex-col items-center justify-center overflow-hidden">
         <div className={`absolute top-0 right-0 w-full h-[500px] bg-gradient-to-b from-[#0B5ED7]/10 to-transparent pointer-events-none`} />
         <div className={`absolute top-[20%] left-[10%] w-[500px] h-[500px] rounded-full blur-[120px] pointer-events-none ${isDark ? 'bg-[#6DC8E8]/[0.08]' : 'bg-[#6DC8E8]/[0.15]'}`} />
-        
+
+        {/* JD variant tab switcher — standalone above Hero card */}
+        <FadeIn className="relative z-10 w-full max-w-7xl mx-auto px-6 mb-6 flex justify-start">
+          <div className={`inline-flex p-1 rounded-xl border w-max ${isDark ? 'bg-black/40 border-white/[0.08]' : 'bg-white/70 border-[#0B5ED7]/15 shadow-[0_4px_16px_rgba(11,94,215,0.06)]'}`}>
+            {(Object.keys(JD_CONTENT) as JDVariant[]).map((key) => {
+              const isActive = jdVariant === key
+              return (
+                <button
+                  key={key}
+                  onClick={() => setJdVariant(key)}
+                  className={`px-4 md:px-5 py-2 rounded-lg text-xs md:text-sm font-bold transition-all duration-300 ${
+                    isActive
+                      ? (isDark
+                          ? 'bg-[#0B5ED7]/30 text-white border border-[#0B5ED7]/40'
+                          : 'bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] text-white shadow-[0_2px_10px_rgba(11,94,215,0.3)]')
+                      : (isDark
+                          ? 'text-gray-500 hover:text-gray-200'
+                          : 'text-gray-500 hover:text-[#0B5ED7]')
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${isActive ? 'animate-pulse' : ''}`}
+                      style={{ backgroundColor: isActive ? '#ffffff' : (isDark ? '#6DC8E8' : '#0B5ED7') }}
+                    />
+                    {JD_CONTENT[key].tabLabel}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </FadeIn>
+
         <div className="relative z-10 w-full max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-6">
           
           {/* Main Title Block - Span 8 */}
@@ -915,41 +953,11 @@ export default function PortfolioNexon() {
             <GlassCard className="h-full p-10 md:p-14 rounded-[32px] flex flex-col justify-center">
             <div className={`absolute top-0 right-0 w-[400px] h-[400px] rounded-full blur-[100px] opacity-30 pointer-events-none translate-x-1/3 -translate-y-1/3 ${isDark ? 'bg-[#0B5ED7]' : 'bg-[#0B5ED7]'}`} />
             
-            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold tracking-wider uppercase mb-5 border w-max ${
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold tracking-wider uppercase mb-7 border w-max ${
               isDark ? 'bg-[#0B5ED7]/10 text-[#6DC8E8] border-[#0B5ED7]/30' : 'bg-[#0B5ED7]/5 text-[#0B5ED7] border-[#0B5ED7]/20 bg-blend-multiply'
             }`}>
               <div className="w-2 h-2 rounded-full bg-[#0B5ED7] animate-pulse" />
               {jd.badge}
-            </div>
-
-            {/* JD variant tab switcher — inline inside Hero card */}
-            <div className={`inline-flex p-1 rounded-xl mb-7 border w-max ${isDark ? 'bg-black/40 border-white/[0.08]' : 'bg-white/70 border-[#0B5ED7]/15 shadow-[0_4px_16px_rgba(11,94,215,0.06)]'}`}>
-              {(Object.keys(JD_CONTENT) as JDVariant[]).map((key) => {
-                const isActive = jdVariant === key
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setJdVariant(key)}
-                    className={`px-4 md:px-5 py-2 rounded-lg text-xs md:text-sm font-bold transition-all duration-300 ${
-                      isActive
-                        ? (isDark
-                            ? 'bg-[#0B5ED7]/30 text-white border border-[#0B5ED7]/40'
-                            : 'bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] text-white shadow-[0_2px_10px_rgba(11,94,215,0.3)]')
-                        : (isDark
-                            ? 'text-gray-500 hover:text-gray-200'
-                            : 'text-gray-500 hover:text-[#0B5ED7]')
-                    }`}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${isActive ? 'animate-pulse' : ''}`}
-                        style={{ backgroundColor: isActive ? '#ffffff' : (isDark ? '#6DC8E8' : '#0B5ED7') }}
-                      />
-                      {JD_CONTENT[key].tabLabel}
-                    </span>
-                  </button>
-                )
-              })}
             </div>
 
             <GradientText
@@ -963,13 +971,13 @@ export default function PortfolioNexon() {
             <p className={`text-lg md:text-xl leading-relaxed max-w-2xl font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
               {jdVariant === 'company' ? (
                 <>
-                  LLM 기반 사내 자동화 솔루션을 멀티 컴포넌트 웹 시스템으로<br className="hidden md:block"/>
-                  직접 설계·배포·운영해온 1인 풀스택 엔지니어 <span className={`font-bold py-1 px-2 rounded-lg ${isDark ? 'text-white bg-white/10' : 'text-gray-800 bg-gray-200/60'}`}>양건호</span>입니다.
+                  Discord 봇 하나를 LLM 대화·RAG·TTS·웹 대시보드까지<br className="hidden md:block"/>
+                  {' '}직접 키워온 1인 풀스택 엔지니어 <span className={`font-bold py-1 px-2 rounded-lg ${isDark ? 'text-white bg-white/10' : 'text-gray-800 bg-gray-200/60'}`}>양건호</span>입니다.
                 </>
               ) : (
                 <>
-                  LLM 파인튜닝, 음성 AI Agent, RAG 대화 시스템을<br className="hidden md:block"/>
-                  직접 기획하고 배포까지 운영한 1인 풀스택 엔지니어 <span className={`font-bold py-1 px-2 rounded-lg ${isDark ? 'text-white bg-white/10' : 'text-gray-800 bg-gray-200/60'}`}>양건호</span>입니다.
+                  LLM 파인튜닝, 음성 AI Agent 프로토타입, RAG 대화 시스템을<br className="hidden md:block"/>
+                  {' '}직접 기획하고 구현해온 1인 풀스택 엔지니어 <span className={`font-bold py-1 px-2 rounded-lg ${isDark ? 'text-white bg-white/10' : 'text-gray-800 bg-gray-200/60'}`}>양건호</span>입니다.
                 </>
               )}
             </p>
@@ -1007,8 +1015,8 @@ export default function PortfolioNexon() {
                   v: 'Full', l: '1인 개발', sub: 'End-to-End Stack',
                   icon: <Layers strokeWidth={1.5} className="w-6 h-6" />
                 },
-                { 
-                  v: '6개', l: 'LLM & TTS', sub: 'Models Integrated',
+                {
+                  v: '2종', l: 'LLM & TTS', sub: 'Deployed Models',
                   icon: <BrainCircuit strokeWidth={1.5} className="w-6 h-6" />
                 },
                 {
@@ -1179,13 +1187,14 @@ export default function PortfolioNexon() {
                     Text Chat
                   </span>
                 </button>
-                <button 
+                <button
                   onClick={() => setPipelineTab('voice')}
                   className={`px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${pipelineTab === 'voice' ? (isDark ? 'bg-[#6DC8E8]/20 text-white shadow-lg border border-[#6DC8E8]/30' : 'bg-white text-[#0B5ED7] shadow-sm border border-gray-200/50') : (isDark ? 'text-gray-500 hover:text-gray-300 border border-transparent' : 'text-gray-500 hover:text-gray-700 border border-transparent')}`}
                 >
                   <span className="flex items-center gap-2">
                     <span className={`w-2.5 h-2.5 rounded-full ${pipelineTab === 'voice' ? 'animate-pulse' : ''}`} style={{ backgroundColor: ACCENT2 }} />
                     Voice Chat
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-widest uppercase border ${isDark ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' : 'bg-amber-100/80 text-amber-700 border-amber-400/40'}`}>Dev</span>
                   </span>
                 </button>
               </div>
@@ -1244,7 +1253,7 @@ export default function PortfolioNexon() {
                 <GlassCard className="p-5 rounded-2xl">
                   <div className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-red-400' : 'text-red-500'}`}>Before -- 선형 if-else</div>
                   <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    모든 메시지에 패치노트 RAG 호출 (평균 100~300ms). '데비야 안녕' 같은 잡담도 네트워크 hop 발생.
+                    모든 메시지에 패치노트 RAG 호출 (수백 ms 단위 지연). '데비야 안녕' 같은 잡담도 네트워크 hop 발생.
                   </p>
                 </GlassCard>
                 <GlassCard className="p-5 rounded-2xl">
@@ -1329,7 +1338,7 @@ export default function PortfolioNexon() {
               title="Qwen3-Omni 셀프호스팅 실패 (MoE 아키텍처)"
               problem="Qwen3-Omni-30B-A3B를 A100 40GB에서 셀프호스팅 시도했으나 transformers는 응답 없고, vLLM은 CUDA OOM."
               cause="MoE 모델은 활성 파라미터가 3B지만 전체 30B 가중치를 메모리에 로드해야 함. transformers는 MoE 추론이 극도로 느리고, vLLM은 engine v1 미지원."
-              solution="셀프호스팅을 포기하고 DashScope API로 전환. OpenAI SDK 호환(base_url만 변경)으로 코드 변경 최소화. 비용도 월 $46 -> $0.27로 170배 절감."
+              solution="셀프호스팅을 포기하고 DashScope API로 전환. OpenAI SDK 호환(base_url만 변경)으로 코드 변경 최소화. 단가 기준 추정으로 월 $46 → $0.27 (약 170배) 수준 절감."
               color={ACCENT}
               delay={0}
             />
@@ -1396,6 +1405,28 @@ export default function PortfolioNexon() {
           <div className={`text-xs tracking-[0.3em] uppercase mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             Scroll down to pan
           </div>
+          {/* Horizontal progress indicator with 4 tick marks */}
+          <div className="relative mt-4 mx-auto w-[240px] md:w-[280px] h-[2px] rounded-full overflow-visible">
+            <div className={`absolute inset-0 rounded-full ${isDark ? 'bg-white/[0.08]' : 'bg-[#0B5ED7]/10'}`} />
+            <div
+              className="absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#0B5ED7] to-[#6DC8E8] origin-left transition-transform duration-150 ease-out"
+              style={{ width: '100%', transform: `scaleX(${featuresProgress})` }}
+            />
+            {[0, 1, 2, 3].map((i) => {
+              const pct = (i / 3) * 100
+              const reached = featuresProgress >= i / 3 - 0.01
+              return (
+                <div
+                  key={i}
+                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-[6px] h-[6px] rounded-full transition-colors duration-200"
+                  style={{
+                    left: `${pct}%`,
+                    backgroundColor: reached ? '#0B5ED7' : isDark ? 'rgba(255,255,255,0.2)' : 'rgba(11,94,215,0.2)',
+                  }}
+                />
+              )
+            })}
+          </div>
         </div>
 
         <div ref={featuresTrackRef} className="flex h-full will-change-transform">
@@ -1434,14 +1465,20 @@ export default function PortfolioNexon() {
                   <img src={SS_TTS_SETTINGS} alt="TTS 설정" className="w-full h-auto max-h-[55vh] object-contain rounded-2xl shadow-2xl" draggable={false} />
                 </div>
                 <div className="order-1 md:order-2 space-y-6">
-                  <SVGTitle lines={['음성', 'Agent']} />
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <SVGTitle lines={['음성', 'Agent']} />
+                    <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold tracking-widest uppercase border ${isDark ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' : 'bg-amber-100/80 text-amber-700 border-amber-400/40'}`}>
+                      Prototype
+                    </span>
+                  </div>
                   <p className={`font-bold text-base md:text-lg leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} style={{ fontFamily: "'Paperlogy', sans-serif" }}>
-                    실시간 음성 이해와 TTS 응답.
+                    실시간 음성 이해와 TTS 응답 (개발 중).
                   </p>
                   <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     Discord DAVE E2EE 음성 스트림 수신,
                     WebRTC VAD 발화 감지, Qwen3.5-Omni 오디오 이해.
                     화자별 CosyVoice3 파인튜닝으로 캐릭터 음성 생성.
+                    파이프라인은 완성, 안정화 단계라 프로덕션 미배포.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {['Qwen3.5-Omni', 'CosyVoice3', 'WebRTC VAD'].map(t => (

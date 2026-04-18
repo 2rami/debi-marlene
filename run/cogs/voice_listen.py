@@ -36,6 +36,7 @@ import discord.ext.voice_recv as voice_recv
 
 from run.services.voice_manager import VoiceManager
 from run.services.tts import TTSService
+from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
 
@@ -52,26 +53,57 @@ FRAME_DURATION_MS = 20  # opus 프레임 길이
 FRAME_SIZE = SAMPLE_RATE * CHANNELS * SAMPLE_WIDTH * FRAME_DURATION_MS // 1000  # 3840 bytes
 
 # VAD 설정
+# 튜닝 가이드 (2026-04-19 세션):
+#   VAD_AGGRESSIVENESS 3 = 배경소음 강함 / 낮추면 헛발화 ↑
+#   PRE_BUFFER_SEC 0.3~0.5 = 첫 음절 포착 vs 레이턴시. 0.3에서 "데비야" 첫 글자 잘리면 0.4로.
+#   SILENCE_FRAMES 0.5~0.8 = 반응속도 vs 문장 중간 끊김. 사람이 "어... 그러니까..."처럼 띄우면 0.8.
+#   MIN_SPEECH_FRAMES 0.4~0.5 = 잡음 헛발화 컷. 0.3은 짧은 추임새("응"/"어")도 트리거됨.
+#   MAX_SPEECH_SEC 8 = Qwen3.5-Omni API 권장 길이. 10 넘으면 응답 품질 저하.
 VAD_SAMPLE_RATE = 16000  # webrtcvad는 8k/16k/32k만 지원
 VAD_AGGRESSIVENESS = 3   # 0(느슨) ~ 3(엄격)
-PRE_BUFFER_SEC = 0.5     # 발화 시작 전 포함할 오디오 (초)
-PRE_BUFFER_FRAMES = int(PRE_BUFFER_SEC / (FRAME_DURATION_MS / 1000))  # 25 프레임
-SILENCE_FRAMES = int(0.7 / (FRAME_DURATION_MS / 1000))  # 35 프레임 (0.7초 무음)
-MIN_SPEECH_FRAMES = int(0.3 / (FRAME_DURATION_MS / 1000))  # 15 프레임 (0.3초)
+PRE_BUFFER_SEC = 0.4     # 발화 시작 전 포함할 오디오 (초)
+PRE_BUFFER_FRAMES = int(PRE_BUFFER_SEC / (FRAME_DURATION_MS / 1000))
+SILENCE_FRAMES = int(0.6 / (FRAME_DURATION_MS / 1000))  # 0.6초 무음 시 발화 종료
+MIN_SPEECH_FRAMES = int(0.4 / (FRAME_DURATION_MS / 1000))  # 0.4초 이하는 헛발화로 간주
 MAX_SPEECH_SEC = 8
 
 OMNI_MODEL = "qwen3.5-omni-plus"
-SYSTEM_PROMPT = (
-    "너는 이터널 리턴의 쌍둥이 실험체 데비&마를렌이야. 한국어로만 대답해. 이모지 사용하지 마.\n"
-    "데비(언니): 활발, 천진난만, 장난기. 직설적이고 솔직한 10대 소녀 말투.\n"
-    '마를렌(동생): 냉소적이지만 자연스러운 10대 소녀. 말이 짧고 차분함. "..."으로 시작하기도 함.\n'
-    "규칙:\n"
-    "- '데비야/데비' 호출 -> 데비가 메인으로 대답. 마를렌은 가끔 한마디 끼어들기만.\n"
-    "- '마를렌아/마를렌' 호출 -> 마를렌이 메인으로 대답. 데비가 가끔 끼어들기만.\n"
-    "- '뎁마' 호출 -> 둘 다 대답.\n"
-    "- 호출된 캐릭터만 대답해도 됨. 매번 둘 다 말할 필요 없음.\n"
-    "형식: 데비: (대사) 또는 마를렌: (대사). 각자 1-2문장으로 짧게."
-)
+SYSTEM_PROMPT = """너는 이터널 리턴 루미아섬 실험체 쌍둥이 데비&마를렌이야.
+지금 유저들과 디스코드 음성채널에서 같이 놀거나 수다 떠는 중.
+
+【관계】
+데비가 언니, 마를렌이 동생. 본체-복제체 관계라 서로 없으면 존재가 흔들려.
+평소엔 티격태격하지만 위기엔 서로 제일 먼저 챙김.
+
+【데비 (언니)】
+- 성격: 활발, 충동적, 장난기. 먼저 나서고 먼저 뛰어듦.
+- 말투: 반말. 말끝 올림. "야~", "헉", "대박", "개꿀" 같은 감탄사.
+- 예시:
+  · "야 너 방금 뭐라고 했어? 한 번만 더 말해봐!"
+  · "에이, 마를렌 또 삐졌네. 귀여워 진짜."
+  · "나 이번 판 2킬 했잖아, 칭찬해줘!"
+
+【마를렌 (동생)】
+- 성격: 차분, 냉소, 핵심만. 언니의 텐션에 지친 막내.
+- 말투: 짧은 반말. 말끝 내림. "...", "됐어", "별로", "응".
+- 예시:
+  · "... 언니 또 시작이네."
+  · "별로. 그냥 조용히 있어."
+  · "...응. 알겠어."
+
+【호출 규칙】
+- "데비야", "데비", "언니" → 데비가 메인. 마를렌은 한마디 끼어들기만.
+- "마를렌아", "마를렌" → 마를렌이 메인. 데비가 한마디 끼어들기만.
+- "뎁마", "쌍둥이", "둘 다" → 둘 다 대답.
+- 호출 애매하거나 잡담 배경에 섞인 거면 **대답 안 해도 됨**. 침묵 OK.
+- 매번 둘 다 말하지 마. 한 쪽만 대답이 자연스러움.
+
+【형식】
+- 한국어만. 이모지, 영어, 긴 설명 금지.
+- 응답 포맷: "데비: 대사" 또는 "마를렌: 대사". 둘 다 말하면 줄바꿈.
+- 각 대사 1문장, 길어도 2문장. 인사/추임새는 5자 이내.
+- 게임 메타(이터널 리턴, 실험체, 플레이어) 언급 금지. 설정 안에서 자연스럽게.
+"""
 
 # 웨이크워드 응답 음성 (로컬 재생용)
 WAKEWORD_THRESHOLD_SEC = 2.0  # 이 이하면 웨이크워드로 판단
@@ -328,6 +360,21 @@ class VoiceListenCog(commands.Cog, name="음성듣기"):
         except discord.NotFound:
             return  # interaction 만료
 
+        await log_command_usage(
+            command_name="듣기",
+            user_id=interaction.user.id,
+            user_name=interaction.user.display_name or interaction.user.name,
+            guild_id=interaction.guild_id,
+            guild_name=interaction.guild.name if interaction.guild else None,
+            channel_id=interaction.channel_id,
+            channel_name=getattr(interaction.channel, "name", None),
+        )
+
+        # user-install로 실행된 경우 Member가 아닌 User라 voice 속성이 없음 → 서버 컨텍스트 강제
+        if interaction.guild is None or not isinstance(interaction.user, discord.Member):
+            await interaction.followup.send("이 명령어는 봇이 설치된 서버 안에서만 쓸 수 있어.")
+            return
+
         if not interaction.user.voice or not interaction.user.voice.channel:
             await interaction.followup.send("먼저 음성채널에 들어가줘.")
             return
@@ -388,6 +435,20 @@ class VoiceListenCog(commands.Cog, name="음성듣기"):
     @app_commands.command(name="듣기중지", description="음성채널 듣기 중지")
     @app_commands.guild_only()
     async def listen_stop(self, interaction: discord.Interaction):
+        await log_command_usage(
+            command_name="듣기중지",
+            user_id=interaction.user.id,
+            user_name=interaction.user.display_name or interaction.user.name,
+            guild_id=interaction.guild_id,
+            guild_name=interaction.guild.name if interaction.guild else None,
+            channel_id=interaction.channel_id,
+            channel_name=getattr(interaction.channel, "name", None),
+        )
+
+        if interaction.guild is None:
+            await interaction.response.send_message("이 명령어는 봇이 설치된 서버 안에서만 쓸 수 있어.", ephemeral=True)
+            return
+
         guild_id = str(interaction.guild_id)
 
         if guild_id not in self.active_sinks:

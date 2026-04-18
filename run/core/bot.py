@@ -303,7 +303,13 @@ async def on_error(event, *args, **kwargs):
 async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
     """슬래시 커맨드 에러 처리"""
     cmd_name = interaction.data.get("name", "?") if interaction.data else "?"
-    guild_name = interaction.guild.name if interaction.guild else "DM"
+    # user-install 컨텍스트에서는 interaction.guild가 None이지만 guild_id는 살아있음
+    if interaction.guild:
+        guild_name = interaction.guild.name
+    elif interaction.guild_id:
+        guild_name = f"user-install guild:{interaction.guild_id}"
+    else:
+        guild_name = "DM"
 
     # CommandNotFound: 삭제된 명령어 안내
     if isinstance(error, discord.app_commands.CommandNotFound):
@@ -378,12 +384,19 @@ async def on_ready():
     except Exception as e:
         print(f"[경고] 삭제된 서버 정리 실패: {e}", flush=True)
 
-    # 모든 명령어에 allowed_installs/allowed_contexts 설정 (프로필에 명령어 표시)
-    installs = discord.app_commands.AppInstallationType(guild=True, user=True)
-    contexts = discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True)
+    # 명령어에 allowed_installs/allowed_contexts 설정 (프로필에 명령어 표시)
+    # guild_only 데코레이터가 붙은 명령어는 서버 전용으로 강제 (음성 명령어 등 DM 실행 불가)
+    installs_all = discord.app_commands.AppInstallationType(guild=True, user=True)
+    contexts_all = discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True)
+    installs_guild = discord.app_commands.AppInstallationType(guild=True, user=False)
+    contexts_guild = discord.app_commands.AppCommandContext(guild=True, dm_channel=False, private_channel=False)
     for cmd in bot.tree.get_commands():
-        cmd.allowed_installs = installs
-        cmd.allowed_contexts = contexts
+        if getattr(cmd, "guild_only", False):
+            cmd.allowed_installs = installs_guild
+            cmd.allowed_contexts = contexts_guild
+        else:
+            cmd.allowed_installs = installs_all
+            cmd.allowed_contexts = contexts_all
 
     # 글로벌 명령어 동기화
     try:

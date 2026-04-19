@@ -123,8 +123,9 @@ application/
 # 포트폴리오 (개인정보)
 portfolio/
 
-# 스크립트
-scripts/
+# 스크립트 — .py 등 코드는 추적, UI 이미지 자산은 제외
+scripts/*.png
+scripts/*.jpg
 
 # Claude Code 로컬 전용 설정 (agents/, launch.json 등 공유 자산은 추적)
 .claude/settings.local.json

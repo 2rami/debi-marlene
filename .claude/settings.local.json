@@ -59,7 +59,9 @@
       "WebFetch(domain:pypi.org)",
       "WebFetch(domain:registry.npmjs.org)",
       "WebFetch(domain:huggingface.co)",
-      "WebFetch(domain:files.pythonhosted.org)"
+      "WebFetch(domain:files.pythonhosted.org)",
+      "Bash(rm /Users/kasa/.claude/skills/gws)",
+      "Read(//Users/kasa/.claude/skills/**)"
     ]
   },
   "enableAllProjectMcpServers": true,

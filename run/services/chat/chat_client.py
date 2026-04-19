@@ -31,8 +31,11 @@ class ChatClient:
             )
         return self._session
 
-    async def chat(self, message: str, history: list = None, context: str = None) -> Optional[str]:
-        """메시지를 보내고 캐릭터 응답을 받음"""
+    async def chat(self, message: str, history: list = None, context: str = None, **_kwargs) -> Optional[str]:
+        """메시지를 보내고 캐릭터 응답을 받음.
+
+        **_kwargs: 다른 백엔드가 쓰는 추가 인자(예: discord_channel) 받아서 무시.
+        """
         session = await self._get_session()
         payload = {"message": message}
         if history:

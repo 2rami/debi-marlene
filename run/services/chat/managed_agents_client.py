@@ -88,10 +88,26 @@ class ManagedAgentsClient:
         self.last_trace.append({"type": "session_created", "session_id": session.id})
         logger.info("Managed session 생성: %s", session.id)
 
-        # 맥락이 있으면 유저 메시지 앞에 붙임 (히스토리는 세션이 자동 누적 안 해주므로 포함)
-        user_text = message
+        # 세션이 매 요청마다 새로 생기므로 이전 대화 히스토리를 user.message 앞에 붙여 context 복원
+        parts = []
         if context:
-            user_text = f"[참고 컨텍스트]\n{context}\n\n[유저 메시지]\n{message}"
+            parts.append(f"[참고 컨텍스트]\n{context}")
+
+        if history:
+            # history는 [{"role":"user","content":"..."}, {"role":"assistant","content":"..."}, ...]
+            lines = []
+            for turn in history[-6:]:  # 최근 6턴만 (3쌍)
+                role = turn.get("role")
+                content = turn.get("content", "")
+                if role == "user" and content:
+                    lines.append(f"[이전 사용자] {content}")
+                elif role == "assistant" and content:
+                    lines.append(f"[이전 너(데비&마를렌)] {content}")
+            if lines:
+                parts.append("[이전 대화 기록]\n" + "\n".join(lines))
+
+        parts.append(f"[지금 질문]\n{message}")
+        user_text = "\n\n".join(parts)
 
         agent_text_parts: list[str] = []
         pending_tool_calls: list[dict] = []

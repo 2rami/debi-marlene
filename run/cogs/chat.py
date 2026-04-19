@@ -13,7 +13,7 @@ from typing import Dict, List, Optional
 import logging
 import re
 
-from run.services.chat import ChatClient
+from run.services.chat import get_chat_client
 from run.services.chat.chat_agent_graph import build_chat_agent
 from run.services.chat.chat_memory import detect_correction, add_correction
 from run.utils.command_logger import log_command_usage
@@ -22,6 +22,30 @@ logger = logging.getLogger(__name__)
 
 _histories: Dict[str, List[dict]] = {}
 MAX_HISTORY = 5
+
+# ========== 서버별 일일 대화 쿼터 ==========
+# Managed Agents는 세션당 비용 있어서 스팸 방지 + 비용 한도 설정
+# 봇 재시작 시 리셋됨 (단순화). GCS 저장 원하면 rate_limit.py 별도 생성 권장.
+from datetime import datetime, timezone, timedelta
+_KST = timezone(timedelta(hours=9))
+DAILY_CHAT_LIMIT = 20  # 서버당 하루 최대 대화 수
+_daily_counts: Dict[tuple, int] = {}  # {(guild_scope, YYYY-MM-DD): count}
+
+
+def _chat_quota_key(guild_id) -> tuple:
+    scope = str(guild_id) if guild_id else "dm"
+    today = datetime.now(_KST).strftime("%Y-%m-%d")
+    return (scope, today)
+
+
+def _over_daily_quota(guild_id) -> bool:
+    return _daily_counts.get(_chat_quota_key(guild_id), 0) >= DAILY_CHAT_LIMIT
+
+
+def _inc_daily_quota(guild_id) -> int:
+    key = _chat_quota_key(guild_id)
+    _daily_counts[key] = _daily_counts.get(key, 0) + 1
+    return _daily_counts[key]
 
 # 트리거 키워드: 이름 단독 + 호칭 형태
 TRIGGER_WORDS = [
@@ -105,7 +129,7 @@ class ChatCog(commands.Cog, name="대화"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.client = ChatClient()
+        self.client = get_chat_client()
         self.chat_agent = build_chat_agent(self.client)
 
     async def cog_unload(self):
@@ -139,6 +163,20 @@ class ChatCog(commands.Cog, name="대화"):
         """키워드 트리거 응답"""
         guild_id = message.guild.id if message.guild else None
 
+        # 서버별 일일 쿼터 체크 (Managed Agents 비용 방지)
+        if _over_daily_quota(guild_id):
+            current = _daily_counts.get(_chat_quota_key(guild_id), 0)
+            await message.reply(
+                f"데비: ...오늘은 이미 {current}번 얘기해서 좀 쉴래.\n"
+                f"마를렌: ...내일 다시 불러. (하루 {DAILY_CHAT_LIMIT}번 제한)",
+                mention_author=False,
+            )
+            print(
+                f"[쿼터] 서버 {guild_id or 'dm'} 일일 한도({DAILY_CHAT_LIMIT}) 도달 — 응답 스킵",
+                flush=True,
+            )
+            return
+
         try:
             await log_command_usage(
                 "대화", message.author.id, message.author.display_name,
@@ -150,13 +188,16 @@ class ChatCog(commands.Cog, name="대화"):
         except Exception:
             pass
 
+        # 쿼터 카운트 증가 (실제 LLM 호출 전 증가 → 실패해도 카운트 차감 안 함. 스팸 억제)
+        current_count = _inc_daily_quota(guild_id)
+
         key = _history_key(guild_id, message.author.id)
         history = _histories.get(key, [])
 
-        # 수정 감지 → 저장
+        # 수정 감지 → 저장 (guild별로 분리 저장)
         if detect_correction(user_msg):
-            add_correction(user_msg)
-            print(f"[메모리] 수정 저장: {user_msg[:50]}", flush=True)
+            add_correction(user_msg, guild_id=guild_id)
+            print(f"[메모리] 수정 저장 [guild={guild_id or 'dm'}]: {user_msg[:50]}", flush=True)
 
         # health check -> 콜드스타트 감지 (Discord 쪽 side-effect라 그래프 외부에 둠)
         loading_msg = None
@@ -165,10 +206,13 @@ class ChatCog(commands.Cog, name="대화"):
             loading_msg = await message.reply("...잠깐만, 아직 덜 일어났어.", mention_author=False)
 
         # LangGraph StateGraph 실행: classify → (rag | skip) → memory → llm
+        # guild_id: per-guild 메모리 스코프, discord_channel: Managed Agents가 StatsLayoutView 전송할 때 씀
         async with message.channel.typing():
             result = await self.chat_agent.ainvoke({
                 "user_message": user_msg,
                 "history": history,
+                "guild_id": guild_id,
+                "discord_channel": message.channel,
             })
 
         response = result.get("response")
@@ -181,7 +225,8 @@ class ChatCog(commands.Cog, name="대화"):
         cold_tag = " [cold]" if is_cold else ""
         mem_tag = " [+mem]" if corrections else ""
         intent_tag = f" [{intent}]"
-        print(f"[대화] {elapsed:.1f}s{intent_tag}{ctx_tag}{mem_tag}{cold_tag} | Q: {user_msg[:30]} | A: {(response or '-')[:40]}", flush=True)
+        quota_tag = f" [{current_count}/{DAILY_CHAT_LIMIT}]"
+        print(f"[대화] {elapsed:.1f}s{intent_tag}{ctx_tag}{mem_tag}{cold_tag}{quota_tag} | Q: {user_msg[:30]} | A: {(response or '-')[:40]}", flush=True)
 
         if not response:
             fail_text = "...연결이 안 돼."

@@ -126,6 +126,9 @@ portfolio/
 # 스크립트
 scripts/
 
+# Claude Code 로컬 전용 설정 (agents/, launch.json 등 공유 자산은 추적)
+.claude/settings.local.json
+
 # 봇 로그 파일
 bot.log
 nohup.out

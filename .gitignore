@@ -174,3 +174,4 @@ tts_training/style_review.csv
 finetune/adapter_qwen3/
 finetune/thinker_mlx_4bit/
 finetune/__pycache__/
+.firecrawl/

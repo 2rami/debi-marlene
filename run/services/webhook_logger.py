@@ -12,17 +12,17 @@ from datetime import datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
 
-# .env에서 로드
-_webhook_url = None
-
 
 def _get_webhook_url():
-    """Webhook URL을 가져옵니다 (lazy load)."""
-    global _webhook_url
-    if _webhook_url is None:
-        import os
-        _webhook_url = os.getenv("DISCORD_LOG_WEBHOOK", "")
-    return _webhook_url
+    """Webhook URL을 반환. 로컬/VM 구분 없이 같은 채널 사용 (유저 가시성 유지)."""
+    import os
+    return os.getenv("DISCORD_LOG_WEBHOOK", "")
+
+
+def _is_local() -> bool:
+    """BOT_ENV=local 이면 True. 로컬 테스트와 VM 실행을 메시지 내용으로 구분."""
+    import os
+    return os.getenv("BOT_ENV", "prod").lower() == "local"
 
 
 def _build_payload(title: str, description: str, color: int):
@@ -75,24 +75,56 @@ async def send_async(title: str, description: str, color: int = 0xFF0000):
 # ========== 편의 함수 ==========
 
 async def notify_bot_started():
-    """봇 시작 알림."""
-    await send_async(
-        "[시작] 봇이 시작되었습니다",
-        "데비&마를렌 봇이 정상적으로 시작되었습니다.\n\n"
-        "[서포트 서버](https://discord.gg/aDemda3qC9) | "
-        "[채팅 채널](https://discord.com/channels/1466273572115972149/1489047618020442194) | "
-        "[봇 상태](https://debimarlene.com)",
-        color=0x2ECC71  # 초록
-    )
+    """봇 시작 알림 (VM) / 테스트 시작 알림 (로컬)."""
+    if _is_local():
+        await send_async(
+            "[테스트 시작] 봇 테스트 모드",
+            "데비&마를렌 봇이 **개발자 로컬 환경**에서 테스트 중입니다.\n"
+            "기능 확인 중이라 일시적으로 평소와 다르게 동작할 수 있어요.\n"
+            "운영 봇은 잠시 후 다시 켜집니다.",
+            color=0x3498DB  # 파랑 (테스트 = 파랑)
+        )
+    else:
+        await send_async(
+            "[시작] 봇이 시작되었습니다",
+            "데비&마를렌 봇이 정상적으로 시작되었습니다.\n\n"
+            "[서포트 서버](https://discord.gg/aDemda3qC9) | "
+            "[채팅 채널](https://discord.com/channels/1466273572115972149/1489047618020442194) | "
+            "[봇 상태](https://debimarlene.com)",
+            color=0x2ECC71  # 초록
+        )
 
 
 async def notify_bot_stopping():
-    """봇 정상 종료 알림."""
-    await send_async(
-        "[종료] 봇이 종료됩니다",
-        "데비&마를렌 봇이 정상적으로 종료됩니다.",
-        color=0xF39C12  # 주황
-    )
+    """봇 정상 종료 알림 (VM) / 테스트 종료 알림 (로컬)."""
+    if _is_local():
+        await send_async(
+            "[테스트 종료] 봇 테스트 종료",
+            "로컬 테스트가 끝났어요. 잠시 후 운영 봇이 자동으로 다시 켜집니다.",
+            color=0x95A5A6  # 회색 (테스트 종료)
+        )
+    else:
+        await send_async(
+            "[종료] 봇이 종료됩니다",
+            "데비&마를렌 봇이 정상적으로 종료됩니다.",
+            color=0xF39C12  # 주황
+        )
+
+
+def notify_bot_stopping_sync():
+    """동기 버전 (SIGINT/SIGTERM 신호 핸들러에서 사용 — asyncio 루프 없을 때)."""
+    if _is_local():
+        send_sync(
+            "[테스트 종료] 봇 테스트 종료",
+            "로컬 테스트가 끝났어요. 잠시 후 운영 봇이 자동으로 다시 켜집니다.",
+            color=0x95A5A6
+        )
+    else:
+        send_sync(
+            "[종료] 봇이 종료됩니다",
+            "데비&마를렌 봇이 정상적으로 종료됩니다.",
+            color=0xF39C12
+        )
 
 
 async def notify_error(error: Exception, context: str = ""):

@@ -367,11 +367,8 @@ async def on_ready():
     print(f"[정보] 현재 {guild_count}개 서버에 연결되었습니다, 총 {total_members}명 사용자", flush=True)
     sys.stdout.flush()
 
-    # 봇 시작 Webhook 알림
-    from run.services.webhook_logger import notify_bot_started
-    await notify_bot_started()
-
     # 최초 1회만 실행 (RESUME 재연결 시 중복 실행 방지)
+    # notify_bot_started()는 _background_init() 끝에서 호출 — 전체 초기화 완료 시점에 알림
     if hasattr(bot, '_ready_once'):
         print("[정보] RESUME 재연결 - 초기화 건너뜀", flush=True)
         return
@@ -543,6 +540,14 @@ async def _background_init():
 
         print("[완료] 모든 초기화 완료!", flush=True)
         sys.stdout.flush()
+
+        # 모든 초기화 끝난 뒤 봇 시작 Webhook 알림 (on_ready 시점 아님 — 너무 일렀음)
+        # BOT_ENV=local 이면 "테스트 중" 메시지, VM이면 "시작" 메시지
+        try:
+            from run.services.webhook_logger import notify_bot_started
+            await notify_bot_started()
+        except Exception as e:
+            print(f"[경고] 시작 알림 전송 실패: {e}", flush=True)
 
     except Exception as e:
         print(f"[오류] 데이터 초기화 중 일부 실패 (봇은 계속 실행): {e}", flush=True)

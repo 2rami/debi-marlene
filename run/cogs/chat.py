@@ -15,7 +15,6 @@ import re
 
 from run.services.chat import get_chat_client
 from run.services.chat.chat_agent_graph import build_chat_agent
-from run.services.chat.chat_memory import detect_correction, add_correction
 from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
@@ -194,10 +193,8 @@ class ChatCog(commands.Cog, name="대화"):
         key = _history_key(guild_id, message.author.id)
         history = _histories.get(key, [])
 
-        # 수정 감지 → 저장 (guild별로 분리 저장)
-        if detect_correction(user_msg):
-            add_correction(user_msg, guild_id=guild_id)
-            print(f"[메모리] 수정 저장 [guild={guild_id or 'dm'}]: {user_msg[:50]}", flush=True)
+        # corrections 저장은 이제 Claude의 remember_about_user 도구 자율 판단으로 옮김.
+        # 봇 측 regex 트리거(detect_correction)는 false positive 많아서 제거 (2026-04-20).
 
         # health check -> 콜드스타트 감지 (Discord 쪽 side-effect라 그래프 외부에 둠)
         loading_msg = None
@@ -212,6 +209,7 @@ class ChatCog(commands.Cog, name="대화"):
                 "user_message": user_msg,
                 "history": history,
                 "guild_id": guild_id,
+                "user_id": message.author.id,
                 "discord_channel": message.channel,
             })
 
@@ -258,9 +256,18 @@ class ChatCog(commands.Cog, name="대화"):
 
     @commands.command(name="대화초기화")
     async def chat_reset(self, ctx: commands.Context):
-        """대화 히스토리 초기화"""
-        key = _history_key(ctx.guild.id if ctx.guild else None, ctx.author.id)
+        """대화 히스토리 초기화. Managed Agents 세션 매핑도 끊어서 다음 호출 시 새 세션."""
+        guild_id = ctx.guild.id if ctx.guild else None
+        user_id = ctx.author.id
+        key = _history_key(guild_id, user_id)
         _histories.pop(key, None)
+
+        try:
+            from run.services.memory import session_store
+            session_store.delete_session(guild_id, user_id)
+        except Exception as e:
+            logger.warning("session_store.delete_session 실패 (무시): %s", e)
+
         try:
             await log_command_usage("대화초기화", ctx.author.id, ctx.author.display_name)
         except Exception:

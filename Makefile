@@ -127,14 +127,14 @@ stop:
 		--command="docker stop debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true && docker rm debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true"
 	@echo "중지 완료"
 
-# 새 컨테이너 시작
+# 새 컨테이너 시작 (SQLite 영속 볼륨 포함)
 start:
 	@echo "VM에서 최신 이미지 pull 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker pull $(IMAGE_TAG) && docker image prune -af"
 	@echo "컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env --restart unless-stopped $(IMAGE_TAG)"
+		--command="mkdir -p /home/kasa/debi-marlene-data && docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/kasa/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
 	@echo "시작 완료"
 
 # 컨테이너 로그 확인

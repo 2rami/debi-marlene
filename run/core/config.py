@@ -1,5 +1,6 @@
 import os
 import json
+import threading
 from dotenv import load_dotenv
 
 # override=False: app.py에서 이미 설정한 GOOGLE_APPLICATION_CREDENTIALS를 유지
@@ -27,14 +28,24 @@ GCS_KEY = 'settings.json'
 GCS_REMOVED_SERVERS_KEY = 'removed_servers.json'
 GCS_COMMAND_LOGS_KEY = 'command_logs.json'
 gcs_client = None
+# 동시 호출 시 중복 초기화 방지용 Lock (race condition으로 [GCS] 로그 두 번 뜨던 버그)
+_gcs_client_lock = threading.Lock()
 
 # 설정 캐시 (save 시에만 무효화)
 settings_cache = None
 
 def get_gcs_client():
-    """GCS 클라이언트를 가져옵니다."""
+    """GCS 클라이언트를 가져옵니다 (싱글톤, 스레드 안전)."""
     global gcs_client
-    if gcs_client is None:
+    # 1차 체크: 락 없이 (이미 만들어졌으면 바로 반환 — 빠른 경로)
+    if gcs_client is not None:
+        return gcs_client if gcs_client is not False else None
+
+    with _gcs_client_lock:
+        # 2차 체크: 락 안에서 다시 확인 (double-checked locking)
+        if gcs_client is not None:
+            return gcs_client if gcs_client is not False else None
+
         try:
             # 디버깅: 환경변수 확인
             creds_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')

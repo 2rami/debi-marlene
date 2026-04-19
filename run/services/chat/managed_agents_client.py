@@ -1,41 +1,36 @@
 """Anthropic Managed Agents 기반 챗 클라이언트 (beta managed-agents-2026-04-01).
 
-기존 Tool Use 패턴(ClaudeAgentClient)과 대비:
-- Tool Use: 내 봇 프로세스에서 agent loop 직접 돌림 (manual while loop)
-- Managed Agents: Anthropic 서버에서 agent loop 돌아감. 봇은 session 열고 이벤트 스트림 받아서
-  custom_tool_use 이벤트 오면 호스트 측에서 실행하고 결과 보내는 역할만.
+세션 재사용 패턴 (2026-04-20 리팩):
+- (guild_id, user_id) → session_id를 SQLite에 영속 매핑
+- 매 요청마다 새 session 만들지 않고 기존 session 재사용 → Anthropic이 컨텍스트 자동 유지
+- turn 50 또는 6시간 idle 시 자동 회전 (요약→archive→새 세션 + summary inject)
+- history 인자는 호환용으로 받기만 함 (Modal 폴백용). Managed 모드에선 무시.
 
-ONE-TIME SETUP (scripts/setup_managed_agent.py로 이미 실행):
-    MANAGED_ENV_ID=env_...
-    MANAGED_AGENT_ID=agent_...
-    MANAGED_AGENT_VERSION=...
-
-매 요청 (this file):
-    1. sessions.create(agent=AGENT_ID, environment_id=ENV_ID)
-    2. 스트림 open (stream-first 원칙 — skill의 Pattern 7)
-    3. user.message 전송
-    4. 이벤트 루프:
-       - agent.message → 응답 텍스트 수집
-       - agent.custom_tool_use → 호스트에서 실행 → user.custom_tool_result 전송
-       - session.status_idle (stop_reason != "requires_action") → break
-       - session.status_terminated → break
-    5. 세션 archive (cleanup)
+매 요청 흐름:
+    1. session_store.get_or_rotate_session() → session_id, optional summary
+    2. user_text 빌드 (context + summary + 메시지)
+    3. events.stream 열고 events.send 보내기
+    4. 이벤트 루프 (agent.message / custom_tool_use / status_idle)
+    5. session_store.bump_turn() → 다음 회전 트리거
 """
 
 import asyncio
 import logging
 import os
+import time
 from typing import Any, Optional
 
 import anthropic
+
+from run.services.memory import session_store
 
 logger = logging.getLogger(__name__)
 
 
 class ManagedAgentsClient:
-    """Managed Agents 세션 기반 클라이언트.
+    """Managed Agents 세션 재사용 기반 클라이언트.
 
-    ChatClient/ClaudeChatClient와 동일한 `chat(message, history, context)` 인터페이스.
+    `chat(message, history, context, discord_channel, guild_id, user_id)` 인터페이스.
     `self.last_trace`에 에이전트 판단 과정 기록 (면접 시연·대시보드 시각화용).
     """
 
@@ -55,6 +50,11 @@ class ManagedAgentsClient:
                 "먼저 `python3 scripts/setup_managed_agent.py` 실행해서 ID 받아와."
             )
 
+        print(
+            f"[CHAT] backend=managed agent={self._agent_id[:20]}... env={self._env_id[:20]}...",
+            flush=True,
+        )
+
         self.last_trace: list[dict] = []
 
     async def chat(
@@ -63,175 +63,177 @@ class ManagedAgentsClient:
         history: Optional[list] = None,
         context: Optional[str] = None,
         discord_channel: Optional[Any] = None,
+        guild_id: Optional[Any] = None,
+        user_id: Optional[Any] = None,
         **_kwargs,
     ) -> Optional[str]:
-        """Managed Agents 세션 1회 실행 후 데비&마를렌 응답 반환.
-
-        discord_channel 이 있으면 search_player_stats 툴 호출 시
-        해당 채널에 StatsLayoutView 임베드를 직접 전송.
-        """
+        """세션 재사용 기반 응답. history는 호환용 (Managed 모드는 무시 — 세션이 자동 유지)."""
         self.last_trace = []
-        # _execute_tool에서 접근할 수 있게 인스턴스 변수로 임시 저장
         self._current_channel = discord_channel
+        self._current_guild_id = guild_id
+        self._current_user_id = user_id
 
-        # 1. 세션 생성 — agent는 미리 만들어진 ID 참조만 (절대 여기서 agents.create 호출 X)
         try:
-            session = await self._client.beta.sessions.create(
-                agent=self._agent_id,
-                environment_id=self._env_id,
-                title=f"chat-{message[:30]}",
+            session_id, summary = await session_store.get_or_rotate_session(
+                guild_id, user_id,
+                create_fn=self._create_session,
+                archive_fn=self._archive_session,
+                summarize_fn=self._summarize_session,
             )
         except anthropic.APIError as e:
-            logger.error("Managed Agents 세션 생성 실패: %s", e)
+            logger.error("session 매핑 실패: %s", e)
             return None
 
-        self.last_trace.append({"type": "session_created", "session_id": session.id})
-        logger.info("Managed session 생성: %s", session.id)
+        self.last_trace.append({
+            "type": "session_acquired",
+            "session_id": session_id,
+            "rotated": summary is not None,
+        })
+        if summary:
+            logger.info("session 회전 직후 — summary inject (%d chars)", len(summary))
 
-        # 세션이 매 요청마다 새로 생기므로 이전 대화 히스토리를 user.message 앞에 붙여 context 복원
         parts = []
         if context:
             parts.append(f"[참고 컨텍스트]\n{context}")
-
-        if history:
-            # history는 [{"role":"user","content":"..."}, {"role":"assistant","content":"..."}, ...]
-            lines = []
-            for turn in history[-6:]:  # 최근 6턴만 (3쌍)
-                role = turn.get("role")
-                content = turn.get("content", "")
-                if role == "user" and content:
-                    lines.append(f"[이전 사용자] {content}")
-                elif role == "assistant" and content:
-                    lines.append(f"[이전 너(데비&마를렌)] {content}")
-            if lines:
-                parts.append("[이전 대화 기록]\n" + "\n".join(lines))
-
+        if summary:
+            parts.append(f"[이전 대화 요약 — 컨텍스트 복원용]\n{summary}")
         parts.append(f"[지금 질문]\n{message}")
         user_text = "\n\n".join(parts)
 
-        agent_text_parts: list[str] = []
-        pending_tool_calls: list[dict] = []
-        final_reached = False
-
         try:
-            # 2. Stream-first: 스트림 먼저 열고 메시지 전송 (skill Pattern 7)
-            # AsyncAnthropic의 events.stream()은 coroutine을 반환 → await로 풀고 context manager로 사용
-            stream_ctx = await self._client.beta.sessions.events.stream(
-                session_id=session.id
-            )
-            async with stream_ctx as stream:
-                await self._client.beta.sessions.events.send(
-                    session_id=session.id,
-                    events=[
-                        {
-                            "type": "user.message",
-                            "content": [{"type": "text", "text": user_text}],
-                        }
-                    ],
-                )
-
-                # 3. 이벤트 루프
-                async for event in stream:
-                    ev_type = getattr(event, "type", None)
-
-                    if ev_type == "agent.message":
-                        for block in getattr(event, "content", []):
-                            if getattr(block, "type", None) == "text":
-                                agent_text_parts.append(block.text)
-
-                    elif ev_type == "agent.custom_tool_use":
-                        tool_name = getattr(event, "name", None) or getattr(
-                            event, "tool_name", None
-                        )
-                        tool_input = getattr(event, "input", {}) or {}
-                        tool_event_id = event.id
-                        self.last_trace.append(
-                            {
-                                "type": "tool_call",
-                                "tool": tool_name,
-                                "input": tool_input,
-                            }
-                        )
-                        pending_tool_calls.append(
-                            {
-                                "id": tool_event_id,
-                                "name": tool_name,
-                                "input": tool_input,
-                            }
-                        )
-
-                    elif ev_type == "session.status_terminated":
-                        logger.warning("Session 비정상 종료")
-                        break
-
-                    elif ev_type == "session.status_idle":
-                        # skill Pattern 5: idle 만으로 break X. stop_reason 확인.
-                        stop_reason = getattr(event, "stop_reason", None)
-                        stop_type = getattr(stop_reason, "type", None) if stop_reason else None
-
-                        if stop_type == "requires_action":
-                            # 도구 결과 대기 중 — 실행 후 결과 전송
-                            if pending_tool_calls:
-                                results = []
-                                for call in pending_tool_calls:
-                                    result_text = await self._execute_tool(
-                                        call["name"], call["input"]
-                                    )
-                                    self.last_trace.append(
-                                        {
-                                            "type": "tool_result",
-                                            "tool": call["name"],
-                                            "result_preview": str(result_text)[:200],
-                                        }
-                                    )
-                                    results.append(
-                                        {
-                                            "type": "user.custom_tool_result",
-                                            "custom_tool_use_id": call["id"],
-                                            "content": [
-                                                {"type": "text", "text": result_text}
-                                            ],
-                                        }
-                                    )
-                                await self._client.beta.sessions.events.send(
-                                    session_id=session.id,
-                                    events=results,
-                                )
-                                pending_tool_calls = []
-                            continue  # 루프 유지 — agent가 도구 결과 받고 마저 응답할 것
-
-                        # end_turn, retries_exhausted → 종료
-                        final_reached = True
-                        break
-
+            response = await self._send_and_collect(session_id, user_text)
         except anthropic.APIError as e:
-            logger.error("Managed agent stream 에러: %s", e)
+            logger.error("session stream 에러 (session=%s): %s", session_id, e)
             self.last_trace.append({"type": "error", "detail": str(e)})
             return None
 
-        # 4. 세션 정리 — race 방지 폴링 후 archive
-        asyncio.create_task(self._cleanup_session(session.id))
+        session_store.bump_turn(guild_id, user_id)
 
-        final_text = "".join(agent_text_parts).strip()
-        self.last_trace.append(
-            {"type": "final", "text_length": len(final_text), "reached": final_reached}
+        self.last_trace.append({
+            "type": "final",
+            "text_length": len(response or ""),
+            "session_id": session_id,
+        })
+        return response
+
+    # ─────────── session_store 콜백들 ───────────
+
+    async def _create_session(self) -> str:
+        session = await self._client.beta.sessions.create(
+            agent=self._agent_id,
+            environment_id=self._env_id,
+            title=f"chat-{int(time.time())}",
         )
-        return final_text if final_text else None
+        logger.info("Managed session 생성: %s", session.id)
+        return session.id
 
-    async def _cleanup_session(self, session_id: str) -> None:
-        """세션 archive — idle 직후 상태 write race가 있어서 약간 폴링 후 시도."""
-        try:
-            for _ in range(5):
+    async def _archive_session(self, session_id: str) -> None:
+        # idle/status write race 회피 — 잠깐 폴링 후 archive
+        for _ in range(5):
+            try:
                 s = await self._client.beta.sessions.retrieve(session_id=session_id)
                 if getattr(s, "status", None) != "running":
                     break
-                await asyncio.sleep(0.3)
-            await self._client.beta.sessions.archive(session_id=session_id)
-        except Exception as e:
-            logger.debug("Session cleanup 실패 (무시): %s", e)
+            except Exception:
+                break
+            await asyncio.sleep(0.3)
+        await self._client.beta.sessions.archive(session_id=session_id)
+        logger.info("Managed session archive: %s", session_id)
+
+    async def _summarize_session(self, session_id: str) -> str:
+        """archive 직전 세션에 요약 요청 보내고 응답 받기. 다음 세션 prefix로 사용."""
+        summary = await self._send_and_collect(
+            session_id,
+            "(시스템 요청) 지금까지 이 유저와의 대화 핵심을 3~5줄로 요약해줘. "
+            "캐릭터 페르소나 묘사는 빼고 사실만 (유저 닉네임/캐릭터/관심사/언급한 게임 정보 등). "
+            "다음 세션에서 이 요약을 보고 자연스럽게 이어가야 해.",
+        )
+        return summary or ""
+
+    # ─────────── 공통 send/stream 루프 ───────────
+
+    async def _send_and_collect(self, session_id: str, user_text: str) -> Optional[str]:
+        """user_text 보내고 응답 텍스트 모아서 반환. custom tool round-trip 포함."""
+        agent_text_parts: list[str] = []
+        pending_tool_calls: list[dict] = []
+
+        stream_ctx = await self._client.beta.sessions.events.stream(session_id=session_id)
+        async with stream_ctx as stream:
+            await self._client.beta.sessions.events.send(
+                session_id=session_id,
+                events=[
+                    {
+                        "type": "user.message",
+                        "content": [{"type": "text", "text": user_text}],
+                    }
+                ],
+            )
+
+            async for event in stream:
+                ev_type = getattr(event, "type", None)
+
+                if ev_type == "agent.message":
+                    for block in getattr(event, "content", []):
+                        if getattr(block, "type", None) == "text":
+                            agent_text_parts.append(block.text)
+
+                elif ev_type == "agent.custom_tool_use":
+                    tool_name = getattr(event, "name", None) or getattr(
+                        event, "tool_name", None
+                    )
+                    tool_input = getattr(event, "input", {}) or {}
+                    tool_event_id = event.id
+                    self.last_trace.append({
+                        "type": "tool_call",
+                        "tool": tool_name,
+                        "input": tool_input,
+                    })
+                    pending_tool_calls.append({
+                        "id": tool_event_id,
+                        "name": tool_name,
+                        "input": tool_input,
+                    })
+
+                elif ev_type == "session.status_terminated":
+                    logger.warning("Session 비정상 종료: %s", session_id)
+                    break
+
+                elif ev_type == "session.status_idle":
+                    stop_reason = getattr(event, "stop_reason", None)
+                    stop_type = getattr(stop_reason, "type", None) if stop_reason else None
+
+                    if stop_type == "requires_action":
+                        if pending_tool_calls:
+                            results = []
+                            for call in pending_tool_calls:
+                                result_text = await self._execute_tool(
+                                    call["name"], call["input"]
+                                )
+                                self.last_trace.append({
+                                    "type": "tool_result",
+                                    "tool": call["name"],
+                                    "result_preview": str(result_text)[:200],
+                                })
+                                results.append({
+                                    "type": "user.custom_tool_result",
+                                    "custom_tool_use_id": call["id"],
+                                    "content": [{"type": "text", "text": result_text}],
+                                })
+                            await self._client.beta.sessions.events.send(
+                                session_id=session_id,
+                                events=results,
+                            )
+                            pending_tool_calls = []
+                        continue
+
+                    break
+
+        text = "".join(agent_text_parts).strip()
+        return text if text else None
+
+    # ─────────── 도구 실행 (기존 그대로) ───────────
 
     async def _execute_tool(self, name: str, tool_input: dict) -> str:
-        """도구 이름 → 실제 함수 호출. Tool Use 버전과 동일 로직."""
         try:
             if name == "search_patchnote":
                 from .patchnote_search import get_patch_context
@@ -239,12 +241,59 @@ class ManagedAgentsClient:
                 context, _info = await get_patch_context(query)
                 return context or "관련 패치노트 항목을 찾지 못함."
 
+            if name == "remember_about_user":
+                fact = (tool_input.get("fact") or "").strip()
+                if not fact:
+                    return "저장할 내용이 비어있어."
+                from .chat_memory import add_correction
+                add_correction(fact, guild_id=self._current_guild_id)
+                return f"OK 기억함: {fact[:80]}"
+
+            if name == "recall_about_user":
+                from .chat_memory import get_corrections_prompt
+                prompt_text = get_corrections_prompt(self._current_guild_id)
+                if not prompt_text.strip():
+                    return "저장된 정보 없음. 유저가 알려준 게 아직 없어."
+                return prompt_text.strip()
+
+            if name == "forget_about_user":
+                fact = (tool_input.get("fact") or "").strip()
+                if not fact:
+                    return "삭제할 내용을 명시해."
+                from run.services.memory.db import connect
+                scope = str(self._current_guild_id) if self._current_guild_id else "dm"
+                with connect() as conn:
+                    cur = conn.execute(
+                        "DELETE FROM corrections WHERE guild_id=? AND text=?",
+                        (scope, fact),
+                    )
+                    deleted = cur.rowcount
+                return f"OK 잊었어 ({deleted}개 삭제)" if deleted else "그런 내용 저장된 적 없음"
+
+            if name == "get_conversation_stats":
+                import time
+                from run.services.memory import session_store
+                sess = session_store.get_session(self._current_guild_id, self._current_user_id)
+                if not sess:
+                    return "세션 정보 없음 (방금 시작)"
+                last_active_min = int((time.time() - sess["last_active"]) / 60)
+                return (
+                    f"턴 수: {sess['turn_count']} / "
+                    f"마지막 활동: {last_active_min}분 전 / "
+                    f"session_id: {sess['session_id']}"
+                )
+
+            if name == "reset_my_memory":
+                # corrections는 guild 단위(공용)라 안 건드림. 세션만 reset → 컨텍스트 새로 시작.
+                from run.services.memory import session_store
+                session_store.delete_session(self._current_guild_id, self._current_user_id)
+                return "OK 세션 메모리 초기화. 다음 메시지부터 컨텍스트 새로 시작."
+
             if name == "search_player_stats":
                 from run.services.eternal_return.api_client import (
                     get_player_basic_data,
                     get_player_played_seasons,
                 )
-                import asyncio
                 nickname = tool_input.get("nickname", "")
                 data, played_seasons = await asyncio.gather(
                     get_player_basic_data(nickname),
@@ -256,7 +305,6 @@ class ManagedAgentsClient:
                 if isinstance(played_seasons, Exception):
                     played_seasons = []
 
-                # Discord 채널이 있으면 네이티브 /전적 Layout을 직접 전송
                 channel = getattr(self, "_current_channel", None)
                 if channel is not None:
                     try:
@@ -275,7 +323,6 @@ class ManagedAgentsClient:
             return f"도구 실행 중 에러: {e}"
 
     def _summarize_player_data(self, data: dict) -> str:
-        """Claude에게 넘길 플레이어 데이터 요약 (토큰 절약)."""
         nickname = data.get("nickname", "?")
         stats = data.get("stats", {})
         mmr = stats.get("mmr") or data.get("mmr")

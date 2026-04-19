@@ -11,7 +11,7 @@ PROJECT_ID = ironic-objectivist-465713-a6
 VM_NAME = debi-marlene-bot
 ZONE = asia-northeast3-a
 REGION = asia-northeast3
-VM_PATH = ~
+VM_PATH = ~/debi-marlene
 CONTAINER_NAME = debi-marlene
 REGISTRY = $(REGION)-docker.pkg.dev/$(PROJECT_ID)/debi-marlene
 IMAGE_TAG = $(REGISTRY)/$(CONTAINER_NAME):latest
@@ -134,7 +134,7 @@ start:
 		--command="docker pull $(IMAGE_TAG) && docker image prune -af"
 	@echo "컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p /home/kasa/debi-marlene-data && docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/kasa/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+		--command="mkdir -p /home/2rami/debi-marlene-data && docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
 	@echo "시작 완료"
 
 # 컨테이너 로그 확인

@@ -42,7 +42,6 @@ from typing import Any, Optional, TypedDict
 from langgraph.graph import END, StateGraph
 
 from .chat_client import ChatClient
-from .chat_memory import get_corrections_prompt
 from .patchnote_search import get_patch_context
 
 
@@ -57,6 +56,7 @@ class ChatAgentState(TypedDict, total=False):
     user_message: str
     history: list[dict[str, str]]
     guild_id: Optional[Any]          # 메모리 스코프용 (서버별 분리)
+    user_id: Optional[Any]           # Managed Agents 세션 매핑 키 (guild,user) 단위
     discord_channel: Optional[Any]   # Managed Agents가 StatsLayoutView 전송할 때 사용
 
     # 중간 상태 (노드들이 채움)
@@ -95,13 +95,11 @@ async def skip_patchnote(state: ChatAgentState) -> dict:
 
 
 async def fetch_memory(state: ChatAgentState) -> dict:
-    """GCS에서 해당 guild의 수정사항 로드 + 최종 컨텍스트 조립."""
-    corrections = get_corrections_prompt(state.get("guild_id"))
+    """patch_context만 컨텍스트에 포함. corrections는 Claude의 recall_about_user 도구로 옮김 (2026-04-20)."""
     base = state.get("patch_context") or ""
-    combined = base + (corrections or "")
     return {
-        "corrections": corrections or None,
-        "full_context": combined or None,
+        "corrections": None,
+        "full_context": base or None,
     }
 
 
@@ -111,11 +109,17 @@ def make_call_llm(client: ChatClient):
     async def call_llm(state: ChatAgentState) -> dict:
         t0 = time.time()
         # discord_channel은 Managed Agents가 StatsLayoutView 전송할 때만 사용.
-        # Modal/Claude 백엔드는 이 kwarg 무시하면 됨.
+        # guild_id/user_id는 Managed Agents 세션 매핑 키. Modal 백엔드는 무시.
         kwargs = {}
         ch = state.get("discord_channel")
         if ch is not None:
             kwargs["discord_channel"] = ch
+        gid = state.get("guild_id")
+        if gid is not None:
+            kwargs["guild_id"] = gid
+        uid = state.get("user_id")
+        if uid is not None:
+            kwargs["user_id"] = uid
         response = await client.chat(
             state["user_message"],
             state.get("history", []),

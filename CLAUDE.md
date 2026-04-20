@@ -1,119 +1,32 @@
-# Debi Marlene - Discord Bot
+# Debi Marlene
 
-## 프로젝트 구조
+## 안전 규칙
+- `make deploy`는 파괴적 — 빌드 + Registry Push + VM 재시작. 명시적 승인 없이 실행 금지.
+- 로컬 테스트 전 `make stop-vm` 필수 — VM/로컬 동시 연결 시 Discord 세션 충돌로 무한 재연결.
+- git 브랜치는 main만. feature 브랜치 금지. (`archive/legacy-*` 는 백업용)
+- 봇 컨테이너 5001 / webpanel 8080 / dashboard 8081 — 포트 충돌 주의.
 
-```
-run/                    # Discord 봇 (core, cogs, services, views, utils)
-dashboard/              # React 대시보드 (backend 8081, frontend 3002)
-webpanel/               # Flask 웹패널 (backend 8080, frontend 5173)
-```
-
-## 진입점
-
-`main.py` (봇) · `dashboard/backend/app.py` · `dashboard/frontend/src/main.tsx` · `webpanel/backend/app.py`
-
-## 기술 스택
-
-- **봇**: Python, discord.py 2.6.4, anthropic (Claude AI), google-cloud-storage
-- **TTS**: Modal Serverless + **CosyVoice3** 파인튜닝 (T4 GPU) — `run/services/tts/cosyvoice3_modal_server.py`. `qwen3_tts_*`, `edge_tts_*`, `sovits_*`, `fish_*`은 레거시 잔해로 현역 아님
-- **대시보드**: Flask + React 19 + TypeScript + Vite + Tailwind 4
-- **웹패널**: Flask (VM 8080) + React
-- **결제**: TossPayments SDK
-- **인프라**: GCP Compute Engine VM (asia-northeast3-a), Artifact Registry
-
-## 안전 규칙 (중요)
-
-- **`make deploy`는 파괴적** — 빌드 + Registry Push + **프로덕션 VM 재시작**을 즉시 수행. 사용자의 명시적 승인 없이 실행 금지.
-- **로컬 테스트 전 `make stop-vm` 필수** — VM 봇과 로컬 봇이 같은 Discord 토큰으로 동시에 연결되면 세션 충돌로 무한 재연결 발생.
-- **git 브랜치는 main만 사용** — feature 브랜치 만들지 말 것. `archive/legacy-tts`, `archive/legacy-qwen-finetune` 은 레거시 코드 백업용.
-
-## 로컬 개발
-
-```bash
-# 봇 실행 (VM 봇 자동 중지 후 로컬 실행)
-make test-local
-
-# 대시보드
-cd dashboard/backend && python3 app.py          # backend (8081)
-cd dashboard/frontend && npm run dev            # frontend (3002)
-
-# 웹패널
-cd webpanel && python3 backend/app.py           # backend (8080)
-cd webpanel && npm run dev                      # frontend (5173)
-```
-
-## 배포
-
-```bash
-make deploy      # 전체 배포 (승인 필수)
-make stop-vm     # VM 봇 중지 (로컬 테스트 전)
-make start-vm    # VM 봇 시작 (로컬 테스트 후)
-make logs        # 컨테이너 로그
-make status      # VM/컨테이너 상태
-```
+## 자주 쓰는 명령
+| 작업 | 명령 |
+|---|---|
+| 로컬 봇 (VM 자동 중지) | `make test-local` |
+| VM 제어 | `make stop-vm` / `make start-vm` |
+| 배포 (승인 필수) | `make deploy` |
+| 로그/상태 | `make logs` / `make status` |
+| 대시보드 dev | backend `python3 dashboard/backend/app.py` (8081) / frontend `npm run dev` in `dashboard/frontend` (3002) |
+| 웹패널 dev | backend `python3 webpanel/backend/app.py` (8080) / frontend `npm run dev` in `webpanel` (5173) |
 
 ## 코딩 규칙
+- **이모지 금지** — 코드/임베드/메시지/로그 모두. 대체: SVG 또는 텍스트 기호 (#1, [TOP], *, -)
+- **계층 분리**: `run/services/` (데이터/API) ↔ `run/views/` (Discord 포맷팅)
+- **LayoutView ≠ Embed** — Container가 Embed 대체. 세부 규칙은 `feedback_discord_v2_layout` 메모리.
 
-**이모지 사용 금지**
-- 코드, Discord 임베드, 메시지, 로그 등 모든 곳에서 이모지 금지
-- 대신 텍스트나 기호 사용 (#1, [TOP], *, - 등)
+## 진입점
+`main.py` (봇) · `dashboard/backend/app.py` · `dashboard/frontend/src/main.tsx` · `webpanel/backend/app.py`
 
-**역할 분리**
-
-| 계층 | 역할 | 예시 |
-|------|------|------|
-| `run/services/` (api_client) | 순수 데이터 추출/변환, API 호출 | `extract_team_members_info` |
-| `run/views/` | Discord embed/UI 포맷팅 | `format_teammate_info` |
-
-**Discord Components V2 (LayoutView) 규칙**
-- LayoutView에서는 Embed 사용 불가 — Container가 Embed 대체
-- `Container(accent_colour 없음)` → 깔끔한 테두리 박스 (기본 스타일)
-- `Container(accent_colour=색상)` → 왼쪽 색상 줄 추가
-- 정보 영역, 컨트롤 영역을 **별도 Container로 분리**해서 시각적 계층 구분
-- Section의 Thumbnail(accessory)은 항상 오른쪽, 왼쪽 이미지는 커스텀 이모지로 대체
-- 이모지를 크게 보이려면 헤딩(`##`) 안에 넣기
-
-**참조 파일**
-- `Dak gg api endpoint.md` — Eternal Return / dak.gg API 엔드포인트 문서
-- `.dockerignore`에 `webpanel/` 제외됨 (봇 이미지에 포함 안 됨)
-
-## 인프라
-
-- **VM**: `debi-marlene-bot` (GCP Compute Engine, asia-northeast3-a)
-  - IP 확인: `gcloud compute instances describe debi-marlene-bot --zone=asia-northeast3-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)'`
-- **Registry**: Makefile의 `REGISTRY` 변수 참고
-- **Storage**: GCS 버킷 (봇 설정/DM 채널 저장) — 버킷 이름은 `.env` 또는 Makefile 참고
-- **Modal TTS**: Modal 앱 설정은 `.env` 참고
-
-### 도메인
-
-| 도메인 | 용도 |
-|--------|------|
-| `debimarlene.com` | 대시보드 (메인) |
-| `panel.debimarlene.com` | 웹패널 |
-
-### 포트 할당
-
-| 서비스 | VM 포트 | 로컬 개발 포트 | 설명 |
-|--------|---------|----------------|------|
-| 봇 (Discord) | - | - | 포트 노출 없음 |
-| 봇 컨테이너 | 5001 | - | 내부 헬스체크 |
-| Dashboard Backend | 8081 | 8081 | Discord OAuth2 인증 |
-| Dashboard Frontend | 3080 (nginx) | 3002 | React UI |
-| Webpanel Backend | 8080 | 8080 | Discord API 연동 |
-| Webpanel Frontend | (번들됨) | 5173 | React 개발 서버 |
-
-**포트 충돌 방지:**
-- 봇 컨테이너는 5001만 바인딩 (8080 제거됨)
-- webpanel-backend가 8080 사용
-- 봇과 webpanel은 동시 실행 가능
-
-## GCS 인증
-
-```bash
-# 로컬
-gcloud auth application-default login
-
-# 확인
-gsutil cat gs://$(grep BUCKET .env | cut -d= -f2)/settings.json
-```
+## 자세한 정보 (auto-memory)
+- 인프라 (VM/Registry/GCS/Modal): `reference_debi_marlene_infra`
+- 포트 전체 표: `reference_debi_marlene_ports`
+- 도메인: `reference_debi_marlene_domains`
+- 기술 스택 + 레거시 잔해 식별: `reference_debi_marlene_tech_stack`
+- 배포 함정 (VM_PATH/msys2/env-file): `reference_debi_marlene_deploy_traps`

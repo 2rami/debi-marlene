@@ -93,29 +93,35 @@ const ARCHITECTURE_MERMAID = `flowchart LR
   class CF infraNode
 `
 
-// 실제 LangGraph StateGraph의 draw_mermaid() 출력 그대로.
-// 생성 커맨드: graph.get_graph().draw_mermaid()
-// 점선(-.->)이 conditional edge, 실선(-->)이 일반 edge
+// Anthropic Managed Agents (beta: managed-agents-2026-04-01) 세션 이벤트 루프.
+// 에이전트 판단·툴 오케스트레이션은 Anthropic 서버에서 돌고,
+// 봇은 이벤트 스트림만 소비하면서 custom tool 만 호스트 측에서 실행.
+// 점선(-.->)이 stop_reason 분기, 실선(-->)이 일반 흐름.
 const CHAT_AGENT_MERMAID = `---
 config:
   flowchart:
     curve: linear
 ---
 graph TD;
-    __start__([START]):::first
-    classify_intent(classify_intent)
-    fetch_patchnote(fetch_patchnote)
-    skip_patchnote(skip_patchnote)
-    fetch_memory(fetch_memory)
-    call_llm(call_llm)
-    __end__([END]):::last
-    __start__ --> classify_intent;
-    classify_intent -. "intent = patch" .-> fetch_patchnote;
-    classify_intent -. "intent = general" .-> skip_patchnote;
-    fetch_memory --> call_llm;
-    fetch_patchnote --> fetch_memory;
-    skip_patchnote --> fetch_memory;
-    call_llm --> __end__;
+    __start__([user.message]):::first
+    sessions_create(sessions.create)
+    stream(events.stream)
+    agent_loop{{Anthropic Managed Loop}}
+    tool_use(agent.custom_tool_use)
+    host_exec[호스트 툴 실행<br/>search_patchnote / search_player_stats]
+    tool_result(user.custom_tool_result)
+    idle_check{session.status_idle<br/>stop_reason?}
+    __end__([end_turn<br/>최종 응답]):::last
+    __start__ --> sessions_create;
+    sessions_create --> stream;
+    stream --> agent_loop;
+    agent_loop -. "agent.message" .-> idle_check;
+    agent_loop -. "tool 호출 필요" .-> tool_use;
+    tool_use --> host_exec;
+    host_exec --> tool_result;
+    tool_result --> stream;
+    idle_check -. "requires_action" .-> tool_use;
+    idle_check -. "end_turn" .-> __end__;
     classDef default fill:#e8f4ff,stroke:#0B5ED7,stroke-width:2px,color:#0f172a,line-height:1.2
     classDef first fill:#0B5ED7,color:#fff,stroke:#1e3a8a
     classDef last fill:#6DC8E8,color:#0f172a,stroke:#0B5ED7
@@ -661,8 +667,8 @@ const JD_CONTENT: Record<JDVariant, {
       },
       {
         requirement: '성능 최적화를 위한 시스템 운영 / 유지보수',
-        evidence: 'LangGraph 의도 분류로 불필요한 RAG 호출 제거(응답 수백 ms 단위 단축). 음성 파이프라인은 0.5초 프리버퍼 VAD + 하이브리드 웨이크워드로 설계 (현재 프로토타입 단계). GCS 메모리 조건부 fetch로 I/O 비용 절감.',
-        techs: ['Latency Opt', 'Cost Reduction', 'Conditional Fetch'],
+        evidence: 'Managed Agents 툴 기반 조건부 RAG로 불필요한 패치노트 호출 제거(응답 수백 ms 단위 단축). 음성 파이프라인은 0.5초 프리버퍼 VAD + 하이브리드 웨이크워드로 설계 (현재 프로토타입 단계). GCS 메모리 조건부 fetch로 I/O 비용 절감.',
+        techs: ['Latency Opt', 'Cost Reduction', 'Conditional Tool Use'],
         className: 'md:col-span-2 lg:col-span-2',
       },
       {
@@ -675,8 +681,8 @@ const JD_CONTENT: Record<JDVariant, {
     preferred: [
       {
         requirement: 'LLM API 서비스 개발 / RAG 시스템 구축',
-        evidence: 'Gemma4 LoRA를 Modal A10G에 프로덕션 서빙, 패치노트 RAG 키워드 검색으로 LLM 시스템 프롬프트에 실시간 주입. LangGraph StateGraph 조건부 엣지로 잡담/정보 요청 분기.',
-        techs: ['Gemma4 LoRA', 'Patchnote RAG', 'LangGraph'],
+        evidence: 'Gemma4 LoRA를 Modal A10G에 프로덕션 서빙, 패치노트 RAG 키워드 검색으로 LLM 시스템 프롬프트에 실시간 주입. Anthropic Managed Agents(Claude Haiku 4.5) 세션 이벤트 스트림으로 잡담/정보 요청을 Claude가 직접 툴 호출 여부 판단.',
+        techs: ['Gemma4 LoRA', 'Patchnote RAG', 'Managed Agents'],
         className: 'md:col-span-1',
       },
       {
@@ -729,14 +735,14 @@ const JD_CONTENT: Record<JDVariant, {
       },
       {
         requirement: '대화형 AI Agent 설계',
-        evidence: '캐릭터 인격을 가진 대화 AI. 키워드 호출 트리거, 패치노트 RAG 컨텍스트 주입, GCS 기반 멀티턴 메모리를 LangGraph StateGraph로 오케스트레이션.',
-        techs: ['LangGraph', 'Patchnote RAG', 'Multi-turn Memory'],
+        evidence: '캐릭터 인격을 가진 대화 AI. 키워드 호출 트리거, 패치노트 RAG 컨텍스트 주입, GCS 기반 멀티턴 메모리를 Anthropic Managed Agents 세션 이벤트 루프로 오케스트레이션.',
+        techs: ['Managed Agents', 'Patchnote RAG', 'Multi-turn Memory'],
         className: 'md:col-span-1 lg:col-span-1',
       },
       {
         requirement: '업무 자동화 및 생산성 향상',
-        evidence: '유저가 웹사이트를 직접 방문해야 했던 전적 조회와 패치노트 확인을 Discord 안에서 즉시 해결. LangGraph 의도 분류로 잡담에는 RAG를 건너뛰도록 최적화하여 응답 지연과 불필요한 네트워크 호출을 제거.',
-        techs: ['LangGraph', 'Intent Classification', 'Context Reduction'],
+        evidence: '유저가 웹사이트를 직접 방문해야 했던 전적 조회와 패치노트 확인을 Discord 안에서 즉시 해결. Managed Agents의 자율 툴 호출로 잡담에는 RAG/전적 API를 건너뛰도록 최적화하여 응답 지연과 불필요한 네트워크 호출을 제거.',
+        techs: ['Managed Agents', 'Autonomous Tool Use', 'Context Reduction'],
         className: 'md:col-span-2 lg:col-span-2',
       },
       {
@@ -1173,7 +1179,7 @@ export default function PortfolioNexon() {
             </FadeIn>
           </div>
 
-          {/* Sticky range wrapper — Pipeline nodes + LangGraph까지만 탭 고정, Model Selection Journey부턴 해제 */}
+          {/* Sticky range wrapper — Pipeline nodes + Managed Agents 다이어그램까지만 탭 고정, Model Selection Journey부턴 해제 */}
           <div className="relative">
           <div className="sticky top-4 z-30 mb-12 flex justify-center py-2 pointer-events-none">
             <FadeIn>
@@ -1211,10 +1217,10 @@ export default function PortfolioNexon() {
                   transition={{ duration: 0.4, ease: [0.04, 0.62, 0.23, 0.98] }}
                   className="flex flex-col md:flex-row gap-8 md:gap-0 mt-8"
                 >
-                  <PipelineNode step={1} title="키워드 트리거" desc="'데비야', '마를렌아' 호출 감지. LangGraph StateGraph로 진입." techs={['discord.py', 'LangGraph']} delay={0} />
-                  <PipelineNode step={2} title="의도 분류 (분기)" desc="regex 기반 classify_intent 노드. patch 키워드 있으면 RAG, 없으면 skip." techs={['Conditional Edge']} delay={0.05} />
-                  <PipelineNode step={3} title="컨텍스트 수집" desc="fetch_patchnote (조건부) → fetch_memory (GCS corrections). 필요할 때만 실행." techs={['RAG', 'GCS', 'TypedDict State']} delay={0.1} />
-                  <PipelineNode step={4} title="LLM + 응답 전송" desc="call_llm 노드 → Modal A10G Gemma4 LoRA. Components V2 UI로 Discord 전송." techs={['Gemma4 LoRA', 'Modal A10G', 'Components V2']} delay={0.15} isLast />
+                  <PipelineNode step={1} title="키워드 트리거 + 세션 열기" desc="'데비야', '마를렌아' 감지 후 sessions.create + events.stream 오픈." techs={['discord.py', 'Managed Agents']} delay={0} />
+                  <PipelineNode step={2} title="자율 툴 판단" desc="Claude Haiku 4.5가 user.message를 보고 search_patchnote / search_player_stats 호출 여부 스스로 결정." techs={['Claude Haiku 4.5', 'Tool Use']} delay={0.05} />
+                  <PipelineNode step={3} title="호스트 툴 실행" desc="agent.custom_tool_use 이벤트 수신 → 봇이 RAG/전적 API 실행 후 user.custom_tool_result 전송." techs={['Patchnote RAG', 'dak.gg API', 'GCS Memory']} delay={0.1} />
+                  <PipelineNode step={4} title="응답 수집 + 전송" desc="agent.message 텍스트 누적, session.status_idle(end_turn)에서 break. Components V2 UI로 Discord 전송." techs={['Event Stream', 'Components V2']} delay={0.15} isLast />
                 </motion.div>
               )}
               
@@ -1235,15 +1241,15 @@ export default function PortfolioNexon() {
               )}
           </div>
 
-          {/* LangGraph StateGraph -- Actual draw_mermaid() output */}
+          {/* Anthropic Managed Agents Session Flow */}
           {pipelineTab === 'text' && (
             <FadeIn delay={0.1} className="mt-20">
               <div className="text-center mb-6">
                 <h3 className={`text-sm font-bold uppercase tracking-wider ${isDark ? 'text-[#6DC8E8]' : 'text-[#0B5ED7]'}`}>
-                  LangGraph StateGraph
+                  Anthropic Managed Agents Session Flow
                 </h3>
                 <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                  아래 다이어그램은 <code className={`px-1.5 py-0.5 rounded ${isDark ? 'bg-white/[0.05] text-[#6DC8E8]' : 'bg-gray-100 text-[#0B5ED7]'}`}>graph.get_graph().draw_mermaid()</code> 실행 결과를 그대로 렌더링한 것.
+                  아래 다이어그램은 <code className={`px-1.5 py-0.5 rounded ${isDark ? 'bg-white/[0.05] text-[#6DC8E8]' : 'bg-gray-100 text-[#0B5ED7]'}`}>beta.sessions.events.stream()</code> 이벤트 루프를 옮긴 것. 에이전트 loop는 Anthropic 서버에서 돌고, 봇은 custom tool 만 실행.
                 </p>
               </div>
               <GlassCard className="p-6 md:p-10 rounded-3xl">
@@ -1251,15 +1257,15 @@ export default function PortfolioNexon() {
               </GlassCard>
               <div className="grid md:grid-cols-2 gap-4 mt-6">
                 <GlassCard className="p-5 rounded-2xl">
-                  <div className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-red-400' : 'text-red-500'}`}>Before -- 선형 if-else</div>
+                  <div className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-red-400' : 'text-red-500'}`}>Before -- LangGraph StateGraph</div>
                   <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    모든 메시지에 패치노트 RAG 호출 (수백 ms 단위 지연). '데비야 안녕' 같은 잡담도 네트워크 hop 발생.
+                    개발자가 classify_intent → fetch_patchnote → call_llm 경로를 직접 설계. 새 도구 추가할 때마다 그래프 edge 재설계 필요.
                   </p>
                 </GlassCard>
                 <GlassCard className="p-5 rounded-2xl">
-                  <div className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-emerald-400' : 'text-emerald-500'}`}>After -- StateGraph + Conditional Edge</div>
+                  <div className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-emerald-400' : 'text-emerald-500'}`}>After -- Managed Agents + Tool Use</div>
                   <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    classify_intent가 regex로 patch 키워드를 0.1ms에 판별. 잡담은 skip_patchnote로 우회, RAG 비용 0.
+                    Claude가 유저 메시지 보고 툴 호출 여부를 자율 판단. 잡담이면 툴 skip, 도구 추가는 description만 쓰면 끝. 에이전트 loop는 Anthropic 서버가 관리.
                   </p>
                 </GlassCard>
               </div>

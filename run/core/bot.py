@@ -410,19 +410,28 @@ async def on_ready():
 
 
 async def _background_init():
-    """봇 시작 후 백그라운드에서 실행되는 무거운 초기화 작업들"""
+    """봇 시작 후 백그라운드에서 실행되는 무거운 초기화 작업들.
+
+    솔로봇(BOT_IDENTITY='debi'/'marlene')은 대화+끼어들기 전용이라
+    TTS/YouTube/패치노트/쿠폰/음성복구/프레즌스 등 무거운 서비스를 전부 스킵.
+    settings.json/사용자 정보 업데이트·이모지 맵 로드·게임 데이터 초기화는 유지
+    (이모지는 대화 렌더링, 게임 데이터는 search_player_stats tool에서 필요).
+    """
     import sys
 
-    # TTS 서비스 초기화
-    try:
-        tts_engine = os.environ.get("TTS_ENGINE", "modal")
-        print(f"[TTS] 초기화 시작 (엔진: {tts_engine})...", flush=True)
-        from run.cogs.voice import get_tts_service
-        await get_tts_service("debi")
-        await get_tts_service("marlene")
-        print(f"[TTS] 초기화 완료! (Debi, Marlene, 엔진: {tts_engine})", flush=True)
-    except Exception as e:
-        print(f"[TTS] 초기화 실패: {e}", flush=True)
+    _is_solo = config.BOT_IDENTITY in ("debi", "marlene")
+
+    # TTS 서비스 초기화 (unified만)
+    if not _is_solo:
+        try:
+            tts_engine = os.environ.get("TTS_ENGINE", "modal")
+            print(f"[TTS] 초기화 시작 (엔진: {tts_engine})...", flush=True)
+            from run.cogs.voice import get_tts_service
+            await get_tts_service("debi")
+            await get_tts_service("marlene")
+            print(f"[TTS] 초기화 완료! (Debi, Marlene, 엔진: {tts_engine})", flush=True)
+        except Exception as e:
+            print(f"[TTS] 초기화 실패: {e}", flush=True)
 
     # settings.json에 기존 서버들의 이름 정보를 한 번에 업데이트
     # GCS 호출은 동기적이라 to_thread()로 이벤트 루프 차단 방지
@@ -498,25 +507,26 @@ async def _background_init():
         await initialize_game_data()
         print("[완료] 게임 데이터 초기화 완료.", flush=True)
 
-        global _youtube_task_started
-        if not _youtube_task_started:
-            youtube_service.set_bot_instance(bot)
-            await youtube_service.initialize_youtube()
-            if not youtube_service.check_new_videos.is_running():
-                youtube_service.check_new_videos.start()
-            _youtube_task_started = True
+        if not _is_solo:
+            global _youtube_task_started
+            if not _youtube_task_started:
+                youtube_service.set_bot_instance(bot)
+                await youtube_service.initialize_youtube()
+                if not youtube_service.check_new_videos.is_running():
+                    youtube_service.check_new_videos.start()
+                _youtube_task_started = True
 
-        # 패치노트 체커 시작
-        from run.services.patchnote_service import start_patchnote_checker
-        start_patchnote_checker(bot)
+            # 패치노트 체커 시작
+            from run.services.patchnote_service import start_patchnote_checker
+            start_patchnote_checker(bot)
 
-        # 쿠폰 크롤링 서비스 시작
-        from run.services.coupon_service import start_coupon_service
-        start_coupon_service(bot)
+            # 쿠폰 크롤링 서비스 시작
+            from run.services.coupon_service import start_coupon_service
+            start_coupon_service(bot)
 
-        # 정기적 서버 수 로깅 태스크 시작
-        if not periodic_guild_logging.is_running():
-            periodic_guild_logging.start()
+            # 정기적 서버 수 로깅 태스크 시작
+            if not periodic_guild_logging.is_running():
+                periodic_guild_logging.start()
 
         # 이모지 맵 로드
         from run.utils.emoji_utils import load_emoji_map, EmojiAutoUpdater
@@ -524,19 +534,20 @@ async def _background_init():
 
         bot.emoji_auto_updater = EmojiAutoUpdater(bot)
 
-        # 기존 음성 연결 복구 (봇 재시작/RESUME 후 voice_manager에 등록)
-        from run.services.voice_manager import voice_manager
-        for vc in bot.voice_clients:
-            if vc.is_connected() and vc.guild:
-                guild_id = str(vc.guild.id)
-                voice_manager.voice_clients[guild_id] = vc
-                voice_manager.current_type[guild_id] = None
-                print(f"[음성] 기존 연결 복구: {vc.guild.name} / {vc.channel.name}", flush=True)
+        if not _is_solo:
+            # 기존 음성 연결 복구 (봇 재시작/RESUME 후 voice_manager에 등록)
+            from run.services.voice_manager import voice_manager
+            for vc in bot.voice_clients:
+                if vc.is_connected() and vc.guild:
+                    guild_id = str(vc.guild.id)
+                    voice_manager.voice_clients[guild_id] = vc
+                    voice_manager.current_type[guild_id] = None
+                    print(f"[음성] 기존 연결 복구: {vc.guild.name} / {vc.channel.name}", flush=True)
 
-        # 동접수 상태 업데이트 태스크 시작
-        if not update_presence.is_running():
-            update_presence.start()
-            print("[완료] 동접수 상태 업데이트 태스크 시작 (5분 간격)", flush=True)
+            # 동접수 상태 업데이트 태스크 시작
+            if not update_presence.is_running():
+                update_presence.start()
+                print("[완료] 동접수 상태 업데이트 태스크 시작 (5분 간격)", flush=True)
 
         print("[완료] 모든 초기화 완료!", flush=True)
         sys.stdout.flush()
@@ -581,6 +592,11 @@ async def on_guild_join(guild: discord.Guild):
     """서버 참가 시"""
     import sys
     import time
+
+    # 솔로봇은 환영 DM·설정 초기화 전부 스킵 (대화/끼어들기 전용)
+    if config.BOT_IDENTITY in ("debi", "marlene"):
+        print(f"[솔로봇] 서버 참가 welcome 스킵: {guild.name} (ID: {guild.id})", flush=True)
+        return
 
     current_time = time.time()
     print(f"[완료] 새로운 서버에 초대되었습니다: {guild.name} (ID: {guild.id}) - 멤버 {guild.member_count}명", flush=True)
@@ -829,15 +845,18 @@ async def on_message(message):
         await bot.process_commands(message)
         return
 
-    # 스티키 메시지 처리 (서버 메시지만)
-    if message.guild:
+    # 솔로봇은 대화/끼어들기만 — 스티키/TTS 기능 스킵
+    _is_solo_bot = config.BOT_IDENTITY in ("debi", "marlene")
+
+    # 스티키 메시지 처리 (서버 메시지만, unified만)
+    if message.guild and not _is_solo_bot:
         try:
             await _handle_sticky_message(message)
         except Exception as e:
             print(f"[스티키] 처리 오류: {e}", flush=True)
 
-    # TTS 메시지 처리 (서버 메시지만)
-    if message.guild:
+    # TTS 메시지 처리 (서버 메시지만, unified만 — solo는 VoiceCog 미등록)
+    if message.guild and not _is_solo_bot:
         try:
             from run.cogs.voice import handle_tts_message
             await handle_tts_message(message)

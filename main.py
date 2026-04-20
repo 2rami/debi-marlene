@@ -32,7 +32,9 @@ def run_bot():
 
 def main():
     """메인 실행 함수"""
-    print("[시작] 데비&마를렌 봇을 시작합니다...", flush=True)
+    _identity = config.BOT_IDENTITY
+    _label = {"debi": "Debi 솔로봇", "marlene": "Marlene 솔로봇"}.get(_identity, "데비&마를렌 봇")
+    print(f"[시작] {_label}을(를) 시작합니다... (identity={_identity})", flush=True)
     try:
         run_bot()
     except KeyboardInterrupt:

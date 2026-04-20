@@ -3,8 +3,14 @@ import json
 import threading
 from dotenv import load_dotenv
 
-# override=False: app.py에서 이미 설정한 GOOGLE_APPLICATION_CREDENTIALS를 유지
-load_dotenv(override=False)
+# BOT_ENV_FILE이 지정되면 해당 파일을 로드 (솔로봇 로컬 테스트용 .env.solo-debi 등).
+# 미지정 시 기본 .env. override=False로 이미 설정된 env(예: GOOGLE_APPLICATION_CREDENTIALS)는 유지.
+_env_file = os.getenv('BOT_ENV_FILE', '.env')
+load_dotenv(_env_file, override=False)
+
+# 봇 페르소나 식별자 — 'unified'(기본, 기존 데비&마를렌 봇) | 'debi' | 'marlene'
+# 솔로봇은 메모리 스코프 prefix로 기존봇과 격리 + 응답 파싱으로 자기 페르소나 대사만 추출.
+BOT_IDENTITY = os.getenv('BOT_IDENTITY', 'unified').lower()
 
 # API 키 설정
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')

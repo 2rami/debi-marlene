@@ -27,6 +27,11 @@ DEFAULT_MAX_IDLE_SECONDS = 6 * 60 * 60
 def _scope(guild_id, user_id) -> tuple[str, str]:
     g = str(guild_id) if guild_id else "dm"
     u = str(user_id) if user_id else "anon"
+    # BOT_IDENTITY='debi'/'marlene' 솔로봇은 guild 스코프에 prefix 붙여 기존봇 행과 자연 격리.
+    # 'unified'(기본)는 prefix 없음 → 기존 데이터/쿼리 무영향.
+    from run.core import config
+    if config.BOT_IDENTITY and config.BOT_IDENTITY != "unified":
+        g = f"{config.BOT_IDENTITY}:{g}"
     return g, u
 
 

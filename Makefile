@@ -25,6 +25,11 @@ DASHBOARD_IMAGE_TAG = $(REGISTRY)/$(DASHBOARD_CONTAINER):latest
 .PHONY: deploy-dashboard-frontend deploy-dashboard-backend deploy-dashboard-quick
 .PHONY: deploy-webpanel-frontend deploy-webpanel-backend deploy-webpanel-quick logs-webpanel
 .PHONY: deploy-quick
+.PHONY: deploy-solo-debi deploy-solo-marlene start-solo-debi start-solo-marlene stop-solo-debi stop-solo-marlene logs-solo-debi logs-solo-marlene restart-solo-debi restart-solo-marlene
+
+# 솔로봇 컨테이너 이름 (기존 이미지 $(IMAGE_TAG) 재사용 — 별도 빌드 불필요)
+SOLO_DEBI_NAME = debi-solo
+SOLO_MARLENE_NAME = marlene-solo
 
 # 기본 명령어 (make 입력 시 도움말 표시)
 help:
@@ -47,6 +52,13 @@ help:
 	@echo "  make logs-dashboard - 대시보드 로그"
 	@echo "  make logs-webpanel  - 웹패널 로그"
 	@echo "  make status        - VM 및 컨테이너 상태 확인"
+	@echo ""
+	@echo "-- 솔로봇 (데비/마를렌 분리) --"
+	@echo "  make deploy-solo-debi      - 데비 솔로봇 배포 (기존 이미지 재사용)"
+	@echo "  make deploy-solo-marlene   - 마를렌 솔로봇 배포"
+	@echo "  make logs-solo-debi        - 데비 솔로봇 로그"
+	@echo "  make logs-solo-marlene     - 마를렌 솔로봇 로그"
+	@echo "  make stop-solo-debi / stop-solo-marlene"
 	@echo ""
 	@echo "-- 기타 --"
 	@echo "  make test-local    - 로컬에서 봇 실행 (VM 봇 자동 중지)"
@@ -312,3 +324,56 @@ logs-webpanel:
 	@echo "웹패널 백엔드 로그 (Ctrl+C로 종료):"
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker logs -f webpanel-backend"
+
+# ============================================================
+# 솔로봇 배포 (debi-solo, marlene-solo)
+# ============================================================
+# 기존 데비&마를렌 봇($(CONTAINER_NAME))과 **같은 이미지** 재사용.
+# BOT_IDENTITY env만 다르게 주입 → 코드가 내부 분기로 페르소나 설정.
+# 볼륨도 같은 /home/2rami/debi-marlene-data 공유 (scope prefix로 행 격리).
+# 필요 전제:
+#   - VM에 $(VM_PATH)/.env.solo-debi, $(VM_PATH)/.env.solo-marlene 파일이 있어야 함
+#   - 각 파일엔 해당 봇의 DISCORD_TOKEN이 들어감 (CLAUDE_API_KEY 등 공통 키는 기존 .env와 동일)
+#   - 이미지는 `make deploy`가 이미 push 했다는 전제 (푸시만 다시 하려면 make push-image)
+
+deploy-solo-debi: stop-solo-debi start-solo-debi
+	@echo "데비 솔로봇 배포 완료"
+
+deploy-solo-marlene: stop-solo-marlene start-solo-marlene
+	@echo "마를렌 솔로봇 배포 완료"
+
+restart-solo-debi: stop-solo-debi start-solo-debi
+	@echo "데비 솔로봇 재시작 완료"
+
+restart-solo-marlene: stop-solo-marlene start-solo-marlene
+	@echo "마를렌 솔로봇 재시작 완료"
+
+stop-solo-debi:
+	@echo "데비 솔로봇 중지 중..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker stop $(SOLO_DEBI_NAME) 2>/dev/null || true && docker rm $(SOLO_DEBI_NAME) 2>/dev/null || true"
+
+stop-solo-marlene:
+	@echo "마를렌 솔로봇 중지 중..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker stop $(SOLO_MARLENE_NAME) 2>/dev/null || true && docker rm $(SOLO_MARLENE_NAME) 2>/dev/null || true"
+
+start-solo-debi:
+	@echo "데비 솔로봇 시작 (image=$(IMAGE_TAG), identity=debi)..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && docker run -d --name $(SOLO_DEBI_NAME) --env-file $(VM_PATH)/.env.solo-debi -e BOT_IDENTITY=debi -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+
+start-solo-marlene:
+	@echo "마를렌 솔로봇 시작 (image=$(IMAGE_TAG), identity=marlene)..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && docker run -d --name $(SOLO_MARLENE_NAME) --env-file $(VM_PATH)/.env.solo-marlene -e BOT_IDENTITY=marlene -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+
+logs-solo-debi:
+	@echo "데비 솔로봇 로그 (Ctrl+C 종료):"
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker logs -f $(SOLO_DEBI_NAME)"
+
+logs-solo-marlene:
+	@echo "마를렌 솔로봇 로그 (Ctrl+C 종료):"
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker logs -f $(SOLO_MARLENE_NAME)"

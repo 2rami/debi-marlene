@@ -22,6 +22,8 @@ from typing import Any, Optional
 
 import anthropic
 
+from run.core import config as bot_config
+from run.services.chat.persona import extract_persona_response
 from run.services.memory import session_store
 
 logger = logging.getLogger(__name__)
@@ -42,16 +44,34 @@ class ManagedAgentsClient:
             )
         self._client = anthropic.AsyncAnthropic(api_key=api_key)
 
-        self._agent_id = os.getenv("MANAGED_AGENT_ID")
-        self._env_id = os.getenv("MANAGED_ENV_ID")
+        self._identity = bot_config.BOT_IDENTITY
+
+        # identity별 agent/env 라우팅.
+        # - debi/marlene 솔로봇: 전용 agent (페르소나만 생성 → 체감 속도 2배, 토큰 절약)
+        # - unified(기본): 기존 쌍둥이 agent (데비+마를렌 동시 생성)
+        # env는 unified와 공유 기본값, 필요 시 identity별 env 오버라이드.
+        if self._identity == "debi":
+            self._agent_id = os.getenv("MANAGED_AGENT_ID_DEBI")
+            self._env_id = os.getenv("MANAGED_ENV_ID_DEBI") or os.getenv("MANAGED_ENV_ID")
+            id_env_name = "MANAGED_AGENT_ID_DEBI"
+        elif self._identity == "marlene":
+            self._agent_id = os.getenv("MANAGED_AGENT_ID_MARLENE")
+            self._env_id = os.getenv("MANAGED_ENV_ID_MARLENE") or os.getenv("MANAGED_ENV_ID")
+            id_env_name = "MANAGED_AGENT_ID_MARLENE"
+        else:  # unified (기존봇)
+            self._agent_id = os.getenv("MANAGED_AGENT_ID")
+            self._env_id = os.getenv("MANAGED_ENV_ID")
+            id_env_name = "MANAGED_AGENT_ID"
+
         if not self._agent_id or not self._env_id:
             raise RuntimeError(
-                "MANAGED_AGENT_ID와 MANAGED_ENV_ID가 .env에 설정돼야 해.\n"
-                "먼저 `python3 scripts/setup_managed_agent.py` 실행해서 ID 받아와."
+                f"{id_env_name}와 MANAGED_ENV_ID가 .env에 설정돼야 해.\n"
+                "unified: `python3 scripts/setup_managed_agent.py` 로 기존 agent ID.\n"
+                "solo: `python3 scripts/create_solo_agents.py --apply` 로 Debi/Marlene agent 생성."
             )
 
         print(
-            f"[CHAT] backend=managed agent={self._agent_id[:20]}... env={self._env_id[:20]}...",
+            f"[CHAT] backend=managed identity={self._identity} agent={self._agent_id[:20]}... env={self._env_id[:20]}...",
             flush=True,
         )
 
@@ -108,6 +128,11 @@ class ManagedAgentsClient:
             return None
 
         session_store.bump_turn(guild_id, user_id)
+
+        # 솔로봇(BOT_IDENTITY='debi'/'marlene')은 자기 페르소나 대사만 추출해서 전송.
+        # unified는 원본 그대로 (기존봇 동작 유지).
+        if response and self._identity in ("debi", "marlene"):
+            response = extract_persona_response(response, self._identity)
 
         self.last_trace.append({
             "type": "final",
@@ -246,12 +271,19 @@ class ManagedAgentsClient:
                 if not fact:
                     return "저장할 내용이 비어있어."
                 from .chat_memory import add_correction
-                add_correction(fact, guild_id=self._current_guild_id)
+                add_correction(
+                    fact,
+                    guild_id=self._current_guild_id,
+                    user_id=self._current_user_id,
+                )
                 return f"OK 기억함: {fact[:80]}"
 
             if name == "recall_about_user":
                 from .chat_memory import get_corrections_prompt
-                prompt_text = get_corrections_prompt(self._current_guild_id)
+                prompt_text = get_corrections_prompt(
+                    self._current_guild_id,
+                    self._current_user_id,
+                )
                 if not prompt_text.strip():
                     return "저장된 정보 없음. 유저가 알려준 게 아직 없어."
                 return prompt_text.strip()
@@ -261,11 +293,12 @@ class ManagedAgentsClient:
                 if not fact:
                     return "삭제할 내용을 명시해."
                 from run.services.memory.db import connect
-                scope = str(self._current_guild_id) if self._current_guild_id else "dm"
+                from .chat_memory import _scope
+                g, u = _scope(self._current_guild_id, self._current_user_id)
                 with connect() as conn:
                     cur = conn.execute(
-                        "DELETE FROM corrections WHERE guild_id=? AND text=?",
-                        (scope, fact),
+                        "DELETE FROM corrections WHERE guild_id=? AND user_id=? AND text=?",
+                        (g, u, fact),
                     )
                     deleted = cur.rowcount
                 return f"OK 잊었어 ({deleted}개 삭제)" if deleted else "그런 내용 저장된 적 없음"
@@ -284,10 +317,14 @@ class ManagedAgentsClient:
                 )
 
             if name == "reset_my_memory":
-                # corrections는 guild 단위(공용)라 안 건드림. 세션만 reset → 컨텍스트 새로 시작.
                 from run.services.memory import session_store
+                from .chat_memory import clear_corrections
                 session_store.delete_session(self._current_guild_id, self._current_user_id)
-                return "OK 세션 메모리 초기화. 다음 메시지부터 컨텍스트 새로 시작."
+                wiped = clear_corrections(self._current_guild_id, self._current_user_id)
+                return (
+                    f"OK 전부 초기화했어 (세션 + 저장된 기억 {wiped}개). "
+                    "다음 메시지부터 너 관련 정보는 아무것도 몰라."
+                )
 
             if name == "search_player_stats":
                 from run.services.eternal_return.api_client import (

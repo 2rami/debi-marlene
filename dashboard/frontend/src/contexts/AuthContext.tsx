@@ -51,11 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = () => {
-    const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID
-    const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/callback`)
-    const scope = encodeURIComponent('identify email guilds')
-
-    window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`
+    window.location.href = '/api/auth/discord'
   }
 
   const logout = async () => {

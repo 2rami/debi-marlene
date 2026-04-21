@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { api } from '../services/api'
+import { DISCORD_CLIENT_ID } from '../config/discord'
 
 interface User {
   id: string
@@ -51,11 +52,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = () => {
-    const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID
     const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/callback`)
     const scope = encodeURIComponent('identify email guilds')
 
-    window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`
+    window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`
   }
 
   const logout = async () => {

@@ -12,6 +12,7 @@ import {
   ChevronRight
 } from 'lucide-react'
 import AnimatedSection from '../components/common/AnimatedSection'
+import { DISCORD_CLIENT_ID } from '../config/discord'
 
 const getServerAcronym = (name: string) => {
   const acronym = name.split(/\s+/).map(w => w[0]).join('').substring(0, 3).toUpperCase()
@@ -194,7 +195,7 @@ const InteractiveInviteCard = ({ server, bgGradient, inviteUrl }: { server: Serv
 
 export default function Dashboard() {
   const [servers, setServers] = useState<Server[]>([])
-  const [botClientId, setBotClientId] = useState<string>(import.meta.env.VITE_DISCORD_CLIENT_ID || '')
+  const [botClientId, setBotClientId] = useState<string>(DISCORD_CLIENT_ID)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [hoveredGradient, setHoveredGradient] = useState<string | null>(null)

@@ -22,7 +22,7 @@ DASHBOARD_IMAGE_TAG = $(REGISTRY)/$(DASHBOARD_CONTAINER):latest
 
 .PHONY: help deploy build-local push-image restart stop start logs status clean test-local stop-vm start-vm
 .PHONY: deploy-dashboard build-dashboard push-dashboard start-dashboard stop-dashboard restart-dashboard logs-dashboard
-.PHONY: deploy-dashboard-frontend deploy-dashboard-backend deploy-dashboard-quick
+.PHONY: deploy-dashboard-frontend deploy-dashboard-backend deploy-dashboard-quick inject-dashboard-env
 .PHONY: deploy-webpanel-frontend deploy-webpanel-backend deploy-webpanel-quick logs-webpanel
 .PHONY: deploy-quick
 .PHONY: deploy-solo-debi deploy-solo-marlene start-solo-debi start-solo-marlene stop-solo-debi stop-solo-marlene logs-solo-debi logs-solo-marlene restart-solo-debi restart-solo-marlene
@@ -247,8 +247,19 @@ logs-dashboard:
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker logs -f $(DASHBOARD_CONTAINER)"
 
+# 루트 .env 의 DISCORD_CLIENT_ID 를 dashboard/frontend/.env.production 에 VITE_DISCORD_CLIENT_ID 로 주입.
+# Vite는 빌드 시 .env.production 이 .env 를 override하므로 단일 소스로 관리 가능.
+inject-dashboard-env:
+	@echo "[env] 루트 .env -> dashboard/frontend/.env.production 주입 중..."
+	@set -e; \
+	if [ ! -f .env ]; then echo "ERROR: 루트 .env 없음 (DISCORD_CLIENT_ID 포함 필요)"; exit 1; fi; \
+	CLIENT_ID=$$(grep -E '^DISCORD_CLIENT_ID=' .env | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '[:space:]'); \
+	if [ -z "$$CLIENT_ID" ]; then echo "ERROR: DISCORD_CLIENT_ID 가 .env 에 비어있음"; exit 1; fi; \
+	{ echo "VITE_API_URL=/api"; echo "VITE_DISCORD_CLIENT_ID=$$CLIENT_ID"; } > dashboard/frontend/.env.production; \
+	echo "  -> VITE_DISCORD_CLIENT_ID=$$CLIENT_ID"
+
 # 대시보드 프론트엔드만 배포 (Docker 재빌드 없이 빠른 배포)
-deploy-dashboard-frontend:
+deploy-dashboard-frontend: inject-dashboard-env
 	@echo "[1/4] 프론트엔드 빌드 중..."
 	@cd dashboard/frontend && npm run build
 	@echo "[2/4] dist를 tar로 압축..."

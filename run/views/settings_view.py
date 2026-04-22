@@ -73,16 +73,24 @@ class SettingsLayoutView(discord.ui.LayoutView):
         tts_auto_delete = full_guild_settings.get("tts_auto_delete_seconds", 0)
         auto_delete_text = f"{tts_auto_delete}초" if tts_auto_delete else "꺼짐"
 
+        # 솔로봇 자율 응답 채널
+        debi_channels = config.get_solo_chat_channels(guild.id, "debi")
+        marlene_channels = config.get_solo_chat_channels(guild.id, "marlene")
+        self._debi_channel_text = self._format_channel_list(guild, debi_channels)
+        self._marlene_channel_text = self._format_channel_list(guild, marlene_channels)
+
         # === Container 1: 현재 상태 ===
         chat_text = "켜짐" if chat_enabled else "꺼짐"
         status_text = (
             f"## 서버 설정\n"
-            f"대화: **{chat_text}**\n"
+            f"대화 기능(/대화 + 솔로봇 끼어들기): **{chat_text}**\n"
             f"공지 채널: **{channel_text}**\n"
             f"TTS 기본 목소리: **{voice_text}**\n"
             f"TTS 읽을 채널: **{tts_channel_text}**\n"
             f"TTS 메시지 자동 삭제: **{auto_delete_text}**\n"
-            f"DM 알림: **{dm_text}**"
+            f"DM 알림: **{dm_text}**\n"
+            f"데비 응답 채널: **{self._debi_channel_text}**\n"
+            f"마를렌 응답 채널: **{self._marlene_channel_text}**"
         )
         self.add_item(discord.ui.Container(discord.ui.TextDisplay(status_text)))
 
@@ -112,6 +120,40 @@ class SettingsLayoutView(discord.ui.LayoutView):
         )
         voice_select.callback = self._on_voice_select
         controls.append(discord.ui.ActionRow(voice_select))
+
+        controls.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # 솔로봇 자율 응답 채널 (debi)
+        controls.append(discord.ui.TextDisplay(
+            f"**데비 자율 응답 채널** - 현재: {self._debi_channel_text}\n"
+            "지정 채널에서는 호명 없이도 AI가 자연스럽게 끼어들어요. 최대 5개. "
+            "다시 선택하면 덮어써집니다."
+        ))
+        debi_select = discord.ui.ChannelSelect(
+            placeholder="데비가 자율 응답할 채널 선택 (최대 5개)",
+            channel_types=[discord.ChannelType.text],
+            min_values=0,
+            max_values=5,
+        )
+        debi_select.callback = self._on_debi_channels_select
+        controls.append(discord.ui.ActionRow(debi_select))
+
+        controls.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # 솔로봇 자율 응답 채널 (marlene)
+        controls.append(discord.ui.TextDisplay(
+            f"**마를렌 자율 응답 채널** - 현재: {self._marlene_channel_text}\n"
+            "지정 채널에서는 호명 없이도 AI가 자연스럽게 끼어들어요. 최대 5개. "
+            "다시 선택하면 덮어써집니다."
+        ))
+        marlene_select = discord.ui.ChannelSelect(
+            placeholder="마를렌이 자율 응답할 채널 선택 (최대 5개)",
+            channel_types=[discord.ChannelType.text],
+            min_values=0,
+            max_values=5,
+        )
+        marlene_select.callback = self._on_marlene_channels_select
+        controls.append(discord.ui.ActionRow(marlene_select))
 
         controls.append(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
 
@@ -155,7 +197,7 @@ class SettingsLayoutView(discord.ui.LayoutView):
         btn_items = [chat_btn, dm_btn, dashboard_btn]
 
         if is_admin:
-            test_btn = discord.ui.Button(label="테스트", style=discord.ButtonStyle.secondary)
+            test_btn = discord.ui.Button(label="유튜브 알림 테스트", style=discord.ButtonStyle.secondary)
             test_btn.callback = self._on_test
             btn_items.append(test_btn)
 
@@ -186,6 +228,37 @@ class SettingsLayoutView(discord.ui.LayoutView):
             guild_name=self.guild.name,
             announcement_channel_name=channel_name
         )
+        await self._rebuild(interaction)
+
+    @staticmethod
+    def _format_channel_list(guild: discord.Guild, channel_ids: list[int]) -> str:
+        """채널 ID 목록 → '#ch1, #ch2' 텍스트. 빈 리스트는 '미설정'."""
+        if not channel_ids:
+            return "미설정"
+        names = []
+        for cid in channel_ids:
+            ch = guild.get_channel(int(cid))
+            names.append(f"#{ch.name}" if ch else f"(삭제된 채널 {cid})")
+        return ", ".join(names)
+
+    async def _on_debi_channels_select(self, interaction: discord.Interaction):
+        await self._save_solo_channels(interaction, "debi")
+
+    async def _on_marlene_channels_select(self, interaction: discord.Interaction):
+        await self._save_solo_channels(interaction, "marlene")
+
+    async def _save_solo_channels(self, interaction: discord.Interaction, identity: str):
+        raw_values = interaction.data.get("values", []) or []
+        channel_ids = []
+        for v in raw_values:
+            try:
+                channel_ids.append(int(v))
+            except (TypeError, ValueError):
+                continue
+        try:
+            config.set_solo_chat_channels(self.guild.id, identity, channel_ids)
+        except Exception as e:
+            print(f"[오류] solo 채널 저장 실패 ({identity}): {e}", flush=True)
         await self._rebuild(interaction)
 
     async def _on_voice_select(self, interaction: discord.Interaction):

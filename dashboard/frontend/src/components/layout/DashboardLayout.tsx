@@ -62,6 +62,7 @@ export default function DashboardLayout({ children }: Props) {
         { id: 'general', label: '일반', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
         { id: 'welcome', label: '인사말', icon: 'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z' },
         { id: 'tts', label: 'TTS', icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' },
+        { id: 'solo-chat', label: '솔로봇 대화', icon: 'M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z' },
       ]
     },
     {
@@ -191,7 +192,7 @@ export default function DashboardLayout({ children }: Props) {
           to="/"
           className="w-12 h-12 rounded-2xl bg-discord-dark hover:rounded-xl transition-all group relative overflow-hidden flex items-center justify-center p-0.5"
         >
-          <img src="" alt="Home" className="w-full h-full object-cover rounded-[14px] group-hover:rounded-[10px] transition-all" />
+          <img src={LOGO} alt="Home" className="w-full h-full object-cover rounded-[14px] group-hover:rounded-[10px] transition-all" />
           {/* Tooltip */}
           <div className="absolute left-full ml-4 px-3 py-2 bg-discord-darkest rounded-md text-white text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg">
             홈

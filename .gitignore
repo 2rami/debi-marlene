@@ -180,3 +180,7 @@ finetune/adapter_qwen3/
 finetune/thinker_mlx_4bit/
 finetune/__pycache__/
 .firecrawl/
+
+# SQLite runtime (WAL/SHM) — 런타임 상태, 커밋 금지
+data/memory.db-shm
+data/memory.db-wal

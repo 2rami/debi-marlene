@@ -14,6 +14,7 @@ import OnboardingSettings from '../components/server/OnboardingSettings'
 import QuizDashboard from '../components/server/QuizDashboard'
 import TTSSettings from '../components/server/TTSSettings'
 import ChannelPurge from '../components/server/ChannelPurge'
+import SoloChatSettings from '../components/server/SoloChatSettings'
 
 interface NotifToggleProps {
   title: string
@@ -316,6 +317,11 @@ export default function ServerManagement() {
               guildId={guildId!}
               onSave={(features) => saveSettings(features as Partial<ServerSettings['features']>)}
             />
+          )}
+
+          {/* 솔로봇 대화 채널 */}
+          {activeTab === 'solo-chat' && (
+            <SoloChatSettings channels={channels} guildId={guildId!} />
           )}
 
           {/* TTS */}

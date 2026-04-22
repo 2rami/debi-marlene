@@ -19,7 +19,6 @@ import PortfolioKrafton from './pages/PortfolioKrafton'
 import PortfolioChrono from './pages/PortfolioChrono'
 import PortfolioNimbleNeuron from './pages/PortfolioNimbleNeuron'
 import PortfolioNimbleNeuronPrint from './pages/PortfolioNimbleNeuronPrint'
-import PortfolioNexon from './pages/PortfolioNexon'
 import NotFound from './pages/NotFound'
 
 function ScrollToTop() {
@@ -54,7 +53,6 @@ function App() {
           <Route path="/portfolio/chrono" element={<PortfolioChrono />} />
           <Route path="/portfolio/nimble-neuron" element={<PortfolioNimbleNeuron />} />
           <Route path="/portfolio/nimble-neuron/print" element={<PortfolioNimbleNeuronPrint />} />
-          <Route path="/portfolio/nexon" element={<PortfolioNexon />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>

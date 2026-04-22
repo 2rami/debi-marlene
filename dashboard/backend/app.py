@@ -9,13 +9,14 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
+# Load environment variables BEFORE importing routes
+# (routes read os.getenv at module level)
+load_dotenv()
+
 from routes.auth import auth_bp
 from routes.servers import servers_bp
 from routes.premium import premium_bp
 from routes.quiz import quiz_bp
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(

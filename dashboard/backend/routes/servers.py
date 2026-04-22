@@ -1374,3 +1374,69 @@ def check_community_status(guild_id):
         'isCommunity': 'COMMUNITY' in features,
         'features': features
     })
+
+
+def _ensure_run_on_path():
+    # welcome-preview와 동일한 패턴 (repo 루트를 sys.path에 추가)
+    import sys
+    for p in ['/app', os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))]:
+        if p not in sys.path:
+            sys.path.insert(0, p)
+
+
+@servers_bp.route('/servers/<guild_id>/solo-chat-channels', methods=['GET'])
+@admin_required
+def get_solo_chat_channels_route(guild_id):
+    """솔로봇(debi/marlene) 각자 자율 응답할 채널 목록 조회"""
+    try:
+        _ensure_run_on_path()
+        from run.core.config import get_solo_chat_channels
+        # JS Number는 19자리 snowflake 정밀도 못 지킴 → str로 직렬화
+        return jsonify({
+            'debi': [str(cid) for cid in get_solo_chat_channels(guild_id, 'debi')],
+            'marlene': [str(cid) for cid in get_solo_chat_channels(guild_id, 'marlene')],
+        })
+    except Exception as e:
+        logger.exception(f'get_solo_chat_channels failed: {e}')
+        return jsonify({'error': str(e)}), 500
+
+
+@servers_bp.route('/servers/<guild_id>/solo-chat-channels', methods=['PUT'])
+@admin_required
+def set_solo_chat_channels_route(guild_id):
+    """솔로봇 채널 목록 저장 (덮어쓰기). body: {"debi": [int], "marlene": [int]}"""
+    data = request.get_json(silent=True) or {}
+    debi_ids = data.get('debi', [])
+    marlene_ids = data.get('marlene', [])
+
+    if not isinstance(debi_ids, list) or not isinstance(marlene_ids, list):
+        return jsonify({'error': 'debi/marlene must be arrays of channel ids'}), 400
+
+    try:
+        debi_ids_int = [int(x) for x in debi_ids]
+        marlene_ids_int = [int(x) for x in marlene_ids]
+    except (TypeError, ValueError) as e:
+        return jsonify({'error': f'channel ids must be integers: {e}'}), 400
+
+    try:
+        _ensure_run_on_path()
+        from run.core.config import set_solo_chat_channels
+        ok_debi = set_solo_chat_channels(guild_id, 'debi', debi_ids_int)
+        ok_marlene = set_solo_chat_channels(guild_id, 'marlene', marlene_ids_int)
+        if not (ok_debi and ok_marlene):
+            return jsonify({'error': 'Failed to save solo chat channels'}), 500
+
+        user = session.get('user', {})
+        log_dashboard_action(
+            action_type='solo_chat_channels_update',
+            user_id=user.get('id'),
+            user_name=user.get('username'),
+            guild_id=guild_id,
+            details={'debi_count': len(debi_ids_int), 'marlene_count': len(marlene_ids_int)}
+        )
+        return jsonify({'success': True})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logger.exception(f'set_solo_chat_channels failed: {e}')
+        return jsonify({'error': str(e)}), 500

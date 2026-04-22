@@ -354,6 +354,94 @@ class ManagedAgentsClient:
 
                 return self._summarize_player_data(data)
 
+            if name == "get_character_stats":
+                from run.services.eternal_return.api_client import get_character_stats
+                period = int(tool_input.get("period", 7) or 7)
+                stats_data = await get_character_stats(dt=period, team_mode="SQUAD", tier="diamond_plus")
+                if not stats_data:
+                    return "캐릭터 통계 데이터를 가져오지 못함."
+
+                channel = getattr(self, "_current_channel", None)
+                if channel is not None:
+                    try:
+                        from run.views.character_view import CharacterStatsView
+                        view = CharacterStatsView(stats_data, period=period)
+                        await channel.send(view=view)
+                        logger.info("CharacterStatsView 전송 완료 (period=%d)", period)
+                    except Exception as e:
+                        logger.warning("CharacterStatsView 전송 실패: %s", e)
+
+                return self._summarize_character_stats(stats_data, period)
+
+            if name == "get_season_info":
+                from run.services.eternal_return.api_client import get_current_season_info
+                info = get_current_season_info()
+                season_name = info.get("name", "알 수 없음")
+                day = info.get("day", 0)
+                start_date = info.get("start_date")
+
+                channel = getattr(self, "_current_channel", None)
+                if channel is not None:
+                    try:
+                        import discord
+                        desc_lines = [f"**{season_name}**"]
+                        if day > 0:
+                            desc_lines[0] += f" | {day}일차"
+                        if start_date:
+                            desc_lines.append(f"시작일: {start_date.strftime('%Y.%m.%d')}")
+                        embed = discord.Embed(
+                            title="이터널 리턴 시즌 정보",
+                            description="\n".join(desc_lines),
+                            color=0x4A90D9,
+                        )
+                        embed.set_thumbnail(
+                            url="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1049590/fa56f360467f675b777dd18a6315f00c84a7b9c4/header.jpg"
+                        )
+                        await channel.send(embed=embed)
+                    except Exception as e:
+                        logger.warning("시즌 Embed 전송 실패: %s", e)
+
+                summary = f"현재 시즌: {season_name}"
+                if day > 0:
+                    summary += f" ({day}일차)"
+                return summary
+
+            if name == "get_online_players":
+                import aiohttp
+                STEAM_URL = "https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=1049590"
+                count = None
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(STEAM_URL, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                            if resp.status == 200:
+                                d = await resp.json()
+                                if d.get("response", {}).get("result") == 1:
+                                    count = d["response"]["player_count"]
+                except Exception as e:
+                    logger.warning("Steam API 호출 실패: %s", e)
+
+                if count is None:
+                    return "동접자 수를 가져오지 못함 (Steam API 오류)."
+
+                channel = getattr(self, "_current_channel", None)
+                if channel is not None:
+                    try:
+                        import discord
+                        embed = discord.Embed(
+                            title="이터널 리턴 동접자",
+                            description=f"현재 **{count:,}**명이 플레이 중",
+                            color=0x1B2838,
+                        )
+                        embed.set_thumbnail(
+                            url="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1049590/fa56f360467f675b777dd18a6315f00c84a7b9c4/header.jpg"
+                        )
+                        embed.set_footer(text="Steam 기준")
+                        await channel.send(embed=embed)
+                    except Exception as e:
+                        logger.warning("동접 Embed 전송 실패: %s", e)
+
+                return f"현재 동접자 {count:,}명 (Steam 기준)"
+
             return f"알 수 없는 도구: {name}"
         except Exception as e:
             logger.error("도구 %s 실행 실패: %s", name, e)
@@ -380,6 +468,44 @@ class ManagedAgentsClient:
         if total_games is not None:
             parts.append(f"총 게임: {total_games}")
         return " / ".join(parts)
+
+    def _summarize_character_stats(self, stats_data: dict, period: int) -> str:
+        from run.services.eternal_return.api_client import game_data
+        raw = stats_data.get("characterStatSnapshot", {}).get("characterStats", []) or []
+        total_games_all = sum(c.get("count", 0) for c in raw)
+
+        processed = []
+        for c in raw:
+            char_id = c.get("key", 0)
+            games = c.get("count", 0)
+            weapons = c.get("weaponStats", []) or []
+            if weapons:
+                wins = sum(w.get("win", 0) for w in weapons)
+                wgames = sum(w.get("count", 0) for w in weapons)
+                win_rate = (wins / wgames * 100) if wgames else 0
+                tier_score = weapons[0].get("tierScore", 0)
+            else:
+                win_rate, tier_score = 0, 0
+            pick_rate = (games / total_games_all * 100) if total_games_all else 0
+            processed.append({
+                "name": game_data.get_character_name(char_id) or f"#{char_id}",
+                "win_rate": win_rate,
+                "pick_rate": pick_rate,
+                "tier_score": tier_score,
+                "games": games,
+            })
+
+        processed.sort(key=lambda x: x["tier_score"], reverse=True)
+        top = processed[:5]
+        if not top:
+            return f"최근 {period}일 캐릭터 통계 없음."
+
+        lines = [f"최근 {period}일 다이아+ 티어순 상위 5:"]
+        for i, c in enumerate(top, 1):
+            lines.append(
+                f"{i}. {c['name']} — 승률 {c['win_rate']:.1f}% / 픽률 {c['pick_rate']:.1f}%"
+            )
+        return "\n".join(lines)
 
     async def health_check(self) -> bool:
         return bool(self._agent_id and self._env_id)

@@ -18,7 +18,7 @@ import discord
 from discord.ext import commands
 
 from run.core import config
-from run.services.chat.chime_decider import ChimeInDecider
+from run.services.chat.chime_decider import ChimeInDecider, has_keyword, is_question
 
 logger = logging.getLogger(__name__)
 
@@ -73,17 +73,31 @@ class ChimeInCog(commands.Cog, name="끼어들기"):
         else:
             # 유저 발화 → streak 리셋
             self.decider.on_user_message(gid, cid)
-            # 자기 페르소나가 호명된 경우는 ChatCog가 처리 → chime 스킵
-            from run.cogs.chat import _trigger_pattern
-            if _trigger_pattern.search(message.content):
-                return
+
+        # 솔로봇은 지정 채널에서만 반응. 비지정 채널은 완전 무반응.
+        designated_channels = config.get_solo_chat_channels(gid, self.identity)
+        if cid not in designated_channels:
+            return
+
+        # 키워드 호명은 ChatCog이 Managed Agent 경유로 처리(tool 사용). chime 스킵.
+        # identity별로 분리 — 데비는 데비 호명만, 마를렌은 마를렌 호명만.
+        if not is_bot and has_keyword(message.content, self.identity):
+            return
+
+        # 질문 vs 일반 채팅
+        question_hit = not is_bot and is_question(message.content)
 
         # 최근 맥락 수집
         recent = await self._collect_context(message)
 
-        reply = await self.decider.maybe_chime(
-            gid, cid, recent, triggering_author=message.author.display_name
-        )
+        # 타이핑 표시 — judge 호출 동안 Discord에 "입력 중..." 표시.
+        async with message.channel.typing():
+            reply = await self.decider.maybe_chime(
+                gid, cid, recent,
+                triggering_author=message.author.display_name,
+                relaxed=True,
+                question_hit=question_hit,
+            )
         if reply:
             try:
                 await message.channel.send(reply)

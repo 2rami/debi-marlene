@@ -236,6 +236,39 @@ def save_guild_settings(guild_id, announcement_id=None, chat_id=None, guild_name
 
     return save_settings(settings, silent=silent)
 
+
+# ─────── 솔로봇 채널 지정 (debi/marlene 각자 응답할 채널 목록) ───────
+
+def get_solo_chat_channels(guild_id, identity: str) -> list[int]:
+    """특정 identity('debi'/'marlene')의 자율 응답 채널 ID 목록 반환."""
+    gs = get_guild_settings(guild_id)
+    raw = (gs.get("solo_chat_channels") or {}).get(identity, []) or []
+    result = []
+    for v in raw:
+        try:
+            result.append(int(v))
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def set_solo_chat_channels(guild_id, identity: str, channel_ids: list[int]) -> bool:
+    """특정 identity의 자율 응답 채널 목록을 저장 (덮어쓰기). identity는 'debi' 또는 'marlene'."""
+    if identity not in ("debi", "marlene"):
+        raise ValueError(f"identity는 'debi'/'marlene'만 허용: {identity}")
+
+    guild_id_str = str(guild_id)
+    settings = load_settings()
+    if guild_id_str not in settings.get("guilds", {}):
+        settings.setdefault("guilds", {})[guild_id_str] = {}
+
+    guild_cfg = settings["guilds"][guild_id_str]
+    solo_cfg = guild_cfg.setdefault("solo_chat_channels", {})
+    solo_cfg[identity] = [int(c) for c in (channel_ids or [])]
+
+    return save_settings(settings)
+
+
 def load_removed_servers():
     """GCS에서 삭제된 서버 목록을 로드합니다."""
     client = get_gcs_client()

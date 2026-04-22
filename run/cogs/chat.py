@@ -1,9 +1,15 @@
 """
 대화 Cog
 
-데비&마를렌 캐릭터 AI 대화
-키워드 트리거: 데비, 마를렌, 뎁마 등 이름/호칭이 포함된 메시지에 자동 반응
-    → 키워드는 LLM에게도 원문 그대로 전달 (페르소나 라우팅 신호로 사용)
+데비&마를렌 캐릭터 AI 대화.
+
+진입점:
+    - unified(기존봇): /대화 슬래시 커맨드만 (이 Cog의 chat_slash)
+    - debi/marlene 솔로봇:
+      - 지정 채널 + 호명 키워드 → on_message 경로로 Managed Agent 호출 (tool 사용 가능)
+      - 지정 채널 + 비키워드 → ChimeInCog의 자율 판단만 (tool 없이 가벼운 응답)
+      - 비지정 채널 → 완전 무반응
+
 패치노트 검색 연동: "에이든 패치" -> V2 컴포넌트 표시
 대화 메모리: (guild_id, user_id) 단위로 SQLite 저장, Claude 자율 도구로 관리
 """
@@ -48,30 +54,8 @@ def _inc_daily_quota(guild_id) -> int:
     _daily_counts[key] = _daily_counts.get(key, 0) + 1
     return _daily_counts[key]
 
-# 트리거 키워드: BOT_IDENTITY 기준 분기.
-# unified(기본): 기존봇 — 데비/마를렌/뎁마 전부.
-# debi 솔로봇: 자기 이름만 반응. 마를렌 호칭은 무시 (끼어들기는 Phase 2 chime_in Cog 담당).
-# marlene 솔로봇: 자기 이름만 반응.
 from run.core import config as _bot_config
 _IDENTITY = _bot_config.BOT_IDENTITY
-
-if _IDENTITY == "debi":
-    TRIGGER_WORDS = ["데비야", "데비나", "데비아"]
-    TRIGGER_NAMES = ["데비"]
-elif _IDENTITY == "marlene":
-    TRIGGER_WORDS = ["마를렌아", "마를렌야", "마를렌나"]
-    TRIGGER_NAMES = ["마를렌"]
-else:  # unified (기존)
-    TRIGGER_WORDS = [
-        "데비야", "데비나", "데비아",
-        "마를렌아", "마를렌야", "마를렌나",
-        "뎁마야", "뎁마아", "뎁마나",
-    ]
-    TRIGGER_NAMES = ["데비", "마를렌", "뎁마"]
-
-_trigger_pattern = re.compile(
-    "|".join(re.escape(w) for w in TRIGGER_WORDS + TRIGGER_NAMES)
-)
 
 # 프롬프트 인젝션 감지 패턴
 _injection_patterns = re.compile(
@@ -133,8 +117,8 @@ class ChatCog(commands.Cog, name="대화"):
         self.bot = bot
         self.client = get_chat_client()
         self.chat_agent = build_chat_agent(self.client)
-        # unified: /대화 슬래시 전용 (on_message 무시)
-        # debi/marlene 솔로: 키워드 트리거 (on_message)만
+        # unified: /대화 슬래시 전용 (on_message 없음)
+        # debi/marlene 솔로: 지정 채널 + 호명 키워드 시 on_message → Managed Agent (tool 사용)
         self.identity = _IDENTITY
 
     async def cog_unload(self):
@@ -142,45 +126,55 @@ class ChatCog(commands.Cog, name="대화"):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        """솔로봇 전용 키워드 응답.
+
+        지정 채널 + 호명 키워드 ('데비야' / '마를렌아' 등)가 매칭되면
+        Managed Agent 경유로 응답 (tool: search_player_stats, get_character_stats 등 사용 가능).
+        그 외 메시지(비키워드)는 ChimeInCog이 가벼운 judge로 처리.
+        """
         if message.author.bot:
             return
-        # unified(기존봇)는 /대화 슬래시 전용 — 키워드 트리거 무시.
-        # 솔로봇(debi/marlene)만 on_message 경로로 진입.
         if self.identity not in ("debi", "marlene"):
             return
-        if not _trigger_pattern.search(message.content):
+        if not message.guild:
             return
 
-        # 서버별 대화 토글 체크
-        if message.guild:
-            from run.core import config
-            guild_settings = config.load_settings().get("guilds", {}).get(str(message.guild.id), {})
-            if not guild_settings.get("chat_enabled", True):
-                return
+        from run.core import config as _cfg
+        from run.services.chat.chime_decider import has_keyword as _has_keyword
 
+        # 지정 채널 외에서는 완전 무반응
+        designated = _cfg.get_solo_chat_channels(message.guild.id, self.identity)
+        if message.channel.id not in designated:
+            return
+
+        # 키워드 호명이 아니면 여기서 처리 안 함 (ChimeInCog 담당).
+        # identity별 분리 — 데비는 '데비/뎁마'만, 마를렌은 '마를렌/뎁마'만 반응.
+        if not _has_keyword(message.content, self.identity):
+            return
+
+        # 대화 토글 확인
+        guild_settings = _cfg.load_settings().get("guilds", {}).get(str(message.guild.id), {})
+        if not guild_settings.get("chat_enabled", True):
+            return
+
+        # 프롬프트 인젝션 방어
         if _injection_patterns.search(message.content):
-            await message.reply("데비: 뭔가 수상한 냄새가 나는데?\n마를렌: ...그런 건 안 통해.", mention_author=False)
+            await message.reply("...그런 건 안 통해.", mention_author=False)
             return
 
-        # 키워드 스트립 제거 (2026-04-21): LLM이 "데비야/마를렌아/뎁마" 호칭을 직접 보고
-        # 어느 캐릭터를 호출했는지 페르소나 라우팅에 활용하도록 원문 그대로 전달.
-        await self._respond(message, message.content)
+        await self._respond_via_agent(message, message.content)
 
-    async def _respond(self, message: discord.Message, user_msg: str):
-        """키워드 트리거 응답"""
+    async def _respond_via_agent(self, message: discord.Message, user_msg: str):
+        """Managed Agent 경유 응답 (tool 사용 가능)."""
         guild_id = message.guild.id if message.guild else None
 
-        # 서버별 일일 쿼터 체크 (Managed Agents 비용 방지)
+        # 일일 쿼터
         if _over_daily_quota(guild_id):
             current = _daily_counts.get(_chat_quota_key(guild_id), 0)
             await message.reply(
-                f"데비: ...오늘은 이미 {current}번 얘기해서 좀 쉴래.\n"
-                f"마를렌: ...내일 다시 불러. (하루 {DAILY_CHAT_LIMIT}번 제한)",
+                f"...오늘은 이미 {current}번 얘기해서 좀 쉴래. 내일 다시 불러. "
+                f"(하루 {DAILY_CHAT_LIMIT}번 제한)",
                 mention_author=False,
-            )
-            print(
-                f"[쿼터] 서버 {guild_id or 'dm'} 일일 한도({DAILY_CHAT_LIMIT}) 도달 — 응답 스킵",
-                flush=True,
             )
             return
 
@@ -190,28 +184,20 @@ class ChatCog(commands.Cog, name="대화"):
                 guild_id=guild_id,
                 guild_name=message.guild.name if message.guild else None,
                 channel_id=message.channel.id,
-                channel_name=getattr(message.channel, 'name', 'DM'),
+                channel_name=getattr(message.channel, "name", "DM"),
             )
         except Exception:
             pass
 
-        # 쿼터 카운트 증가 (실제 LLM 호출 전 증가 → 실패해도 카운트 차감 안 함. 스팸 억제)
         current_count = _inc_daily_quota(guild_id)
-
         key = _history_key(guild_id, message.author.id)
         history = _histories.get(key, [])
 
-        # corrections 저장은 이제 Claude의 remember_about_user 도구 자율 판단으로 옮김.
-        # 봇 측 regex 트리거(detect_correction)는 false positive 많아서 제거 (2026-04-20).
-
-        # health check -> 콜드스타트 감지 (Discord 쪽 side-effect라 그래프 외부에 둠)
         loading_msg = None
         is_cold = not await self.client.health_check()
         if is_cold:
             loading_msg = await message.reply("...잠깐만, 아직 덜 일어났어.", mention_author=False)
 
-        # LangGraph StateGraph 실행: classify → (rag | skip) → memory → llm
-        # guild_id: per-guild 메모리 스코프, discord_channel: Managed Agents가 StatsLayoutView 전송할 때 씀
         async with message.channel.typing():
             result = await self.chat_agent.ainvoke({
                 "user_message": user_msg,
@@ -222,17 +208,14 @@ class ChatCog(commands.Cog, name="대화"):
             })
 
         response = result.get("response")
-        elapsed = result.get("elapsed", 0.0)
         patch_info = result.get("patch_info")
-        corrections = result.get("corrections")
         intent = result.get("intent", "general")
 
-        ctx_tag = " [+patch]" if patch_info else ""
-        cold_tag = " [cold]" if is_cold else ""
-        mem_tag = " [+mem]" if corrections else ""
-        intent_tag = f" [{intent}]"
         quota_tag = f" [{current_count}/{DAILY_CHAT_LIMIT}]"
-        print(f"[대화] {elapsed:.1f}s{intent_tag}{ctx_tag}{mem_tag}{cold_tag}{quota_tag} | Q: {user_msg[:30]} | A: {(response or '-')[:40]}", flush=True)
+        print(
+            f"[대화:{self.identity}] [{intent}]{quota_tag} Q: {user_msg[:30]} | A: {(response or '-')[:40]}",
+            flush=True,
+        )
 
         if not response:
             fail_text = "...연결이 안 돼."
@@ -242,19 +225,16 @@ class ChatCog(commands.Cog, name="대화"):
                 await message.reply(fail_text, mention_author=False)
             return
 
-        # 히스토리 저장
         history.append({"user": user_msg, "assistant": response})
         if len(history) > MAX_HISTORY:
             history = history[-MAX_HISTORY:]
         _histories[key] = history
 
-        # 캐릭터 대사 전송
         if loading_msg:
             await loading_msg.edit(content=response)
         else:
             await message.reply(response, mention_author=False)
 
-        # 패치 변경사항이 있으면 V2 Container 추가 전송
         if patch_info and patch_info.get("changes"):
             try:
                 patch_view = _build_patch_view(patch_info)
@@ -266,17 +246,27 @@ class ChatCog(commands.Cog, name="대화"):
     @app_commands.describe(message="말하고 싶은 내용")
     async def chat_slash(self, interaction: discord.Interaction, message: str):
         """기존봇(unified) 전용 슬래시 명령어. 솔로봇은 키워드 트리거로 유도."""
-        # 솔로봇은 슬래시 지원 X — 유저에게 키워드 트리거 사용 안내 (사실 setup 단계에서
-        # tree.remove_command로 이 명령어 자체가 솔로 프로필에 노출되지 않지만, 방어용)
+        # 솔로봇은 슬래시 지원 X — 안내 메시지 (setup에서 tree 제거되지만 방어용)
         if self.identity in ("debi", "marlene"):
             await interaction.response.send_message(
-                "이 봇은 `데비야` 또는 `마를렌아` 로 호명해서 말 걸어봐.",
+                "이 봇은 지정한 채팅 채널에서 자동으로 끼어들어요. `/설정` 에서 응답 채널을 지정해 주세요.",
                 ephemeral=True,
             )
             return
 
         guild_id = interaction.guild.id if interaction.guild else None
         user_id = interaction.user.id
+
+        # 서버별 대화 토글 체크 — /설정의 "대화" 버튼으로 끌 수 있음
+        if interaction.guild:
+            from run.core import config
+            guild_settings = config.load_settings().get("guilds", {}).get(str(interaction.guild.id), {})
+            if not guild_settings.get("chat_enabled", True):
+                await interaction.response.send_message(
+                    "이 서버에서는 대화 기능이 꺼져 있어요. `/설정` 에서 켤 수 있어요.",
+                    ephemeral=True,
+                )
+                return
 
         # 쿼터
         if _over_daily_quota(guild_id):

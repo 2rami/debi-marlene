@@ -22,7 +22,16 @@ servers_bp = Blueprint('servers', __name__)
 # 가 401 을 내고 서버 목록이 전부 회색 처리되던 회귀도 근본 차단.
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID')
+# 솔로봇 초대 URL 생성 + guild 멤버 확인용 (client_id == bot user id).
+# 메인 봇 토큰으로 /guilds/{gid}/members/{solo_client_id} 를 조회해 소속 여부 판단.
+SOLO_DEBI_CLIENT_ID = os.getenv('SOLO_DEBI_CLIENT_ID')
+SOLO_MARLENE_CLIENT_ID = os.getenv('SOLO_MARLENE_CLIENT_ID')
 DISCORD_API_URL = 'https://discord.com/api/v10'
+
+# VIEW_CHANNEL(1<<10) + SEND_MESSAGES(1<<11) + EMBED_LINKS(1<<14) +
+# ATTACH_FILES(1<<15) + READ_MESSAGE_HISTORY(1<<16) + SEND_VOICE_MESSAGES(1<<38)
+# 합. 솔로봇이 대화 끼어들기에 필요한 최소+a.
+SOLO_BOT_INVITE_PERMISSIONS = 274878024704
 
 if not DISCORD_TOKEN:
     logger.error('DISCORD_TOKEN 환경변수가 없습니다. 서버 목록이 모두 회색으로 표시됩니다.')
@@ -1446,3 +1455,66 @@ def set_solo_chat_channels_route(guild_id):
     except Exception as e:
         logger.exception(f'set_solo_chat_channels failed: {e}')
         return jsonify({'error': str(e)}), 500
+
+
+def _build_solo_invite_url(client_id, guild_id):
+    # disable_guild_select=true → 사용자가 다른 서버로 초대 못 돌리게 고정.
+    return (
+        f'https://discord.com/api/oauth2/authorize'
+        f'?client_id={client_id}'
+        f'&permissions={SOLO_BOT_INVITE_PERMISSIONS}'
+        f'&scope=bot%20applications.commands'
+        f'&guild_id={guild_id}'
+        f'&disable_guild_select=true'
+    )
+
+
+def _check_solo_bot_in_guild(guild_id, solo_client_id):
+    # 메인 봇이 서버에 있으면 같은 길드의 다른 봇 멤버도 조회 가능.
+    # 404 = 길드에 없음. 200 = 있음. 그 외는 None(판단 불가) 반환.
+    if not solo_client_id:
+        return None
+    response = discord_bot_request(f'/guilds/{guild_id}/members/{solo_client_id}')
+    if response.ok:
+        return True
+    if response.status_code == 404:
+        return False
+    logger.warning(
+        f'solo bot membership check failed for {solo_client_id} in {guild_id}: '
+        f'{response.status_code} {response.text[:200]}'
+    )
+    return None
+
+
+@servers_bp.route('/servers/<guild_id>/solo-bots-status', methods=['GET'])
+@admin_required
+def get_solo_bots_status(guild_id):
+    """debi/marlene 솔로봇이 이 서버에 있는지 + 없으면 초대 URL 반환."""
+    # 메인 봇이 해당 길드에 있어야 members 조회가 가능. 없으면 상태 판단 불가
+    # → invite_url은 줘서 사용자가 메인/솔로 둘 다 초대할 수 있게 한다.
+    main_in_guild_resp = discord_bot_request(f'/guilds/{guild_id}')
+    main_accessible = main_in_guild_resp.ok
+
+    def build_entry(client_id):
+        if not client_id:
+            return {
+                'in_guild': False,
+                'invite_url': None,
+                'configured': False,
+            }
+        if main_accessible:
+            in_guild = _check_solo_bot_in_guild(guild_id, client_id)
+        else:
+            in_guild = None
+        return {
+            'in_guild': bool(in_guild) if in_guild is not None else False,
+            'in_guild_unknown': in_guild is None,
+            'invite_url': _build_solo_invite_url(client_id, guild_id),
+            'configured': True,
+        }
+
+    return jsonify({
+        'debi': build_entry(SOLO_DEBI_CLIENT_ID),
+        'marlene': build_entry(SOLO_MARLENE_CLIENT_ID),
+        'mainBotInGuild': main_accessible,
+    })

@@ -17,6 +17,19 @@ interface Props {
 type Identity = 'debi' | 'marlene'
 type SoloMap = Record<Identity, string[]>
 
+interface SoloBotStatus {
+  in_guild: boolean
+  in_guild_unknown?: boolean
+  invite_url: string | null
+  configured: boolean
+}
+
+interface SoloBotsStatusResponse {
+  debi: SoloBotStatus
+  marlene: SoloBotStatus
+  mainBotInGuild: boolean
+}
+
 // Discord snowflake는 19자리 (> 2^53). JS Number로 다루면 정밀도 손실되므로
 // 항상 string으로 정규화. 중복도 제거.
 const normalizeIds = (raw: unknown): string[] => {
@@ -51,6 +64,7 @@ export default function SoloChatSettings({ channels, guildId }: Props) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [backendMissing, setBackendMissing] = useState(false)
+  const [botStatus, setBotStatus] = useState<SoloBotsStatusResponse | null>(null)
 
   const textChannels = channels.filter(c => c.type === 0)
 
@@ -97,6 +111,19 @@ export default function SoloChatSettings({ channels, guildId }: Props) {
     if (guildId) fetchSolo()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guildId, channels])
+
+  useEffect(() => {
+    // 솔로봇 소속 여부 + 초대 URL 조회. 저장 동작과 무관하므로 독립 훅으로 분리.
+    const fetchStatus = async () => {
+      try {
+        const res = await api.get<SoloBotsStatusResponse>(`/servers/${guildId}/solo-bots-status`)
+        setBotStatus(res.data)
+      } catch (err) {
+        console.error('Failed to load solo bots status:', err)
+      }
+    }
+    if (guildId) fetchStatus()
+  }, [guildId])
 
   const persist = async (next: SoloMap) => {
     setSaving(true)
@@ -163,14 +190,21 @@ export default function SoloChatSettings({ channels, guildId }: Props) {
   const renderIdentity = (identity: Identity) => {
     const meta = IDENTITY_META[identity]
     const picked = selection[identity]
+    const status = botStatus?.[identity]
+    // 서버에 솔로봇이 없으면 채널 설정 UI 대신 초대 버튼을 보여준다.
+    // status === null(로딩/엔드포인트 없음) 이면 기존 UI 유지 — 하위 호환.
+    const needsInvite = status?.configured && !status.in_guild && !status.in_guild_unknown
+
     return (
       <div className="p-4 bg-discord-dark rounded-lg">
         <div className="flex items-center justify-between mb-2">
           <label className="block font-medium text-white">
             <span className={meta.accent}>{meta.label}</span> 응답 채널
-            <span className="ml-2 text-xs text-discord-muted">({picked.length}/{MAX_CHANNELS})</span>
+            {!needsInvite && (
+              <span className="ml-2 text-xs text-discord-muted">({picked.length}/{MAX_CHANNELS})</span>
+            )}
           </label>
-          {picked.length > 0 && (
+          {!needsInvite && picked.length > 0 && (
             <button
               onClick={() => clearIdentity(identity)}
               disabled={saving}
@@ -180,6 +214,35 @@ export default function SoloChatSettings({ channels, guildId }: Props) {
             </button>
           )}
         </div>
+
+        {needsInvite ? (
+          <div className="py-4">
+            <p className="text-sm text-discord-muted mb-3">
+              이 서버에 <span className={meta.accent}>{meta.label}</span> 솔로봇이 아직 초대되지 않았습니다.
+              채널을 지정하려면 먼저 봇을 초대해주세요.
+            </p>
+            <button
+              onClick={() => {
+                if (status?.invite_url) {
+                  window.open(status.invite_url, '_blank', 'noopener,noreferrer')
+                }
+              }}
+              disabled={!status?.invite_url}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 ${meta.border} ${meta.bg} ${meta.accent} hover:brightness-125 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              <span>{meta.label} 솔로봇 초대하기</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </button>
+            <p className="text-xs text-discord-muted mt-2">
+              초대 후 이 페이지를 새로고침하면 채널 설정이 나타납니다.
+            </p>
+          </div>
+        ) : (
+          <>
         <p className="text-xs text-discord-muted mb-3">
           채널을 클릭해 {meta.label} 솔로봇이 대화에 끼어들 채널을 지정합니다. 최대 {MAX_CHANNELS}개.
         </p>
@@ -210,6 +273,8 @@ export default function SoloChatSettings({ channels, guildId }: Props) {
               )
             })}
           </div>
+        )}
+          </>
         )}
       </div>
     )

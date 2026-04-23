@@ -16,7 +16,6 @@ import AuthCallback from './pages/AuthCallback'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import BotGuide from './pages/BotGuide'
 import PortfolioKrafton from './pages/PortfolioKrafton'
-import PortfolioChrono from './pages/PortfolioChrono'
 import PortfolioNimbleNeuron from './pages/PortfolioNimbleNeuron'
 import PortfolioNimbleNeuronPrint from './pages/PortfolioNimbleNeuronPrint'
 import NotFound from './pages/NotFound'
@@ -50,7 +49,6 @@ function App() {
           <Route path="/payment/fail" element={<PaymentFail />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/portfolio/krafton" element={<PortfolioKrafton />} />
-          <Route path="/portfolio/chrono" element={<PortfolioChrono />} />
           <Route path="/portfolio/nimble-neuron" element={<PortfolioNimbleNeuron />} />
           <Route path="/portfolio/nimble-neuron/print" element={<PortfolioNimbleNeuronPrint />} />
 

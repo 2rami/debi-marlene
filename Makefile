@@ -26,6 +26,7 @@ DASHBOARD_IMAGE_TAG = $(REGISTRY)/$(DASHBOARD_CONTAINER):latest
 .PHONY: deploy-webpanel-frontend deploy-webpanel-backend deploy-webpanel-quick logs-webpanel
 .PHONY: deploy-quick
 .PHONY: deploy-solo-debi deploy-solo-marlene start-solo-debi start-solo-marlene stop-solo-debi stop-solo-marlene logs-solo-debi logs-solo-marlene restart-solo-debi restart-solo-marlene
+.PHONY: sync-check preflight
 
 # 솔로봇 컨테이너 이름 (기존 이미지 $(IMAGE_TAG) 재사용 — 별도 빌드 불필요)
 SOLO_DEBI_NAME = debi-solo
@@ -388,3 +389,12 @@ logs-solo-marlene:
 	@echo "마를렌 솔로봇 로그 (Ctrl+C 종료):"
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker logs -f $(SOLO_MARLENE_NAME)"
+
+# ============================================================
+# env sync-check — 로컬 .env × Secret Manager × VM 해시 비교
+# ============================================================
+sync-check:
+	@bash scripts/sync_check.sh
+
+preflight: sync-check
+	@echo "preflight OK — env 일치"

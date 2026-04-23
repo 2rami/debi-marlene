@@ -274,12 +274,14 @@ deploy-dashboard-frontend: inject-dashboard-env
 	@echo "대시보드 프론트엔드 배포 완료"
 
 # 대시보드 백엔드만 배포 (Docker 재빌드 없이 빠른 배포)
+# dashboard/backend 는 run/core/config.py 등을 import 하므로 run/ 도 같이 동기화한다.
 deploy-dashboard-backend:
-	@echo "[1/3] 백엔드 파일을 VM에 업로드 중..."
+	@echo "[1/3] 백엔드 + run/ 파일을 VM에 업로드 중..."
 	@gcloud compute scp --recurse dashboard/backend $(VM_NAME):~/dashboard-backend-upload --zone=$(ZONE)
+	@gcloud compute scp --recurse run $(VM_NAME):~/dashboard-run-upload --zone=$(ZONE)
 	@echo "[2/3] 컨테이너에 복사..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker cp ~/dashboard-backend-upload/. $(DASHBOARD_CONTAINER):/app/backend/ && rm -rf ~/dashboard-backend-upload"
+		--command="docker cp ~/dashboard-backend-upload/. $(DASHBOARD_CONTAINER):/app/backend/ && docker cp ~/dashboard-run-upload/. $(DASHBOARD_CONTAINER):/app/run/ && rm -rf ~/dashboard-backend-upload ~/dashboard-run-upload"
 	@echo "[3/3] gunicorn 재시작..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker exec $(DASHBOARD_CONTAINER) supervisorctl restart gunicorn"

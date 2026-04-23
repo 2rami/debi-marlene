@@ -17,9 +17,15 @@ logger = logging.getLogger(__name__)
 
 servers_bp = Blueprint('servers', __name__)
 
-DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN') or os.getenv('DISCORD_TOKEN')
+# 봇 컨테이너들(main/solo-debi/solo-marlene)과 대시보드 모두 DISCORD_TOKEN 단일 변수를 쓴다.
+# 토큰 교체 시 한 군데만 고치면 되고, 과거 중복 변수가 stale 해서 /users/@me/guilds
+# 가 401 을 내고 서버 목록이 전부 회색 처리되던 회귀도 근본 차단.
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID')
 DISCORD_API_URL = 'https://discord.com/api/v10'
+
+if not DISCORD_TOKEN:
+    logger.error('DISCORD_TOKEN 환경변수가 없습니다. 서버 목록이 모두 회색으로 표시됩니다.')
 
 # GCS 설정
 GCS_BUCKET = os.getenv('GCS_BUCKET_NAME', 'debi-marlene-settings')
@@ -206,7 +212,7 @@ def admin_required(f):
 def discord_bot_request(endpoint, method='GET', data=None):
     """Make a request to Discord API using bot token"""
     headers = {
-        'Authorization': f'Bot {DISCORD_BOT_TOKEN}',
+        'Authorization': f'Bot {DISCORD_TOKEN}',
         'Content-Type': 'application/json',
     }
 
@@ -870,7 +876,7 @@ def send_welcome_test(guild_id):
         import requests as req
 
         headers = {
-            'Authorization': f'Bot {DISCORD_BOT_TOKEN}',
+            'Authorization': f'Bot {DISCORD_TOKEN}',
         }
         url = f'{DISCORD_API_URL}/channels/{channel_id}/messages'
 

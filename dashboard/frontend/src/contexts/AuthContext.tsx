@@ -18,6 +18,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   loading: boolean
+  refreshing: boolean
   login: () => void
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
@@ -28,8 +29,11 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  // OAuth 콜백 직후 refreshUser 가 끝나기 전에 ProtectedRoute 가 user=null 로 읽어 login()을 재호출하는 race 방지
+  const [refreshing, setRefreshing] = useState(false)
 
   const refreshUser = useCallback(async () => {
+    setRefreshing(true)
     try {
       const response = await api.get<{ user: User }>('/auth/me')
       if (response.data.user) {
@@ -39,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch {
       setUser(null)
+    } finally {
+      setRefreshing(false)
     }
   }, [])
 
@@ -67,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, refreshing, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

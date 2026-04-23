@@ -65,7 +65,7 @@
 
 @theme {
   /* Font Families */
-  --font-title: 'MemomentKkukkukk', cursive;
+  --font-title: 'MemomentKkukkukk', system-ui, sans-serif;
   --font-body: 'Paperlogy', system-ui, sans-serif;
   --font-display: 'YPairingFont', system-ui, sans-serif;
 

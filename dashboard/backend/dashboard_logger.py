@@ -10,6 +10,7 @@ from datetime import datetime, timezone, timedelta
 import os
 GCS_BUCKET = os.getenv('GCS_BUCKET_NAME', 'debi-marlene-settings')
 GCS_DASHBOARD_LOGS_KEY = 'dashboard_logs.json'
+GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'ironic-objectivist-465713-a6')
 KST = timezone(timedelta(hours=9))
 MAX_LOGS = 500
 
@@ -18,7 +19,7 @@ def log_action(action_type, user_id=None, user_name=None, guild_id=None, guild_n
     """대시보드 액션을 GCS에 기록"""
     try:
         from google.cloud import storage
-        client = storage.Client()
+        client = storage.Client(project=GCP_PROJECT_ID)
         bucket = client.bucket(GCS_BUCKET)
         blob = bucket.blob(GCS_DASHBOARD_LOGS_KEY)
 

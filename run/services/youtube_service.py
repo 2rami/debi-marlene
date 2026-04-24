@@ -75,14 +75,14 @@ async def _send_notification(channel_or_user, video_id, snippet):
 
         # 쇼츠면 데비, 일반 영상이면 마를렌
         if is_shorts:
-            char_name = "데비"
             char_color = 0x0000FF  # 파랑
-            char_image = "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/debi.png"
+            char_image = "https://panel.debimarlene.com/assets/debi.png"
+            author_text = "데비가 새로운 쇼츠를 발견했어!"
             action_text = "새로운 쇼츠를 발견했어!"
         else:
-            char_name = "마를렌"
             char_color = 0xDC143C  # 빨강
-            char_image = "https://raw.githubusercontent.com/2rami/debi-marlene/main/assets/marlen.png"
+            char_image = "https://panel.debimarlene.com/assets/marlen.png"
+            author_text = "마를렌이 새로운 영상을 가져왔어."
             action_text = "새로운 영상을 가져왔어."
 
         embed = discord.Embed(
@@ -90,7 +90,7 @@ async def _send_notification(channel_or_user, video_id, snippet):
             description=snippet.get('description', '')[:150] + '...' if snippet.get('description') else action_text,
             color=char_color
         )
-        embed.set_author(name=f"{char_name}이(가) {action_text}", icon_url=char_image)
+        embed.set_author(name=author_text, icon_url=char_image)
         embed.set_thumbnail(url=snippet['thumbnails']['high']['url'])
 
         # DM 메시지 전송

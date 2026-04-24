@@ -504,6 +504,12 @@ async def _background_init():
         print(f"[경고] 서버 정보 업데이트 태스크 시작 실패: {e}", flush=True)
 
     try:
+        if not periodic_settings_cache_refresh.is_running():
+            periodic_settings_cache_refresh.start()
+    except Exception as e:
+        print(f"[경고] settings 캐시 리프레시 태스크 시작 실패: {e}", flush=True)
+
+    try:
         await initialize_game_data()
         print("[완료] 게임 데이터 초기화 완료.", flush=True)
 
@@ -923,3 +929,10 @@ async def periodic_guild_logging():
     guild_count = len(bot.guilds)
     total_members = sum(guild.member_count for guild in bot.guilds if guild.member_count)
     sys.stdout.flush()
+
+
+@tasks.loop(seconds=30)
+async def periodic_settings_cache_refresh():
+    # 대시보드/다른 컨테이너가 GCS settings.json 저장해도 이 프로세스 in-memory 캐시는 모름.
+    # 30초마다 무효화 → 다음 load_settings 호출 시 GCS 재읽음. 솔로봇 지정 채널 drift 방지.
+    config.settings_cache = None

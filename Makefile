@@ -26,7 +26,7 @@ DASHBOARD_IMAGE_TAG = $(REGISTRY)/$(DASHBOARD_CONTAINER):latest
 .PHONY: deploy-webpanel-frontend deploy-webpanel-backend deploy-webpanel-quick logs-webpanel
 .PHONY: deploy-quick
 .PHONY: deploy-solo-debi deploy-solo-marlene start-solo-debi start-solo-marlene stop-solo-debi stop-solo-marlene logs-solo-debi logs-solo-marlene restart-solo-debi restart-solo-marlene
-.PHONY: sync-check preflight deploy-guard
+.PHONY: sync-check preflight deploy-guard deploy-env-guard
 
 # 솔로봇 컨테이너 이름 (기존 이미지 $(IMAGE_TAG) 재사용 — 별도 빌드 불필요)
 SOLO_DEBI_NAME = debi-solo
@@ -80,6 +80,13 @@ deploy-guard:
 	@test "$$(gcloud config get-value project 2>/dev/null)" = "$(PROJECT_ID)" || { echo "[ERROR] gcloud project가 $(PROJECT_ID) 가 아님. 'gcloud config set project $(PROJECT_ID)' 실행 필요"; exit 1; }
 	@echo "[guard] OK"
 
+# env drift 가드 — deploy(전체, env-file 영향) 전용. deploy-quick(docker cp, env 무관)은 미적용.
+# project_env_drift_guard 사고 재발 방지: SM/VM/로컬 .env 어긋난 상태로 deploy 시 OAuth/서버목록 깨짐.
+deploy-env-guard:
+	@echo "[env-guard] env 3-way sync-check (local x Secret Manager x VM)..."
+	@bash scripts/sync_check.sh >/dev/null 2>&1 || { echo "[ERROR] env drift 감지. 'make sync-check' 로 상세 확인 후 './scripts/sync_env.sh pull' 또는 'push' 로 정렬 필요. drift 상태에서 deploy 시 OAuth/서버목록 깨짐 (project_env_drift_guard)"; exit 1; }
+	@echo "[env-guard] OK"
+
 # 봇 빠른 배포
 deploy-quick: deploy-guard
 	@echo "[1/3] 봇 코드를 VM에 업로드 중..."
@@ -124,7 +131,7 @@ deploy-webpanel-backend-quick:
 # ============================================================
 
 # 전체 배포 프로세스
-deploy: deploy-guard build-local push-image restart
+deploy: deploy-guard deploy-env-guard build-local push-image restart
 	@echo "배포 완료!"
 
 # 로컬에서 Docker 이미지 빌드 — wrapper가 거짓 exit 0 내는 케이스를 위해 명시적 실패 체크

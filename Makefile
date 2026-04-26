@@ -279,17 +279,19 @@ inject-dashboard-env:
 
 # 대시보드 프론트엔드만 배포 (Docker 재빌드 없이 빠른 배포)
 deploy-dashboard-frontend: inject-dashboard-env
-	@echo "[1/4] 프론트엔드 빌드 중..."
-	@cd dashboard/frontend && npm run build
-	@echo "[2/4] dist를 tar로 압축..."
-	@tar -czf /tmp/dash-dist.tar.gz -C dashboard/frontend/dist .
-	@echo "[3/4] VM에 업로드 중..."
-	@gcloud compute scp /tmp/dash-dist.tar.gz $(VM_NAME):/tmp/dash-dist.tar.gz --zone=$(ZONE)
-	@echo "[4/4] 컨테이너에 복사 + nginx 리로드..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p ~/dashboard-upload && tar -xzf /tmp/dash-dist.tar.gz -C ~/dashboard-upload && docker cp ~/dashboard-upload/. $(DASHBOARD_CONTAINER):/var/www/dashboard/ && docker exec $(DASHBOARD_CONTAINER) nginx -s reload && rm -rf ~/dashboard-upload /tmp/dash-dist.tar.gz"
-	@rm -f /tmp/dash-dist.tar.gz
-	@echo "대시보드 프론트엔드 배포 완료"
+	@set -euo pipefail; \
+	echo "[1/4] 프론트엔드 빌드 중..."; \
+	(cd dashboard/frontend && npm run build); \
+	test -d dashboard/frontend/dist || { echo "[ERROR] dist 디렉토리 없음 — 빌드 실패"; exit 1; }; \
+	echo "[2/4] dist를 tar로 압축..."; \
+	tar -czf /tmp/dash-dist.tar.gz -C dashboard/frontend/dist .; \
+	echo "[3/4] VM에 업로드 중..."; \
+	gcloud compute scp /tmp/dash-dist.tar.gz $(VM_NAME):/tmp/dash-dist.tar.gz --zone=$(ZONE); \
+	echo "[4/4] 컨테이너에 복사 + nginx 리로드..."; \
+	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="mkdir -p ~/dashboard-upload && tar -xzf /tmp/dash-dist.tar.gz -C ~/dashboard-upload && docker cp ~/dashboard-upload/. $(DASHBOARD_CONTAINER):/var/www/dashboard/ && docker exec $(DASHBOARD_CONTAINER) nginx -s reload && rm -rf ~/dashboard-upload /tmp/dash-dist.tar.gz"; \
+	rm -f /tmp/dash-dist.tar.gz; \
+	echo "대시보드 프론트엔드 배포 완료"
 
 # 대시보드 백엔드만 배포 (Docker 재빌드 없이 빠른 배포)
 # dashboard/backend 는 run/core/config.py 등을 import 하므로 run/ 도 같이 동기화한다.

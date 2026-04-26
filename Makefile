@@ -312,15 +312,18 @@ deploy-dashboard-backend:
 # ============================================================
 
 # 웹패널 프론트엔드 빌드 + VM 배포
+# .ONESHELL 환경에서 cd 가 다음 명령에 누수되던 버그 + tar 실패해도 VM의 sudo rm 이 실행돼 옛 dist 날아가던 침묵 실패 차단
 deploy-webpanel-frontend:
-	@echo "[1/4] 프론트엔드 빌드 중..."
-	@cd webpanel && npm run build
-	@echo "[2/4] dist를 VM에 업로드 중..."
-	@tar -czf /tmp/webpanel-dist.tar.gz -C webpanel/dist .
-	@gcloud compute scp /tmp/webpanel-dist.tar.gz $(VM_NAME):webpanel-dist.tar.gz --zone=$(ZONE)
-	@echo "[3/4] VM에서 배포 중 (nginx 마운트 경로: /home/kasa)..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo rm -rf /home/kasa/debi-marlene/webpanel/dist/assets/* && sudo rm -f /home/kasa/debi-marlene/webpanel/dist/index.html && sudo tar -xzf ~/webpanel-dist.tar.gz -C /home/kasa/debi-marlene/webpanel/dist/ && sudo chown -R kasa:kasa /home/kasa/debi-marlene/webpanel/dist/ && rm ~/webpanel-dist.tar.gz && docker exec nginx-proxy nginx -s reload"
+	@set -e; \
+	echo "[1/4] 프론트엔드 빌드 중..."; \
+	(cd webpanel && npm run build) || { echo "[ERROR] webpanel build 실패"; exit 1; }; \
+	echo "[2/4] dist를 VM에 업로드 중..."; \
+	test -f webpanel/dist/index.html || { echo "[ERROR] webpanel/dist/index.html 없음. 빌드 결과 확인"; exit 1; }; \
+	tar -czf /tmp/webpanel-dist.tar.gz -C webpanel/dist . || { echo "[ERROR] tar 실패"; exit 1; }; \
+	gcloud compute scp /tmp/webpanel-dist.tar.gz $(VM_NAME):webpanel-dist.tar.gz --zone=$(ZONE) || { echo "[ERROR] scp 실패. VM 의 dist 는 안 건드림 (안전)"; exit 1; }; \
+	echo "[3/4] VM에서 배포 중 (nginx 마운트 경로: /home/kasa)..."; \
+	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="sudo rm -rf /home/kasa/debi-marlene/webpanel/dist/assets/* && sudo rm -f /home/kasa/debi-marlene/webpanel/dist/index.html && sudo tar -xzf ~/webpanel-dist.tar.gz -C /home/kasa/debi-marlene/webpanel/dist/ && sudo chown -R kasa:kasa /home/kasa/debi-marlene/webpanel/dist/ && rm ~/webpanel-dist.tar.gz && sudo docker exec nginx-proxy nginx -s reload"
 	@rm -f /tmp/webpanel-dist.tar.gz
 	@echo "[4/4] Cloudflare 캐시 퍼지 중..."
 	@curl -s -X POST "https://api.cloudflare.com/client/v4/zones/49337200d8d2ff73047081d747d42074/purge_cache" \

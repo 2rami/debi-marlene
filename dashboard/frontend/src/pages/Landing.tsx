@@ -8,6 +8,7 @@ import GradientText from '../components/common/GradientText'
 import DonationModal from '../components/common/DonationModal'
 import ScrollFloat from '../components/common/ScrollFloat'
 import DecryptedText from '../components/common/DecryptedText'
+import { api } from '../services/api'
 
 /* ── Assets ── */
 import BG_SKY from '../assets/images/event/imgi_28_bg01.png'
@@ -392,7 +393,14 @@ function ElectricText({ children, className = '' }: { children: React.ReactNode;
 export default function Landing() {
   const heroRef = useRef(null)
   const [isDonationOpen, setIsDonationOpen] = useState(false)
+  const [stats, setStats] = useState<{ users: number; servers: number; commands: number } | null>(null)
   // auth는 FloatingSplitButton에서 사용
+
+  useEffect(() => {
+    api.get<{ stats: { users: number; servers: number; commands: number } }>('/bot/stats')
+      .then(r => setStats(r.data.stats))
+      .catch(() => {})
+  }, [])
 
   // Lenis 스무스 스크롤
   useEffect(() => {
@@ -730,46 +738,58 @@ export default function Landing() {
           <div className="grid grid-cols-3 gap-6 md:gap-10">
             <FadeIn delay={0.1}>
               <div className="p-8 md:p-10 text-center">
-                <DecryptedText
-                  text="11,799"
-                  className="font-title text-5xl md:text-7xl lg:text-8xl font-bold bg-gradient-to-b from-[#3cabc9] to-[#3cabc9]/60 bg-clip-text text-transparent"
-                  encryptedClassName="font-title text-5xl md:text-7xl lg:text-8xl font-bold text-[#3cabc9]/30"
-                  animateOn="inViewHover"
-                  speed={40}
-                  maxIterations={15}
-                  sequential
-                  characters="0123456789,."
-                />
+                {stats ? (
+                  <DecryptedText
+                    text={stats.users.toLocaleString('en-US')}
+                    className="font-title text-5xl md:text-7xl lg:text-8xl font-bold bg-gradient-to-b from-[#3cabc9] to-[#3cabc9]/60 bg-clip-text text-transparent"
+                    encryptedClassName="font-title text-5xl md:text-7xl lg:text-8xl font-bold text-[#3cabc9]/30"
+                    animateOn="inViewHover"
+                    speed={40}
+                    maxIterations={15}
+                    sequential
+                    characters="0123456789,."
+                  />
+                ) : (
+                  <div className="h-[3rem] md:h-[4.5rem] lg:h-[6rem] w-40 md:w-56 lg:w-64 mx-auto bg-[#3cabc9]/10 rounded-lg animate-pulse" aria-label="loading" />
+                )}
                 <div className="font-body text-sm md:text-lg mt-3 text-gray-500 tracking-wider uppercase">Users</div>
               </div>
             </FadeIn>
             <FadeIn delay={0.2}>
               <div className="p-8 md:p-10 text-center">
-                <DecryptedText
-                  text="100"
-                  className="font-title text-5xl md:text-7xl lg:text-8xl font-bold bg-gradient-to-b from-[#e58fb6] to-[#e58fb6]/60 bg-clip-text text-transparent"
-                  encryptedClassName="font-title text-5xl md:text-7xl lg:text-8xl font-bold text-[#e58fb6]/30"
-                  animateOn="inViewHover"
-                  speed={40}
-                  maxIterations={15}
-                  sequential
-                  characters="0123456789"
-                />
+                {stats ? (
+                  <DecryptedText
+                    text={String(stats.servers)}
+                    className="font-title text-5xl md:text-7xl lg:text-8xl font-bold bg-gradient-to-b from-[#e58fb6] to-[#e58fb6]/60 bg-clip-text text-transparent"
+                    encryptedClassName="font-title text-5xl md:text-7xl lg:text-8xl font-bold text-[#e58fb6]/30"
+                    animateOn="inViewHover"
+                    speed={40}
+                    maxIterations={15}
+                    sequential
+                    characters="0123456789"
+                  />
+                ) : (
+                  <div className="h-[3rem] md:h-[4.5rem] lg:h-[6rem] w-24 md:w-32 lg:w-40 mx-auto bg-[#e58fb6]/10 rounded-lg animate-pulse" aria-label="loading" />
+                )}
                 <div className="font-body text-sm md:text-lg mt-3 text-gray-500 tracking-wider uppercase">Servers</div>
               </div>
             </FadeIn>
             <FadeIn delay={0.3}>
               <div className="p-8 md:p-10 text-center">
-                <DecryptedText
-                  text="17"
-                  className="font-title text-5xl md:text-7xl lg:text-8xl font-bold bg-gradient-to-b from-[#7DE8ED] to-[#7DE8ED]/60 bg-clip-text text-transparent"
-                  encryptedClassName="font-title text-5xl md:text-7xl lg:text-8xl font-bold text-[#7DE8ED]/30"
-                  animateOn="inViewHover"
-                  speed={40}
-                  maxIterations={15}
-                  sequential
-                  characters="0123456789"
-                />
+                {stats ? (
+                  <DecryptedText
+                    text={String(stats.commands)}
+                    className="font-title text-5xl md:text-7xl lg:text-8xl font-bold bg-gradient-to-b from-[#7DE8ED] to-[#7DE8ED]/60 bg-clip-text text-transparent"
+                    encryptedClassName="font-title text-5xl md:text-7xl lg:text-8xl font-bold text-[#7DE8ED]/30"
+                    animateOn="inViewHover"
+                    speed={40}
+                    maxIterations={15}
+                    sequential
+                    characters="0123456789"
+                  />
+                ) : (
+                  <div className="h-[3rem] md:h-[4.5rem] lg:h-[6rem] w-20 md:w-28 lg:w-32 mx-auto bg-[#7DE8ED]/10 rounded-lg animate-pulse" aria-label="loading" />
+                )}
                 <div className="font-body text-sm md:text-lg mt-3 text-gray-500 tracking-wider uppercase">Commands</div>
               </div>
             </FadeIn>

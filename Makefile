@@ -11,7 +11,7 @@ PROJECT_ID = ironic-objectivist-465713-a6
 VM_NAME = debi-marlene-bot
 ZONE = asia-northeast3-a
 REGION = asia-northeast3
-VM_PATH = ~/debi-marlene
+VM_PATH = /home/2rami/debi-marlene
 CONTAINER_NAME = debi-marlene
 REGISTRY = $(REGION)-docker.pkg.dev/$(PROJECT_ID)/debi-marlene
 IMAGE_TAG = $(REGISTRY)/$(CONTAINER_NAME):latest
@@ -26,7 +26,7 @@ DASHBOARD_IMAGE_TAG = $(REGISTRY)/$(DASHBOARD_CONTAINER):latest
 .PHONY: deploy-webpanel-frontend deploy-webpanel-backend deploy-webpanel-quick logs-webpanel
 .PHONY: deploy-quick
 .PHONY: deploy-solo-debi deploy-solo-marlene start-solo-debi start-solo-marlene stop-solo-debi stop-solo-marlene logs-solo-debi logs-solo-marlene restart-solo-debi restart-solo-marlene
-.PHONY: sync-check preflight
+.PHONY: sync-check preflight deploy-guard
 
 # 솔로봇 컨테이너 이름 (기존 이미지 $(IMAGE_TAG) 재사용 — 별도 빌드 불필요)
 SOLO_DEBI_NAME = debi-solo
@@ -70,8 +70,18 @@ help:
 # 빠른 배포 (코드만 교체, Docker 리빌드 없음)
 # ============================================================
 
+# 배포 사전 체크 — Docker Desktop wrapper가 거짓 exit 0 내거나 gcloud 미인증 상태에서 deploy가 침묵 실패하던 함정 차단
+deploy-guard:
+	@echo "[guard] docker daemon 응답 확인..."
+	@docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { echo "[ERROR] docker daemon 응답 없음. Docker Desktop 실행 + WSL 통합 활성화 필요"; exit 1; }
+	@echo "[guard] gcloud 인증 확인..."
+	@gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | grep -q . || { echo "[ERROR] gcloud 미인증. 'gcloud auth login' 실행 필요"; exit 1; }
+	@echo "[guard] gcloud project 확인..."
+	@test "$$(gcloud config get-value project 2>/dev/null)" = "$(PROJECT_ID)" || { echo "[ERROR] gcloud project가 $(PROJECT_ID) 가 아님. 'gcloud config set project $(PROJECT_ID)' 실행 필요"; exit 1; }
+	@echo "[guard] OK"
+
 # 봇 빠른 배포
-deploy-quick:
+deploy-quick: deploy-guard
 	@echo "[1/3] 봇 코드를 VM에 업로드 중..."
 	@tar -czf /tmp/bot-upload.tar.gz --exclude='__pycache__' --exclude='*.pyc' run/ main.py
 	@gcloud compute scp /tmp/bot-upload.tar.gz $(VM_NAME):~/bot-upload.tar.gz --zone=$(ZONE)
@@ -114,19 +124,20 @@ deploy-webpanel-backend-quick:
 # ============================================================
 
 # 전체 배포 프로세스
-deploy: build-local push-image restart
+deploy: deploy-guard build-local push-image restart
 	@echo "배포 완료!"
 
-# 로컬에서 Docker 이미지 빌드
+# 로컬에서 Docker 이미지 빌드 — wrapper가 거짓 exit 0 내는 케이스를 위해 명시적 실패 체크
 build-local:
 	@echo "로컬에서 Docker 이미지 빌드 중 (linux/amd64)..."
-	@docker build --platform linux/amd64 -t $(CONTAINER_NAME) -t $(IMAGE_TAG) .
+	@docker build --platform linux/amd64 -t $(CONTAINER_NAME) -t $(IMAGE_TAG) . || { echo "[ERROR] docker build 실패"; exit 1; }
+	@docker image inspect $(IMAGE_TAG) >/dev/null 2>&1 || { echo "[ERROR] 빌드 결과 이미지($(IMAGE_TAG)) 없음. wrapper가 거짓 성공 보고"; exit 1; }
 	@echo "빌드 완료"
 
 # Docker 이미지를 Artifact Registry에 푸시
 push-image:
 	@echo "Docker 이미지를 Artifact Registry에 푸시 중..."
-	@docker push $(IMAGE_TAG)
+	@docker push $(IMAGE_TAG) || { echo "[ERROR] docker push 실패. 'gcloud auth configure-docker $(REGION)-docker.pkg.dev' 실행 후 재시도"; exit 1; }
 	@echo "푸시 완료"
 
 # 컨테이너 재시작
@@ -147,7 +158,7 @@ start:
 		--command="docker pull $(IMAGE_TAG) && docker image prune -af"
 	@echo "컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p /home/2rami/debi-marlene-data && docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+		--command="mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
 	@echo "시작 완료"
 
 # 컨테이너 로그 확인
@@ -375,12 +386,12 @@ stop-solo-marlene:
 start-solo-debi:
 	@echo "데비 솔로봇 시작 (image=$(IMAGE_TAG), identity=debi)..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && docker run -d --name $(SOLO_DEBI_NAME) --env-file $(VM_PATH)/.env.solo-debi -e BOT_IDENTITY=debi -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+		--command="sudo docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name $(SOLO_DEBI_NAME) --env-file $(VM_PATH)/.env.solo-debi -e BOT_IDENTITY=debi -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
 
 start-solo-marlene:
 	@echo "마를렌 솔로봇 시작 (image=$(IMAGE_TAG), identity=marlene)..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && docker run -d --name $(SOLO_MARLENE_NAME) --env-file $(VM_PATH)/.env.solo-marlene -e BOT_IDENTITY=marlene -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+		--command="sudo docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name $(SOLO_MARLENE_NAME) --env-file $(VM_PATH)/.env.solo-marlene -e BOT_IDENTITY=marlene -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
 
 logs-solo-debi:
 	@echo "데비 솔로봇 로그 (Ctrl+C 종료):"

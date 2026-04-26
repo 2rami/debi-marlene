@@ -115,8 +115,14 @@ dashboard/frontend/dist/
 *.exe
 *.AppImage
 
-# 웹패널 전체 (로컬에만 유지)
+# 웹패널 전체 (로컬에만 유지) — 디렉토리 + 심링크 둘 다
 webpanel/
+webpanel
+
+# 추가 untracked 보호 (실수 git add 방지)
+.venv-dash/
+chrome_profile_notebooklm/
+ONBOARDING.md
 
 # 지원서류 (개인정보)
 application/

@@ -4,6 +4,9 @@
 .env.production
 .env.solo-*
 
+# 로컬 MySQL 백업 컨테이너 데이터 (124MB+ binary, docker volume mount)
+mysql_data/
+
 # Python
 __pycache__/
 *.py[cod]

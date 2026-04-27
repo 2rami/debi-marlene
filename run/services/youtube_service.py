@@ -156,14 +156,25 @@ async def check_new_videos():
             non_live_videos = [item for item in playlist_response['items'] if 'liveStreamingDetails' not in youtube.videos().list(part='snippet,liveStreamingDetails', id=item['snippet']['resourceId']['videoId']).execute().get('items', [{}])[0]]
             if not non_live_videos: return
 
-            latest_video = non_live_videos[0]
-            video_id = latest_video['snippet']['resourceId']['videoId']
-            snippet = latest_video['snippet']
-
-            # 2. 전역 설정에서 이미 처리한 영상인지 확인 (빠른 스킵)
+            # 2. 보낼 영상 결정 — last_checked 이후 신규 분만 (한 번에 여러 개 올라오면 모두 전송)
             last_checked_id = config.get_global_setting("LAST_CHECKED_VIDEO_ID")
-            if last_checked_id == video_id:
+            latest_video_id = non_live_videos[0]['snippet']['resourceId']['videoId']
+            if last_checked_id == latest_video_id:
                 return
+
+            found_idx = None
+            for idx, item in enumerate(non_live_videos):
+                if item['snippet']['resourceId']['videoId'] == last_checked_id:
+                    found_idx = idx
+                    break
+
+            # last_checked 가 playlist 10개 밖으로 밀려났거나 첫 실행이면 최신 1개만 (스팸 방지)
+            if found_idx is None:
+                videos_to_send = [non_live_videos[0]]
+            else:
+                videos_to_send = list(reversed(non_live_videos[:found_idx]))
+
+            print(f"[유튜브] 신규 영상 {len(videos_to_send)}개 처리 시작")
 
             # 3. 서버별 알림 작업을 비동기로 생성 (각 채널별 중복 체크)
             async def send_to_guild(guild, video_id, snippet):
@@ -213,23 +224,27 @@ async def check_new_videos():
                 except Exception as e:
                     print(f"  -> [오류] 구독자 ID({user_id}) 처리 중 오류: {e}")
 
-            # 4. 서버 채널과 개인 DM 모두 동시에 전송
-            print("- 서버 채널 및 개인 구독자 동시 알림 시작")
-
-            guild_tasks = [send_to_guild(guild, video_id, snippet) for guild in bot_instance.guilds]
-
+            # 4. 각 영상을 순차로 전송 (영상 안에선 길드/구독자 동시)
             subscribers = config.get_youtube_subscribers()
             print(f"  총 {len(subscribers)}명의 개인 구독자, {len(bot_instance.guilds)}개 서버")
-            user_tasks = [send_to_user(user_id, video_id, snippet) for user_id in subscribers]
 
-            all_tasks = guild_tasks + user_tasks
-            if all_tasks:
-                await asyncio.gather(*all_tasks, return_exceptions=True)
+            for video in videos_to_send:
+                v_id = video['snippet']['resourceId']['videoId']
+                v_snippet = video['snippet']
+                print(f"- 영상 처리: {v_snippet.get('title', '')[:40]}")
 
-            # 5. 마지막으로 확인한 영상 ID와 제목 저장
-            video_title = snippet.get('title', '제목 없음') if snippet else '제목 없음'
-            config.save_last_video_info(video_id, video_title)
-            print(f"[완료] 새 영상 ID({video_id}), 제목({video_title})을 전역 설정에 저장했습니다.")
+                guild_tasks = [send_to_guild(guild, v_id, v_snippet) for guild in bot_instance.guilds]
+                user_tasks = [send_to_user(user_id, v_id, v_snippet) for user_id in subscribers]
+                all_tasks = guild_tasks + user_tasks
+                if all_tasks:
+                    await asyncio.gather(*all_tasks, return_exceptions=True)
+
+            # 5. 마지막 영상으로 LAST_CHECKED 갱신
+            final = videos_to_send[-1]
+            final_id = final['snippet']['resourceId']['videoId']
+            final_title = final['snippet'].get('title', '제목 없음')
+            config.save_last_video_info(final_id, final_title)
+            print(f"[완료] 신규 영상 {len(videos_to_send)}개 전송. 최신 ID({final_id}) 저장.")
 
         except Exception as e:
             print(f"[오류] 유튜브 영상 확인 중 심각한 오류 발생: {e}")

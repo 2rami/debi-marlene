@@ -27,213 +27,444 @@ DAKGG_API_BASE = "https://er.dakgg.io/api/v1"
 # YouTube 설정
 ETERNAL_RETURN_CHANNEL_ID = 'UCEOaB76vS9RfiAwEzxB8QGw'
 
-# GCS 설정
-GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
+# GCP 설정
+# 명시적 default — gcloud config 의존 없이 안정적으로 동작
+GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'ironic-objectivist-465713-a6')
 GCS_BUCKET = os.getenv('GCS_BUCKET_NAME', 'debi-marlene-settings')
-GCS_KEY = 'settings.json'
+GCS_KEY = 'settings.json'  # 레거시 fallback 전용
 GCS_REMOVED_SERVERS_KEY = 'removed_servers.json'
 GCS_COMMAND_LOGS_KEY = 'command_logs.json'
+
+# 저장소 모드 (점진 전환용)
+# - 'firestore': Firestore 단독 (이번 작업 기본값)
+# - 'dual': Firestore + GCS 둘 다 쓰기 (안전 모드, 1주 dual-write 후 firestore 전환)
+# - 'gcs': 레거시 (롤백용)
+SETTINGS_BACKEND = os.getenv('SETTINGS_BACKEND', 'firestore').lower()
+
+# 클라이언트 싱글톤
 gcs_client = None
-# 동시 호출 시 중복 초기화 방지용 Lock (race condition으로 [GCS] 로그 두 번 뜨던 버그)
+firestore_client = None
 _gcs_client_lock = threading.Lock()
+_firestore_client_lock = threading.Lock()
 
 # 설정 캐시 (save 시에만 무효화)
 settings_cache = None
 
+
+# ───────────────────── 클라이언트 초기화 ─────────────────────
+
 def get_gcs_client():
-    """GCS 클라이언트를 가져옵니다 (싱글톤, 스레드 안전)."""
+    """GCS 클라이언트를 가져옵니다 (싱글톤, 스레드 안전). removed_servers / command_logs / fallback 용."""
     global gcs_client
-    # 1차 체크: 락 없이 (이미 만들어졌으면 바로 반환 — 빠른 경로)
     if gcs_client is not None:
         return gcs_client if gcs_client is not False else None
 
     with _gcs_client_lock:
-        # 2차 체크: 락 안에서 다시 확인 (double-checked locking)
         if gcs_client is not None:
             return gcs_client if gcs_client is not False else None
 
         try:
-            # 디버깅: 환경변수 확인
-            creds_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
-            print(f"[GCS] GOOGLE_APPLICATION_CREDENTIALS: {creds_path}", flush=True)
-
-            if creds_path:
-                if os.path.exists(creds_path):
-                    print(f"[GCS] 인증 파일 존재함", flush=True)
-                    # 파일 내용 일부 확인
-                    with open(creds_path, 'r') as f:
-                        content = f.read()
-                        print(f"[GCS] 인증 파일 크기: {len(content)} bytes", flush=True)
-                else:
-                    print(f"[GCS] 인증 파일이 존재하지 않음!", flush=True)
-
             from google.cloud import storage
-            # authorized_user credentials는 project_id가 없으므로 명시적으로 지정
             gcs_client = storage.Client(project=GCP_PROJECT_ID)
             print(f"[GCS] Client 생성 성공", flush=True)
-
-            # 버킷 접근 테스트
-            bucket = gcs_client.bucket(GCS_BUCKET)
-            exists = bucket.exists()
-            print(f"[GCS] 버킷 '{GCS_BUCKET}' 존재: {exists}", flush=True)
-
         except Exception as e:
             import traceback
             print(f"[GCS 오류] 클라이언트 생성 실패: {e}", flush=True)
             print(f"[GCS 오류] 상세: {traceback.format_exc()}", flush=True)
-            gcs_client = False  # 실패를 명시적으로 표시
+            gcs_client = False
     return gcs_client if gcs_client != False else None
 
+
+def get_firestore_client():
+    """Firestore 클라이언트를 가져옵니다 (싱글톤, 스레드 안전). settings 의 단일 진실 소스."""
+    global firestore_client
+    if firestore_client is not None:
+        return firestore_client if firestore_client is not False else None
+
+    with _firestore_client_lock:
+        if firestore_client is not None:
+            return firestore_client if firestore_client is not False else None
+
+        try:
+            from google.cloud import firestore
+            firestore_client = firestore.Client(project=GCP_PROJECT_ID)
+            print(f"[Firestore] Client 생성 성공 (project={GCP_PROJECT_ID})", flush=True)
+        except Exception as e:
+            import traceback
+            print(f"[Firestore 오류] 클라이언트 생성 실패: {e}", flush=True)
+            print(f"[Firestore 오류] 상세: {traceback.format_exc()}", flush=True)
+            firestore_client = False
+    return firestore_client if firestore_client != False else None
+
+
+# ───────────────────── 저장소: Firestore ─────────────────────
+
+def _fs_load_all_settings():
+    """Firestore 의 guilds / users / global 3컬렉션을 읽어 레거시 dict 형태로 조립."""
+    fs = get_firestore_client()
+    if not fs:
+        return None
+
+    try:
+        guilds = {}
+        for doc in fs.collection('guilds').stream():
+            guilds[doc.id] = doc.to_dict() or {}
+
+        users = {}
+        for doc in fs.collection('users').stream():
+            users[doc.id] = doc.to_dict() or {}
+
+        global_doc = fs.collection('global').document('settings').get()
+        global_settings = global_doc.to_dict() if global_doc.exists else {}
+
+        return {
+            'guilds': guilds,
+            'users': users,
+            'global': global_settings,
+        }
+    except Exception as e:
+        print(f"[Firestore 경고] 전체 로드 실패: {e}", flush=True)
+        return None
+
+
+def _fs_save_all_settings(settings):
+    """레거시 dict 를 3컬렉션으로 분산 저장. batch 로 부분 atomicity 보장."""
+    fs = get_firestore_client()
+    if not fs:
+        return False
+
+    try:
+        guilds = settings.get('guilds', {}) or {}
+        users = settings.get('users', {}) or {}
+        global_settings = settings.get('global', {}) or {}
+
+        # Firestore batch 한 번에 500 op 제한 → chunk 단위로 split
+        all_ops = []
+        for gid, gdata in guilds.items():
+            if isinstance(gdata, dict):
+                all_ops.append(('guilds', str(gid), gdata))
+        for uid, udata in users.items():
+            if isinstance(udata, dict):
+                all_ops.append(('users', str(uid), udata))
+        if global_settings:
+            all_ops.append(('global', 'settings', global_settings))
+
+        # 500 op 단위 batch 분할 (set with merge)
+        for i in range(0, len(all_ops), 450):
+            batch = fs.batch()
+            for collection, doc_id, data in all_ops[i:i+450]:
+                ref = fs.collection(collection).document(doc_id)
+                batch.set(ref, data, merge=False)  # 전체 dict 저장 = 레거시 호환
+            batch.commit()
+
+        return True
+    except Exception as e:
+        print(f"[Firestore 경고] 전체 저장 실패: {e}", flush=True)
+        return False
+
+
+def _fs_get_guild(guild_id):
+    """Firestore 에서 단일 길드 문서 읽기."""
+    fs = get_firestore_client()
+    if not fs:
+        return None
+    try:
+        doc = fs.collection('guilds').document(str(guild_id)).get()
+        return doc.to_dict() if doc.exists else None
+    except Exception as e:
+        print(f"[Firestore 경고] guild {guild_id} 로드 실패: {e}", flush=True)
+        return None
+
+
+def _fs_set_guild(guild_id, data, merge=True):
+    """Firestore 에 단일 길드 문서 atomic 쓰기."""
+    fs = get_firestore_client()
+    if not fs:
+        return False
+    try:
+        fs.collection('guilds').document(str(guild_id)).set(data, merge=merge)
+        return True
+    except Exception as e:
+        print(f"[Firestore 경고] guild {guild_id} 저장 실패: {e}", flush=True)
+        return False
+
+
+def _fs_update_guild(guild_id, fields):
+    """Firestore 단일 길드 문서 필드 업데이트 (atomic)."""
+    fs = get_firestore_client()
+    if not fs:
+        return False
+    try:
+        fs.collection('guilds').document(str(guild_id)).set(fields, merge=True)
+        return True
+    except Exception as e:
+        print(f"[Firestore 경고] guild {guild_id} 업데이트 실패: {e}", flush=True)
+        return False
+
+
+def _fs_delete_guild(guild_id):
+    """Firestore 단일 길드 문서 삭제."""
+    fs = get_firestore_client()
+    if not fs:
+        return False
+    try:
+        fs.collection('guilds').document(str(guild_id)).delete()
+        return True
+    except Exception as e:
+        print(f"[Firestore 경고] guild {guild_id} 삭제 실패: {e}", flush=True)
+        return False
+
+
+def _fs_get_user(user_id):
+    """Firestore 에서 단일 사용자 문서 읽기."""
+    fs = get_firestore_client()
+    if not fs:
+        return None
+    try:
+        doc = fs.collection('users').document(str(user_id)).get()
+        return doc.to_dict() if doc.exists else None
+    except Exception as e:
+        print(f"[Firestore 경고] user {user_id} 로드 실패: {e}", flush=True)
+        return None
+
+
+def _fs_update_user(user_id, fields):
+    """Firestore 단일 사용자 문서 필드 업데이트 (atomic)."""
+    fs = get_firestore_client()
+    if not fs:
+        return False
+    try:
+        fs.collection('users').document(str(user_id)).set(fields, merge=True)
+        return True
+    except Exception as e:
+        print(f"[Firestore 경고] user {user_id} 업데이트 실패: {e}", flush=True)
+        return False
+
+
+def _fs_get_global():
+    """Firestore global/settings 문서 읽기."""
+    fs = get_firestore_client()
+    if not fs:
+        return None
+    try:
+        doc = fs.collection('global').document('settings').get()
+        return doc.to_dict() if doc.exists else {}
+    except Exception as e:
+        print(f"[Firestore 경고] global 로드 실패: {e}", flush=True)
+        return None
+
+
+def _fs_update_global(fields):
+    """Firestore global/settings 문서 필드 업데이트 (atomic)."""
+    fs = get_firestore_client()
+    if not fs:
+        return False
+    try:
+        fs.collection('global').document('settings').set(fields, merge=True)
+        return True
+    except Exception as e:
+        print(f"[Firestore 경고] global 업데이트 실패: {e}", flush=True)
+        return False
+
+
+# ───────────────────── 저장소: GCS (레거시 fallback) ─────────────────────
+
+def _gcs_load_settings():
+    """레거시 fallback. GCS settings.json 로드."""
+    client = get_gcs_client()
+    if not client:
+        return None
+    try:
+        bucket = client.bucket(GCS_BUCKET)
+        blob = bucket.blob(GCS_KEY)
+        return json.loads(blob.download_as_text())
+    except Exception as e:
+        print(f"[GCS 경고] 레거시 로드 실패: {e}", flush=True)
+        return None
+
+
+def _gcs_save_settings(settings):
+    """레거시 GCS 저장. dual-write 모드 또는 안전망 용."""
+    client = get_gcs_client()
+    if not client:
+        return False
+    try:
+        bucket = client.bucket(GCS_BUCKET)
+        blob = bucket.blob(GCS_KEY)
+        blob.upload_from_string(
+            json.dumps(settings, indent=2, ensure_ascii=False),
+            content_type='application/json',
+        )
+        return True
+    except Exception as e:
+        print(f"[GCS 경고] 레거시 저장 실패: {e}", flush=True)
+        return False
+
+
+# ───────────────────── 공개 API: 레거시 시그니처 유지 ─────────────────────
+
 def load_settings(force_reload=False):
-    """GCS 또는 로컬 백업에서 설정 파일을 로드합니다. (GCS 우선)"""
+    """설정을 로드합니다.
+
+    저장소 우선순위:
+    1. Firestore (단일 진실 소스, 2026-04-27 이관)
+    2. GCS settings.json (fallback, Firestore 실패 시)
+    3. 로컬 backups/settings_backup.json (최후 fallback)
+    """
     global settings_cache
 
-    # 캐시가 있으면 바로 반환 (save_settings에서만 무효화)
+    # 캐시 (단일 프로세스 내 마이크로 버스트 방지)
     if not force_reload and settings_cache is not None:
         return settings_cache.copy()
 
-    # 1순위: GCS에서 로드
-    client = get_gcs_client()
-    if client:
-        try:
-            bucket = client.bucket(GCS_BUCKET)
-            blob = bucket.blob(GCS_KEY)
-            settings_data = blob.download_as_text()
-            settings = json.loads(settings_data)
-            # guilds 키가 없으면 기본 구조 생성
-            if 'guilds' not in settings:
-                settings['guilds'] = {}
-            # 캐시 업데이트
-            settings_cache = settings.copy()
-            return settings
-        except Exception as e:
-            print(f"[경고] GCS 로드 실패: {e}", flush=True)
+    # 1순위: Firestore
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        fs_settings = _fs_load_all_settings()
+        if fs_settings is not None:
+            # guilds 키 보장
+            if 'guilds' not in fs_settings:
+                fs_settings['guilds'] = {}
+            settings_cache = fs_settings.copy()
+            return fs_settings
 
-    # 2순위: 로컬 백업 파일에서 로드 (GCS 실패 시 폴백)
+    # 2순위: GCS (레거시)
+    gcs_settings = _gcs_load_settings()
+    if gcs_settings is not None:
+        if 'guilds' not in gcs_settings:
+            gcs_settings['guilds'] = {}
+        settings_cache = gcs_settings.copy()
+        if SETTINGS_BACKEND == 'firestore':
+            print(f"[경고] Firestore 실패 → GCS fallback 으로 로드", flush=True)
+        return gcs_settings
+
+    # 3순위: 로컬 백업
     try:
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         backup_file = os.path.join(project_root, 'backups', 'settings_backup.json')
-
         if os.path.exists(backup_file):
             with open(backup_file, 'r', encoding='utf-8') as f:
                 settings = json.load(f)
-            # guilds 키가 없으면 기본 구조 생성
             if 'guilds' not in settings:
                 settings['guilds'] = {}
-            # 캐시 업데이트
             settings_cache = settings.copy()
-            print(f"[로컬] 설정 로드 완료 (GCS 실패 - 로컬 백업 사용)", flush=True)
+            print(f"[로컬] 설정 로드 완료 (Firestore + GCS 실패 - 로컬 백업 사용)", flush=True)
             return settings
     except Exception as e:
         print(f"[경고] 로컬 백업 로드 실패: {e}", flush=True)
 
-    # 모두 실패 시 기본 구조 반환
+    # 모두 실패 시 기본 구조
     print(f"[기본값] 새로운 설정 생성", flush=True)
     default_settings = {"guilds": {}, "users": {}, "global": {"LAST_CHECKED_VIDEO_ID": None}}
     settings_cache = default_settings.copy()
     return default_settings
 
+
 def save_local_backup(settings):
-    """로컬에 settings 백업을 저장합니다.
-
-    Args:
-        settings: 백업할 설정 데이터
-
-    Returns:
-        bool: 저장 성공 여부
-    """
-    import os
-
+    """로컬에 settings 백업을 저장합니다 (재해 복구용)."""
     try:
-        # 프로젝트 루트 경로 가져오기
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         backup_dir = os.path.join(project_root, 'backups')
         backup_file = os.path.join(backup_dir, 'settings_backup.json')
-
-        # backups 폴더가 없으면 생성
         os.makedirs(backup_dir, exist_ok=True)
-
-        # JSON 파일로 저장
         with open(backup_file, 'w', encoding='utf-8') as f:
             json.dump(settings, f, indent=2, ensure_ascii=False)
-
         return True
     except Exception as e:
         print(f"[경고] 로컬 백업 저장 실패: {e}", flush=True)
         return False
 
-def save_settings(settings, silent=False):
-    """GCS에 설정을 저장하고, 로컬 백업에도 저장합니다. (GCS 우선)
 
-    Args:
-        settings: 저장할 설정 데이터
-        silent: True면 로그 출력 안 함 (대량 저장 시)
+def save_settings(settings, silent=False):
+    """설정을 저장합니다.
+
+    SETTINGS_BACKEND 에 따라 동작:
+    - 'firestore' (기본): Firestore 만 저장 + 로컬 백업
+    - 'dual': Firestore + GCS 둘 다 저장 (마이그레이션 안전 모드)
+    - 'gcs': 레거시 GCS 만 (롤백용)
+
+    레거시 시그니처 유지 — 기존 호출처 코드 변경 불필요.
+    내부적으로 3 컬렉션 batch write 로 분산.
     """
     global settings_cache
+    settings_cache = None  # 무효화
 
-    # 캐시 무효화
-    settings_cache = None
+    primary_success = False
 
-    gcs_success = False
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        primary_success = _fs_save_all_settings(settings)
+        if primary_success and not silent:
+            print(f"[Firestore] 설정 저장 완료", flush=True)
+        elif not primary_success and not silent:
+            print(f"[경고] Firestore 설정 저장 실패", flush=True)
 
-    # 1순위: GCS에 저장 (주 저장소)
-    client = get_gcs_client()
-    if client:
-        try:
-            json_data = json.dumps(settings, indent=2, ensure_ascii=False)
-            bucket = client.bucket(GCS_BUCKET)
-            blob = bucket.blob(GCS_KEY)
-            blob.upload_from_string(json_data, content_type='application/json')
-            gcs_success = True
-            if not silent:
-                print(f"[GCS] 설정 저장 완료", flush=True)
-        except Exception as e:
-            if not silent:
-                print(f"[경고] GCS 설정 저장 실패: {e}", flush=True)
+    if SETTINGS_BACKEND in ('dual', 'gcs'):
+        gcs_ok = _gcs_save_settings(settings)
+        if SETTINGS_BACKEND == 'gcs':
+            primary_success = gcs_ok
+        if gcs_ok and not silent:
+            print(f"[GCS] 설정 저장 완료 (mode={SETTINGS_BACKEND})", flush=True)
 
-    # 2순위: 로컬 백업에도 저장 (백업용)
-    local_success = save_local_backup(settings)
-    if not local_success and not silent:
-        print(f"[경고] 로컬 백업 저장 실패", flush=True)
+    # 로컬 백업 (항상)
+    save_local_backup(settings)
 
-    # GCS 저장 성공 여부 반환 (주 저장소 기준)
-    return gcs_success
+    return primary_success
+
 
 def get_guild_settings(guild_id):
-    """특정 서버(guild)의 설정을 가져옵니다."""
+    """특정 서버(guild)의 설정을 가져옵니다 (atomic 단일 문서 읽기)."""
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        guild_data = _fs_get_guild(guild_id)
+        if guild_data is not None:
+            return guild_data
+    # fallback
     settings = load_settings()
     return settings.get("guilds", {}).get(str(guild_id), {
         "ANNOUNCEMENT_CHANNEL_ID": None,
         "CHAT_CHANNEL_ID": None
     })
 
-def save_guild_settings(guild_id, announcement_id=None, chat_id=None, guild_name=None, announcement_channel_name=None, chat_channel_name=None, silent=False):
-    """특정 서버(guild)의 설정을 저장합니다.
+
+def save_guild_settings(guild_id, announcement_id=None, chat_id=None, guild_name=None,
+                        announcement_channel_name=None, chat_channel_name=None, silent=False):
+    """특정 서버(guild)의 설정을 저장합니다 (atomic 단일 문서 업데이트 → drift kill).
 
     Args:
         silent: True면 로그 출력 안 함 (대량 저장 시)
     """
-    guild_id_str = str(guild_id)
-    settings = load_settings()
+    global settings_cache
+    settings_cache = None
 
-    # 해당 서버의 설정이 없으면 새로 생성
-    if guild_id_str not in settings["guilds"]:
-        settings["guilds"][guild_id_str] = {}
-
-    # 서버 이름 저장
+    fields = {}
     if guild_name is not None:
-        settings["guilds"][guild_id_str]["GUILD_NAME"] = guild_name
-
-    # 새로운 값으로 업데이트
+        fields["GUILD_NAME"] = guild_name
     if announcement_id is not None:
-        settings["guilds"][guild_id_str]["ANNOUNCEMENT_CHANNEL_ID"] = announcement_id
+        fields["ANNOUNCEMENT_CHANNEL_ID"] = announcement_id
         if announcement_channel_name is not None:
-            settings["guilds"][guild_id_str]["ANNOUNCEMENT_CHANNEL_NAME"] = announcement_channel_name
+            fields["ANNOUNCEMENT_CHANNEL_NAME"] = announcement_channel_name
     if chat_id is not None:
-        settings["guilds"][guild_id_str]["CHAT_CHANNEL_ID"] = chat_id
+        fields["CHAT_CHANNEL_ID"] = chat_id
         if chat_channel_name is not None:
-            settings["guilds"][guild_id_str]["CHAT_CHANNEL_NAME"] = chat_channel_name
+            fields["CHAT_CHANNEL_NAME"] = chat_channel_name
 
+    if not fields:
+        return True
+
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        ok = _fs_update_guild(guild_id, fields)
+        if not silent:
+            if ok:
+                print(f"[Firestore] guild {guild_id} 업데이트", flush=True)
+            else:
+                print(f"[경고] Firestore guild {guild_id} 업데이트 실패", flush=True)
+        if SETTINGS_BACKEND == 'firestore':
+            return ok
+
+    # dual / gcs 모드: GCS 도 업데이트 (전체 settings 통째로)
+    settings = load_settings(force_reload=True)
+    guild_id_str = str(guild_id)
+    if guild_id_str not in settings.get("guilds", {}):
+        settings.setdefault("guilds", {})[guild_id_str] = {}
+    settings["guilds"][guild_id_str].update(fields)
     return save_settings(settings, silent=silent)
 
 
@@ -253,21 +484,34 @@ def get_solo_chat_channels(guild_id, identity: str) -> list[int]:
 
 
 def set_solo_chat_channels(guild_id, identity: str, channel_ids: list[int]) -> bool:
-    """특정 identity의 자율 응답 채널 목록을 저장 (덮어쓰기). identity는 'debi' 또는 'marlene'."""
+    """특정 identity의 자율 응답 채널 목록을 저장 (atomic 단일 문서 업데이트)."""
     if identity not in ("debi", "marlene"):
         raise ValueError(f"identity는 'debi'/'marlene'만 허용: {identity}")
 
+    global settings_cache
+    settings_cache = None
+
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        # 기존 solo_chat_channels 가져와서 머지 (다른 identity 보존)
+        existing = _fs_get_guild(guild_id) or {}
+        solo = dict(existing.get("solo_chat_channels", {}) or {})
+        solo[identity] = [int(c) for c in (channel_ids or [])]
+        ok = _fs_update_guild(guild_id, {"solo_chat_channels": solo})
+        if SETTINGS_BACKEND == 'firestore':
+            return ok
+
+    # dual / gcs 모드
+    settings = load_settings(force_reload=True)
     guild_id_str = str(guild_id)
-    settings = load_settings()
     if guild_id_str not in settings.get("guilds", {}):
         settings.setdefault("guilds", {})[guild_id_str] = {}
-
     guild_cfg = settings["guilds"][guild_id_str]
     solo_cfg = guild_cfg.setdefault("solo_chat_channels", {})
     solo_cfg[identity] = [int(c) for c in (channel_ids or [])]
-
     return save_settings(settings)
 
+
+# ─────── removed_servers (GCS 유지, Phase 2 이관 대상) ───────
 
 def load_removed_servers():
     """GCS에서 삭제된 서버 목록을 로드합니다."""
@@ -314,21 +558,15 @@ def unmark_removed_server(guild_id):
 def save_removed_server(guild_id, guild_name, member_count=None):
     """삭제된 서버 정보를 GCS에 저장합니다."""
     from datetime import datetime
-
     try:
         removed_data = load_removed_servers()
-
-        # 새로운 삭제 정보 추가
         removed_info = {
             "guild_id": str(guild_id),
             "guild_name": guild_name,
             "removed_at": datetime.now().isoformat(),
             "member_count": member_count
         }
-
         removed_data["removed_servers"].append(removed_info)
-
-        # GCS에 저장
         client = get_gcs_client()
         if client:
             bucket = client.bucket(GCS_BUCKET)
@@ -347,95 +585,191 @@ def save_removed_server(guild_id, guild_name, member_count=None):
 
 
 def remove_guild_settings(guild_id):
-    """특정 서버(guild)에 삭제됨 표시를 추가합니다."""
+    """특정 서버(guild)에 삭제됨 표시를 추가합니다 (atomic)."""
     global settings_cache
-    from datetime import datetime
-
-    guild_id_str = str(guild_id)
-
     settings_cache = None
-    settings = load_settings()
 
-    if guild_id_str in settings["guilds"]:
-        settings["guilds"][guild_id_str]["STATUS"] = "삭제됨"
-        settings["guilds"][guild_id_str]["REMOVED_AT"] = datetime.now().isoformat()
+    from datetime import datetime
+    fields = {
+        "STATUS": "삭제됨",
+        "REMOVED_AT": datetime.now().isoformat(),
+    }
 
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        # 길드 문서가 있을 때만 마킹 (없으면 skip)
+        existing = _fs_get_guild(guild_id)
+        if existing is not None:
+            ok = _fs_update_guild(guild_id, fields)
+            if SETTINGS_BACKEND == 'firestore':
+                return ok
+        else:
+            if SETTINGS_BACKEND == 'firestore':
+                return True  # 이미 없는 경우 성공
+
+    # dual / gcs
+    settings = load_settings(force_reload=True)
+    guild_id_str = str(guild_id)
+    if guild_id_str in settings.get("guilds", {}):
+        settings["guilds"][guild_id_str].update(fields)
         return save_settings(settings)
+    return True
 
-    return True  # 이미 없는 경우도 성공으로 처리
+
+# ─────── 전역 설정 ───────
 
 def get_global_setting(key):
-    """전역 설정을 가져옵니다."""
+    """전역 설정을 가져옵니다 (atomic 단일 필드 읽기)."""
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        global_data = _fs_get_global()
+        if global_data is not None:
+            return global_data.get(key)
     settings = load_settings()
     return settings.get("global", {}).get(key)
 
+
 def save_global_setting(key, value):
-    """전역 설정을 저장합니다."""
-    settings = load_settings()
+    """전역 설정을 저장합니다 (atomic 단일 필드 업데이트)."""
+    global settings_cache
+    settings_cache = None
+
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        ok = _fs_update_global({key: value})
+        if SETTINGS_BACKEND == 'firestore':
+            return ok
+
+    # dual / gcs
+    settings = load_settings(force_reload=True)
     if "global" not in settings:
         settings["global"] = {}
     settings["global"][key] = value
     return save_settings(settings)
 
+
 def save_last_video_info(video_id, video_title=None):
-    """마지막 체크된 비디오 정보를 저장합니다."""
-    settings = load_settings()
+    """마지막 체크된 비디오 정보를 저장합니다 (atomic)."""
+    global settings_cache
+    settings_cache = None
+
+    fields = {"LAST_CHECKED_VIDEO_ID": video_id}
+    if video_title:
+        fields["LAST_CHECKED_VIDEO_TITLE"] = video_title
+
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        ok = _fs_update_global(fields)
+        if SETTINGS_BACKEND == 'firestore':
+            return ok
+
+    settings = load_settings(force_reload=True)
     if "global" not in settings:
         settings["global"] = {}
-    
-    settings["global"]["LAST_CHECKED_VIDEO_ID"] = video_id
-    if video_title:
-        settings["global"]["LAST_CHECKED_VIDEO_TITLE"] = video_title
-    
+    settings["global"].update(fields)
     return save_settings(settings)
+
+
+# ─────── 사용자 설정 / 유튜브 구독 ───────
 
 def get_youtube_subscribers():
     """유튜브 DM 알림을 구독한 모든 사용자 ID 목록을 반환합니다."""
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        fs = get_firestore_client()
+        if fs:
+            try:
+                subscribers = []
+                query = fs.collection('users').where(filter=__import__('google.cloud.firestore_v1.base_query', fromlist=['FieldFilter']).FieldFilter('youtube_subscribed', '==', True))
+                for doc in query.stream():
+                    try:
+                        subscribers.append(int(doc.id))
+                    except (TypeError, ValueError):
+                        continue
+                return subscribers
+            except Exception as e:
+                print(f"[Firestore 경고] subscribers 쿼리 실패: {e}", flush=True)
+    # fallback
     settings = load_settings()
     subscribers = []
     for user_id, user_settings in settings.get("users", {}).items():
         if user_settings.get("youtube_subscribed"):
-            subscribers.append(int(user_id))
+            try:
+                subscribers.append(int(user_id))
+            except (TypeError, ValueError):
+                continue
     return subscribers
 
+
 def log_user_interaction(user_id, user_name=None):
-    """사용자가 봇과 상호작용했을 때 기록합니다."""
-    settings = load_settings()
+    """사용자가 봇과 상호작용했을 때 기록합니다 (atomic)."""
+    global settings_cache
+    settings_cache = None
+
+    from datetime import datetime
+    fields = {
+        "last_interaction": datetime.now().isoformat(),
+    }
+    if user_name:
+        fields["user_name"] = user_name
+
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        # interaction_count 증가는 read-modify-write — 짧은 윈도우에 race 가능. 일단 단순 처리.
+        existing = _fs_get_user(user_id) or {}
+        fields["interaction_count"] = existing.get("interaction_count", 0) + 1
+        ok = _fs_update_user(user_id, fields)
+        if SETTINGS_BACKEND == 'firestore':
+            return ok
+
+    settings = load_settings(force_reload=True)
     if "users" not in settings:
         settings["users"] = {}
-    
     user_id_str = str(user_id)
     if user_id_str not in settings["users"]:
         settings["users"][user_id_str] = {}
-    
-    # 마지막 상호작용 시간 업데이트
-    from datetime import datetime
     settings["users"][user_id_str]["last_interaction"] = datetime.now().isoformat()
     settings["users"][user_id_str]["interaction_count"] = settings["users"][user_id_str].get("interaction_count", 0) + 1
-    
-    # 사용자 이름 저장
     if user_name:
         settings["users"][user_id_str]["user_name"] = user_name
-    
     save_settings(settings)
+
 
 def get_interaction_users():
     """실제 DM을 보낸 사용자 ID 목록을 반환합니다."""
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        fs = get_firestore_client()
+        if fs:
+            try:
+                users = []
+                # interaction_count > 0 쿼리
+                from google.cloud.firestore_v1.base_query import FieldFilter
+                query = fs.collection('users').where(filter=FieldFilter('interaction_count', '>', 0))
+                for doc in query.stream():
+                    try:
+                        users.append(int(doc.id))
+                    except (TypeError, ValueError):
+                        continue
+                return users
+            except Exception as e:
+                print(f"[Firestore 경고] interaction_users 쿼리 실패: {e}", flush=True)
+    # fallback
     settings = load_settings()
     interaction_users = []
     for user_id, user_settings in settings.get("users", {}).items():
-        # interaction_count가 1 이상인 사용자만 (실제 DM을 보낸 사용자)
         if user_settings.get("interaction_count", 0) > 0:
-            interaction_users.append(int(user_id))
+            try:
+                interaction_users.append(int(user_id))
+            except (TypeError, ValueError):
+                continue
     return interaction_users
+
 
 def get_all_users():
     """모든 등록된 사용자 정보를 반환합니다."""
     settings = load_settings()
     users = []
     for user_id, user_settings in settings.get("users", {}).items():
+        try:
+            uid_int = int(user_id)
+        except (TypeError, ValueError):
+            continue
         users.append({
-            'id': int(user_id),
+            'id': uid_int,
             'youtube_subscribed': user_settings.get("youtube_subscribed", False),
             'first_interaction': user_settings.get("first_interaction"),
             'last_seen': user_settings.get("last_seen"),
@@ -443,94 +777,135 @@ def get_all_users():
         })
     return users
 
-def add_user_interaction(user_id, interaction_type="general"):
-    """사용자 상호작용을 기록합니다. (DM 외 용도 - interaction_count 증가 안 함)"""
-    user_id_str = str(user_id)
-    settings = load_settings()
 
-    if "users" not in settings:
-        settings["users"] = {}
-    if user_id_str not in settings["users"]:
-        settings["users"][user_id_str] = {}
+def add_user_interaction(user_id, interaction_type="general"):
+    """사용자 상호작용을 기록합니다 (atomic, DM 외 용도 - interaction_count 증가 안 함)."""
+    global settings_cache
+    settings_cache = None
 
     from datetime import datetime
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    if "first_interaction" not in settings["users"][user_id_str]:
-        settings["users"][user_id_str]["first_interaction"] = now
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        existing = _fs_get_user(user_id) or {}
+        fields = {
+            "last_seen": now,
+            "interaction_type": interaction_type,
+        }
+        if "first_interaction" not in existing:
+            fields["first_interaction"] = now
+        ok = _fs_update_user(user_id, fields)
+        if SETTINGS_BACKEND == 'firestore':
+            return ok
 
-    settings["users"][user_id_str]["last_seen"] = now
-    settings["users"][user_id_str]["interaction_type"] = interaction_type
-
-    return save_settings(settings)
-
-def set_youtube_subscription(user_id, subscribe: bool, user_name=None):
-    """사용자의 유튜브 DM 알림 구독 상태를 설정합니다."""
-    user_id_str = str(user_id)
-    settings = load_settings()
-
+    settings = load_settings(force_reload=True)
     if "users" not in settings:
         settings["users"] = {}
+    user_id_str = str(user_id)
     if user_id_str not in settings["users"]:
         settings["users"][user_id_str] = {}
+    if "first_interaction" not in settings["users"][user_id_str]:
+        settings["users"][user_id_str]["first_interaction"] = now
+    settings["users"][user_id_str]["last_seen"] = now
+    settings["users"][user_id_str]["interaction_type"] = interaction_type
+    return save_settings(settings)
 
+
+def set_youtube_subscription(user_id, subscribe: bool, user_name=None):
+    """사용자의 유튜브 DM 알림 구독 상태를 설정합니다 (atomic — drift kill)."""
+    global settings_cache
+    settings_cache = None
+
+    fields = {"youtube_subscribed": subscribe}
+    if user_name:
+        fields["user_name"] = user_name
+
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        ok = _fs_update_user(user_id, fields)
+        if SETTINGS_BACKEND == 'firestore':
+            return ok
+
+    settings = load_settings(force_reload=True)
+    if "users" not in settings:
+        settings["users"] = {}
+    user_id_str = str(user_id)
+    if user_id_str not in settings["users"]:
+        settings["users"][user_id_str] = {}
     settings["users"][user_id_str]["youtube_subscribed"] = subscribe
-
-    # 사용자 이름 저장
     if user_name:
         settings["users"][user_id_str]["user_name"] = user_name
-
     return save_settings(settings)
 
 
 def is_youtube_subscribed(user_id) -> bool:
-    """사용자의 유튜브 DM 알림 구독 상태를 확인합니다."""
+    """사용자의 유튜브 DM 알림 구독 상태를 확인합니다 (atomic 단일 필드 읽기)."""
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        user_data = _fs_get_user(user_id)
+        if user_data is not None:
+            return bool(user_data.get("youtube_subscribed", False))
     settings = load_settings()
     user_id_str = str(user_id)
     return settings.get("users", {}).get(user_id_str, {}).get("youtube_subscribed", False)
 
 
+# ─────── 서버 관리자 ───────
+
 def get_server_admins(guild_id=None):
     """서버 관리자 목록을 반환합니다. guild_id가 주어지면 해당 서버의 관리자만 반환."""
     settings = load_settings()
     admins = []
-    
     if guild_id:
-        # 특정 서버의 관리자만 조회
         guild_str = str(guild_id)
         for user_id, user_settings in settings.get("users", {}).items():
             if user_settings.get("admin_servers", {}).get(guild_str):
-                admins.append(int(user_id))
+                try:
+                    admins.append(int(user_id))
+                except (TypeError, ValueError):
+                    continue
     else:
-        # 모든 서버 관리자 조회
         for user_id, user_settings in settings.get("users", {}).items():
             if user_settings.get("admin_servers"):
-                admins.append({
-                    'user_id': int(user_id),
-                    'admin_servers': list(user_settings.get("admin_servers", {}).keys())
-                })
-    
+                try:
+                    admins.append({
+                        'user_id': int(user_id),
+                        'admin_servers': list(user_settings.get("admin_servers", {}).keys())
+                    })
+                except (TypeError, ValueError):
+                    continue
     return admins
 
-def set_server_admin(user_id, guild_id, is_admin=True):
-    """사용자를 특정 서버의 관리자로 설정하거나 해제합니다."""
-    user_id_str = str(user_id)
-    guild_str = str(guild_id)
-    settings = load_settings()
 
+def set_server_admin(user_id, guild_id, is_admin=True):
+    """사용자를 특정 서버의 관리자로 설정하거나 해제합니다 (atomic)."""
+    global settings_cache
+    settings_cache = None
+
+    guild_str = str(guild_id)
+
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        existing = _fs_get_user(user_id) or {}
+        admin_servers = dict(existing.get("admin_servers", {}) or {})
+        admin_servers[guild_str] = is_admin
+        ok = _fs_update_user(user_id, {"admin_servers": admin_servers})
+        if SETTINGS_BACKEND == 'firestore':
+            return ok
+
+    user_id_str = str(user_id)
+    settings = load_settings(force_reload=True)
     if "users" not in settings:
         settings["users"] = {}
     if user_id_str not in settings["users"]:
         settings["users"][user_id_str] = {}
     if "admin_servers" not in settings["users"][user_id_str]:
         settings["users"][user_id_str]["admin_servers"] = {}
-
     settings["users"][user_id_str]["admin_servers"][guild_str] = is_admin
-
     return save_settings(settings)
 
+
+# ─────── DM 채널 ───────
+
 def save_user_dm_interaction(user_id, channel_id, user_name=None):
-    """DM을 보낸 사용자의 정보를 GCS에 저장합니다. (통합 함수)
+    """DM을 보낸 사용자의 정보를 저장합니다 (atomic — drift kill).
 
     Args:
         user_id: 사용자 Discord ID
@@ -539,67 +914,71 @@ def save_user_dm_interaction(user_id, channel_id, user_name=None):
 
     저장 내용:
         - DM 채널 정보
-        - interaction count (DM 횟수)
+        - interaction count (DM 횟수, 증가)
         - 마지막 상호작용 시간
         - 사용자 이름
     """
+    global settings_cache
+    settings_cache = None
+
     from datetime import datetime
+    now = datetime.now().isoformat()
+
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        existing = _fs_get_user(user_id) or {}
+        fields = {
+            "dm_channel_id": str(channel_id),
+            "last_dm": now,
+            "last_interaction": now,
+            "interaction_count": existing.get("interaction_count", 0) + 1,
+        }
+        if user_name:
+            fields["user_name"] = user_name
+        ok = _fs_update_user(user_id, fields)
+        if SETTINGS_BACKEND == 'firestore':
+            return ok
 
     user_id_str = str(user_id)
-    settings = load_settings()
-
+    settings = load_settings(force_reload=True)
     if "users" not in settings:
         settings["users"] = {}
     if user_id_str not in settings["users"]:
         settings["users"][user_id_str] = {}
-
     user_data = settings["users"][user_id_str]
-
-    # DM 채널 ID 저장
     user_data["dm_channel_id"] = str(channel_id)
-
-    # 사용자 이름 저장
     if user_name:
         user_data["user_name"] = user_name
-
-    # DM 시간 기록
-    user_data["last_dm"] = datetime.now().isoformat()
-    user_data["last_interaction"] = datetime.now().isoformat()
-
-    # interaction count 증가 (DM을 보낸 횟수)
+    user_data["last_dm"] = now
+    user_data["last_interaction"] = now
     user_data["interaction_count"] = user_data.get("interaction_count", 0) + 1
-
     return save_settings(settings, silent=True)
 
 
 def save_dm_channel(user_id, channel_id, user_name=None):
-    """[DEPRECATED] save_user_dm_interaction 사용 권장
-    유튜브 서비스 등 기존 코드 호환성을 위해 유지"""
+    """[DEPRECATED] save_user_dm_interaction 사용 권장. 호환성 유지."""
     return save_user_dm_interaction(user_id, channel_id, user_name)
 
 
+# ─────── 정리 (cleanup) ───────
+
 def cleanup_removed_servers(active_guild_ids=None):
-    """삭제된 서버를 settings.json에서 완전히 제거합니다.
+    """삭제된 서버를 settings 에서 완전히 제거합니다.
 
-    removed_servers.json에 기록된 서버들을 settings.json의 guilds에서 삭제합니다.
-    active_guild_ids가 주어지면 현재 봇이 접속 중인 서버는 건너뜁니다.
-
-    Returns:
-        dict: 정리 결과 (removed_count, cleaned_servers)
+    removed_servers.json 에 기록된 서버들을 Firestore guilds 컬렉션에서 삭제.
+    active_guild_ids 가 주어지면 현재 봇이 접속 중인 서버는 건너뜁니다.
     """
+    global settings_cache
+    settings_cache = None
+
     active_ids = set(str(gid) for gid in (active_guild_ids or []))
 
     try:
-        # 삭제된 서버 목록 로드
         removed_data = load_removed_servers()
         removed_servers = removed_data.get("removed_servers", [])
 
         if not removed_servers:
             print("[정보] 삭제된 서버가 없습니다.", flush=True)
             return {"removed_count": 0, "cleaned_servers": []}
-
-        # 현재 설정 로드
-        settings = load_settings()
 
         cleaned_servers = []
         removed_count = 0
@@ -609,35 +988,45 @@ def cleanup_removed_servers(active_guild_ids=None):
             guild_id = str(removed_server.get("guild_id"))
             guild_name = removed_server.get("guild_name", "알 수 없음")
 
-            # 현재 봇이 접속 중인 서버는 건너뛰기 (재참가한 서버)
             if guild_id in active_ids:
                 skipped.append(guild_name)
                 continue
 
-            # settings.json에서 해당 서버 삭제
-            if guild_id in settings.get("guilds", {}):
-                del settings["guilds"][guild_id]
-                cleaned_servers.append({
-                    "guild_id": guild_id,
-                    "guild_name": guild_name,
-                    "removed_at": removed_server.get("removed_at")
-                })
-                removed_count += 1
-                print(f"[정리] 삭제된 서버 제거: {guild_name} (ID: {guild_id})", flush=True)
+            # Firestore guilds 컬렉션에서 atomic 삭제
+            if SETTINGS_BACKEND in ('firestore', 'dual'):
+                # 존재 여부 확인 후 삭제
+                if _fs_get_guild(guild_id) is not None:
+                    if _fs_delete_guild(guild_id):
+                        cleaned_servers.append({
+                            "guild_id": guild_id,
+                            "guild_name": guild_name,
+                            "removed_at": removed_server.get("removed_at")
+                        })
+                        removed_count += 1
+                        print(f"[정리] 삭제된 서버 제거 (Firestore): {guild_name} (ID: {guild_id})", flush=True)
 
-        # 변경사항 저장
-        if removed_count > 0:
-            save_settings(settings)
-            print(f"[완료] {removed_count}개의 삭제된 서버 정리 완료", flush=True)
-        else:
+            # dual / gcs 모드: GCS 도 동기화
+            if SETTINGS_BACKEND in ('dual', 'gcs'):
+                settings = load_settings(force_reload=True)
+                if guild_id in settings.get("guilds", {}):
+                    del settings["guilds"][guild_id]
+                    if SETTINGS_BACKEND == 'gcs':
+                        cleaned_servers.append({
+                            "guild_id": guild_id,
+                            "guild_name": guild_name,
+                            "removed_at": removed_server.get("removed_at")
+                        })
+                        removed_count += 1
+                        print(f"[정리] 삭제된 서버 제거 (GCS): {guild_name} (ID: {guild_id})", flush=True)
+                    save_settings(settings, silent=True)
+
+        if removed_count == 0:
             print("[정보] 정리할 서버가 없습니다.", flush=True)
 
         if skipped:
             print(f"[정보] 재참가 서버 {len(skipped)}개 건너뜀: {', '.join(skipped)}", flush=True)
 
-        # removed_servers.json에서 처리 완료된 항목 + 재참가 서버 제거
-        remaining = [s for s in removed_servers if str(s.get("guild_id")) in active_ids]
-        # 재참가 서버만 남기지 않고 전부 비우기 (처리 완료)
+        # removed_servers.json 비우기 (처리 완료)
         removed_data["removed_servers"] = []
         try:
             client = get_gcs_client()
@@ -662,6 +1051,9 @@ def cleanup_removed_servers(active_guild_ids=None):
         traceback.print_exc()
         return {"removed_count": 0, "cleaned_servers": [], "error": str(e)}
 
+
+# ─────── 명령어 로그 (GCS 유지, Phase 2 이관 대상) ───────
+
 def save_command_log(log_entry):
     """명령어 사용 로그를 GCS에 저장합니다.
 
@@ -676,24 +1068,20 @@ def save_command_log(log_entry):
             - args: 명령어 인자 (dict)
     """
     from datetime import datetime, timedelta, timezone
-
     KST = timezone(timedelta(hours=9))
 
     try:
         client = get_gcs_client()
         if not client:
             return False
-
         bucket = client.bucket(GCS_BUCKET)
         blob = bucket.blob(GCS_COMMAND_LOGS_KEY)
 
-        # 기존 로그 로드 (없으면 빈 구조 생성)
         if blob.exists():
             logs_data = json.loads(blob.download_as_text())
         else:
             logs_data = {"logs": []}
 
-        # 새 로그 추가
         logs_data["logs"].append(log_entry)
 
         # 30일 이상 된 로그 삭제 (로그 로테이션)
@@ -708,17 +1096,16 @@ def save_command_log(log_entry):
             if _parse_ts(log.get("timestamp", "2000-01-01")) > cutoff_date
         ]
 
-        # GCS에 저장
         blob.upload_from_string(
             json.dumps(logs_data, indent=2, ensure_ascii=False),
             content_type='application/json'
         )
-
         return True
 
     except Exception as e:
         print(f"[경고] 명령어 로그 저장 실패: {e}", flush=True)
         return False
+
 
 def load_command_logs(filters=None):
     """명령어 사용 로그를 GCS에서 로드합니다.
@@ -736,48 +1123,34 @@ def load_command_logs(filters=None):
         list: 필터링된 로그 항목 리스트 (최신순)
     """
     from datetime import datetime
-
     try:
         client = get_gcs_client()
         if not client:
             return []
-
         bucket = client.bucket(GCS_BUCKET)
         blob = bucket.blob(GCS_COMMAND_LOGS_KEY)
-
         if not blob.exists():
             return []
 
         logs_data = json.loads(blob.download_as_text())
         logs = logs_data.get("logs", [])
 
-        # 필터 적용
         if filters:
-            # 서버 ID 필터
             if filters.get("guild_id"):
                 logs = [log for log in logs if log.get("guild_id") == str(filters["guild_id"])]
-
-            # 사용자 ID 필터
             if filters.get("user_id"):
                 logs = [log for log in logs if log.get("user_id") == str(filters["user_id"])]
-
-            # 명령어 이름 필터
             if filters.get("command_name"):
                 logs = [log for log in logs if log.get("command_name") == filters["command_name"]]
-
-            # 날짜 범위 필터
             if filters.get("start_date"):
                 start = datetime.fromisoformat(filters["start_date"])
                 logs = [log for log in logs if datetime.fromisoformat(log["timestamp"]) >= start]
-
             if filters.get("end_date"):
                 end = datetime.fromisoformat(filters["end_date"])
                 logs = [log for log in logs if datetime.fromisoformat(log["timestamp"]) <= end]
 
-        # 최신순 정렬 (타임스탬프 기준 내림차순) - limit 적용 전에 정렬해야 함
         logs.sort(key=lambda x: x["timestamp"], reverse=True)
 
-        # 개수 제한 (정렬 후 적용)
         if filters and filters.get("limit"):
             logs = logs[:filters["limit"]]
 

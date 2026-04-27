@@ -1,0 +1,33 @@
+# 로컬 학습/백업용 MySQL.
+# 운영 봇과 무관 — 봇 컨테이너 5001 / webpanel 8080 / dashboard 8081 와 포트 안 겹침.
+# 사용:
+#   docker compose -f docker-compose.mysql.yml up -d   # 시작
+#   docker compose -f docker-compose.mysql.yml down    # 정지
+# 접속:
+#   mysql -h 127.0.0.1 -P 3306 -u backup -p   (비밀번호: backup_pw)
+#   또는 GUI: TablePlus / DBeaver / MySQL Workbench
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: debi-marlene-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: changeme_root
+      MYSQL_DATABASE: debi_marlene_backup
+      MYSQL_USER: backup
+      MYSQL_PASSWORD: backup_pw
+      TZ: Asia/Seoul
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+      - ./mysql_init:/docker-entrypoint-initdb.d  # 첫 실행 시 init.sql 자동 적용
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pchangeme_root"]
+      interval: 5s
+      timeout: 3s
+      retries: 20

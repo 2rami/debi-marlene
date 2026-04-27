@@ -3,11 +3,18 @@ Server Management Routes
 """
 
 import os
+import sys
 import json
 import logging
 import requests
 from flask import Blueprint, jsonify, session, request
 from functools import wraps
+
+# 프로젝트 루트를 sys.path 에 추가 — 봇 코드(run.core.config)와 단일 진실 소스 공유
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+from run.core import config as bot_config
 try:
     from dashboard_logger import log_action as log_dashboard_action
 except ImportError:
@@ -54,31 +61,23 @@ def get_gcs_client():
     return gcs_client if gcs_client != False else None
 
 def load_gcs_settings():
-    """GCS에서 설정을 로드합니다."""
-    client = get_gcs_client()
-    if client:
-        try:
-            bucket = client.bucket(GCS_BUCKET)
-            blob = bucket.blob(GCS_KEY)
-            settings_data = blob.download_as_text()
-            return json.loads(settings_data)
-        except Exception as e:
-            logger.error(f'GCS 설정 로드 실패: {e}')
-    return {"guilds": {}, "users": {}, "global": {}}
+    """[Firestore swap 2026-04-27] settings 를 로드. 함수명은 레거시 유지, 실제 백엔드는 config 모듈이 결정 (Firestore primary, GCS fallback)."""
+    try:
+        return bot_config.load_settings()
+    except Exception as e:
+        logger.error(f'설정 로드 실패 (config.load_settings): {e}')
+        return {"guilds": {}, "users": {}, "global": {}}
 
 def save_gcs_settings(settings):
-    """GCS에 설정을 저장합니다."""
-    client = get_gcs_client()
-    if client:
-        try:
-            json_data = json.dumps(settings, indent=2, ensure_ascii=False)
-            bucket = client.bucket(GCS_BUCKET)
-            blob = bucket.blob(GCS_KEY)
-            blob.upload_from_string(json_data, content_type='application/json')
-            return True
-        except Exception as e:
-            logger.error(f'GCS 설정 저장 실패: {e}')
-    return False
+    """[Firestore swap 2026-04-27] settings 를 저장. 함수명은 레거시 유지, 실제 백엔드는 config 모듈이 결정.
+
+    여기를 호출하면 봇이 쓰는 같은 백엔드(Firestore)로 들어가 dashboard split-brain 해소.
+    """
+    try:
+        return bot_config.save_settings(settings)
+    except Exception as e:
+        logger.error(f'설정 저장 실패 (config.save_settings): {e}')
+        return False
 
 def get_guild_features(guild_id):
     """서버의 대시보드 기능 설정을 가져옵니다."""

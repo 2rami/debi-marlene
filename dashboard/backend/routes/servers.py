@@ -461,11 +461,18 @@ def get_bot_stats():
         for guild in guilds:
             users += guild.get('approximate_member_count', 0)
 
+    # 슬래시 커맨드 수 — Discord application commands 등록 현황 조회
+    commands = 0
+    if DISCORD_CLIENT_ID:
+        cmd_response = discord_bot_request(f'/applications/{DISCORD_CLIENT_ID}/commands')
+        if cmd_response.ok:
+            commands = len(cmd_response.json())
+
     return jsonify({
         'stats': {
             'users': users,
             'servers': servers,
-            'commands': 17,
+            'commands': commands,
         },
         'botClientId': DISCORD_CLIENT_ID,
     })

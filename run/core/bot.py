@@ -374,12 +374,20 @@ async def on_ready():
         return
     bot._ready_once = True
 
-    # 삭제된 서버 정리 (현재 접속 중인 서버는 건너뜀)
-    try:
-        active_ids = [g.id for g in bot.guilds]
-        config.cleanup_removed_servers(active_guild_ids=active_ids)
-    except Exception as e:
-        print(f"[경고] 삭제된 서버 정리 실패: {e}", flush=True)
+    # 삭제된 서버 정리 — GUILD_CREATE 이벤트 안정화 후(30초) 실행 + active=0 abort
+    # 즉시 호출 시 bot.guilds 가 부분적이라 재참가 길드가 settings에서 오삭제되던 race 회피
+    async def _delayed_cleanup():
+        await asyncio.sleep(30)
+        active_ids_now = [g.id for g in bot.guilds]
+        if not active_ids_now:
+            print("[경고] guild cleanup 중단: active guild 0개 — GUILD_CREATE race 의심", flush=True)
+            return
+        try:
+            config.cleanup_removed_servers(active_guild_ids=active_ids_now)
+        except Exception as e:
+            print(f"[경고] 삭제된 서버 정리 실패: {e}", flush=True)
+
+    asyncio.create_task(_delayed_cleanup())
 
     # 명령어에 allowed_installs/allowed_contexts 설정 (프로필에 명령어 표시)
     # guild_only 데코레이터가 붙은 명령어는 서버 전용으로 강제 (음성 명령어 등 DM 실행 불가)

@@ -11,7 +11,7 @@ PROJECT_ID = ironic-objectivist-465713-a6
 VM_NAME = debi-marlene-bot
 ZONE = asia-northeast3-a
 REGION = asia-northeast3
-VM_PATH = ~/debi-marlene
+VM_PATH = /home/2rami/debi-marlene
 CONTAINER_NAME = debi-marlene
 REGISTRY = $(REGION)-docker.pkg.dev/$(PROJECT_ID)/debi-marlene
 IMAGE_TAG = $(REGISTRY)/$(CONTAINER_NAME):latest
@@ -26,7 +26,7 @@ DASHBOARD_IMAGE_TAG = $(REGISTRY)/$(DASHBOARD_CONTAINER):latest
 .PHONY: deploy-webpanel-frontend deploy-webpanel-backend deploy-webpanel-quick logs-webpanel
 .PHONY: deploy-quick
 .PHONY: deploy-solo-debi deploy-solo-marlene start-solo-debi start-solo-marlene stop-solo-debi stop-solo-marlene logs-solo-debi logs-solo-marlene restart-solo-debi restart-solo-marlene
-.PHONY: sync-check preflight
+.PHONY: sync-check preflight deploy-guard deploy-env-guard
 
 # 솔로봇 컨테이너 이름 (기존 이미지 $(IMAGE_TAG) 재사용 — 별도 빌드 불필요)
 SOLO_DEBI_NAME = debi-solo
@@ -70,8 +70,25 @@ help:
 # 빠른 배포 (코드만 교체, Docker 리빌드 없음)
 # ============================================================
 
+# 배포 사전 체크 — Docker Desktop wrapper가 거짓 exit 0 내거나 gcloud 미인증 상태에서 deploy가 침묵 실패하던 함정 차단
+deploy-guard:
+	@echo "[guard] docker daemon 응답 확인..."
+	@docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { echo "[ERROR] docker daemon 응답 없음. Docker Desktop 실행 + WSL 통합 활성화 필요"; exit 1; }
+	@echo "[guard] gcloud 인증 확인..."
+	@gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | grep -q . || { echo "[ERROR] gcloud 미인증. 'gcloud auth login' 실행 필요"; exit 1; }
+	@echo "[guard] gcloud project 확인..."
+	@test "$$(gcloud config get-value project 2>/dev/null)" = "$(PROJECT_ID)" || { echo "[ERROR] gcloud project가 $(PROJECT_ID) 가 아님. 'gcloud config set project $(PROJECT_ID)' 실행 필요"; exit 1; }
+	@echo "[guard] OK"
+
+# env drift 가드 — deploy(전체, env-file 영향) 전용. deploy-quick(docker cp, env 무관)은 미적용.
+# project_env_drift_guard 사고 재발 방지: SM/VM/로컬 .env 어긋난 상태로 deploy 시 OAuth/서버목록 깨짐.
+deploy-env-guard:
+	@echo "[env-guard] env 3-way sync-check (local x Secret Manager x VM)..."
+	@bash scripts/sync_check.sh >/dev/null 2>&1 || { echo "[ERROR] env drift 감지. 'make sync-check' 로 상세 확인 후 './scripts/sync_env.sh pull' 또는 'push' 로 정렬 필요. drift 상태에서 deploy 시 OAuth/서버목록 깨짐 (project_env_drift_guard)"; exit 1; }
+	@echo "[env-guard] OK"
+
 # 봇 빠른 배포
-deploy-quick:
+deploy-quick: deploy-guard
 	@echo "[1/3] 봇 코드를 VM에 업로드 중..."
 	@tar -czf /tmp/bot-upload.tar.gz --exclude='__pycache__' --exclude='*.pyc' run/ main.py
 	@gcloud compute scp /tmp/bot-upload.tar.gz $(VM_NAME):~/bot-upload.tar.gz --zone=$(ZONE)
@@ -114,19 +131,20 @@ deploy-webpanel-backend-quick:
 # ============================================================
 
 # 전체 배포 프로세스
-deploy: build-local push-image restart
+deploy: deploy-guard deploy-env-guard build-local push-image restart
 	@echo "배포 완료!"
 
-# 로컬에서 Docker 이미지 빌드
+# 로컬에서 Docker 이미지 빌드 — wrapper가 거짓 exit 0 내는 케이스를 위해 명시적 실패 체크
 build-local:
 	@echo "로컬에서 Docker 이미지 빌드 중 (linux/amd64)..."
-	@docker build --platform linux/amd64 -t $(CONTAINER_NAME) -t $(IMAGE_TAG) .
+	@docker build --platform linux/amd64 -t $(CONTAINER_NAME) -t $(IMAGE_TAG) . || { echo "[ERROR] docker build 실패"; exit 1; }
+	@docker image inspect $(IMAGE_TAG) >/dev/null 2>&1 || { echo "[ERROR] 빌드 결과 이미지($(IMAGE_TAG)) 없음. wrapper가 거짓 성공 보고"; exit 1; }
 	@echo "빌드 완료"
 
 # Docker 이미지를 Artifact Registry에 푸시
 push-image:
 	@echo "Docker 이미지를 Artifact Registry에 푸시 중..."
-	@docker push $(IMAGE_TAG)
+	@docker push $(IMAGE_TAG) || { echo "[ERROR] docker push 실패. 'gcloud auth configure-docker $(REGION)-docker.pkg.dev' 실행 후 재시도"; exit 1; }
 	@echo "푸시 완료"
 
 # 컨테이너 재시작
@@ -147,7 +165,7 @@ start:
 		--command="docker pull $(IMAGE_TAG) && docker image prune -af"
 	@echo "컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p /home/2rami/debi-marlene-data && docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+		--command="mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
 	@echo "시작 완료"
 
 # 컨테이너 로그 확인
@@ -261,17 +279,19 @@ inject-dashboard-env:
 
 # 대시보드 프론트엔드만 배포 (Docker 재빌드 없이 빠른 배포)
 deploy-dashboard-frontend: inject-dashboard-env
-	@echo "[1/4] 프론트엔드 빌드 중..."
-	@cd dashboard/frontend && npm run build
-	@echo "[2/4] dist를 tar로 압축..."
-	@tar -czf /tmp/dash-dist.tar.gz -C dashboard/frontend/dist .
-	@echo "[3/4] VM에 업로드 중..."
-	@gcloud compute scp /tmp/dash-dist.tar.gz $(VM_NAME):/tmp/dash-dist.tar.gz --zone=$(ZONE)
-	@echo "[4/4] 컨테이너에 복사 + nginx 리로드..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p ~/dashboard-upload && tar -xzf /tmp/dash-dist.tar.gz -C ~/dashboard-upload && docker cp ~/dashboard-upload/. $(DASHBOARD_CONTAINER):/var/www/dashboard/ && docker exec $(DASHBOARD_CONTAINER) nginx -s reload && rm -rf ~/dashboard-upload /tmp/dash-dist.tar.gz"
-	@rm -f /tmp/dash-dist.tar.gz
-	@echo "대시보드 프론트엔드 배포 완료"
+	@set -euo pipefail; \
+	echo "[1/4] 프론트엔드 빌드 중..."; \
+	(cd dashboard/frontend && npm run build); \
+	test -d dashboard/frontend/dist || { echo "[ERROR] dist 디렉토리 없음 — 빌드 실패"; exit 1; }; \
+	echo "[2/4] dist를 tar로 압축..."; \
+	tar -czf /tmp/dash-dist.tar.gz -C dashboard/frontend/dist .; \
+	echo "[3/4] VM에 업로드 중..."; \
+	gcloud compute scp /tmp/dash-dist.tar.gz $(VM_NAME):/tmp/dash-dist.tar.gz --zone=$(ZONE); \
+	echo "[4/4] 컨테이너에 복사 + nginx 리로드..."; \
+	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="mkdir -p ~/dashboard-upload && tar -xzf /tmp/dash-dist.tar.gz -C ~/dashboard-upload && docker cp ~/dashboard-upload/. $(DASHBOARD_CONTAINER):/var/www/dashboard/ && docker exec $(DASHBOARD_CONTAINER) nginx -s reload && rm -rf ~/dashboard-upload /tmp/dash-dist.tar.gz"; \
+	rm -f /tmp/dash-dist.tar.gz; \
+	echo "대시보드 프론트엔드 배포 완료"
 
 # 대시보드 백엔드만 배포 (Docker 재빌드 없이 빠른 배포)
 # dashboard/backend 는 run/core/config.py 등을 import 하므로 run/ 도 같이 동기화한다.
@@ -292,15 +312,18 @@ deploy-dashboard-backend:
 # ============================================================
 
 # 웹패널 프론트엔드 빌드 + VM 배포
+# .ONESHELL 환경에서 cd 가 다음 명령에 누수되던 버그 + tar 실패해도 VM의 sudo rm 이 실행돼 옛 dist 날아가던 침묵 실패 차단
 deploy-webpanel-frontend:
-	@echo "[1/4] 프론트엔드 빌드 중..."
-	@cd webpanel && npm run build
-	@echo "[2/4] dist를 VM에 업로드 중..."
-	@tar -czf /tmp/webpanel-dist.tar.gz -C webpanel/dist .
-	@gcloud compute scp /tmp/webpanel-dist.tar.gz $(VM_NAME):webpanel-dist.tar.gz --zone=$(ZONE)
-	@echo "[3/4] VM에서 배포 중 (nginx 마운트 경로: /home/kasa)..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo rm -rf /home/kasa/debi-marlene/webpanel/dist/assets/* && sudo rm -f /home/kasa/debi-marlene/webpanel/dist/index.html && sudo tar -xzf ~/webpanel-dist.tar.gz -C /home/kasa/debi-marlene/webpanel/dist/ && sudo chown -R kasa:kasa /home/kasa/debi-marlene/webpanel/dist/ && rm ~/webpanel-dist.tar.gz && docker exec nginx-proxy nginx -s reload"
+	@set -e; \
+	echo "[1/4] 프론트엔드 빌드 중..."; \
+	(cd webpanel && npm run build) || { echo "[ERROR] webpanel build 실패"; exit 1; }; \
+	echo "[2/4] dist를 VM에 업로드 중..."; \
+	test -f webpanel/dist/index.html || { echo "[ERROR] webpanel/dist/index.html 없음. 빌드 결과 확인"; exit 1; }; \
+	tar -czf /tmp/webpanel-dist.tar.gz -C webpanel/dist . || { echo "[ERROR] tar 실패"; exit 1; }; \
+	gcloud compute scp /tmp/webpanel-dist.tar.gz $(VM_NAME):webpanel-dist.tar.gz --zone=$(ZONE) || { echo "[ERROR] scp 실패. VM 의 dist 는 안 건드림 (안전)"; exit 1; }; \
+	echo "[3/4] VM에서 배포 중 (nginx 마운트 경로: /home/kasa)..."; \
+	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="sudo rm -rf /home/kasa/debi-marlene/webpanel/dist/assets/* && sudo rm -f /home/kasa/debi-marlene/webpanel/dist/index.html && sudo tar -xzf ~/webpanel-dist.tar.gz -C /home/kasa/debi-marlene/webpanel/dist/ && sudo chown -R kasa:kasa /home/kasa/debi-marlene/webpanel/dist/ && rm ~/webpanel-dist.tar.gz && sudo docker exec nginx-proxy nginx -s reload"
 	@rm -f /tmp/webpanel-dist.tar.gz
 	@echo "[4/4] Cloudflare 캐시 퍼지 중..."
 	@curl -s -X POST "https://api.cloudflare.com/client/v4/zones/49337200d8d2ff73047081d747d42074/purge_cache" \
@@ -375,12 +398,12 @@ stop-solo-marlene:
 start-solo-debi:
 	@echo "데비 솔로봇 시작 (image=$(IMAGE_TAG), identity=debi)..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && docker run -d --name $(SOLO_DEBI_NAME) --env-file $(VM_PATH)/.env.solo-debi -e BOT_IDENTITY=debi -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+		--command="docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name $(SOLO_DEBI_NAME) --env-file $(VM_PATH)/.env.solo-debi -e BOT_IDENTITY=debi -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
 
 start-solo-marlene:
 	@echo "마를렌 솔로봇 시작 (image=$(IMAGE_TAG), identity=marlene)..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && docker run -d --name $(SOLO_MARLENE_NAME) --env-file $(VM_PATH)/.env.solo-marlene -e BOT_IDENTITY=marlene -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+		--command="docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name $(SOLO_MARLENE_NAME) --env-file $(VM_PATH)/.env.solo-marlene -e BOT_IDENTITY=marlene -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
 
 logs-solo-debi:
 	@echo "데비 솔로봇 로그 (Ctrl+C 종료):"

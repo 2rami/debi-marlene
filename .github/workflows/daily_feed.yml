@@ -9,7 +9,7 @@ on:
       max:
         description: 'DM 최대 항목 수'
         required: false
-        default: '7'
+        default: '15'
       threshold:
         description: '점수 threshold'
         required: false
@@ -40,7 +40,8 @@ jobs:
       - name: Run daily feed
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python3 scripts/daily_feed.py \
-            --max ${{ github.event.inputs.max || '7' }} \
+            --max ${{ github.event.inputs.max || '15' }} \
             --threshold ${{ github.event.inputs.threshold || '5' }}

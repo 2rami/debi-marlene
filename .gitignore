@@ -145,7 +145,7 @@ bot.log
 nohup.out
 
 # Docker 관련
-.dockerignore
+# .dockerignore — 빌드 컨텍스트 제외 룰. 봇 다이어트 핵심이라 트래킹 필요.
 docker-compose.override.yml
 
 # 캐시 파일

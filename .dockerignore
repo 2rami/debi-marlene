@@ -1,0 +1,87 @@
+# 메인 봇 컨테이너 다이어트 — 봇 실행에 무관한 거 다 제외.
+# 2.55GB → ~1.4GB 목표 (Phase 1).
+
+# ─────────── 별도 컨테이너로 빌드되는 거 ───────────
+dashboard/
+webpanel/
+companion_bot/
+
+# ─────────── ML/training 자료 (런타임 무관) ───────────
+finetune/
+vlm_training/
+chrome_profile_notebooklm/
+
+# ─────────── 개인 자료 ───────────
+application/
+portfolio/
+
+# ─────────── git / 개발 ───────────
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# ─────────── Python 캐시/venv ───────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv*/
+venv/
+env/
+
+# ─────────── 노드/JS (혹시 root에 있으면) ───────────
+node_modules/
+package-lock.json
+*.log
+
+# ─────────── Docker / compose 자체 ───────────
+Dockerfile
+.dockerignore
+docker-compose*.yml
+mysql_init/
+mysql_data/
+mysql_data
+.playwright-mcp/
+
+# ─────────── 스크린샷/이미지 (root에 있는 것만 — bot 자산 X) ───────────
+*.png
+*.jpg
+*.jpeg
+*.gif
+!run/**/*.png
+!run/**/*.jpg
+
+# ─────────── env / 비밀 (혹시 누락 방지) ───────────
+.env
+.env.*
+*.key
+*.pem
+service-account*.json
+
+# ─────────── IDE / OS ───────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ─────────── 봇 운영 데이터 / 백업 ───────────
+backup/
+backups/
+*.tar.gz
+*.zip
+download.bin
+
+# ─────────── 메모/문서 ───────────
+README.md
+*.md
+!run/**/*.md
+CLAUDE.md
+
+# ─────────── 임시 ───────────
+tmp/
+temp/
+.tmp/

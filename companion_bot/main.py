@@ -33,7 +33,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sqlite3
 import time
+from pathlib import Path
 from typing import Optional
 
 import anthropic
@@ -47,10 +49,10 @@ logging.basicConfig(
 )
 
 BETA_HEADER = "managed-agents-2026-04-01"
-SESSION_IDLE_TIMEOUT = 30 * 60  # 30분 무응답 시 archive
 TYPING_REFRESH_INTERVAL = 8     # discord typing indicator 8초마다 새로
 DM_CHUNK_SIZE = 1900            # discord 메시지 2000자 제한 (여유 100자)
 RESPONSE_TIMEOUT = 90           # agent 응답 최대 90초
+SESSION_DB_PATH = os.getenv("SESSION_DB_PATH", "/data/companion_sessions.db")
 
 
 def _env(*keys: str) -> str:
@@ -65,7 +67,7 @@ def _env(*keys: str) -> str:
 # ─────────── Anthropic session helper ───────────
 
 class CompanionClient:
-    """1 user → 1 long-lived session 관리. 30분 idle 후 archive."""
+    """1 user → 1 영구 세션. SQLite 에 매핑 영속 저장 (봇 재시작/컨테이너 교체에도 유지)."""
 
     def __init__(
         self,
@@ -80,7 +82,26 @@ class CompanionClient:
         self.env_id = env_id
         self.vault_id = vault_id
         self.gws_file_id = gws_file_id
-        self._sessions: dict[int, dict] = {}  # user_id → {session_id, last_used}
+        self._db_path = Path(SESSION_DB_PATH)
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(self._db_path) as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS sessions (user_id INTEGER PRIMARY KEY, session_id TEXT NOT NULL)")
+            conn.commit()
+
+    def _db_get(self, user_id: int) -> Optional[str]:
+        with sqlite3.connect(self._db_path) as conn:
+            row = conn.execute("SELECT session_id FROM sessions WHERE user_id=?", (user_id,)).fetchone()
+            return row[0] if row else None
+
+    def _db_set(self, user_id: int, session_id: str) -> None:
+        with sqlite3.connect(self._db_path) as conn:
+            conn.execute("INSERT OR REPLACE INTO sessions(user_id, session_id) VALUES (?, ?)", (user_id, session_id))
+            conn.commit()
+
+    def _db_delete(self, user_id: int) -> None:
+        with sqlite3.connect(self._db_path) as conn:
+            conn.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
+            conn.commit()
 
     async def _create_session(self, user_id: int, title: str = "DM") -> str:
         resources = []
@@ -102,27 +123,24 @@ class CompanionClient:
         return s.id
 
     async def reset(self, user_id: int) -> None:
-        meta = self._sessions.pop(user_id, None)
-        if meta and meta.get("session_id"):
+        old_sid = self._db_get(user_id)
+        if old_sid:
+            self._db_delete(user_id)
             try:
                 await self.client.beta.sessions.archive(
-                    session_id=meta["session_id"],
+                    session_id=old_sid,
                     extra_headers={"anthropic-beta": BETA_HEADER},
                 )
-                logger.info(f"archived session {meta['session_id']}")
+                logger.info(f"archived session {old_sid}")
             except Exception as e:
                 logger.warning(f"archive 실패: {e}")
 
     async def get_session_id(self, user_id: int) -> str:
-        meta = self._sessions.get(user_id)
-        now = time.time()
-        if meta and now - meta["last_used"] < SESSION_IDLE_TIMEOUT:
-            meta["last_used"] = now
-            return meta["session_id"]
-        if meta:
-            await self.reset(user_id)
+        sid = self._db_get(user_id)
+        if sid:
+            return sid
         sid = await self._create_session(user_id)
-        self._sessions[user_id] = {"session_id": sid, "last_used": now}
+        self._db_set(user_id, sid)
         return sid
 
     async def send_and_collect(self, user_id: int, text: str) -> str:

@@ -172,6 +172,17 @@ run/assets/sfx/**/*.wav
 checkpoint-epoch-*/
 tests/qwen3_tts_test/output/
 
+# 배포 tarball (build 산출물)
+*.tar.gz
+*.tgz
+
+# LLM/VLM 학습 산출물 — huggingface hub에서 재다운로드 가능
+finetune/adapter/
+finetune/adapter_gemma4/tokenizer.json
+vlm_training/debi_qwen_vlm_lora/tokenizer.json
+vlm_training/debi_qwen_vlm_lora/vocab.json
+vlm_training/debi_qwen_vlm_lora/merges.txt
+
 # CosyVoice3 전처리 작업 폴더 (음성 파일 + CSV)
 tts_training/cosyvoice3/workspace/
 cosyvoice3_*_data.zip

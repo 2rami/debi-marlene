@@ -137,6 +137,7 @@ def fetch_github_trending(limit: int = 15, days: int = 7) -> list[dict]:
             "url": repo["html_url"],
             "summary": (repo.get("description") or "")[:200],
             "language": repo.get("language") or "",
+            "image_url": f"https://opengraph.githubassets.com/1/{repo['full_name']}",
         })
     return items
 
@@ -169,6 +170,7 @@ def fetch_hf_trending(limit: int = 15) -> list[dict]:
             "downloads": downloads,
             "url": f"https://huggingface.co/{repo_id}",
             "summary": pipeline + " · " + ", ".join(tags[:5]),
+            "image_url": f"https://cdn-thumbnails.huggingface.co/social-thumbnails/models/{repo_id}.png",
         })
     return items
 
@@ -311,6 +313,17 @@ def _format_metrics(it: dict) -> str:
     return " · ".join(parts)
 
 
+def _verify_image(url: str) -> bool:
+    """HEAD 검사 — 200/3xx 만 허용. gated/rate-limited/404 면 False."""
+    if not url:
+        return False
+    try:
+        r = requests.head(url, timeout=3, allow_redirects=True)
+        return 200 <= r.status_code < 400
+    except Exception:
+        return False
+
+
 def _build_container(items: list[dict], date_str: str) -> dict:
     """Discord Components V2 Container 1개에 모든 항목 묶기.
 
@@ -319,7 +332,8 @@ def _build_container(items: list[dict], date_str: str) -> dict:
         ├─ TextDisplay 헤더
         ├─ Separator
         ├─ for each item:
-        │    TextDisplay (제목+점수+코멘트+메트릭)
+        │    Section (TextDisplay + Thumbnail accessory) — image_url 검증 OK
+        │    또는 TextDisplay — image_url 없거나 검증 실패
         │    Separator (마지막 제외)
     """
     header = f"## AI 피드 {date_str}\n신규 {len(items)}개 — 거노 맥락 점수순"
@@ -340,7 +354,18 @@ def _build_container(items: list[dict], date_str: str) -> dict:
             body_lines.append(metrics)
         if comment:
             body_lines.append(f"> {comment}")
-        nested.append({"type": 10, "content": "\n".join(body_lines)})
+        text_block = {"type": 10, "content": "\n".join(body_lines)}
+
+        image_url = it.get("image_url")
+        if image_url and _verify_image(image_url):
+            nested.append({
+                "type": 9,
+                "components": [text_block],
+                "accessory": {"type": 11, "media": {"url": image_url}},
+            })
+        else:
+            nested.append(text_block)
+
         if i < len(items) - 1:
             nested.append({"type": 14, "divider": True, "spacing": 1})
 

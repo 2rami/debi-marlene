@@ -51,7 +51,7 @@ logging.basicConfig(
 BETA_HEADER = "managed-agents-2026-04-01"
 TYPING_REFRESH_INTERVAL = 8     # discord typing indicator 8초마다 새로
 DM_CHUNK_SIZE = 1900            # discord 메시지 2000자 제한 (여유 100자)
-RESPONSE_TIMEOUT = 90           # agent 응답 최대 90초
+RESPONSE_TIMEOUT = 240          # agent 응답 최대 240초 — environment 첫 부팅 cold-start (40s+) + 도구 호출 여유
 SESSION_DB_PATH = os.getenv("SESSION_DB_PATH", "/data/companion_sessions.db")
 
 

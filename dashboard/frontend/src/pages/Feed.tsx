@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { api } from '../services/api'
 
 interface FeedItem {
@@ -98,35 +98,13 @@ function DaySection({ feed }: { feed: DailyFeed }) {
 
 export default function Feed() {
   const [feeds, setFeeds] = useState<DailyFeed[] | null>(null)
-  const [auth, setAuth] = useState<'checking' | 'owner' | 'denied'>('checking')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.get<{ is_owner: boolean; authenticated: boolean }>('/me/whoami')
-      .then(({ data }) => {
-        if (!data.authenticated) {
-          window.location.href = '/api/auth/discord'
-          return
-        }
-        setAuth(data.is_owner ? 'owner' : 'denied')
-      })
-      .catch(() => setAuth('denied'))
-  }, [])
-
-  useEffect(() => {
-    if (auth !== 'owner') return
     api.get<{ feeds: DailyFeed[] }>('/me/feed?days=14')
       .then(({ data }) => setFeeds(data.feeds))
       .catch((err) => setError(err.message ?? '불러오기 실패'))
-  }, [auth])
-
-  if (auth === 'checking') {
-    return <div className="min-h-screen flex items-center justify-center text-zinc-400">로딩...</div>
-  }
-
-  if (auth === 'denied') {
-    return <Navigate to="/" replace />
-  }
+  }, [])
 
   return (
     <div className="min-h-screen bg-discord-darkest text-white px-4 md:px-8 py-10">

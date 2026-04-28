@@ -81,8 +81,9 @@ def whoami():
     return jsonify({'is_owner': is_owner, 'authenticated': True})
 
 
+# 거노 결정: 로그인 없이 hidden URL 만 — 노출 시 인지 (security-by-obscurity).
+# 메뉴/네비/sitemap/SEO 어디에도 링크 없음. 본인이 직접 입력하는 URL.
 @me_bp.route('/feed')
-@owner_required
 def feed():
     """daily_feeds 최신 N일."""
     days = max(1, min(int(request.args.get('days', 14)), 60))

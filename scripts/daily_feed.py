@@ -11,7 +11,7 @@
 
 전제 (.env / Secret Manager):
     ANTHROPIC_API_KEY
-    DISCORD_TOKEN (debi-marlene 봇 토큰)
+    COMPANION_BOT_TOKEN (나쵸네코 봇 토큰)
     OWNER_ID (거노 Discord user id)
     GOOGLE_APPLICATION_CREDENTIALS or gcloud ADC
 
@@ -402,7 +402,7 @@ def main():
         print("ERROR: ANTHROPIC_API_KEY 필요")
         sys.exit(1)
 
-    discord_token = os.getenv("DISCORD_TOKEN") or _gcp_secret("discord-token")
+    discord_token = os.getenv("COMPANION_BOT_TOKEN") or _gcp_secret("companion-bot-token")
     owner_id = os.getenv("OWNER_ID") or _gcp_secret("owner-id")
 
     print(f"=== Daily Feed @ {datetime.now()} ===")

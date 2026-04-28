@@ -324,19 +324,21 @@ def _verify_image(url: str) -> bool:
         return False
 
 
-def _build_container(items: list[dict], date_str: str) -> dict:
-    """Discord Components V2 Container 1개에 모든 항목 묶기.
+def _build_container(items: list[dict], date_str: str,
+                     total_items: int | None = None,
+                     chunk_idx: int | None = None,
+                     total_chunks: int | None = None) -> dict:
+    """Discord Components V2 Container 1개. 분할 발송 시 chunk_idx 표기.
 
-    구조:
-      Container (accent_color)
-        ├─ TextDisplay 헤더
-        ├─ Separator
-        ├─ for each item:
-        │    Section (TextDisplay + Thumbnail accessory) — image_url 검증 OK
-        │    또는 TextDisplay — image_url 없거나 검증 실패
-        │    Separator (마지막 제외)
+    Discord 메시지당 components 총합 40개 한도 — 청크 분할은 post_dm 책임.
     """
-    header = f"## AI 피드 {date_str}\n신규 {len(items)}개 — 거노 맥락 점수순"
+    if chunk_idx and total_chunks and total_chunks > 1:
+        if chunk_idx == 1:
+            header = f"## AI 피드 {date_str} ({chunk_idx}/{total_chunks})\n신규 {total_items}개 — 거노 맥락 점수순"
+        else:
+            header = f"## AI 피드 {date_str} ({chunk_idx}/{total_chunks})"
+    else:
+        header = f"## AI 피드 {date_str}\n신규 {len(items)}개 — 거노 맥락 점수순"
     nested = [
         {"type": 10, "content": header},
         {"type": 14, "divider": True, "spacing": 2},
@@ -376,12 +378,17 @@ def _build_container(items: list[dict], date_str: str) -> dict:
     }
 
 
+DM_CHUNK_SIZE = 8  # Discord components 총 40개 한도 — Section+Thumbnail 항목당 3 components 가정 시 8개가 안전 한도
+
+
 def post_dm(token: str, owner_id: str, items: list[dict], dry_run: bool = False) -> None:
-    """봇 토큰 + owner-id 로 DM 채널 만들고 Components V2 Container 전송."""
+    """봇 토큰 + owner-id 로 DM 채널 만들고 Components V2 Container 전송 (청크별 분할 발송)."""
     headers = {"Authorization": f"Bot {token}", "Content-Type": "application/json"}
     base = "https://discord.com/api/v10"
     today = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d")
-    container = _build_container(items, today)
+
+    chunks = [items[i:i + DM_CHUNK_SIZE] for i in range(0, len(items), DM_CHUNK_SIZE)]
+    total_chunks = len(chunks)
 
     if dry_run:
         print("\n=== DRY RUN — DM 안 보냄 ===")
@@ -390,8 +397,7 @@ def post_dm(token: str, owner_id: str, items: list[dict], dry_run: bool = False)
             print(f"  [{it.get('score','?')}] {it['source']} {it['title']} {metrics}")
             print(f"     → {it.get('comment','')}")
             print(f"     {it['url']}")
-        print("\n--- Container payload preview ---")
-        print(json.dumps(container, ensure_ascii=False, indent=2)[:600] + "...")
+        print(f"\n--- Container 분할: {total_chunks} chunks ({DM_CHUNK_SIZE}개씩) ---")
         return
 
     r = requests.post(f"{base}/users/@me/channels", headers=headers,
@@ -399,16 +405,18 @@ def post_dm(token: str, owner_id: str, items: list[dict], dry_run: bool = False)
     r.raise_for_status()
     dm_id = r.json()["id"]
 
-    # IS_COMPONENTS_V2 flag = 1 << 15 = 32768
-    payload = {
-        "flags": 32768,
-        "components": [container],
-    }
-    r = requests.post(f"{base}/channels/{dm_id}/messages", headers=headers,
-                      json=payload, timeout=10)
-    if r.status_code >= 400:
-        print(f"[discord] {r.status_code} {r.text[:500]}")
-        r.raise_for_status()
+    for idx, chunk in enumerate(chunks, 1):
+        container = _build_container(chunk, today,
+                                     total_items=len(items),
+                                     chunk_idx=idx,
+                                     total_chunks=total_chunks)
+        # IS_COMPONENTS_V2 flag = 1 << 15 = 32768
+        payload = {"flags": 32768, "components": [container]}
+        r = requests.post(f"{base}/channels/{dm_id}/messages", headers=headers,
+                          json=payload, timeout=10)
+        if r.status_code >= 400:
+            print(f"[discord] chunk {idx}/{total_chunks} {r.status_code} {r.text[:500]}")
+            r.raise_for_status()
 
 
 # ─────────── Main ───────────

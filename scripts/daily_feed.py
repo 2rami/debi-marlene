@@ -47,7 +47,7 @@ DEDUP_COLLECTION = "feed_seen"
 DAILY_COLLECTION = "daily_feeds"
 DEDUP_TTL_DAYS = 30  # 30일 지난 항목은 다시 보낼 수 있음
 
-CURATOR_MODEL = "claude-opus-4-7"
+CURATOR_MODEL = "claude-sonnet-4-6"
 CURATOR_MAX_INPUT_ITEMS = 40  # 너무 많으면 비용/시간 ↑
 DEFAULT_DM_LIMIT = 7
 DEFAULT_SCORE_THRESHOLD = 5  # 5점 미만은 무시

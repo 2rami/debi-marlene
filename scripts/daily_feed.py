@@ -302,6 +302,13 @@ SOURCE_LABEL = {
     "hn-ai": "[HN]",
 }
 
+# 소스 그룹 — 유사 성격 묶음. DM 발송 순서이기도 함.
+SOURCE_GROUPS = [
+    ("GitHub Trending", ["github-trending"]),
+    ("HuggingFace 모델", ["hf-trending"]),
+    ("News (Smol AI · HN)", ["smol-ai", "hn-ai"]),
+]
+
 
 def _format_metrics(it: dict) -> str:
     """⭐ stars + ⬇ downloads 한 줄. 둘 다 없으면 빈 문자열."""
@@ -325,22 +332,23 @@ def _verify_image(url: str) -> bool:
 
 
 def _build_container(items: list[dict], date_str: str,
-                     total_items: int | None = None,
+                     group_name: str | None = None,
+                     group_total: int | None = None,
                      chunk_idx: int | None = None,
                      total_chunks: int | None = None) -> dict:
-    """Discord Components V2 Container 1개. 분할 발송 시 chunk_idx 표기.
+    """Discord Components V2 Container 1개. 그룹 + 청크 표기.
 
     Discord 메시지당 components 총합 40개 한도 — 청크 분할은 post_dm 책임.
     """
+    name = group_name or "AI 피드"
     if chunk_idx and total_chunks and total_chunks > 1:
-        if chunk_idx == 1:
-            header = f"## AI 피드 {date_str} ({chunk_idx}/{total_chunks})\n신규 {total_items}개 — 거노 맥락 점수순"
-        else:
-            header = f"## AI 피드 {date_str} ({chunk_idx}/{total_chunks})"
+        title = f"## {name} {date_str} ({chunk_idx}/{total_chunks})"
+        if chunk_idx == 1 and group_total:
+            title += f"\n{group_total}개 · 점수순"
     else:
-        header = f"## AI 피드 {date_str}\n신규 {len(items)}개 — 거노 맥락 점수순"
+        title = f"## {name} {date_str}\n{len(items)}개 · 점수순"
     nested = [
-        {"type": 10, "content": header},
+        {"type": 10, "content": title},
         {"type": 14, "divider": True, "spacing": 2},
     ]
     for i, it in enumerate(items):
@@ -387,17 +395,21 @@ def post_dm(token: str, owner_id: str, items: list[dict], dry_run: bool = False)
     base = "https://discord.com/api/v10"
     today = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d")
 
-    chunks = [items[i:i + DM_CHUNK_SIZE] for i in range(0, len(items), DM_CHUNK_SIZE)]
-    total_chunks = len(chunks)
+    # 소스 그룹화 — 그룹별 점수순 유지 (이미 selected 가 점수순임)
+    grouped: list[tuple[str, list[dict]]] = []
+    for group_name, sources in SOURCE_GROUPS:
+        group_items = [it for it in items if it["source"] in sources]
+        if group_items:
+            grouped.append((group_name, group_items))
 
     if dry_run:
         print("\n=== DRY RUN — DM 안 보냄 ===")
-        for it in items:
-            metrics = _format_metrics(it)
-            print(f"  [{it.get('score','?')}] {it['source']} {it['title']} {metrics}")
-            print(f"     → {it.get('comment','')}")
-            print(f"     {it['url']}")
-        print(f"\n--- Container 분할: {total_chunks} chunks ({DM_CHUNK_SIZE}개씩) ---")
+        for gname, gitems in grouped:
+            print(f"\n## {gname} ({len(gitems)})")
+            for it in gitems:
+                metrics = _format_metrics(it)
+                print(f"  [{it.get('score','?')}] {it['title']} {metrics}")
+                print(f"     → {it.get('comment','')}")
         return
 
     r = requests.post(f"{base}/users/@me/channels", headers=headers,
@@ -405,18 +417,22 @@ def post_dm(token: str, owner_id: str, items: list[dict], dry_run: bool = False)
     r.raise_for_status()
     dm_id = r.json()["id"]
 
-    for idx, chunk in enumerate(chunks, 1):
-        container = _build_container(chunk, today,
-                                     total_items=len(items),
-                                     chunk_idx=idx,
-                                     total_chunks=total_chunks)
-        # IS_COMPONENTS_V2 flag = 1 << 15 = 32768
-        payload = {"flags": 32768, "components": [container]}
-        r = requests.post(f"{base}/channels/{dm_id}/messages", headers=headers,
-                          json=payload, timeout=10)
-        if r.status_code >= 400:
-            print(f"[discord] chunk {idx}/{total_chunks} {r.status_code} {r.text[:500]}")
-            r.raise_for_status()
+    for gname, gitems in grouped:
+        chunks = [gitems[i:i + DM_CHUNK_SIZE] for i in range(0, len(gitems), DM_CHUNK_SIZE)]
+        total_chunks = len(chunks)
+        for idx, chunk in enumerate(chunks, 1):
+            container = _build_container(chunk, today,
+                                         group_name=gname,
+                                         group_total=len(gitems),
+                                         chunk_idx=idx,
+                                         total_chunks=total_chunks)
+            # IS_COMPONENTS_V2 flag = 1 << 15 = 32768
+            payload = {"flags": 32768, "components": [container]}
+            r = requests.post(f"{base}/channels/{dm_id}/messages", headers=headers,
+                              json=payload, timeout=10)
+            if r.status_code >= 400:
+                print(f"[discord] {gname} chunk {idx}/{total_chunks} {r.status_code} {r.text[:500]}")
+                r.raise_for_status()
 
 
 # ─────────── Main ───────────

@@ -76,12 +76,14 @@ class CompanionClient:
         env_id: str,
         vault_id: Optional[str],
         gws_file_id: Optional[str],
+        gcp_sa_file_id: Optional[str] = None,
     ):
         self.client = AsyncAnthropic(api_key=api_key)
         self.agent_id = agent_id
         self.env_id = env_id
         self.vault_id = vault_id
         self.gws_file_id = gws_file_id
+        self.gcp_sa_file_id = gcp_sa_file_id
         self._db_path = Path(SESSION_DB_PATH)
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self._db_path) as conn:
@@ -110,6 +112,12 @@ class CompanionClient:
                 "type": "file",
                 "file_id": self.gws_file_id,
                 "mount_path": "/mnt/session/uploads/gws-credentials.json",
+            })
+        if self.gcp_sa_file_id:
+            resources.append({
+                "type": "file",
+                "file_id": self.gcp_sa_file_id,
+                "mount_path": "/mnt/session/uploads/gcp-sa.json",
             })
         s = await self.client.beta.sessions.create(
             title=f"discord-dm:{user_id}:{title}",
@@ -268,10 +276,12 @@ def main():
     env_id = _env("MANAGED_COMPANION_ENV_ID")
     vault_id = os.getenv("COMPANION_VAULT_ID") or "vlt_011CaUeUYv5EUX5pAr7qZt4D"
     gws_file = os.getenv("GWS_CREDS_FILE_ID") or "file_011CaUhHddd8vsQghcwJb6Uo"
+    gcp_sa_file = os.getenv("GCP_SA_FILE_ID") or "file_011CaWSBEqH1pxdj3VykpyPt"
 
     companion = CompanionClient(
         api_key=api_key, agent_id=agent_id, env_id=env_id,
         vault_id=vault_id, gws_file_id=gws_file,
+        gcp_sa_file_id=gcp_sa_file,
     )
     bot = CompanionBot(companion=companion, owner_id=owner_id)
 

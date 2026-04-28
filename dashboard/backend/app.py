@@ -17,6 +17,7 @@ from routes.auth import auth_bp
 from routes.servers import servers_bp
 from routes.premium import premium_bp
 from routes.quiz import quiz_bp
+from routes.me import me_bp
 
 # Configure logging
 logging.basicConfig(
@@ -50,6 +51,7 @@ app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(servers_bp, url_prefix='/api')
 app.register_blueprint(premium_bp, url_prefix='/api/premium')
 app.register_blueprint(quiz_bp, url_prefix='/api/quiz')
+app.register_blueprint(me_bp, url_prefix='/api/me')
 
 # Health check endpoint
 @app.route('/api/health')

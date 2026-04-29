@@ -18,6 +18,7 @@ import BotGuide from './pages/BotGuide'
 import PortfolioKrafton from './pages/PortfolioKrafton'
 import PortfolioNimbleNeuron from './pages/PortfolioNimbleNeuron'
 import PortfolioNimbleNeuronPrint from './pages/PortfolioNimbleNeuronPrint'
+import Feed from './pages/Feed'
 import NotFound from './pages/NotFound'
 
 function ScrollToTop() {
@@ -57,6 +58,9 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/servers/:guildId" element={<ServerManagement />} />
           </Route>
+
+          {/* Owner-only hidden route — backend owner_required gate */}
+          <Route path="/me/feed" element={<Feed />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

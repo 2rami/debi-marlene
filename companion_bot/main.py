@@ -51,7 +51,7 @@ logging.basicConfig(
 BETA_HEADER = "managed-agents-2026-04-01"
 TYPING_REFRESH_INTERVAL = 8     # discord typing indicator 8초마다 새로
 DM_CHUNK_SIZE = 1900            # discord 메시지 2000자 제한 (여유 100자)
-RESPONSE_TIMEOUT = 240          # agent 응답 최대 240초 — environment 첫 부팅 cold-start (40s+) + 도구 호출 여유
+RESPONSE_TIMEOUT = 600          # agent 응답 최대 600초 (10분) — Firestore/GCP 도구 다중 호출 + cold-start 모두 흡수
 SESSION_DB_PATH = os.getenv("SESSION_DB_PATH", "/data/companion_sessions.db")
 
 
@@ -152,7 +152,7 @@ class CompanionClient:
         return sid
 
     async def send_and_collect(self, user_id: int, text: str) -> str:
-        """user 메시지 보내고 agent 텍스트 응답 모아 반환. 90초 timeout."""
+        """user 메시지 보내고 agent 텍스트 응답 모아 반환. RESPONSE_TIMEOUT 초 timeout."""
         session_id = await self.get_session_id(user_id)
         agent_text_parts: list[str] = []
 
@@ -255,14 +255,25 @@ class CompanionBot(discord.Client):
             await msg.channel.send("(세션 리셋. 새 컨텍스트로 시작)")
             return
 
-        # 응답 생성 + typing indicator 유지
-        async with msg.channel.typing():
+        # typing indicator — discord.py context manager 가 장시간 응답에서 끊기는 케이스가 있어
+        # TYPING_REFRESH_INTERVAL 마다 명시적 trigger_typing 으로 갱신하는 백그라운드 태스크로 교체.
+        async def _keep_typing():
             try:
-                response = await self.companion.send_and_collect(self.owner_id, text)
-            except Exception as e:
-                logger.exception("agent 호출 실패")
-                await msg.channel.send(f"(에러) `{type(e).__name__}: {e}`")
-                return
+                while True:
+                    await msg.channel.typing()
+                    await asyncio.sleep(TYPING_REFRESH_INTERVAL)
+            except asyncio.CancelledError:
+                pass
+
+        typing_task = asyncio.create_task(_keep_typing())
+        try:
+            response = await self.companion.send_and_collect(self.owner_id, text)
+        except Exception as e:
+            logger.exception("agent 호출 실패")
+            await msg.channel.send(f"(에러) `{type(e).__name__}: {e}`")
+            return
+        finally:
+            typing_task.cancel()
 
         for chunk in chunk_message(response):
             await msg.channel.send(chunk)

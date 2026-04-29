@@ -90,6 +90,9 @@ class CompanionClient:
         # /debug 용 런타임 상태
         self._last_msg_at: dict[int, float] = {}
         self._inflight: set[int] = set()
+        # 디버그 모드 ON 인 user_id 집합 — Managed Agents 콘솔의 Debug 탭처럼
+        # send_and_collect 가 받는 모든 이벤트(tool_use/thinking/error 등) 를 채팅에 송출
+        self._debug_users: set[int] = set()
         self._db_path = Path(SESSION_DB_PATH)
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self._db_path) as conn:
@@ -157,41 +160,41 @@ class CompanionClient:
         self._db_set(user_id, sid)
         return sid
 
-    def debug_info(self, user_id: int) -> str:
-        """/debug 명령어 응답 — 현재 세션/리소스/상태 dump."""
+    def is_debug(self, user_id: int) -> bool:
+        return user_id in self._debug_users
+
+    def toggle_debug(self, user_id: int) -> bool:
+        """디버그 모드 토글. 새 상태(ON=True / OFF=False) 반환."""
+        if user_id in self._debug_users:
+            self._debug_users.discard(user_id)
+            return False
+        self._debug_users.add(user_id)
+        return True
+
+    def debug_status(self, user_id: int) -> str:
+        """현재 디버그 + 세션 상태 한 줄 요약 (토글 결과 메시지에 첨부)."""
         sid = self._db_get(user_id)
         last = self._last_msg_at.get(user_id)
-        last_str = (
-            datetime.fromtimestamp(last).isoformat(sep=" ", timespec="seconds")
-            if last else "(없음)"
-        )
-        in_flight = "yes" if user_id in self._inflight else "no"
+        last_str = datetime.fromtimestamp(last).isoformat(sep=" ", timespec="seconds") if last else "(없음)"
+        on = "ON" if user_id in self._debug_users else "OFF"
         return (
             "```\n"
-            f"# 세션\n"
+            f"debug        : {on}\n"
             f"session_id   : {sid or '(없음)'}\n"
             f"agent_id     : {self.agent_id}\n"
             f"env_id       : {self.env_id}\n"
-            f"vault_id     : {self.vault_id or '(없음)'}\n"
-            f"gws_file_id  : {self.gws_file_id or '(없음)'}\n"
-            f"gcp_sa_file  : {self.gcp_sa_file_id or '(없음)'}\n"
-            f"\n"
-            f"# 상태\n"
-            f"last_msg_at  : {last_str}\n"
-            f"in_flight    : {in_flight}\n"
             f"timeout      : {RESPONSE_TIMEOUT}s\n"
-            f"typing_int   : {TYPING_REFRESH_INTERVAL}s\n"
-            f"db_path      : {self._db_path}\n"
-            f"\n"
-            f"# 환경\n"
-            f"discord.py   : {discord.__version__}\n"
-            f"anthropic    : {anthropic.__version__}\n"
-            f"python       : {sys.version.split()[0]}\n"
+            f"last_msg_at  : {last_str}\n"
+            f"discord.py   : {discord.__version__}  anthropic: {anthropic.__version__}  python: {sys.version.split()[0]}\n"
             "```"
         )
 
-    async def send_and_collect(self, user_id: int, text: str) -> str:
-        """user 메시지 보내고 agent 텍스트 응답 모아 반환. RESPONSE_TIMEOUT 초 timeout."""
+    async def send_and_collect(self, user_id: int, text: str, event_callback=None) -> str:
+        """user 메시지 보내고 agent 텍스트 응답 모아 반환. RESPONSE_TIMEOUT 초 timeout.
+
+        event_callback: 선택. async callable(event) — Anthropic 세션 이벤트 받을 때마다 호출.
+        디버그 모드 ON 일 때 채팅에 이벤트 송출하는 용도.
+        """
         session_id = await self.get_session_id(user_id)
         agent_text_parts: list[str] = []
         self._last_msg_at[user_id] = time.time()
@@ -210,6 +213,11 @@ class CompanionClient:
                 )
                 async for event in stream:
                     ev_type = getattr(event, "type", None)
+                    if event_callback is not None:
+                        try:
+                            await event_callback(event)
+                        except Exception:
+                            logger.exception("event_callback 실패 (debug relay)")
                     if ev_type == "agent.message":
                         for block in getattr(event, "content", []):
                             if getattr(block, "type", None) == "text":
@@ -264,6 +272,116 @@ def chunk_message(text: str, size: int = DM_CHUNK_SIZE) -> list[str]:
     return chunks
 
 
+def _trunc(s: str, n: int = 280) -> str:
+    s = (s or "").replace("\r", "")
+    return s if len(s) <= n else s[:n] + "…"
+
+
+def format_event(event) -> Optional[str]:
+    """Anthropic 세션 이벤트 → Discord 채팅 한 줄. 무관한 이벤트는 None 반환해서 skip."""
+    t = getattr(event, "type", None)
+    if t == "session.status_running":
+        return "▶ running"
+    if t == "session.status_rescheduled":
+        return "↻ rescheduled (retry)"
+    if t == "session.status_idle":
+        sr = getattr(event, "stop_reason", None)
+        sr_t = getattr(sr, "type", None) if sr else "?"
+        return f"■ idle ({sr_t})"
+    if t == "session.status_terminated":
+        return "✗ terminated"
+    if t == "session.error":
+        err = getattr(event, "error", None)
+        msg = getattr(err, "message", None) if err else "?"
+        return f"⚠ error: {_trunc(str(msg), 200)}"
+    if t == "agent.thinking":
+        return "… thinking"
+    if t == "agent.tool_use":
+        name = getattr(event, "name", "?")
+        inp = getattr(event, "input", None) or {}
+        if name == "bash" and isinstance(inp, dict) and "command" in inp:
+            return f"$ {_trunc(inp['command'], 320)}"
+        try:
+            import json as _json
+            return f"⚙ {name}({_trunc(_json.dumps(inp, ensure_ascii=False), 280)})"
+        except Exception:
+            return f"⚙ {name}(…)"
+    if t == "agent.tool_result":
+        is_err = getattr(event, "is_error", False)
+        parts = []
+        for block in getattr(event, "content", []) or []:
+            if getattr(block, "type", None) == "text":
+                parts.append(getattr(block, "text", "") or "")
+        body = _trunc("".join(parts), 320)
+        return f"{'✗' if is_err else '←'} {body}"
+    if t == "agent.mcp_tool_use":
+        name = getattr(event, "name", "?")
+        srv = getattr(event, "mcp_server_name", "?")
+        return f"⚙ mcp[{srv}].{name}"
+    if t == "agent.mcp_tool_result":
+        return "← mcp result"
+    if t == "span.model_request_end":
+        if getattr(event, "is_error", False):
+            return "✗ model_request error"
+        usage = getattr(event, "model_usage", None)
+        if usage:
+            i = getattr(usage, "input_tokens", 0)
+            o = getattr(usage, "output_tokens", 0)
+            cr = getattr(usage, "cache_read_input_tokens", 0)
+            cw = getattr(usage, "cache_creation_input_tokens", 0)
+            return f"✓ tokens in={i} out={o} cache_r={cr} cache_w={cw}"
+        return None
+    return None
+
+
+class DebugRelay:
+    """디버그 이벤트를 Discord 채널로 batched 송출. 1.5초 / 1700자 단위로 flush."""
+
+    def __init__(self, channel: discord.abc.Messageable):
+        self.channel = channel
+        self._buffer: list[str] = []
+        self._buf_len = 0
+        self._lock = asyncio.Lock()
+        self._timer: Optional[asyncio.Task] = None
+
+    async def push(self, line: str) -> None:
+        if not line:
+            return
+        async with self._lock:
+            self._buffer.append(line)
+            self._buf_len += len(line) + 1
+            if self._buf_len > 1700:
+                await self._flush_locked()
+            elif self._timer is None or self._timer.done():
+                self._timer = asyncio.create_task(self._delayed_flush())
+
+    async def _delayed_flush(self) -> None:
+        try:
+            await asyncio.sleep(1.5)
+        except asyncio.CancelledError:
+            return
+        async with self._lock:
+            await self._flush_locked()
+
+    async def _flush_locked(self) -> None:
+        if not self._buffer:
+            return
+        chunk = "\n".join(self._buffer)
+        self._buffer.clear()
+        self._buf_len = 0
+        chunk = chunk[:1900]
+        try:
+            await self.channel.send(f"```\n{chunk}\n```")
+        except Exception:
+            logger.exception("DebugRelay send 실패")
+
+    async def close(self) -> None:
+        if self._timer and not self._timer.done():
+            self._timer.cancel()
+        async with self._lock:
+            await self._flush_locked()
+
+
 class CompanionBot(discord.Client):
     def __init__(self, companion: CompanionClient, owner_id: int):
         intents = discord.Intents.default()
@@ -278,15 +396,21 @@ class CompanionBot(discord.Client):
 
     def _register_slash_commands(self):
         # owner 만 사용 가능. integration_types=user_install, contexts=DM/길드/그룹DM 모두
-        @self.tree.command(name="debug", description="세션/리소스/상태 dump (owner only)")
+        @self.tree.command(
+            name="debug",
+            description="디버그 모드 토글 — agent 이벤트(tool_use/thinking/error) 채팅에 표시 (owner only)",
+        )
         @app_commands.allowed_installs(guilds=False, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def debug_cmd(interaction: discord.Interaction):
             if interaction.user.id != self.owner_id:
                 await interaction.response.send_message("(owner only)", ephemeral=True)
                 return
+            new_state = self.companion.toggle_debug(self.owner_id)
+            label = "ON — 다음 메시지부터 이벤트 송출" if new_state else "OFF"
             await interaction.response.send_message(
-                self.companion.debug_info(self.owner_id), ephemeral=True
+                f"debug {label}\n{self.companion.debug_status(self.owner_id)}",
+                ephemeral=True,
             )
 
         @self.tree.command(name="reset", description="현재 세션 archive + 새 컨텍스트로 (owner only)")
@@ -333,7 +457,9 @@ class CompanionBot(discord.Client):
             await msg.channel.send("(세션 리셋. 새 컨텍스트로 시작)")
             return
         if text.lower() in ("/debug", "!debug"):
-            await msg.channel.send(self.companion.debug_info(self.owner_id))
+            new_state = self.companion.toggle_debug(self.owner_id)
+            label = "ON — 다음 메시지부터 이벤트 송출" if new_state else "OFF"
+            await msg.channel.send(f"debug {label}\n{self.companion.debug_status(self.owner_id)}")
             return
 
         # typing indicator — discord.py context manager 가 장시간 응답에서 끊기는 케이스가 있어
@@ -346,15 +472,30 @@ class CompanionBot(discord.Client):
             except asyncio.CancelledError:
                 pass
 
+        # 디버그 모드 ON 이면 이벤트 → 채팅 relay 준비
+        debug_relay: Optional[DebugRelay] = None
+        event_callback = None
+        if self.companion.is_debug(self.owner_id):
+            debug_relay = DebugRelay(msg.channel)
+
+            async def event_callback(event):
+                line = format_event(event)
+                if line and debug_relay is not None:
+                    await debug_relay.push(line)
+
         typing_task = asyncio.create_task(_keep_typing())
         try:
-            response = await self.companion.send_and_collect(self.owner_id, text)
+            response = await self.companion.send_and_collect(
+                self.owner_id, text, event_callback=event_callback
+            )
         except Exception as e:
             logger.exception("agent 호출 실패")
             await msg.channel.send(f"(에러) `{type(e).__name__}: {e}`")
             return
         finally:
             typing_task.cancel()
+            if debug_relay is not None:
+                await debug_relay.close()
 
         for chunk in chunk_message(response):
             await msg.channel.send(chunk)

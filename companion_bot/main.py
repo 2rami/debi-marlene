@@ -26,6 +26,9 @@
     MANAGED_COMPANION_ENV_ID
     COMPANION_VAULT_ID            # vlt_011CaUeUYv5EUX5pAr7qZt4D (guno-personal)
     GWS_CREDS_FILE_ID             # file_011CaUhHddd8vsQghcwJb6Uo
+    GCP_SA_FILE_ID                # file_011CaWSBEqH1pxdj3VykpyPt
+    GH_BINARY_FILE_ID             # file_011CaXnuMf3ky51YLD8i9miY (gh 2.92.0 linux amd64)
+    GH_TOKEN_FILE_ID              # file_011CaXnuEE4GRU2tXvzncY2v (PAT — github-pat-companion)
 """
 
 from __future__ import annotations
@@ -80,6 +83,8 @@ class CompanionClient:
         vault_id: Optional[str],
         gws_file_id: Optional[str],
         gcp_sa_file_id: Optional[str] = None,
+        gh_binary_file_id: Optional[str] = None,
+        gh_token_file_id: Optional[str] = None,
     ):
         self.client = AsyncAnthropic(api_key=api_key)
         self.agent_id = agent_id
@@ -87,6 +92,8 @@ class CompanionClient:
         self.vault_id = vault_id
         self.gws_file_id = gws_file_id
         self.gcp_sa_file_id = gcp_sa_file_id
+        self.gh_binary_file_id = gh_binary_file_id
+        self.gh_token_file_id = gh_token_file_id
         # /debug 용 런타임 상태
         self._last_msg_at: dict[int, float] = {}
         self._inflight: set[int] = set()
@@ -127,6 +134,18 @@ class CompanionClient:
                 "type": "file",
                 "file_id": self.gcp_sa_file_id,
                 "mount_path": "/mnt/session/uploads/gcp-sa.json",
+            })
+        if self.gh_binary_file_id:
+            resources.append({
+                "type": "file",
+                "file_id": self.gh_binary_file_id,
+                "mount_path": "/mnt/session/uploads/gh.tar.gz",
+            })
+        if self.gh_token_file_id:
+            resources.append({
+                "type": "file",
+                "file_id": self.gh_token_file_id,
+                "mount_path": "/mnt/session/uploads/gh-token.txt",
             })
         s = await self.client.beta.sessions.create(
             title=f"discord-dm:{user_id}:{title}",
@@ -183,6 +202,8 @@ class CompanionClient:
             f"session_id   : {sid or '(없음)'}\n"
             f"agent_id     : {self.agent_id}\n"
             f"env_id       : {self.env_id}\n"
+            f"gh_binary    : {self.gh_binary_file_id or '-'}\n"
+            f"gh_token     : {self.gh_token_file_id or '-'}\n"
             f"timeout      : {RESPONSE_TIMEOUT}s\n"
             f"last_msg_at  : {last_str}\n"
             f"discord.py   : {discord.__version__}  anthropic: {anthropic.__version__}  python: {sys.version.split()[0]}\n"
@@ -510,11 +531,15 @@ def main():
     vault_id = os.getenv("COMPANION_VAULT_ID") or "vlt_011CaUeUYv5EUX5pAr7qZt4D"
     gws_file = os.getenv("GWS_CREDS_FILE_ID") or "file_011CaUhHddd8vsQghcwJb6Uo"
     gcp_sa_file = os.getenv("GCP_SA_FILE_ID") or "file_011CaWSBEqH1pxdj3VykpyPt"
+    gh_binary_file = os.getenv("GH_BINARY_FILE_ID") or "file_011CaXnuMf3ky51YLD8i9miY"
+    gh_token_file = os.getenv("GH_TOKEN_FILE_ID") or "file_011CaXnuEE4GRU2tXvzncY2v"
 
     companion = CompanionClient(
         api_key=api_key, agent_id=agent_id, env_id=env_id,
         vault_id=vault_id, gws_file_id=gws_file,
         gcp_sa_file_id=gcp_sa_file,
+        gh_binary_file_id=gh_binary_file,
+        gh_token_file_id=gh_token_file,
     )
     bot = CompanionBot(companion=companion, owner_id=owner_id)
 

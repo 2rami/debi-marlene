@@ -34,7 +34,9 @@ import asyncio
 import logging
 import os
 import sqlite3
+import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -84,6 +86,9 @@ class CompanionClient:
         self.vault_id = vault_id
         self.gws_file_id = gws_file_id
         self.gcp_sa_file_id = gcp_sa_file_id
+        # /debug 용 런타임 상태
+        self._last_msg_at: dict[int, float] = {}
+        self._inflight: set[int] = set()
         self._db_path = Path(SESSION_DB_PATH)
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self._db_path) as conn:
@@ -151,10 +156,45 @@ class CompanionClient:
         self._db_set(user_id, sid)
         return sid
 
+    def debug_info(self, user_id: int) -> str:
+        """/debug 명령어 응답 — 현재 세션/리소스/상태 dump."""
+        sid = self._db_get(user_id)
+        last = self._last_msg_at.get(user_id)
+        last_str = (
+            datetime.fromtimestamp(last).isoformat(sep=" ", timespec="seconds")
+            if last else "(없음)"
+        )
+        in_flight = "yes" if user_id in self._inflight else "no"
+        return (
+            "```\n"
+            f"# 세션\n"
+            f"session_id   : {sid or '(없음)'}\n"
+            f"agent_id     : {self.agent_id}\n"
+            f"env_id       : {self.env_id}\n"
+            f"vault_id     : {self.vault_id or '(없음)'}\n"
+            f"gws_file_id  : {self.gws_file_id or '(없음)'}\n"
+            f"gcp_sa_file  : {self.gcp_sa_file_id or '(없음)'}\n"
+            f"\n"
+            f"# 상태\n"
+            f"last_msg_at  : {last_str}\n"
+            f"in_flight    : {in_flight}\n"
+            f"timeout      : {RESPONSE_TIMEOUT}s\n"
+            f"typing_int   : {TYPING_REFRESH_INTERVAL}s\n"
+            f"db_path      : {self._db_path}\n"
+            f"\n"
+            f"# 환경\n"
+            f"discord.py   : {discord.__version__}\n"
+            f"anthropic    : {anthropic.__version__}\n"
+            f"python       : {sys.version.split()[0]}\n"
+            "```"
+        )
+
     async def send_and_collect(self, user_id: int, text: str) -> str:
         """user 메시지 보내고 agent 텍스트 응답 모아 반환. RESPONSE_TIMEOUT 초 timeout."""
         session_id = await self.get_session_id(user_id)
         agent_text_parts: list[str] = []
+        self._last_msg_at[user_id] = time.time()
+        self._inflight.add(user_id)
 
         async def _run():
             stream_ctx = await self.client.beta.sessions.events.stream(session_id=session_id)
@@ -192,6 +232,8 @@ class CompanionClient:
         except asyncio.TimeoutError:
             logger.warning(f"response timeout {RESPONSE_TIMEOUT}s")
             return "(응답 타임아웃 — 무거운 도구 호출 중일 수도 있음. 다시 물어봐)"
+        finally:
+            self._inflight.discard(user_id)
 
         return "".join(agent_text_parts).strip() or "(응답 비었음)"
 
@@ -253,6 +295,9 @@ class CompanionBot(discord.Client):
         if text.lower() in ("/reset", "!reset"):
             await self.companion.reset(self.owner_id)
             await msg.channel.send("(세션 리셋. 새 컨텍스트로 시작)")
+            return
+        if text.lower() in ("/debug", "!debug"):
+            await msg.channel.send(self.companion.debug_info(self.owner_id))
             return
 
         # typing indicator — discord.py context manager 가 장시간 응답에서 끊기는 케이스가 있어

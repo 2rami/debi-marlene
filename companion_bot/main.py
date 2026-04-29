@@ -43,6 +43,7 @@ from typing import Optional
 import anthropic
 import discord
 from anthropic import AsyncAnthropic
+from discord import app_commands
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -271,6 +272,41 @@ class CompanionBot(discord.Client):
         super().__init__(intents=intents)
         self.companion = companion
         self.owner_id = owner_id
+        # User Install 슬래시 명령어 등록용 — 길드 0개라도 DM에서 자동완성 뜨게 하려면 user install
+        self.tree = app_commands.CommandTree(self)
+        self._register_slash_commands()
+
+    def _register_slash_commands(self):
+        # owner 만 사용 가능. integration_types=user_install, contexts=DM/길드/그룹DM 모두
+        @self.tree.command(name="debug", description="세션/리소스/상태 dump (owner only)")
+        @app_commands.allowed_installs(guilds=False, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def debug_cmd(interaction: discord.Interaction):
+            if interaction.user.id != self.owner_id:
+                await interaction.response.send_message("(owner only)", ephemeral=True)
+                return
+            await interaction.response.send_message(
+                self.companion.debug_info(self.owner_id), ephemeral=True
+            )
+
+        @self.tree.command(name="reset", description="현재 세션 archive + 새 컨텍스트로 (owner only)")
+        @app_commands.allowed_installs(guilds=False, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def reset_cmd(interaction: discord.Interaction):
+            if interaction.user.id != self.owner_id:
+                await interaction.response.send_message("(owner only)", ephemeral=True)
+                return
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            await self.companion.reset(self.owner_id)
+            await interaction.followup.send("(세션 리셋. 새 컨텍스트로 시작)", ephemeral=True)
+
+    async def setup_hook(self):
+        # 글로벌 sync — user install 명령어는 보통 수 분 안에 propagate
+        try:
+            synced = await self.tree.sync()
+            logger.info(f"slash commands synced: {len(synced)}개 — {[c.name for c in synced]}")
+        except Exception:
+            logger.exception("tree.sync 실패")
 
     async def on_ready(self):
         logger.info(f"companion-bot ready as {self.user} (id={self.user.id})")

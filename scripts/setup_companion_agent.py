@@ -338,7 +338,7 @@ def main():
     print(f"\n다음 단계: .env 에 아래 줄 추가 후 ./scripts/sync_env.sh push")
     print(f"  MANAGED_COMPANION_AGENT_ID={new_id}")
     if env_id:
-        print(f"  MANAGED_COMPANION_ENV_ID={new_id}")
+        print(f"  MANAGED_COMPANION_ENV_ID={env_id}")
     print("\nConsole 세션 시작 시: agent=geno-companion + environment=geno-companion-env + vault_ids=[geno-personal]")
 
 

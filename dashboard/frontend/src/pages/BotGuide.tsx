@@ -139,9 +139,9 @@ export default function BotGuide() {
           <Section title="데이터 처리 및 보안" color="#fbbc04" delay={0.3}>
             <QA q="봇이 수집하는 데이터는 무엇인가요?">
               <ul className="list-disc list-inside space-y-1 mt-1">
-                <li><strong>서버 설정:</strong> 환영 채널 ID, TTS 채널 ID, 기본 역할 ID, 금지어 목록 등 (GCS 저장)</li>
+                <li><strong>서버 설정:</strong> 환영 채널 ID, TTS 채널 ID, 기본 역할 ID, 금지어 목록 등 (Firestore 저장)</li>
                 <li><strong>명령어 로그:</strong> 명령어 이름, 서버 ID, 사용 시간 (관리 목적)</li>
-                <li><strong>퀴즈 곡 목록:</strong> 서버별 커스텀 곡 제목/아티스트 (GCS 저장)</li>
+                <li><strong>퀴즈 곡 목록:</strong> 서버별 커스텀 곡 제목/아티스트 (Firestore 저장)</li>
               </ul>
             </QA>
             <QA q="수집하지 않는 데이터는?" delay={0.05}>
@@ -153,7 +153,7 @@ export default function BotGuide() {
               </ul>
             </QA>
             <QA q="데이터는 어디에 저장되나요?" delay={0.1}>
-              <p><strong>Google Cloud Storage (GCS)</strong>의 asia-northeast3(서울) 리전 버킷에 저장됩니다. 봇 서버는 같은 리전의 GCP Compute Engine VM에서 Docker 컨테이너로 운영됩니다.</p>
+              <p><strong>Google Cloud Firestore</strong>의 asia-northeast3(서울) 리전 데이터베이스에 저장됩니다. 봇 서버는 같은 리전의 GCP Compute Engine VM에서 Docker 컨테이너로 운영됩니다.</p>
             </QA>
             <QA q="데이터 삭제 정책은?" delay={0.15}>
               <p>봇이 서버에서 추방되면 해당 서버의 설정 데이터는 자동으로 삭제됩니다. 유저가 요청하면 관련 데이터를 수동으로 삭제할 수 있습니다.</p>

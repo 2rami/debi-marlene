@@ -374,21 +374,6 @@ async def on_ready():
         return
     bot._ready_once = True
 
-    # 삭제된 서버 정리 — GUILD_CREATE 이벤트 안정화 후(30초) 실행 + active=0 abort
-    # 즉시 호출 시 bot.guilds 가 부분적이라 재참가 길드가 settings에서 오삭제되던 race 회피
-    async def _delayed_cleanup():
-        await asyncio.sleep(30)
-        active_ids_now = [g.id for g in bot.guilds]
-        if not active_ids_now:
-            print("[경고] guild cleanup 중단: active guild 0개 — GUILD_CREATE race 의심", flush=True)
-            return
-        try:
-            config.cleanup_removed_servers(active_guild_ids=active_ids_now)
-        except Exception as e:
-            print(f"[경고] 삭제된 서버 정리 실패: {e}", flush=True)
-
-    asyncio.create_task(_delayed_cleanup())
-
     # 명령어에 allowed_installs/allowed_contexts 설정 (프로필에 명령어 표시)
     # guild_only 데코레이터가 붙은 명령어는 서버 전용으로 강제 (음성 명령어 등 DM 실행 불가)
     installs_all = discord.app_commands.AppInstallationType(guild=True, user=True)
@@ -616,9 +601,6 @@ async def on_guild_join(guild: discord.Guild):
     print(f"[완료] 새로운 서버에 초대되었습니다: {guild.name} (ID: {guild.id}) - 멤버 {guild.member_count}명", flush=True)
     sys.stdout.flush()
 
-    # 재참가 서버라면 removed_servers에서 제거 (다음 재시작 때 cleanup 방지)
-    config.unmark_removed_server(guild.id)
-
     # 빠른 중복 이벤트 방지 (30초 이내 같은 서버 초대 무시)
     if guild.id in welcome_timestamps:
         time_diff = current_time - welcome_timestamps[guild.id]
@@ -702,12 +684,6 @@ async def on_guild_remove(guild: discord.Guild):
     """서버에서 봇이 제거될 때 설정 삭제 및 로깅"""
     import sys
     print(f"[오류] 서버에서 제거되었습니다: {guild.name} (ID: {guild.id})", flush=True)
-
-    try:
-        # 삭제된 서버 정보를 GCS에 저장
-        config.save_removed_server(guild.id, guild.name, guild.member_count)
-    except Exception as e:
-        print(f"[경고] 삭제된 서버 저장 실패: {e}", flush=True)
 
     try:
         # config.py의 remove_guild_settings 함수 호출 (삭제됨 표시 추가)

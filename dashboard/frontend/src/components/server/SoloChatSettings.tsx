@@ -83,7 +83,7 @@ export default function SoloChatSettings({ channels, guildId }: Props) {
 
         setSelection({ debi: cleanDebi, marlene: cleanMarlene })
 
-        // stale ID가 있었으면 즉시 PUT으로 덮어써서 GCS 정리. 사용자에게 투명 고지.
+        // stale ID가 있었으면 즉시 PUT으로 덮어써서 Firestore 정리. 사용자에게 투명 고지.
         const staleCount =
           (rawDebi.length - cleanDebi.length) + (rawMarlene.length - cleanMarlene.length)
         if (staleCount > 0 && validIds.size > 0) {

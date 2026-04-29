@@ -20,12 +20,17 @@ IMAGE_TAG = $(REGISTRY)/$(CONTAINER_NAME):latest
 DASHBOARD_CONTAINER = debi-marlene-dashboard
 DASHBOARD_IMAGE_TAG = $(REGISTRY)/$(DASHBOARD_CONTAINER):latest
 
+# Companion-bot (나쵸네코) 설정 — 별도 Dockerfile, 별도 이미지
+COMPANION_CONTAINER = companion-bot
+COMPANION_IMAGE_TAG = $(REGISTRY)/$(COMPANION_CONTAINER):latest
+
 .PHONY: help deploy build-local push-image restart stop start logs status clean test-local stop-vm start-vm
 .PHONY: deploy-dashboard build-dashboard push-dashboard start-dashboard stop-dashboard restart-dashboard logs-dashboard
 .PHONY: deploy-dashboard-frontend deploy-dashboard-backend deploy-dashboard-quick inject-dashboard-env
 .PHONY: deploy-webpanel-frontend deploy-webpanel-backend deploy-webpanel-quick logs-webpanel
 .PHONY: deploy-quick
 .PHONY: deploy-solo-debi deploy-solo-marlene start-solo-debi start-solo-marlene stop-solo-debi stop-solo-marlene logs-solo-debi logs-solo-marlene restart-solo-debi restart-solo-marlene
+.PHONY: deploy-companion build-companion push-companion restart-companion stop-companion start-companion logs-companion
 .PHONY: sync-check preflight deploy-guard deploy-env-guard
 
 # 솔로봇 컨테이너 이름 (기존 이미지 $(IMAGE_TAG) 재사용 — 별도 빌드 불필요)
@@ -60,6 +65,12 @@ help:
 	@echo "  make logs-solo-debi        - 데비 솔로봇 로그"
 	@echo "  make logs-solo-marlene     - 마를렌 솔로봇 로그"
 	@echo "  make stop-solo-debi / stop-solo-marlene"
+	@echo ""
+	@echo "-- 나쵸네코 (companion-bot) --"
+	@echo "  make deploy-companion          - 나쵸네코 봇 빌드 + 푸시 + 재시작"
+	@echo "  make restart-companion         - 나쵸네코 봇 재시작 (이미지 재사용)"
+	@echo "  make logs-companion            - 나쵸네코 봇 로그"
+	@echo "  make stop-companion / start-companion"
 	@echo ""
 	@echo "-- 기타 --"
 	@echo "  make test-local    - 로컬에서 봇 실행 (VM 봇 자동 중지)"
@@ -115,7 +126,9 @@ deploy-webpanel-backend-quick:
 	@tar -czf ./wb-quick.tar.gz --exclude='__pycache__' --exclude='*.pyc' \
 		$$(ls -d webpanel/backend/ 2>/dev/null) \
 		$$(ls -d run/__init__.py 2>/dev/null) \
-		$$(ls -d run/core/ 2>/dev/null)
+		$$(ls -d run/core/ 2>/dev/null) \
+		$$(ls -d run/services/__init__.py 2>/dev/null) \
+		$$(ls -d run/services/quiz/ 2>/dev/null)
 	@gcloud compute scp ./wb-quick.tar.gz $(VM_NAME):~/wb-quick.tar.gz --zone=$(ZONE)
 	@echo "[2/3] 컨테이너에 복사 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
@@ -342,6 +355,9 @@ deploy-webpanel-backend:
 	@cp -r webpanel/backend /tmp/claude/wb-build/backend
 	@cp run/__init__.py /tmp/claude/wb-build/run/
 	@cp -r run/core /tmp/claude/wb-build/run/core
+	@mkdir -p /tmp/claude/wb-build/run/services
+	@cp run/services/__init__.py /tmp/claude/wb-build/run/services/
+	@cp -r run/services/quiz /tmp/claude/wb-build/run/services/quiz
 	@tar -czf /tmp/claude/wb-build.tar.gz -C /tmp/claude/wb-build .
 	@echo "[2/4] VM에 업로드 + Docker 이미지 빌드 중..."
 	@gcloud compute scp /tmp/claude/wb-build.tar.gz $(VM_NAME):~/wb-build.tar.gz --zone=$(ZONE)
@@ -414,6 +430,46 @@ logs-solo-marlene:
 	@echo "마를렌 솔로봇 로그 (Ctrl+C 종료):"
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker logs -f $(SOLO_MARLENE_NAME)"
+
+# ============================================================
+# Companion-bot (나쵸네코) — geno-companion Managed Agent + Discord DM
+# ============================================================
+# 메인 봇과 다른 Dockerfile (companion_bot/Dockerfile). 거노 personal 봇.
+# 필요 전제:
+#   - VM에 $(VM_PATH)/.env.companion 파일 (COMPANION_BOT_TOKEN, OWNER_ID,
+#     ANTHROPIC_API_KEY, MANAGED_COMPANION_AGENT_ID, MANAGED_COMPANION_ENV_ID)
+#   - 토큰들은 Secret Manager 에서 받아 .env.companion 작성
+
+deploy-companion: build-companion push-companion restart-companion
+	@echo "나쵸네코 봇 배포 완료"
+
+build-companion:
+	@echo "나쵸네코 Docker 이미지 빌드 중 (linux/amd64)..."
+	@docker build --platform linux/amd64 -t $(COMPANION_CONTAINER) -t $(COMPANION_IMAGE_TAG) ./companion_bot
+	@echo "빌드 완료"
+
+push-companion:
+	@echo "나쵸네코 이미지를 Artifact Registry 에 푸시 중..."
+	@docker push $(COMPANION_IMAGE_TAG)
+	@echo "푸시 완료"
+
+restart-companion: stop-companion start-companion
+	@echo "나쵸네코 봇 재시작 완료"
+
+stop-companion:
+	@echo "나쵸네코 봇 중지 중..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker stop $(COMPANION_CONTAINER) 2>/dev/null || true && docker rm $(COMPANION_CONTAINER) 2>/dev/null || true"
+
+start-companion:
+	@echo "나쵸네코 봇 시작 (image=$(COMPANION_IMAGE_TAG))..."
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker pull $(COMPANION_IMAGE_TAG) >/dev/null && sudo docker run -d --name $(COMPANION_CONTAINER) --env-file $(VM_PATH)/.env.companion --restart unless-stopped $(COMPANION_IMAGE_TAG)"
+
+logs-companion:
+	@echo "나쵸네코 봇 로그 (Ctrl+C 종료):"
+	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
+		--command="docker logs -f $(COMPANION_CONTAINER)"
 
 # ============================================================
 # env sync-check — 로컬 .env × Secret Manager × VM 해시 비교

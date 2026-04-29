@@ -32,8 +32,6 @@ ETERNAL_RETURN_CHANNEL_ID = 'UCEOaB76vS9RfiAwEzxB8QGw'
 GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'ironic-objectivist-465713-a6')
 GCS_BUCKET = os.getenv('GCS_BUCKET_NAME', 'debi-marlene-settings')
 GCS_KEY = 'settings.json'  # 레거시 fallback 전용
-GCS_REMOVED_SERVERS_KEY = 'removed_servers.json'
-GCS_COMMAND_LOGS_KEY = 'command_logs.json'
 
 # 저장소 모드 (점진 전환용)
 # - 'firestore': Firestore 단독 (이번 작업 기본값)
@@ -54,7 +52,7 @@ settings_cache = None
 # ───────────────────── 클라이언트 초기화 ─────────────────────
 
 def get_gcs_client():
-    """GCS 클라이언트를 가져옵니다 (싱글톤, 스레드 안전). removed_servers / command_logs / fallback 용."""
+    """GCS 클라이언트를 가져옵니다 (싱글톤, 스레드 안전). welcome_images / settings.json 레거시 fallback 용."""
     global gcs_client
     if gcs_client is not None:
         return gcs_client if gcs_client is not False else None
@@ -511,79 +509,6 @@ def set_solo_chat_channels(guild_id, identity: str, channel_ids: list[int]) -> b
     return save_settings(settings)
 
 
-# ─────── removed_servers (GCS 유지, Phase 2 이관 대상) ───────
-
-def load_removed_servers():
-    """GCS에서 삭제된 서버 목록을 로드합니다."""
-    client = get_gcs_client()
-    if client:
-        try:
-            bucket = client.bucket(GCS_BUCKET)
-            blob = bucket.blob(GCS_REMOVED_SERVERS_KEY)
-            if blob.exists():
-                data = blob.download_as_text()
-                return json.loads(data)
-        except Exception as e:
-            print(f"[경고] 삭제된 서버 목록 로드 실패: {e}", flush=True)
-    return {"removed_servers": []}
-
-
-def unmark_removed_server(guild_id):
-    """재참가한 서버를 removed_servers.json에서 제거합니다."""
-    try:
-        removed_data = load_removed_servers()
-        guild_id_str = str(guild_id)
-        original_count = len(removed_data.get("removed_servers", []))
-        removed_data["removed_servers"] = [
-            s for s in removed_data.get("removed_servers", [])
-            if str(s.get("guild_id")) != guild_id_str
-        ]
-        new_count = len(removed_data["removed_servers"])
-        if new_count < original_count:
-            client = get_gcs_client()
-            if client:
-                bucket = client.bucket(GCS_BUCKET)
-                blob = bucket.blob(GCS_REMOVED_SERVERS_KEY)
-                blob.upload_from_string(
-                    json.dumps(removed_data, indent=2, ensure_ascii=False),
-                    content_type='application/json'
-                )
-                print(f"[완료] 재참가 서버 removed_servers에서 제거: {guild_id}", flush=True)
-                return True
-    except Exception as e:
-        print(f"[오류] removed_servers 제거 실패: {e}", flush=True)
-    return False
-
-
-def save_removed_server(guild_id, guild_name, member_count=None):
-    """삭제된 서버 정보를 GCS에 저장합니다."""
-    from datetime import datetime
-    try:
-        removed_data = load_removed_servers()
-        removed_info = {
-            "guild_id": str(guild_id),
-            "guild_name": guild_name,
-            "removed_at": datetime.now().isoformat(),
-            "member_count": member_count
-        }
-        removed_data["removed_servers"].append(removed_info)
-        client = get_gcs_client()
-        if client:
-            bucket = client.bucket(GCS_BUCKET)
-            blob = bucket.blob(GCS_REMOVED_SERVERS_KEY)
-            blob.upload_from_string(
-                json.dumps(removed_data, indent=2, ensure_ascii=False),
-                content_type='application/json'
-            )
-            print(f"[완료] 삭제된 서버 기록 완료: {guild_name} (ID: {guild_id})", flush=True)
-            return True
-    except Exception as e:
-        print(f"[오류] 삭제된 서버 저장 실패: {e}", flush=True)
-        import traceback
-        traceback.print_exc()
-    return False
-
-
 def remove_guild_settings(guild_id):
     """특정 서버(guild)에 삭제됨 표시를 추가합니다 (atomic)."""
     global settings_cache
@@ -959,203 +884,68 @@ def save_dm_channel(user_id, channel_id, user_name=None):
     return save_user_dm_interaction(user_id, channel_id, user_name)
 
 
-# ─────── 정리 (cleanup) ───────
+# ─────── 명령어 로그 (Firestore command_logs 컬렉션) ───────
+# expireAt 필드 + Firestore TTL 정책으로 30일 후 자동 삭제
+# (TTL 정책 설정: gcloud firestore fields ttls update expireAt --collection-group=command_logs)
 
-def cleanup_removed_servers(active_guild_ids=None):
-    """삭제된 서버를 settings 에서 완전히 제거합니다.
+COMMAND_LOGS_COLLECTION = 'command_logs'
+COMMAND_LOGS_TTL_DAYS = 30
 
-    removed_servers.json 에 기록된 서버들을 Firestore guilds 컬렉션에서 삭제.
-    active_guild_ids 가 주어지면 현재 봇이 접속 중인 서버는 건너뜁니다.
-    """
-    global settings_cache
-    settings_cache = None
-
-    active_ids = set(str(gid) for gid in (active_guild_ids or []))
-
-    try:
-        removed_data = load_removed_servers()
-        removed_servers = removed_data.get("removed_servers", [])
-
-        if not removed_servers:
-            print("[정보] 삭제된 서버가 없습니다.", flush=True)
-            return {"removed_count": 0, "cleaned_servers": []}
-
-        cleaned_servers = []
-        removed_count = 0
-        skipped = []
-
-        for removed_server in removed_servers:
-            guild_id = str(removed_server.get("guild_id"))
-            guild_name = removed_server.get("guild_name", "알 수 없음")
-
-            if guild_id in active_ids:
-                skipped.append(guild_name)
-                continue
-
-            # Firestore guilds 컬렉션에서 atomic 삭제
-            if SETTINGS_BACKEND in ('firestore', 'dual'):
-                # 존재 여부 확인 후 삭제
-                if _fs_get_guild(guild_id) is not None:
-                    if _fs_delete_guild(guild_id):
-                        cleaned_servers.append({
-                            "guild_id": guild_id,
-                            "guild_name": guild_name,
-                            "removed_at": removed_server.get("removed_at")
-                        })
-                        removed_count += 1
-                        print(f"[정리] 삭제된 서버 제거 (Firestore): {guild_name} (ID: {guild_id})", flush=True)
-
-            # dual / gcs 모드: GCS 도 동기화
-            if SETTINGS_BACKEND in ('dual', 'gcs'):
-                settings = load_settings(force_reload=True)
-                if guild_id in settings.get("guilds", {}):
-                    del settings["guilds"][guild_id]
-                    if SETTINGS_BACKEND == 'gcs':
-                        cleaned_servers.append({
-                            "guild_id": guild_id,
-                            "guild_name": guild_name,
-                            "removed_at": removed_server.get("removed_at")
-                        })
-                        removed_count += 1
-                        print(f"[정리] 삭제된 서버 제거 (GCS): {guild_name} (ID: {guild_id})", flush=True)
-                    save_settings(settings, silent=True)
-
-        if removed_count == 0:
-            print("[정보] 정리할 서버가 없습니다.", flush=True)
-
-        if skipped:
-            print(f"[정보] 재참가 서버 {len(skipped)}개 건너뜀: {', '.join(skipped)}", flush=True)
-
-        # removed_servers.json 비우기 (처리 완료)
-        removed_data["removed_servers"] = []
-        try:
-            client = get_gcs_client()
-            if client:
-                bucket = client.bucket(GCS_BUCKET)
-                blob = bucket.blob(GCS_REMOVED_SERVERS_KEY)
-                blob.upload_from_string(
-                    json.dumps(removed_data, indent=2, ensure_ascii=False),
-                    content_type='application/json'
-                )
-        except Exception:
-            pass
-
-        return {
-            "removed_count": removed_count,
-            "cleaned_servers": cleaned_servers
-        }
-
-    except Exception as e:
-        print(f"[오류] 삭제된 서버 정리 실패: {e}", flush=True)
-        import traceback
-        traceback.print_exc()
-        return {"removed_count": 0, "cleaned_servers": [], "error": str(e)}
-
-
-# ─────── 명령어 로그 (GCS 유지, Phase 2 이관 대상) ───────
 
 def save_command_log(log_entry):
-    """명령어 사용 로그를 GCS에 저장합니다.
+    """명령어 사용 로그를 Firestore 에 저장합니다.
 
     Args:
-        log_entry: 로그 항목 (dict)
-            - command_name: 명령어 이름
-            - user_id: 사용자 ID
-            - user_name: 사용자 이름
-            - guild_id: 서버 ID (optional)
-            - guild_name: 서버 이름 (optional)
-            - timestamp: ISO 형식 타임스탬프
-            - args: 명령어 인자 (dict)
+        log_entry: 로그 항목 (dict). timestamp 는 ISO 형식 str. 다른 키는 그대로 저장.
     """
     from datetime import datetime, timedelta, timezone
-    KST = timezone(timedelta(hours=9))
-
+    fs = get_firestore_client()
+    if not fs:
+        return False
     try:
-        client = get_gcs_client()
-        if not client:
-            return False
-        bucket = client.bucket(GCS_BUCKET)
-        blob = bucket.blob(GCS_COMMAND_LOGS_KEY)
-
-        if blob.exists():
-            logs_data = json.loads(blob.download_as_text())
-        else:
-            logs_data = {"logs": []}
-
-        logs_data["logs"].append(log_entry)
-
-        # 30일 이상 된 로그 삭제 (로그 로테이션)
-        cutoff_date = datetime.now(KST) - timedelta(days=30)
-        def _parse_ts(ts_str):
-            dt = datetime.fromisoformat(ts_str)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=KST)
-            return dt
-        logs_data["logs"] = [
-            log for log in logs_data["logs"]
-            if _parse_ts(log.get("timestamp", "2000-01-01")) > cutoff_date
-        ]
-
-        blob.upload_from_string(
-            json.dumps(logs_data, indent=2, ensure_ascii=False),
-            content_type='application/json'
-        )
+        doc = dict(log_entry)
+        doc["expireAt"] = datetime.now(timezone.utc) + timedelta(days=COMMAND_LOGS_TTL_DAYS)
+        fs.collection(COMMAND_LOGS_COLLECTION).add(doc)
         return True
-
     except Exception as e:
         print(f"[경고] 명령어 로그 저장 실패: {e}", flush=True)
         return False
 
 
 def load_command_logs(filters=None):
-    """명령어 사용 로그를 GCS에서 로드합니다.
+    """명령어 사용 로그를 Firestore 에서 로드합니다.
 
     Args:
         filters: 필터 딕셔너리 (optional)
-            - guild_id: 특정 서버의 로그만 (str)
-            - user_id: 특정 사용자의 로그만 (str)
-            - command_name: 특정 명령어의 로그만 (str)
-            - start_date: 시작 날짜 (ISO 형식 str)
-            - end_date: 종료 날짜 (ISO 형식 str)
-            - limit: 최대 개수 (int)
+            - guild_id, user_id, command_name (str equality)
+            - start_date, end_date (ISO 형식 str, timestamp 비교)
+            - limit (int, 기본 1000)
 
     Returns:
-        list: 필터링된 로그 항목 리스트 (최신순)
+        list: 필터링된 로그 항목 리스트 (timestamp desc)
     """
-    from datetime import datetime
+    fs = get_firestore_client()
+    if not fs:
+        return []
     try:
-        client = get_gcs_client()
-        if not client:
-            return []
-        bucket = client.bucket(GCS_BUCKET)
-        blob = bucket.blob(GCS_COMMAND_LOGS_KEY)
-        if not blob.exists():
-            return []
+        query = fs.collection(COMMAND_LOGS_COLLECTION)
+        filters = filters or {}
+        if filters.get("guild_id"):
+            query = query.where("guild_id", "==", str(filters["guild_id"]))
+        if filters.get("user_id"):
+            query = query.where("user_id", "==", str(filters["user_id"]))
+        if filters.get("command_name"):
+            query = query.where("command_name", "==", filters["command_name"])
+        if filters.get("start_date"):
+            query = query.where("timestamp", ">=", filters["start_date"])
+        if filters.get("end_date"):
+            query = query.where("timestamp", "<=", filters["end_date"])
 
-        logs_data = json.loads(blob.download_as_text())
-        logs = logs_data.get("logs", [])
+        from google.cloud.firestore_v1 import Query as FsQuery
+        query = query.order_by("timestamp", direction=FsQuery.DESCENDING)
+        query = query.limit(int(filters.get("limit") or 1000))
 
-        if filters:
-            if filters.get("guild_id"):
-                logs = [log for log in logs if log.get("guild_id") == str(filters["guild_id"])]
-            if filters.get("user_id"):
-                logs = [log for log in logs if log.get("user_id") == str(filters["user_id"])]
-            if filters.get("command_name"):
-                logs = [log for log in logs if log.get("command_name") == filters["command_name"]]
-            if filters.get("start_date"):
-                start = datetime.fromisoformat(filters["start_date"])
-                logs = [log for log in logs if datetime.fromisoformat(log["timestamp"]) >= start]
-            if filters.get("end_date"):
-                end = datetime.fromisoformat(filters["end_date"])
-                logs = [log for log in logs if datetime.fromisoformat(log["timestamp"]) <= end]
-
-        logs.sort(key=lambda x: x["timestamp"], reverse=True)
-
-        if filters and filters.get("limit"):
-            logs = logs[:filters["limit"]]
-
-        return logs
-
+        return [d.to_dict() for d in query.stream()]
     except Exception as e:
         print(f"[경고] 명령어 로그 로드 실패: {e}", flush=True)
         return []

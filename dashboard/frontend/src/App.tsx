@@ -18,6 +18,7 @@ import BotGuide from './pages/BotGuide'
 import PortfolioKrafton from './pages/PortfolioKrafton'
 import PortfolioNimbleNeuron from './pages/PortfolioNimbleNeuron'
 import PortfolioNimbleNeuronPrint from './pages/PortfolioNimbleNeuronPrint'
+import PortfolioSmilegate from './pages/PortfolioSmilegate'
 import Feed from './pages/Feed'
 import NotFound from './pages/NotFound'
 
@@ -52,6 +53,7 @@ function App() {
           <Route path="/portfolio/krafton" element={<PortfolioKrafton />} />
           <Route path="/portfolio/nimble-neuron" element={<PortfolioNimbleNeuron />} />
           <Route path="/portfolio/nimble-neuron/print" element={<PortfolioNimbleNeuronPrint />} />
+          <Route path="/portfolio/smilegate" element={<PortfolioSmilegate />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>

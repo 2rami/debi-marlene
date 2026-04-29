@@ -317,6 +317,13 @@ def format_event(event) -> Optional[str]:
         return f"⚠ error: {_trunc(str(msg), 200)}"
     if t == "agent.thinking":
         return "… thinking"
+    if t == "agent.message":
+        parts = []
+        for block in getattr(event, "content", []) or []:
+            if getattr(block, "type", None) == "text":
+                parts.append(getattr(block, "text", "") or "")
+        body = _trunc("".join(parts), 200)
+        return f"→ {body}" if body else None
     if t == "agent.tool_use":
         name = getattr(event, "name", "?")
         inp = getattr(event, "input", None) or {}
@@ -340,7 +347,13 @@ def format_event(event) -> Optional[str]:
         srv = getattr(event, "mcp_server_name", "?")
         return f"⚙ mcp[{srv}].{name}"
     if t == "agent.mcp_tool_result":
-        return "← mcp result"
+        is_err = getattr(event, "is_error", False)
+        parts = []
+        for block in getattr(event, "content", []) or []:
+            if getattr(block, "type", None) == "text":
+                parts.append(getattr(block, "text", "") or "")
+        body = _trunc("".join(parts), 320)
+        return f"{'✗' if is_err else '←'} mcp: {body}" if body else "← mcp result"
     if t == "span.model_request_end":
         if getattr(event, "is_error", False):
             return "✗ model_request error"

@@ -20,6 +20,9 @@ import PortfolioNimbleNeuron from './pages/PortfolioNimbleNeuron'
 import PortfolioNimbleNeuronPrint from './pages/PortfolioNimbleNeuronPrint'
 import PortfolioSmilegate from './pages/PortfolioSmilegate'
 import PortfolioSmilegateCompare from './pages/PortfolioSmilegateCompare'
+import PageLLM from './pages/PortfolioNexon2026/PageLLM'
+import PageService from './pages/PortfolioNexon2026/PageService'
+import PageQA from './pages/PortfolioNexon2026/PageQA'
 import Feed from './pages/Feed'
 import NotFound from './pages/NotFound'
 
@@ -56,6 +59,10 @@ function App() {
           <Route path="/portfolio/nimble-neuron/print" element={<PortfolioNimbleNeuronPrint />} />
           <Route path="/portfolio/smilegate" element={<PortfolioSmilegate />} />
           <Route path="/portfolio/smilegate-compare" element={<PortfolioSmilegateCompare />} />
+          <Route path="/portfolio/nexon" element={<PageLLM />} />
+          <Route path="/portfolio/nexon/llm" element={<PageLLM />} />
+          <Route path="/portfolio/nexon/service" element={<PageService />} />
+          <Route path="/portfolio/nexon/qa" element={<PageQA />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>

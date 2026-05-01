@@ -18,34 +18,38 @@ export default function GameList({ games }: { games: readonly Game[] }) {
             gap: 16,
             alignItems: 'baseline',
             padding: '16px 20px',
-            background: i === 0 ? C.cream : C.inverse,
-            borderRadius: 12,
-            border: i === 0 ? `2px solid ${C.honey}` : `1px solid rgba(26, 43, 71, 0.08)`,
+            background: i === 0 ? 'rgba(0, 98, 223, 0.05)' : C.bgWhite,
+            borderRadius: 16,
+            border: i === 0 ? `2px solid ${C.nexonBlue}` : `1px solid ${C.cardBorder}`,
+            transition: 'transform 0.2s',
+            cursor: 'default',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateX(8px)')}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateX(0)')}
         >
           <span
             style={{
               fontFamily: FONT_MONO,
-              fontSize: 11,
-              color: C.honey,
+              fontSize: 12,
+              color: i === 0 ? C.nexonBlue : C.inkMuted,
               letterSpacing: '0.1em',
-              fontWeight: 700,
+              fontWeight: 800,
             }}
           >
             {String(i + 1).padStart(2, '0')}
           </span>
           <span
             style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: C.ink,
+              fontSize: 17,
+              fontWeight: 800,
+              color: i === 0 ? C.nexonBlue : C.ink,
               letterSpacing: '-0.01em',
             }}
           >
             {g.title}
           </span>
-          <span style={{ fontSize: 13, color: C.inkMuted, fontFamily: FONT_MONO }}>{g.period}</span>
-          <span style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.5 }}>{g.detail}</span>
+          <span style={{ fontSize: 13, color: C.inkSoft, fontFamily: FONT_MONO, fontWeight: 500 }}>{g.period}</span>
+          <span style={{ fontSize: 14, color: C.inkSoft, lineHeight: 1.5, fontWeight: 500 }}>{g.detail}</span>
         </div>
       ))}
     </div>

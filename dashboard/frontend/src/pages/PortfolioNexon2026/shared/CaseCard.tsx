@@ -13,74 +13,101 @@ export default function CaseCard({ no, title, problem, approach, result, bridge 
   return (
     <article
       style={{
-        background: C.inverse,
-        borderRadius: 16,
-        padding: 32,
+        background: C.bgWhite,
+        borderRadius: 24,
+        padding: 36,
         boxShadow: C.cardShadow,
-        border: `1px solid rgba(26, 43, 71, 0.06)`,
+        border: `1px solid ${C.cardBorder}`,
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
+        gap: 20,
+        position: 'relative',
+        transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-6px)'
+        e.currentTarget.style.boxShadow = C.cardShadowHover
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.boxShadow = C.cardShadow
       }}
     >
-      <header style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
-        <span
+      <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        <div
           style={{
             fontFamily: FONT_MONO,
-            fontSize: 11,
+            fontSize: 12,
             letterSpacing: '0.12em',
-            color: C.honey,
-            fontWeight: 700,
+            color: C.inverse,
+            background: C.nexonBlue,
+            fontWeight: 800,
+            padding: '6px 14px',
+            borderRadius: 999,
           }}
         >
           CASE {String(no).padStart(2, '0')}
-        </span>
-        <span style={{ flex: 1, height: 1, background: 'rgba(26, 43, 71, 0.1)' }} />
+        </div>
       </header>
 
       <h3
         style={{
           fontSize: 22,
-          fontWeight: 700,
-          lineHeight: 1.35,
+          fontWeight: 800,
+          lineHeight: 1.4,
           color: C.ink,
           margin: 0,
-          letterSpacing: '-0.01em',
+          letterSpacing: '-0.02em',
+          paddingBottom: 16,
+          borderBottom: `1px dashed rgba(0, 98, 223, 0.2)`,
         }}
       >
         {title}
       </h3>
 
-      <Row label="문제" body={problem} />
-      <Row label="접근" body={approach} />
-      <Row label="결과" body={result} accent />
-      <Row label="직무 연결" body={bridge} bridge />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 4 }}>
+        <Row label="문제" body={problem} type="default" />
+        <Row label="접근" body={approach} type="default" />
+        <Row label="결과" body={result} type="accent" />
+        <Row label="직무 연결" body={bridge} type="bridge" />
+      </div>
     </article>
   )
 }
 
-function Row({ label, body, accent, bridge }: { label: string; body: string; accent?: boolean; bridge?: boolean }) {
+function Row({ label, body, type }: { label: string; body: string; type: 'default' | 'accent' | 'bridge' }) {
+  const getBadgeColor = () => {
+    if (type === 'bridge') return { bg: C.lime, text: C.ink }
+    if (type === 'accent') return { bg: 'rgba(255, 75, 75, 0.1)', text: C.coral }
+    return { bg: 'rgba(0, 98, 223, 0.08)', text: C.nexonBlue }
+  }
+  const colors = getBadgeColor()
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '64px 1fr', gap: 16, alignItems: 'baseline' }}>
+    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
       <span
         style={{
           fontFamily: FONT_MONO,
-          fontSize: 10,
-          letterSpacing: '0.1em',
-          color: bridge ? C.bgDeep : accent ? C.honey : C.inkMuted,
-          fontWeight: 700,
-          textTransform: 'uppercase',
+          fontSize: 11,
+          letterSpacing: '0.05em',
+          color: colors.text,
+          background: colors.bg,
+          fontWeight: 800,
+          padding: '4px 8px',
+          borderRadius: 8,
+          whiteSpace: 'nowrap',
+          marginTop: 2,
         }}
       >
         {label}
       </span>
       <p
         style={{
-          fontSize: 14,
-          lineHeight: 1.7,
-          color: bridge ? C.bgDeep : C.inkSoft,
+          fontSize: 15,
+          lineHeight: 1.6,
+          color: type === 'bridge' ? C.ink : C.inkSoft,
           margin: 0,
-          fontWeight: bridge ? 600 : 500,
+          fontWeight: type === 'bridge' ? 700 : 500,
         }}
       >
         {body}

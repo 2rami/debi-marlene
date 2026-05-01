@@ -77,7 +77,7 @@ export default function Hero({ badge, jobCode, title, subtitle, ctas }: HeroProp
 
         {/* No 표기 + 본명 */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 28 }}>
-          <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.honey, letterSpacing: '0.05em' }}>
+          <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.nexonBlue, letterSpacing: '0.05em' }}>
             {jobCode} — 양건호
           </span>
           <span style={{ flex: 1, height: 1, background: 'rgba(245, 250, 249, 0.3)' }} />

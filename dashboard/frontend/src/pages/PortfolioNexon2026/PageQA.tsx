@@ -58,7 +58,7 @@ function SectionHeader({ no, kicker, title, dark = false }: { no: string; kicker
     <FadeIn>
       <div style={{ marginBottom: 56 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 24 }}>
-          <span style={{ fontFamily: FONT_MONO, fontSize: 11, fontWeight: 700, color: C.honey, letterSpacing: '0.18em' }}>
+          <span style={{ fontFamily: FONT_MONO, fontSize: 11, fontWeight: 700, color: C.nexonBlue, letterSpacing: '0.18em' }}>
             {no}
           </span>
           <span
@@ -117,17 +117,17 @@ function Hero() {
         overflow: 'hidden',
       }}
     >
-      {/* 그라디언트 BG 블롭 */}
+      {/* 그라디언트 BG 블롭 (Nexon Vibe - QA: Coral) */}
       <div
         style={{
           position: 'absolute',
-          top: 80,
-          left: '8%',
-          width: 600,
-          height: 600,
+          top: -100,
+          left: '-10%',
+          width: 800,
+          height: 800,
           borderRadius: '50%',
-          filter: 'blur(150px)',
-          background: 'rgba(215, 232, 74, 0.18)',
+          filter: 'blur(120px)',
+          background: 'rgba(0, 98, 223, 0.15)', // Nexon Blue
           pointerEvents: 'none',
           zIndex: 0,
         }}
@@ -136,12 +136,12 @@ function Hero() {
         style={{
           position: 'absolute',
           top: 200,
-          right: '8%',
-          width: 520,
-          height: 520,
+          right: '-5%',
+          width: 600,
+          height: 600,
           borderRadius: '50%',
-          filter: 'blur(150px)',
-          background: 'rgba(232, 185, 72, 0.22)',
+          filter: 'blur(120px)',
+          background: 'rgba(255, 75, 75, 0.15)', // Coral
           pointerEvents: 'none',
           zIndex: 0,
         }}
@@ -162,8 +162,8 @@ function Hero() {
           maxWidth: 1280,
           margin: '0 auto',
           paddingBottom: 24,
-          borderBottom: `1px solid rgba(245, 250, 249, 0.25)`,
-          color: C.inverse,
+          borderBottom: `1px solid rgba(0, 98, 223, 0.15)`,
+          color: C.nexonBlue,
           flexWrap: 'wrap',
           gap: 16,
         }}
@@ -191,16 +191,17 @@ function Hero() {
           <div
             style={{
               display: 'inline-block',
-              padding: '8px 18px',
-              background: C.lime,
-              color: C.ink,
+              padding: '10px 20px',
+              background: C.nexonBlue,
+              color: C.inverse,
               fontFamily: FONT_MONO,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 800,
               letterSpacing: '0.15em',
               textTransform: 'uppercase',
               borderRadius: 9999,
               marginBottom: 32,
+              boxShadow: '0 8px 24px rgba(0, 98, 223, 0.25)'
             }}
           >
             {HERO.badge}
@@ -208,18 +209,18 @@ function Hero() {
         </FadeIn>
 
         <FadeIn delay={0.08}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 32 }}>
-            <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.honey, letterSpacing: '0.05em' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.nexonBlue, letterSpacing: '0.05em', fontWeight: 700 }}>
               {HERO.jobCode} — 양건호
             </span>
-            <span style={{ flex: 1, height: 1, background: 'rgba(245, 250, 249, 0.3)' }} />
+            <span style={{ flex: 1, height: 2, background: 'rgba(0, 98, 223, 0.1)', borderRadius: 2 }} />
           </div>
         </FadeIn>
 
         {/* 타이틀: GradientText + 큰 산세리프 */}
         <FadeIn delay={0.15}>
           <GradientText
-            colors={[C.lime, C.honey, C.inverse, C.lime]}
+            colors={[C.nexonBlue, C.coral, C.nexonBlue]}
             animationSpeed={6}
             className="!mx-0"
           >
@@ -241,10 +242,10 @@ function Hero() {
         <FadeIn delay={0.22}>
           <p
             style={{
-              fontSize: 'clamp(17px, 2vw, 22px)',
-              fontWeight: 500,
-              lineHeight: 1.7,
-              color: 'rgba(245, 250, 249, 0.92)',
+              fontSize: 'clamp(18px, 2vw, 24px)',
+              fontWeight: 600,
+              lineHeight: 1.6,
+              color: C.inkSoft,
               maxWidth: 760,
               margin: '32px 0 56px',
             }}
@@ -272,20 +273,20 @@ function Hero() {
                   transition: 'all 220ms cubic-bezier(0.4, 0, 0.2, 1)',
                   ...(cta.primary
                     ? {
-                        background: C.inverse,
-                        color: C.ink,
-                        border: `1.5px solid ${C.inverse}`,
+                        background: C.nexonBlue,
+                        color: C.inverse,
+                        boxShadow: '0 8px 24px rgba(0, 98, 223, 0.3)',
                       }
                     : {
-                        background: 'rgba(245, 250, 249, 0.06)',
-                        color: C.inverse,
-                        border: '1.5px solid rgba(245, 250, 249, 0.45)',
-                        backdropFilter: 'blur(8px)',
+                        background: C.bgWhite,
+                        color: C.nexonBlue,
+                        border: `1.5px solid rgba(0, 98, 223, 0.2)`,
+                        boxShadow: C.cardShadow,
                       }),
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                  e.currentTarget.style.boxShadow = '0 8px 28px rgba(26, 43, 71, 0.2)'
+                  e.currentTarget.style.transform = 'translateY(-4px)'
+                  e.currentTarget.style.boxShadow = cta.primary ? '0 12px 32px rgba(0, 98, 223, 0.4)' : C.cardShadowHover
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)'
@@ -315,16 +316,17 @@ function Hero() {
                 style={{
                   padding: '18px 20px',
                   borderRadius: 18,
-                  background: 'rgba(245, 250, 249, 0.07)',
-                  border: '1px solid rgba(245, 250, 249, 0.18)',
+                  background: 'rgba(255, 255, 255, 0.7)',
+                  border: `1px solid rgba(0, 98, 223, 0.1)`,
                   backdropFilter: 'blur(12px)',
+                  boxShadow: '0 8px 32px rgba(0, 98, 223, 0.05)',
                 }}
               >
                 <div
                   style={{
                     fontFamily: FONT_MONO,
                     fontSize: 10,
-                    color: C.honey,
+                    color: C.nexonBlue,
                     letterSpacing: '0.12em',
                     fontWeight: 700,
                     marginBottom: 6,
@@ -336,7 +338,7 @@ function Hero() {
                   style={{
                     fontSize: 28,
                     fontWeight: 800,
-                    color: C.inverse,
+                    color: C.ink,
                     lineHeight: 1,
                     fontVariantNumeric: 'tabular-nums',
                     letterSpacing: '-0.02em',
@@ -347,7 +349,7 @@ function Hero() {
                     <span style={{ fontSize: '0.5em', fontWeight: 700, marginLeft: 4, opacity: 0.85 }}>{s.unit}</span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: 'rgba(245, 250, 249, 0.78)', marginTop: 6, fontWeight: 600 }}>
+                <div style={{ fontSize: 13, color: C.inkSoft, marginTop: 6, fontWeight: 600 }}>
                   {s.label}
                 </div>
               </div>
@@ -390,7 +392,7 @@ export default function PageQA() {
         fontFamily: FONT_BODY,
         color: C.ink,
         letterSpacing: '-0.01em',
-        background: `linear-gradient(180deg, ${C.bgDeep} 0%, ${C.bgMid} 30%, ${C.bgLight} 100%)`,
+        background: C.bgLight,
         minHeight: '100vh',
         overflowX: 'clip',
       }}
@@ -428,7 +430,7 @@ export default function PageQA() {
               >
                 헤비유저로서의 게임 도메인 깊이와<br />
                 봇 운영자로서의 결함 추적 습관이 결합된<br />
-                <span style={{ color: C.bgDeep }}>지점이 게임 QA 직무의 본질입니다.</span>
+                <span style={{ color: C.nexonBlue }}>지점이 게임 QA 직무의 본질입니다.</span>
               </p>
               <p style={{ fontSize: 16, lineHeight: 1.85, color: C.inkSoft, margin: 0 }}>
                 {ABOUT}
@@ -448,7 +450,7 @@ export default function PageQA() {
       <section
         style={{
           padding: '120px 48px',
-          background: '#F4F8FA',
+          background: C.bgWhite,
         }}
       >
         <div style={{ maxWidth: 1280, margin: '0 auto' }}>
@@ -484,7 +486,7 @@ export default function PageQA() {
           <FadeIn delay={0.05}>
             <div
               style={{
-                background: `linear-gradient(135deg, ${C.bgDeep} 0%, ${C.bgMid} 100%)`,
+                background: `linear-gradient(135deg, ${C.nexonBlue} 0%, ${C.nexonLightBlue} 100%)`,
                 borderRadius: 24,
                 padding: '40px 48px',
                 color: C.inverse,
@@ -510,11 +512,15 @@ export default function PageQA() {
                   <div
                     style={{
                       fontFamily: FONT_MONO,
-                      fontSize: 11,
+                      fontSize: 12,
                       letterSpacing: '0.15em',
                       color: C.lime,
-                      fontWeight: 700,
-                      marginBottom: 12,
+                      fontWeight: 800,
+                      marginBottom: 16,
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      padding: '6px 14px',
+                      display: 'inline-block',
+                      borderRadius: 999,
                     }}
                   >
                     HEAVY USER · 10년 7개월
@@ -524,7 +530,7 @@ export default function PageQA() {
                     <span style={{ color: C.lime }}>284 LV</span>
                   </div>
                 </div>
-                <div style={{ fontSize: 16, lineHeight: 1.8, color: 'rgba(245, 250, 249, 0.92)' }}>
+                <div style={{ fontSize: 16, lineHeight: 1.8, color: 'rgba(255, 255, 255, 0.9)' }}>
                   2014년 10월부터 약 10년 7개월간 메이플스토리를 플레이하며,
                   검은 마법사 라이프타임 보스와 그란디스 어센틱 지역까지
                   거의 모든 라이프타임 콘텐츠를 직접 거쳤습니다.
@@ -543,7 +549,7 @@ export default function PageQA() {
           <FadeIn delay={0.18}>
             <div
               style={{
-                background: '#F4F8FA',
+                background: C.bgWhite,
                 borderRadius: 20,
                 padding: 32,
                 marginTop: 32,
@@ -554,7 +560,7 @@ export default function PageQA() {
                   fontFamily: FONT_MONO,
                   fontSize: 11,
                   letterSpacing: '0.15em',
-                  color: C.honey,
+                  color: C.nexonBlue,
                   fontWeight: 700,
                   marginBottom: 8,
                 }}
@@ -589,7 +595,7 @@ export default function PageQA() {
               <FadeIn key={t.label} delay={0.05 + i * 0.05}>
                 <div
                   style={{
-                    background: '#F4F8FA',
+                    background: C.bgWhite,
                     borderRadius: 16,
                     padding: 24,
                     border: '1px solid rgba(26, 43, 71, 0.06)',
@@ -601,7 +607,7 @@ export default function PageQA() {
                       fontFamily: FONT_MONO,
                       fontSize: 10,
                       letterSpacing: '0.15em',
-                      color: C.honey,
+                      color: C.nexonBlue,
                       fontWeight: 700,
                       marginBottom: 10,
                     }}
@@ -640,7 +646,7 @@ export default function PageQA() {
       <section
         style={{
           padding: '120px 48px',
-          background: '#F4F8FA',
+          background: C.bgWhite,
         }}
       >
         <div style={{ maxWidth: 1280, margin: '0 auto' }}>
@@ -663,7 +669,7 @@ export default function PageQA() {
               <FadeIn key={p.n} delay={i * 0.06}>
                 <div
                   style={{
-                    background: C.inverse,
+                    background: C.bgLight,
                     borderRadius: 20,
                     padding: 28,
                     boxShadow: C.cardShadow,
@@ -675,7 +681,7 @@ export default function PageQA() {
                       fontFamily: FONT_MONO,
                       fontSize: 11,
                       letterSpacing: '0.15em',
-                      color: C.honey,
+                      color: C.nexonBlue,
                       fontWeight: 700,
                       marginBottom: 10,
                     }}
@@ -710,7 +716,7 @@ export default function PageQA() {
                   fontFamily: FONT_MONO,
                   fontSize: 11,
                   letterSpacing: '0.18em',
-                  color: C.inkMuted,
+                  color: C.nexonBlue,
                   fontWeight: 700,
                   marginBottom: 8,
                 }}

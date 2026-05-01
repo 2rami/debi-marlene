@@ -16,72 +16,111 @@ export default function CharacterBox({ character }: { character: Character }) {
   return (
     <div
       style={{
-        background: C.inverse,
-        borderRadius: 16,
+        background: 'linear-gradient(145deg, #ffffff 0%, #f0f4f8 100%)',
+        borderRadius: 28,
         padding: 40,
         boxShadow: C.cardShadow,
-        border: `1px solid rgba(26, 43, 71, 0.06)`,
+        border: `1px solid ${C.cardBorder}`,
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      {/* Decorative accent blob */}
+      <div
+        style={{
+          position: 'absolute',
+          top: -100,
+          right: -100,
+          width: 250,
+          height: 250,
+          borderRadius: '50%',
+          background: C.lime,
+          opacity: 0.15,
+          filter: 'blur(40px)',
+          pointerEvents: 'none',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: -80,
+          left: -80,
+          width: 200,
+          height: 200,
+          borderRadius: '50%',
+          background: C.nexonBlue,
+          opacity: 0.1,
+          filter: 'blur(40px)',
+          pointerEvents: 'none',
+        }}
+      />
+
       {/* 메인 헤더 */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
         <span
           style={{
             fontFamily: FONT_MONO,
-            fontSize: 11,
+            fontSize: 12,
             letterSpacing: '0.15em',
-            color: C.honey,
-            fontWeight: 700,
+            color: C.nexonBlue,
+            fontWeight: 800,
+            background: 'rgba(0, 98, 223, 0.08)',
+            padding: '6px 14px',
+            borderRadius: 999,
           }}
         >
           MAPLESTORY · {character.server.toUpperCase()}
         </span>
-        <span style={{ flex: 1, height: 1, background: 'rgba(26, 43, 71, 0.1)', minWidth: 40 }} />
-        <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.05em' }}>
+        <span style={{ flex: 1, height: 2, background: 'rgba(0, 98, 223, 0.05)', minWidth: 40, borderRadius: 2 }} />
+        <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.inkMuted, letterSpacing: '0.05em', fontWeight: 600 }}>
           {character.experience}
         </span>
       </div>
 
       <div
         style={{
+          position: 'relative',
           display: 'grid',
           gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
           gap: 32,
-          marginBottom: 32,
+          marginBottom: 36,
         }}
       >
         {/* 좌: 닉네임 + 직업 + 레벨 */}
         <div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 8 }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 8, fontWeight: 700 }}>
             CHARACTER
           </div>
-          <div style={{ fontSize: 36, fontWeight: 800, color: C.ink, lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+          <div style={{ fontSize: 40, fontWeight: 900, color: C.ink, lineHeight: 1.1, letterSpacing: '-0.02em' }}>
             {character.name}
           </div>
-          <div style={{ fontSize: 14, color: C.inkSoft, marginTop: 8 }}>
-            {character.job} · Lv.{character.level}
+          <div style={{ fontSize: 16, color: C.nexonBlue, marginTop: 8, fontWeight: 700 }}>
+            {character.job} · <span style={{ color: C.inkSoft }}>Lv.{character.level}</span>
           </div>
         </div>
 
         {/* 우: 랭킹 */}
         <div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 8 }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 8, fontWeight: 700 }}>
             RANKINGS
           </div>
-          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {character.rankings.map((r) => (
               <li
                 key={r.label}
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
+                  alignItems: 'center',
                   fontSize: 14,
-                  color: C.ink,
-                  fontWeight: 500,
+                  fontWeight: 600,
+                  background: 'rgba(255,255,255,0.6)',
+                  padding: '6px 12px',
+                  borderRadius: 8,
                 }}
               >
-                <span style={{ color: C.inkMuted }}>{r.label}</span>
-                <span style={{ fontFamily: FONT_MONO, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ color: C.inkSoft }}>{r.label}</span>
+                <span style={{ fontFamily: FONT_MONO, fontWeight: 800, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
                   {r.value}
                 </span>
               </li>
@@ -93,88 +132,88 @@ export default function CharacterBox({ character }: { character: Character }) {
       {/* Combat Power */}
       <div
         style={{
-          background: C.cream,
-          borderRadius: 12,
-          padding: '20px 24px',
-          marginBottom: 32,
+          position: 'relative',
+          background: C.bgWhite,
+          borderRadius: 20,
+          padding: '24px 28px',
+          marginBottom: 36,
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 24,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+          border: `1px solid rgba(0, 98, 223, 0.06)`,
         }}
       >
-        <CPItem label="캐릭터 전투력" value={character.combatPower.character} />
-        <CPItem label="유니온 전투력" value={character.combatPower.union} />
-        <CPItem label="유니온 등급" value={character.combatPower.unionRank} />
+        <CPItem label="캐릭터 전투력" value={character.combatPower.character} color={C.coral} />
+        <CPItem label="유니온 전투력" value={character.combatPower.union} color={C.yellow} />
+        <CPItem label="유니온 등급" value={character.combatPower.unionRank} color={C.lavender} />
       </div>
 
-      {/* Endgame Gear */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 12 }}>
-          ENDGAME GEAR
-        </div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '8px 24px',
-          }}
-        >
-          {character.endgame.map((g) => (
-            <div
-              key={g.slot}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: 13,
-                paddingBottom: 6,
-                borderBottom: `1px dotted rgba(26, 43, 71, 0.15)`,
-              }}
-            >
-              <span style={{ color: C.inkMuted }}>{g.slot}</span>
-              <span style={{ color: C.ink, fontWeight: 600 }}>{g.item}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Metrics */}
-      <div>
-        <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 12 }}>
-          ENDGAME METRICS
-        </div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: 12,
-          }}
-        >
-          {character.metrics.map((m) => (
-            <div
-              key={m.label}
-              style={{
-                background: 'rgba(232, 220, 192, 0.3)',
-                borderRadius: 8,
-                padding: '12px 16px',
-              }}
-            >
-              <div style={{ fontSize: 11, color: C.inkMuted, marginBottom: 4 }}>{m.label}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
-                {m.value}
+      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 32 }}>
+        {/* Endgame Gear */}
+        <div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 16, fontWeight: 700 }}>
+            ENDGAME GEAR
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {character.endgame.map((g) => (
+              <div
+                key={g.slot}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: 14,
+                  paddingBottom: 8,
+                  borderBottom: `1px dashed rgba(0, 0, 0, 0.08)`,
+                }}
+              >
+                <span style={{ color: C.inkSoft, fontWeight: 500 }}>{g.slot}</span>
+                <span style={{ color: C.ink, fontWeight: 700 }}>{g.item}</span>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
+
+        {/* Metrics */}
+        <div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 16, fontWeight: 700 }}>
+            ENDGAME METRICS
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+            {character.metrics.map((m) => (
+              <div
+                key={m.label}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: 'rgba(0, 98, 223, 0.04)',
+                  borderRadius: 12,
+                  padding: '12px 16px',
+                  border: '1px solid rgba(0, 98, 223, 0.05)',
+                }}
+              >
+                <div style={{ fontSize: 13, color: C.inkSoft, fontWeight: 600 }}>{m.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: C.nexonBlue, fontVariantNumeric: 'tabular-nums' }}>
+                  {m.value}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function CPItem({ label, value }: { label: string; value: string }) {
+function CPItem({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div>
-      <div style={{ fontSize: 11, color: C.inkMuted, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, lineHeight: 1.3 }}>{value}</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
+        <div style={{ fontSize: 12, color: C.inkMuted, fontWeight: 600 }}>{label}</div>
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: C.ink, lineHeight: 1.2 }}>{value}</div>
     </div>
   )
 }

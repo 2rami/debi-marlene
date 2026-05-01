@@ -1,30 +1,33 @@
 /**
  * PortfolioNexon2026 컬러 토큰
- * 넥슨네트웍스 채용 포스터(2026.04.30~05.10) 색감 기반
+ * 넥슨 브랜드 아이덴티티 기반 (Playful & Trendy)
  */
 
 export const C = {
-  // BG 그라디언트
-  bgDeep: '#2D5C8A',
-  bgMid: '#4A8FA8',
-  bgLight: '#B5E5DD',
+  // BG
+  bgWhite: '#FFFFFF',
+  bgLight: '#F7F9FC',
+  bgSoft: '#E8F0F8',
 
-  // Accent
-  honey: '#E8B948',
-  cream: '#E8DCC0',
-  lime: '#D7E84A',
+  // Accent (Nexon Vibe)
+  nexonBlue: '#0062DF',
+  nexonLightBlue: '#338AFA',
+  lime: '#C4F000',
+  yellow: '#FFD400',
+  coral: '#FF4B4B',
+  lavender: '#8A5FFF',
 
   // Text
-  ink: '#1A2B47',
-  inkSoft: '#2D4A66',
-  inkMuted: '#5C7790',
-  inverse: '#F5FAF9',
+  ink: '#111827',
+  inkSoft: '#4B5563',
+  inkMuted: '#9CA3AF',
+  inverse: '#FFFFFF',
 
   // Card / Surface
-  cardBg: 'rgba(255, 255, 255, 0.92)',
-  cardBorder: 'rgba(255, 255, 255, 0.6)',
-  cardShadow: '0 4px 24px rgba(26, 43, 71, 0.08)',
-  cardShadowHover: '0 8px 32px rgba(26, 43, 71, 0.12)',
+  cardBg: 'rgba(255, 255, 255, 0.75)',
+  cardBorder: 'rgba(0, 98, 223, 0.08)',
+  cardShadow: '0 16px 40px rgba(0, 98, 223, 0.05)',
+  cardShadowHover: '0 24px 56px rgba(0, 98, 223, 0.12)',
 } as const
 
 export const FONT_BODY =

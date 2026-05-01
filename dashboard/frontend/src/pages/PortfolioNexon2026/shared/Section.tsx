@@ -26,7 +26,7 @@ export default function Section({ no, kicker, title, children, bg = 'light' }: S
               fontFamily: FONT_MONO,
               fontSize: 11,
               letterSpacing: '0.15em',
-              color: isDark ? C.honey : C.honey,
+              color: isDark ? C.nexonBlue : C.nexonBlue,
               fontWeight: 700,
             }}
           >

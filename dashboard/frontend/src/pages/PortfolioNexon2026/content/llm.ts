@@ -6,10 +6,10 @@
 export const HERO = {
   jobCode: 'LLM EVALUATOR',
   badge: 'NEXON · 플랫폼본부 · LLM 평가 어시스턴트 인턴 지원',
-  titleLines: ['안녕하세요.', '메이플 헤비유저이자', 'LLM 봇 운영자입니다.'],
+  titleLines: ['안녕하세요.', '디스코드 LLM 봇을', '서비스하는 개발자 게이머입니다.'],
   // 호환성용 평문 (BlurText 등 일부 컴포넌트가 string을 기대)
-  title: '안녕하세요. 메이플 헤비유저이자 LLM 봇 운영자입니다.',
-  highlightWord: 'LLM 봇 운영자',
+  title: '안녕하세요. 디스코드 LLM 봇을 서비스하는 개발자 게이머입니다.',
+  highlightWord: 'LLM 봇',
   subtitle:
     '데비&마를렌 — 1인이 9개월간 158개 Discord 서버에 운영 중인 라이브 LLM 챗봇. 게임 도메인 깊이와 LLM 운영자의 평가 감각을 결합합니다.',
   meta: [

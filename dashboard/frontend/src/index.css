@@ -95,25 +95,6 @@
   font-display: swap;
 }
 
-/* ── NEXON Football Gothic (Display headings) ── */
-@font-face {
-  font-family: 'NEXON Football Gothic';
-  src: url('/fonts/nexon/NexonFootball-Bold.otf') format('opentype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* ── NEXON Maplestory (Game accent) ── */
-@font-face {
-  font-family: 'NEXON Maplestory';
-  src: url('/fonts/nexon/NexonMaple-Bold.otf') format('opentype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-
 @theme {
   /* Font Families */
   --font-title: 'MemomentKkukkukk', system-ui, sans-serif;

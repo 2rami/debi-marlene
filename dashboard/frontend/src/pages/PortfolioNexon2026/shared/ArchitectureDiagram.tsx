@@ -17,9 +17,9 @@ const NodeBox = forwardRef<HTMLDivElement, NodeProps>(function NodeBox(
 ) {
   const accent =
     variant === 'branch'
-      ? '#FFD400'
+      ? '#5BC0E5'
       : variant === 'terminal'
-        ? '#C4F000'
+        ? '#0091CC'
         : '#338AFA'
 
   return (
@@ -393,8 +393,8 @@ export default function ArchitectureDiagram({
             fromRef={llmRef}
             toRef={toolRef}
             duration={3.5}
-            gradientStartColor="#8A5FFF"
-            gradientStopColor="#C4F000"
+            gradientStartColor="#5BC0E5"
+            gradientStopColor="#0091CC"
           />
         </div>
 
@@ -461,7 +461,7 @@ export default function ArchitectureDiagram({
                 style={{
                   fontFamily: FONT_MONO,
                   fontSize: 12,
-                  color: '#C4F000',
+                  color: '#0091CC',
                   fontWeight: 800,
                   textAlign: 'right',
                   whiteSpace: 'nowrap',

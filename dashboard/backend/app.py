@@ -18,6 +18,7 @@ from routes.servers import servers_bp
 from routes.premium import premium_bp
 from routes.quiz import quiz_bp
 from routes.me import me_bp
+from routes.portfolio import portfolio_bp
 
 # Configure logging
 logging.basicConfig(
@@ -43,6 +44,7 @@ CORS(app,
          'http://localhost:3002',
          'http://localhost:5173',
          'https://debimarlene.com',
+         'https://debi-marlene.com',
      ],
      supports_credentials=True)
 
@@ -52,6 +54,7 @@ app.register_blueprint(servers_bp, url_prefix='/api')
 app.register_blueprint(premium_bp, url_prefix='/api/premium')
 app.register_blueprint(quiz_bp, url_prefix='/api/quiz')
 app.register_blueprint(me_bp, url_prefix='/api/me')
+app.register_blueprint(portfolio_bp, url_prefix='/api/portfolio')
 
 # Health check endpoint
 @app.route('/api/health')

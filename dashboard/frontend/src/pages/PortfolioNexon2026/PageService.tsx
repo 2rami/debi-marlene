@@ -24,6 +24,7 @@ import JdMatchCard from './shared/JdMatchCard'
 import CaseCard from './shared/CaseCard'
 import CharacterBox from './shared/CharacterBox'
 import Footer from './shared/Footer'
+import MapleChatbot from './shared/MapleChatbot'
 import {
   HERO,
   STATS,
@@ -377,6 +378,7 @@ export default function PageService() {
         overflowX: 'clip',
       }}
     >
+      <MapleChatbot />
       <Hero />
 
       {/* 01. ABOUT */}

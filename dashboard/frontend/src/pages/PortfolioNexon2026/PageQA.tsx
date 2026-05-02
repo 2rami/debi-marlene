@@ -24,6 +24,7 @@ import CaseCard from './shared/CaseCard'
 import CharacterBox from './shared/CharacterBox'
 import GameList from './shared/GameList'
 import Footer from './shared/Footer'
+import MapleChatbot from './shared/MapleChatbot'
 import {
   HERO,
   STATS,
@@ -370,6 +371,7 @@ export default function PageQA() {
         overflowX: 'clip',
       }}
     >
+      <MapleChatbot />
       <Hero />
 
       {/* 01. ABOUT */}

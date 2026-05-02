@@ -1,4 +1,4 @@
-import { C, FONT_MONO } from './colors'
+import { C, FONT_MONO, FONT_DISPLAY } from './colors'
 
 interface FooterProps {
   email: string
@@ -13,7 +13,7 @@ export default function Footer({ email, github, domain, edu }: FooterProps) {
       style={{
         background: C.nexonBlue,
         color: C.inverse,
-        padding: '80px 48px 48px',
+        padding: '120px clamp(48px, 8vw, 120px) 56px',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -24,7 +24,7 @@ export default function Footer({ email, github, domain, edu }: FooterProps) {
 
       <div style={{ maxWidth: 1280, margin: '0 auto', position: 'relative', zIndex: 1 }}>
         {/* Giant Footer Title */}
-        <h2 style={{ fontSize: 'clamp(40px, 8vw, 120px)', fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em', margin: '0 0 64px', opacity: 0.9 }}>
+        <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(40px, 8vw, 120px)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-0.04em', margin: '0 0 64px', color: 'rgba(255,255,255,0.95)' }}>
           LET'S WORK<br />TOGETHER.
         </h2>
 
@@ -54,7 +54,7 @@ export default function Footer({ email, github, domain, edu }: FooterProps) {
             fontSize: 12,
             color: 'rgba(255, 255, 255, 0.7)',
             letterSpacing: '0.05em',
-            fontWeight: 600,
+            fontWeight: 700,
           }}
         >
           <span>© 2026 YANG GEONHO · PORTFOLIO FOR NEXON</span>
@@ -88,7 +88,7 @@ function FooterCol({ label, value, href }: { label: string; value: string; href?
           style={{
             color: C.inverse,
             fontSize: 16,
-            fontWeight: 600,
+            fontWeight: 700,
             textDecoration: 'none',
             borderBottom: `2px solid rgba(255, 255, 255, 0.3)`,
             paddingBottom: 2,
@@ -100,7 +100,7 @@ function FooterCol({ label, value, href }: { label: string; value: string; href?
           {value}
         </a>
       ) : (
-        <span style={{ color: C.inverse, fontSize: 16, fontWeight: 600 }}>{value}</span>
+        <span style={{ color: C.inverse, fontSize: 16, fontWeight: 700 }}>{value}</span>
       )}
     </div>
   )

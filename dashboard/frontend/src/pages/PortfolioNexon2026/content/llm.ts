@@ -6,9 +6,19 @@
 export const HERO = {
   jobCode: 'LLM EVALUATOR',
   badge: 'NEXON · 플랫폼본부 · LLM 평가 어시스턴트 인턴 지원',
-  title: '메이플 헤비유저이자\nLLM 봇 운영자',
+  titleLines: ['안녕하세요.', '메이플 헤비유저이자', 'LLM 봇 운영자입니다.'],
+  // 호환성용 평문 (BlurText 등 일부 컴포넌트가 string을 기대)
+  title: '안녕하세요. 메이플 헤비유저이자 LLM 봇 운영자입니다.',
+  highlightWord: 'LLM 봇 운영자',
   subtitle:
     '데비&마를렌 — 1인이 9개월간 158개 Discord 서버에 운영 중인 라이브 LLM 챗봇. 게임 도메인 깊이와 LLM 운영자의 평가 감각을 결합합니다.',
+  meta: [
+    { label: 'ROLE', value: 'LLM 평가 어시스턴트 인턴' },
+    { label: 'COMPANY', value: '넥슨 · 플랫폼본부' },
+    { label: 'PRODUCT', value: 'debi-marlene' },
+    { label: 'DEPLOYED', value: '158 servers · 9 months' },
+    { label: 'STACK', value: 'LangGraph · Anthropic · GCP' },
+  ],
   ctas: [
     { label: 'GitHub · debi-marlene', href: 'https://github.com/2rami/debi-marlene', primary: true },
     { label: 'Live · debimarlene.com', href: 'https://debimarlene.com', primary: false },
@@ -17,7 +27,7 @@ export const HERO = {
 
 export const STATS = [
   { label: '운영 중인 Discord 서버', value: '158', unit: '개', sub: 'debi-marlene · 9개월 라이브' },
-  { label: '메이플 직업 월드 랭킹', value: '989', unit: '위', sub: '오로라 · 아크메이지(썬,콜)' },
+  { label: '메이플 라이브 플레이', value: '16', unit: '년+', sub: '하드 세렌 파티 격파' },
   { label: 'Prompt Cache 적중률', value: '99', unit: '%+', sub: 'system block ephemeral cache' },
   { label: 'LangGraph 정규식 분류', value: '0.1', unit: 'ms', sub: 'classify_intent (LLM 호출 없음)' },
 ] as const
@@ -30,7 +40,7 @@ export const JD_MATCHES = [
     jdTitle: '게임 도메인 특화 LLM 벤치마크 구성',
     jdSub: '패치노트, 기획서, 가이드 기반 시나리오·벤치마크 질문 설계',
     evidence: [
-      '메이플스토리 약 10년 7개월 / 직업 월드 랭킹 989위 / 제네시스 22성 해방 — 라이트 유저가 못 잡는 직업·해방·유니온 깊이의 시나리오 설계 가능',
+      '메이플스토리 약 16년 (2009 ~ ) · 하드 세렌 파티 격파 · 어센틱/시메라 콘텐츠 정점 — 라이트 유저가 못 밟는 직업·보스·유니온 깊이의 시나리오 설계 가능',
       '봇 안에 `patchnote_search.py`로 이터널 리턴 공식 사이트 패치노트 RAG 직접 구현 — 캐릭터 별칭 매핑(예: 뎁마/데비/마를렌 → 데비&마를렌), 섹션 파싱(캐릭터·아이템·증강체), 1시간 TTL 캐시',
       'LangGraph `classify_intent` (정규식, LLM 호출 없이 0.1ms)로 도메인 키워드(패치/너프/버프/변경/밸런스/상향/하향/OP) 자동 분류 — 평가 시나리오 자동 분류기로 그대로 이식 가능',
       '메이플 외 블루아카이브·이터널리턴·더 파이널스·서든어택 5장르 플레이 → 다양한 게임 도메인의 질의 패턴 차이 학습',
@@ -77,9 +87,9 @@ export const JD_MATCHES = [
 ] as const
 
 export const ELIGIBILITY = {
-  headline: '메이플스토리 약 10년 7개월 · Lv.284 · 직업 월드 랭킹 989위',
+  headline: '메이플스토리 약 16년 · 프로즌샤 · 하드 세렌 파티 격파',
   body:
-    '2014년 10월부터 약 10년 7개월간 메이플스토리를 플레이하며, 검은 마법사 라이프타임 보스와 그란디스 어센틱 지역까지 거의 모든 라이프타임 콘텐츠를 직접 거쳤습니다. 단순 만렙이 아니라 직업 시스템·메타·재화 흐름까지 사용자 입장에서 종합적으로 이해합니다.',
+    '2009년부터 (이메일 통합 전 다른 계정 포함) 약 16년간 메이플스토리를 플레이하며, 검은 마법사 라이프타임 보스와 어센틱/시메라 콘텐츠 정점인 하드 세렌까지 직접 격파했습니다. 단순 만렙이 아니라 직업 시스템·메타·해방·유니온까지 사용자 입장에서 종합적으로 이해합니다.',
 } as const
 
 export const CHARACTER = {
@@ -87,7 +97,11 @@ export const CHARACTER = {
   server: '오로라',
   job: '아크메이지(썬,콜)',
   level: 284,
-  experience: '약 10년 7개월',
+  experience: '약 16년 (2009 ~ )',
+  achievement: {
+    title: '하드 세렌 파티 격파',
+    sub: '어센틱 시메라 보스 · 메이플 최상위 콘텐츠',
+  },
   rankings: [
     { label: '직업 월드 랭킹', value: '989위' },
     { label: '직업 전체 랭킹', value: '14,618위' },
@@ -118,8 +132,8 @@ export const CHARACTER = {
 export const GAMES = [
   {
     title: '메이플스토리',
-    period: '2014.10 ~ 약 10년 7개월',
-    detail: '오로라 / 아크메이지(썬,콜) Lv.284 / 직업 월드 랭킹 989위 / 제네시스 22성 해방',
+    period: '2009 ~ 약 16년',
+    detail: '오로라 · 프로즌샤 · 아크메이지(썬,콜) · 하드 세렌 파티 격파',
   },
   { title: '블루아카이브', period: '수년', detail: '만렙 유지, 메인·이벤트 스토리 완주' },
   {

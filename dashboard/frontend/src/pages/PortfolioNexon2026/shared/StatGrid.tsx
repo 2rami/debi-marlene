@@ -58,7 +58,7 @@ export default function StatGrid({ stats }: { stats: readonly Stat[] }) {
           <div
             style={{
               fontSize: 'clamp(32px, 4vw, 48px)',
-              fontWeight: 900,
+              fontWeight: 800,
               lineHeight: 1,
               color: C.ink,
               fontVariantNumeric: 'tabular-nums',
@@ -83,7 +83,7 @@ export default function StatGrid({ stats }: { stats: readonly Stat[] }) {
           >
             {s.label}
           </div>
-          <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.6, fontWeight: 500 }}>
+          <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.6, fontWeight: 700 }}>
             {s.sub}
           </div>
         </div>

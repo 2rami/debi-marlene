@@ -1,4 +1,7 @@
+import { motion } from 'framer-motion'
 import { C, FONT_MONO } from './colors'
+import frozenshaUrl from '../../../assets/portfolio-nexon-2026/frozensha.png'
+import serenUrl from '../../../assets/portfolio-nexon-2026/seren.gif'
 
 interface Character {
   name: string
@@ -6,41 +9,54 @@ interface Character {
   job: string
   level: number
   experience: string
-  rankings: readonly { label: string; value: string }[]
-  combatPower: { character: string; union: string; unionRank: string }
-  endgame: readonly { slot: string; item: string }[]
-  metrics: readonly { label: string; value: string }[]
+  achievement?: { title: string; sub: string }
+  // 나머지 필드는 표시하지 않지만 호환성을 위해 받음
+  rankings?: readonly { label: string; value: string }[]
+  combatPower?: { character: string; union: string; unionRank: string }
+  endgame?: readonly { slot: string; item: string }[]
+  metrics?: readonly { label: string; value: string }[]
 }
 
 export default function CharacterBox({ character }: { character: Character }) {
+  const ach = character.achievement ?? {
+    title: '하드 세렌 파티 격파',
+    sub: '어센틱/시메라 콘텐츠 정점',
+  }
+
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       style={{
+        position: 'relative',
         background: 'linear-gradient(145deg, #ffffff 0%, #f0f4f8 100%)',
         borderRadius: 28,
-        padding: 40,
+        padding: '40px',
         boxShadow: C.cardShadow,
         border: `1px solid ${C.cardBorder}`,
-        position: 'relative',
         overflow: 'hidden',
       }}
     >
-      {/* Decorative accent blob */}
+      {/* Decorative blobs */}
       <div
+        aria-hidden
         style={{
           position: 'absolute',
-          top: -100,
-          right: -100,
-          width: 250,
-          height: 250,
+          top: -120,
+          right: -120,
+          width: 280,
+          height: 280,
           borderRadius: '50%',
           background: C.lime,
-          opacity: 0.15,
-          filter: 'blur(40px)',
+          opacity: 0.16,
+          filter: 'blur(50px)',
           pointerEvents: 'none',
         }}
       />
       <div
+        aria-hidden
         style={{
           position: 'absolute',
           bottom: -80,
@@ -50,170 +66,210 @@ export default function CharacterBox({ character }: { character: Character }) {
           borderRadius: '50%',
           background: C.nexonBlue,
           opacity: 0.1,
-          filter: 'blur(40px)',
+          filter: 'blur(50px)',
           pointerEvents: 'none',
         }}
       />
 
-      {/* 메인 헤더 */}
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
-        <span
+      {/* Identity row */}
+      <div
+        style={{
+          position: 'relative',
+          display: 'grid',
+          gridTemplateColumns: 'auto 1fr',
+          gap: 36,
+          alignItems: 'center',
+          marginBottom: 32,
+        }}
+      >
+        <motion.div
+          whileHover={{ scale: 1.04 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           style={{
-            fontFamily: FONT_MONO,
-            fontSize: 12,
-            letterSpacing: '0.15em',
-            color: C.nexonBlue,
-            fontWeight: 800,
-            background: 'rgba(0, 98, 223, 0.08)',
-            padding: '6px 14px',
-            borderRadius: 999,
+            width: 200,
+            height: 200,
+            borderRadius: 28,
+            background: 'rgba(255, 255, 255, 0.85)',
+            border: `1px solid ${C.cardBorder}`,
+            boxShadow: '0 12px 40px rgba(0, 98, 223, 0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
           }}
         >
-          MAPLESTORY · {character.server.toUpperCase()}
-        </span>
-        <span style={{ flex: 1, height: 2, background: 'rgba(0, 98, 223, 0.05)', minWidth: 40, borderRadius: 2 }} />
-        <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.inkMuted, letterSpacing: '0.05em', fontWeight: 600 }}>
-          {character.experience}
-        </span>
-      </div>
+          <img
+            src={frozenshaUrl}
+            alt={character.name}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              imageRendering: 'pixelated',
+            }}
+          />
+        </motion.div>
 
-      <div
-        style={{
-          position: 'relative',
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-          gap: 32,
-          marginBottom: 36,
-        }}
-      >
-        {/* 좌: 닉네임 + 직업 + 레벨 */}
         <div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 8, fontWeight: 700 }}>
-            CHARACTER
+          <div
+            style={{
+              fontFamily: FONT_MONO,
+              fontSize: 11,
+              letterSpacing: '0.18em',
+              color: C.nexonBlue,
+              fontWeight: 700,
+              marginBottom: 12,
+            }}
+          >
+            MAPLESTORY · {character.server.toUpperCase()}
           </div>
-          <div style={{ fontSize: 40, fontWeight: 900, color: C.ink, lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+          <div
+            style={{
+              fontSize: 'clamp(36px, 4.5vw, 52px)',
+              fontWeight: 800,
+              lineHeight: 1.05,
+              letterSpacing: '-0.025em',
+              color: C.ink,
+              margin: 0,
+            }}
+          >
             {character.name}
           </div>
-          <div style={{ fontSize: 16, color: C.nexonBlue, marginTop: 8, fontWeight: 700 }}>
-            {character.job} · <span style={{ color: C.inkSoft }}>Lv.{character.level}</span>
+          <div
+            style={{
+              fontSize: 15.5,
+              color: C.inkSoft,
+              marginTop: 12,
+              fontWeight: 800,
+              letterSpacing: '-0.005em',
+            }}
+          >
+            {character.job} · Lv.{character.level} · {character.experience}
           </div>
-        </div>
-
-        {/* 우: 랭킹 */}
-        <div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 8, fontWeight: 700 }}>
-            RANKINGS
-          </div>
-          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {character.rankings.map((r) => (
-              <li
-                key={r.label}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  background: 'rgba(255,255,255,0.6)',
-                  padding: '6px 12px',
-                  borderRadius: 8,
-                }}
-              >
-                <span style={{ color: C.inkSoft }}>{r.label}</span>
-                <span style={{ fontFamily: FONT_MONO, fontWeight: 800, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
-                  {r.value}
-                </span>
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
 
-      {/* Combat Power */}
-      <div
+      {/* Achievement: 하드 세렌 격파 */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.3 }}
+        transition={{ duration: 0.6, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
         style={{
           position: 'relative',
-          background: C.bgWhite,
-          borderRadius: 20,
-          padding: '24px 28px',
-          marginBottom: 36,
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridTemplateColumns: 'auto 1fr auto',
           gap: 24,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
-          border: `1px solid rgba(0, 98, 223, 0.06)`,
+          alignItems: 'center',
+          background: '#0A1224',
+          borderRadius: 20,
+          padding: '20px 24px',
+          color: C.inverse,
+          overflow: 'hidden',
+          boxShadow: '0 12px 32px rgba(10, 18, 36, 0.25)',
         }}
       >
-        <CPItem label="캐릭터 전투력" value={character.combatPower.character} color={C.coral} />
-        <CPItem label="유니온 전투력" value={character.combatPower.union} color={C.yellow} />
-        <CPItem label="유니온 등급" value={character.combatPower.unionRank} color={C.lavender} />
-      </div>
+        {/* radial backdrop */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'radial-gradient(40% 60% at 0% 50%, rgba(196, 240, 0, 0.18), transparent), radial-gradient(40% 60% at 100% 50%, rgba(255, 75, 75, 0.16), transparent)',
+            pointerEvents: 'none',
+          }}
+        />
 
-      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 32 }}>
-        {/* Endgame Gear */}
-        <div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 16, fontWeight: 700 }}>
-            ENDGAME GEAR
+        <div
+          style={{
+            position: 'relative',
+            width: 88,
+            height: 88,
+            borderRadius: 16,
+            overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,0.15)',
+            background: '#000',
+            flexShrink: 0,
+          }}
+        >
+          <img
+            src={serenUrl}
+            alt="Hard Seren Boss"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
+        </div>
+
+        <div style={{ position: 'relative', minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: FONT_MONO,
+              fontSize: 10.5,
+              letterSpacing: '0.2em',
+              color: '#C4F000',
+              fontWeight: 700,
+              marginBottom: 6,
+            }}
+          >
+            ENDGAME ACHIEVEMENT
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {character.endgame.map((g) => (
-              <div
-                key={g.slot}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: 14,
-                  paddingBottom: 8,
-                  borderBottom: `1px dashed rgba(0, 0, 0, 0.08)`,
-                }}
-              >
-                <span style={{ color: C.inkSoft, fontWeight: 500 }}>{g.slot}</span>
-                <span style={{ color: C.ink, fontWeight: 700 }}>{g.item}</span>
-              </div>
-            ))}
+          <div
+            style={{
+              fontSize: 20,
+              fontWeight: 800,
+              lineHeight: 1.25,
+              letterSpacing: '-0.015em',
+            }}
+          >
+            {ach.title}
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              color: 'rgba(255,255,255,0.65)',
+              marginTop: 4,
+              fontWeight: 700,
+            }}
+          >
+            {ach.sub}
           </div>
         </div>
 
-        {/* Metrics */}
-        <div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkMuted, letterSpacing: '0.1em', marginBottom: 16, fontWeight: 700 }}>
-            ENDGAME METRICS
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
-            {character.metrics.map((m) => (
-              <div
-                key={m.label}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  background: 'rgba(0, 98, 223, 0.04)',
-                  borderRadius: 12,
-                  padding: '12px 16px',
-                  border: '1px solid rgba(0, 98, 223, 0.05)',
-                }}
-              >
-                <div style={{ fontSize: 13, color: C.inkSoft, fontWeight: 600 }}>{m.label}</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: C.nexonBlue, fontVariantNumeric: 'tabular-nums' }}>
-                  {m.value}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div
+          style={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: 4,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: FONT_MONO,
+              fontSize: 10,
+              letterSpacing: '0.12em',
+              color: 'rgba(255,255,255,0.55)',
+              fontWeight: 800,
+            }}
+          >
+            CLEARED
+          </span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <polyline
+              points="20 6 9 17 4 12"
+              stroke="#C4F000"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </div>
-      </div>
-    </div>
-  )
-}
-
-function CPItem({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
-        <div style={{ fontSize: 12, color: C.inkMuted, fontWeight: 600 }}>{label}</div>
-      </div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: C.ink, lineHeight: 1.2 }}>{value}</div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }

@@ -65,6 +65,54 @@
   font-display: swap;
 }
 
+/* ── NEXON Lv2 Gothic (Body / Display) ── */
+@font-face {
+  font-family: 'NEXON Lv2 Gothic';
+  src: url('/fonts/nexon/NexonLv2-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'NEXON Lv2 Gothic';
+  src: url('/fonts/nexon/NexonLv2-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'NEXON Lv2 Gothic';
+  src: url('/fonts/nexon/NexonLv2-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'NEXON Lv2 Gothic';
+  src: url('/fonts/nexon/NexonLv2-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── NEXON Football Gothic (Display headings) ── */
+@font-face {
+  font-family: 'NEXON Football Gothic';
+  src: url('/fonts/nexon/NexonFootball-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── NEXON Maplestory (Game accent) ── */
+@font-face {
+  font-family: 'NEXON Maplestory';
+  src: url('/fonts/nexon/NexonMaple-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 
 @theme {
   /* Font Families */

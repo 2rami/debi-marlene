@@ -17,19 +17,28 @@
 import { useEffect, useRef } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import Lenis from 'lenis'
-import GradientText from '../../components/common/GradientText'
-import { C, FONT_BODY, FONT_MONO } from './shared/colors'
+import Aurora from '../../components/common/Aurora'
+import { C, FONT_BODY, FONT_MONO, FONT_DISPLAY } from './shared/colors'
+import nexonLogoUrl from '../../assets/portfolio-nexon-2026/nexon-logo.png'
 import FloatingShapes from './shared/FloatingShapes'
 import StatGrid from './shared/StatGrid'
-import JdMatchCard from './shared/JdMatchCard'
-import CaseCard from './shared/CaseCard'
+import JdMatchAccordion from './shared/JdMatchAccordion'
 import CharacterBox from './shared/CharacterBox'
 import GameList from './shared/GameList'
 import Footer from './shared/Footer'
+import ArchitectureDiagram from './shared/ArchitectureDiagram'
+import TechStackChips from './shared/TechStackChips'
+import CtaSection from './shared/CtaSection'
+import SideNav from './shared/SideNav'
+import CornerLabels from './shared/CornerLabels'
+import Wordmark from './shared/Wordmark'
+import TextType from '../../components/reactbits/TextType'
+import ScrollReveal from '../../components/reactbits/ScrollReveal'
+import MagicBento from '../../components/reactbits/MagicBento'
+import CaseCard from './shared/CaseCard'
 import {
   HERO,
   STATS,
-  ABOUT,
   JD_MATCHES,
   CHARACTER,
   GAMES,
@@ -58,21 +67,37 @@ function FadeIn({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
   )
 }
 
-function SectionHeader({ no, kicker, title, dark = false }: { no: string; kicker: string; title: string; dark?: boolean }) {
+function SectionHeader({
+  no,
+  kicker,
+  title,
+  dark = false,
+  variant = 'auto',
+}: {
+  no: string
+  kicker: string
+  title: string
+  dark?: boolean
+  variant?: 'auto' | 'short' | 'quote'
+}) {
+  // auto: 14자 넘으면 quote 스타일 (긴 제목은 인용구처럼 흐릿하게)
+  const resolved = variant === 'auto' ? (title.length > 14 ? 'quote' : 'short') : variant
+  const isQuote = resolved === 'quote'
+
   return (
     <FadeIn>
-      <div style={{ marginBottom: 56 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 24 }}>
-          <span style={{ fontFamily: FONT_MONO, fontSize: 11, fontWeight: 700, color: C.nexonBlue, letterSpacing: '0.18em' }}>
+      <div style={{ marginBottom: isQuote ? 56 : 72 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 18, marginBottom: isQuote ? 28 : 32 }}>
+          <span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 700, color: C.nexonBlue, letterSpacing: '0.2em' }}>
             {no}
           </span>
           <span
             style={{
               fontFamily: FONT_MONO,
               fontSize: 11,
-              fontWeight: 600,
+              fontWeight: 800,
               color: dark ? 'rgba(245, 250, 249, 0.7)' : C.inkMuted,
-              letterSpacing: '0.18em',
+              letterSpacing: '0.2em',
             }}
           >
             {kicker}
@@ -81,22 +106,63 @@ function SectionHeader({ no, kicker, title, dark = false }: { no: string; kicker
             style={{
               flex: 1,
               height: 1,
-              background: dark ? 'rgba(245, 250, 249, 0.25)' : 'rgba(26, 43, 71, 0.12)',
+              background: dark ? 'rgba(245, 250, 249, 0.18)' : 'rgba(10, 18, 36, 0.1)',
             }}
           />
         </div>
-        <h2
-          style={{
-            fontSize: 'clamp(32px, 4.4vw, 52px)',
-            fontWeight: 800,
-            lineHeight: 1.2,
-            letterSpacing: '-0.025em',
-            color: dark ? C.inverse : C.ink,
-            margin: 0,
-          }}
-        >
-          {title}
-        </h2>
+
+        {isQuote ? (
+          <blockquote
+            style={{
+              margin: 0,
+              padding: '0 0 0 28px',
+              borderLeft: `3px solid ${dark ? 'rgba(245,250,249,0.35)' : C.nexonBlue}`,
+              maxWidth: 920,
+            }}
+          >
+            <p
+              style={{
+                fontFamily: FONT_DISPLAY,
+                fontSize: 'clamp(22px, 2.4vw, 32px)',
+                fontWeight: 600,
+                lineHeight: 1.55,
+                letterSpacing: '-0.015em',
+                color: dark ? 'rgba(245, 250, 249, 0.6)' : 'rgba(10, 18, 36, 0.5)',
+                margin: 0,
+                wordBreak: 'keep-all',
+                fontStyle: 'normal',
+              }}
+            >
+              <span style={{
+                fontFamily: FONT_DISPLAY,
+                fontSize: '1.4em',
+                lineHeight: 0,
+                color: dark ? 'rgba(245,250,249,0.3)' : 'rgba(0, 145, 204, 0.3)',
+                marginRight: 6,
+                verticalAlign: '-0.1em',
+              }}>
+                "
+              </span>
+              {title}
+            </p>
+          </blockquote>
+        ) : (
+          <h2
+            style={{
+              fontFamily: FONT_DISPLAY,
+              fontSize: 'clamp(36px, 5.2vw, 64px)',
+              fontWeight: 700,
+              lineHeight: 1.18,
+              letterSpacing: '-0.03em',
+              color: dark ? C.inverse : C.ink,
+              margin: 0,
+              maxWidth: 980,
+              wordBreak: 'keep-all',
+            }}
+          >
+            {title}
+          </h2>
+        )}
       </div>
     </FadeIn>
   )
@@ -115,250 +181,255 @@ function Hero() {
   return (
     <section
       ref={heroRef}
+      id="hero"
       style={{
         position: 'relative',
         minHeight: '100vh',
-        padding: '64px 48px',
+        padding: '40px clamp(48px, 8vw, 120px) 80px',
         overflow: 'hidden',
       }}
     >
-      {/* 그라디언트 BG 블롭 (Nexon Vibe) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: -100,
-          left: '-10%',
-          width: 800,
-          height: 800,
-          borderRadius: '50%',
-          filter: 'blur(120px)',
-          background: 'rgba(0, 98, 223, 0.15)', // Nexon Blue
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          top: 200,
-          right: '-5%',
-          width: 600,
-          height: 600,
-          borderRadius: '50%',
-          filter: 'blur(120px)',
-          background: 'rgba(196, 240, 0, 0.2)', // Lime
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
+      {/* Aurora Background — Nexon CI 컬러로 톤다운 */}
+      <div className="absolute inset-0 opacity-25 mix-blend-screen pointer-events-none" style={{ zIndex: 0 }}>
+        <Aurora colorStops={[C.nexonBlue, C.lime, C.nexonBlueAlt]} amplitude={0.9} speed={0.4} />
+      </div>
 
-      <motion.div style={{ y: shapesY, position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+      <motion.div style={{ y: shapesY, position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', opacity: 0.4 }}>
         <FloatingShapes />
       </motion.div>
 
-      {/* 매거진 헤더 */}
+      {/* 매거진 코너 라벨 ─ 좌상단 로고 / 우상단 카운터 */}
       <header
         style={{
           position: 'relative',
           zIndex: 1,
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'baseline',
-          maxWidth: 1280,
+          alignItems: 'flex-start',
+          maxWidth: 1480,
           margin: '0 auto',
-          paddingBottom: 24,
-          borderBottom: `1px solid rgba(0, 98, 223, 0.15)`,
-          color: C.nexonBlue,
-          flexWrap: 'wrap',
-          gap: 16,
+          marginBottom: 80,
         }}
       >
-        <span style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: '0.12em', opacity: 0.85 }}>
-          PORTFOLIO · {HERO.jobCode}
-        </span>
-        <span style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: '0.08em', opacity: 0.85 }}>
-          YANG · GEONHO / 2026
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <img src={nexonLogoUrl} alt="NEXON" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
+          <span style={{ height: 20, width: 1, background: 'rgba(10, 31, 60, 0.18)' }} />
+          <span style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: '0.14em', color: C.inkMuted, fontWeight: 700 }}>
+            PORTFOLIO · {HERO.jobCode}
+          </span>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: C.inkMuted, letterSpacing: '0.18em', fontWeight: 700 }}>
+            YANG GEONHO
+          </div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: C.inkMuted, letterSpacing: '0.18em', fontWeight: 700, marginTop: 4 }}>
+            ISSUE / 2026.05
+          </div>
+        </div>
       </header>
 
+      {/* 매거진 본문 — 좌우 비대칭 */}
       <motion.div
         style={{
           y: textY,
-          maxWidth: 1280,
+          maxWidth: 1480,
           margin: '0 auto',
           position: 'relative',
           zIndex: 1,
-          paddingTop: 96,
-          paddingBottom: 64,
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1.6fr) minmax(280px, 1fr)',
+          gap: 80,
+          alignItems: 'start',
         }}
       >
-        <FadeIn delay={0}>
-          <div
-            style={{
-              display: 'inline-block',
-              padding: '10px 20px',
-              background: C.nexonBlue,
-              color: C.inverse,
-              fontFamily: FONT_MONO,
-              fontSize: 12,
-              fontWeight: 800,
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              borderRadius: 9999,
-              marginBottom: 32,
-              boxShadow: '0 8px 24px rgba(0, 98, 223, 0.25)'
-            }}
-          >
-            {HERO.badge}
-          </div>
-        </FadeIn>
-
-        <FadeIn delay={0.08}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
-            <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.nexonBlue, letterSpacing: '0.05em', fontWeight: 700 }}>
-              {HERO.jobCode} — 양건호
-            </span>
-            <span style={{ flex: 1, height: 2, background: 'rgba(0, 98, 223, 0.1)', borderRadius: 2 }} />
-          </div>
-        </FadeIn>
-
-        {/* 타이틀: GradientText + 큰 산세리프 */}
-        <FadeIn delay={0.15}>
-          <GradientText
-            colors={[C.nexonBlue, C.lavender, C.coral, C.nexonBlue]}
-            animationSpeed={6}
-            className="!mx-0"
-          >
-            <h1
+        {/* 좌: 큰 타이틀 */}
+        <div>
+          <FadeIn delay={0}>
+            <div
               style={{
-                fontSize: 'clamp(44px, 8vw, 88px)',
-                fontWeight: 900,
-                lineHeight: 1.05,
-                letterSpacing: '-0.03em',
-                margin: 0,
-                whiteSpace: 'pre-line',
+                display: 'inline-block',
+                padding: '6px 14px',
+                background: 'transparent',
+                color: C.nexonBlue,
+                fontFamily: FONT_MONO,
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.18em',
+                textTransform: 'uppercase',
+                borderRadius: 9999,
+                marginBottom: 48,
+                border: `1px solid ${C.nexonBlue}`,
               }}
             >
-              {HERO.title}
-            </h1>
-          </GradientText>
-        </FadeIn>
+              {HERO.badge}
+            </div>
+          </FadeIn>
 
-        <FadeIn delay={0.22}>
-          <p
+          <h1
             style={{
-              fontSize: 'clamp(18px, 2vw, 24px)',
-              fontWeight: 600,
-              lineHeight: 1.6,
-              color: C.inkSoft,
-              maxWidth: 760,
-              margin: '32px 0 56px',
+              fontFamily: FONT_DISPLAY,
+              fontSize: 'clamp(44px, 6.6vw, 92px)',
+              fontWeight: 700,
+              lineHeight: 1.04,
+              letterSpacing: '-0.04em',
+              color: C.ink,
+              margin: 0,
+              wordBreak: 'keep-all',
             }}
           >
-            {HERO.subtitle}
-          </p>
-        </FadeIn>
+            {HERO.titleLines.map((line, i) => {
+              const isHighlight = line.includes(HERO.highlightWord)
+              return (
+                <FadeIn key={i} delay={0.15 + i * 0.12}>
+                  <span style={{ display: 'block' }}>
+                    {isHighlight ? (
+                      <>
+                        <span style={{ color: C.nexonBlue }}>{HERO.highlightWord}</span>
+                        {line.replace(HERO.highlightWord, '')}
+                      </>
+                    ) : (
+                      line
+                    )}
+                  </span>
+                </FadeIn>
+              )
+            })}
+          </h1>
 
-        <FadeIn delay={0.3}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {HERO.ctas.map((cta) => (
-              <a
-                key={cta.label}
-                href={cta.href}
-                target={cta.href.startsWith('http') ? '_blank' : undefined}
-                rel={cta.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '14px 26px',
-                  fontSize: 16,
-                  fontWeight: 700,
-                  borderRadius: 9999,
-                  textDecoration: 'none',
-                  transition: 'all 220ms cubic-bezier(0.4, 0, 0.2, 1)',
-                  ...(cta.primary
-                    ? {
-                        background: C.nexonBlue,
-                        color: C.inverse,
-                        boxShadow: '0 8px 24px rgba(0, 98, 223, 0.3)',
-                      }
-                    : {
-                        background: C.bgWhite,
-                        color: C.nexonBlue,
-                        border: `1.5px solid rgba(0, 98, 223, 0.2)`,
-                        boxShadow: C.cardShadow,
-                      }),
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)'
-                  e.currentTarget.style.boxShadow = cta.primary ? '0 12px 32px rgba(0, 98, 223, 0.4)' : C.cardShadowHover
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-              >
-                {cta.label}
-              </a>
-            ))}
-          </div>
-        </FadeIn>
+          <FadeIn delay={0.6}>
+            <div
+              style={{
+                fontSize: 'clamp(17px, 1.4vw, 21px)',
+                fontWeight: 500,
+                lineHeight: 1.7,
+                color: C.inkSoft,
+                maxWidth: 720,
+                margin: '64px 0 48px',
+                minHeight: '5em',
+                fontFamily: FONT_BODY,
+              }}
+            >
+              <TextType
+                text={HERO.subtitle}
+                typingSpeed={28}
+                initialDelay={1500}
+                loop={false}
+                showCursor
+                cursorCharacter="_"
+                cursorClassName="text-[--color-ink]"
+              />
+            </div>
+          </FadeIn>
 
-        {/* Hero 하단 정량 4개 (Krafton Quick Stats 패턴) */}
+          <FadeIn delay={0.7}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {HERO.ctas.map((cta) => (
+                <a
+                  key={cta.label}
+                  href={cta.href}
+                  target={cta.href.startsWith('http') ? '_blank' : undefined}
+                  rel={cta.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '14px 24px',
+                    fontSize: 15,
+                    fontWeight: 700,
+                    fontFamily: FONT_BODY,
+                    borderRadius: 9999,
+                    textDecoration: 'none',
+                    transition: 'all 220ms cubic-bezier(0.4, 0, 0.2, 1)',
+                    ...(cta.primary
+                      ? { background: C.nexonBlue, color: C.inverse, boxShadow: '0 8px 24px rgba(0, 145, 204, 0.3)' }
+                      : { background: 'transparent', color: C.ink, border: `1.5px solid rgba(10, 18, 36, 0.18)` }),
+                  }}
+                >
+                  {cta.label}
+                  <span style={{ fontSize: 14, opacity: 0.8 }}>↗</span>
+                </a>
+              ))}
+            </div>
+          </FadeIn>
+        </div>
+
+        {/* 우: 매거진 INFO 테이블 */}
         <FadeIn delay={0.4}>
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-              gap: 12,
-              marginTop: 64,
-              maxWidth: 880,
+              padding: '32px 0 0',
+              borderTop: `2px solid ${C.ink}`,
             }}
           >
-            {STATS.map((s, i) => (
-              <div
-                key={s.label}
-                style={{
-                  padding: '18px 20px',
-                  borderRadius: 18,
-                  background: 'rgba(255, 255, 255, 0.7)',
-                  border: `1px solid rgba(0, 98, 223, 0.1)`,
-                  backdropFilter: 'blur(12px)',
-                  boxShadow: '0 8px 32px rgba(0, 98, 223, 0.05)',
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: FONT_MONO,
-                    fontSize: 10,
-                    color: C.nexonBlue,
-                    letterSpacing: '0.12em',
-                    fontWeight: 700,
-                    marginBottom: 6,
-                  }}
-                >
-                  {String(i + 1).padStart(2, '0')}
+            <div
+              style={{
+                fontFamily: FONT_MONO,
+                fontSize: 10,
+                letterSpacing: '0.2em',
+                color: C.nexonBlue,
+                fontWeight: 700,
+                marginBottom: 24,
+              }}
+            >
+              INFO
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <tbody>
+                {HERO.meta.map((row) => (
+                  <tr key={row.label} style={{ borderBottom: `1px solid ${C.cardBorder}` }}>
+                    <td
+                      style={{
+                        fontFamily: FONT_MONO,
+                        fontSize: 10.5,
+                        letterSpacing: '0.16em',
+                        color: C.inkMuted,
+                        fontWeight: 700,
+                        padding: '14px 0',
+                        width: 100,
+                        verticalAlign: 'top',
+                      }}
+                    >
+                      {row.label}
+                    </td>
+                    <td
+                      style={{
+                        fontSize: 14.5,
+                        color: C.ink,
+                        fontWeight: 600,
+                        padding: '14px 0',
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {row.value}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Quick stats — 매거진 마지널 */}
+            <div
+              style={{
+                marginTop: 40,
+                paddingTop: 28,
+                borderTop: `1px dashed ${C.cardBorder}`,
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 28,
+              }}
+            >
+              {STATS.slice(0, 4).map((s) => (
+                <div key={s.label}>
+                  <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.025em', color: C.ink, fontVariantNumeric: 'tabular-nums' }}>
+                    {s.value}
+                    {s.unit && <span style={{ fontSize: '0.45em', fontWeight: 700, marginLeft: 3, color: C.inkMuted }}>{s.unit}</span>}
+                  </div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: C.inkMuted, letterSpacing: '0.08em', fontWeight: 700, marginTop: 6 }}>
+                    {s.label}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 800,
-                    color: C.ink,
-                    lineHeight: 1,
-                    fontVariantNumeric: 'tabular-nums',
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  {s.value}
-                  {s.unit && (
-                    <span style={{ fontSize: '0.5em', fontWeight: 700, marginLeft: 4, opacity: 0.85 }}>{s.unit}</span>
-                  )}
-                </div>
-                <div style={{ fontSize: 13, color: C.inkSoft, marginTop: 6, fontWeight: 600 }}>
-                  {s.label}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </FadeIn>
       </motion.div>
@@ -402,163 +473,187 @@ export default function PageLLM() {
         overflowX: 'clip',
       }}
     >
+      <CornerLabels ctaLabel="GO TO BOT" ctaHref="https://debimarlene.com" />
+
+      <SideNav
+        sections={[
+          { id: 'hero', no: '00', label: 'INTRO' },
+          { id: 'about', no: '01', label: 'ABOUT' },
+          { id: 'architecture', no: '02', label: 'ARCHITECTURE' },
+          { id: 'tech', no: '03', label: 'TECH STACK' },
+          { id: 'jdmatch', no: '04', label: 'JD MATCH' },
+          { id: 'eligibility', no: '05', label: 'ELIGIBILITY' },
+          { id: 'preferred', no: '06', label: 'PREFERRED' },
+          { id: 'collab', no: '07', label: 'COLLAB' },
+          { id: 'highlights', no: '08', label: 'HIGHLIGHTS' },
+          { id: 'contact', no: '09', label: 'CONTACT' },
+        ]}
+      />
+
       <Hero />
 
       {/* 01. ABOUT */}
       <section
         id="about"
         style={{
-          padding: '96px 48px',
+          padding: '200px clamp(48px, 8vw, 120px)',
           background: C.inverse,
         }}
       >
         <div style={{ maxWidth: 1280, margin: '0 auto' }}>
           <SectionHeader no="01" kicker="ABOUT" title="저는 이런 사람입니다" />
-          <FadeIn delay={0.05}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(0, 5fr) minmax(0, 7fr)',
-                gap: 64,
-                alignItems: 'start',
+
+          <div style={{ margin: '0 0 160px', maxWidth: 1100 }}>
+            <ScrollReveal
+              baseOpacity={0.15}
+              baseRotation={2}
+              blurStrength={3}
+              textStyle={{
+                fontFamily: FONT_DISPLAY,
+                fontSize: 'clamp(28px, 3.6vw, 44px)',
+                fontWeight: 700,
+                lineHeight: 1.38,
+                color: C.ink,
+                letterSpacing: '-0.025em',
+                margin: 0,
               }}
             >
-              <p
-                style={{
-                  fontSize: 22,
-                  fontWeight: 700,
-                  lineHeight: 1.5,
-                  color: C.ink,
-                  margin: 0,
-                  letterSpacing: '-0.015em',
-                }}
-              >
-                게임 사용자로서의 도메인 깊이와<br />
-                LLM 운영자로서의 평가 감각이 결합된<br />
-                <span style={{ color: C.nexonBlue }}>지점이 LLM 평가 어시스턴트 직무의 본질입니다.</span>
-              </p>
-              <p style={{ fontSize: 16, lineHeight: 1.85, color: C.inkSoft, margin: 0 }}>
-                {ABOUT}
-              </p>
-            </div>
-          </FadeIn>
+              게임 사용자의 도메인 깊이와 LLM 운영자의 평가 감각이 결합된 지점, 그것이 LLM 평가 어시스턴트 직무의 본질입니다.
+            </ScrollReveal>
+          </div>
 
           <FadeIn delay={0.15}>
-            <div style={{ marginTop: 64 }}>
-              <StatGrid stats={STATS} />
-            </div>
+            <StatGrid stats={STATS} />
+          </FadeIn>
+
+          <FadeIn delay={0.25}>
+            <details
+              style={{
+                marginTop: 96,
+                paddingTop: 40,
+                borderTop: `1px solid ${C.cardBorder}`,
+              }}
+            >
+              <summary
+                style={{
+                  cursor: 'pointer',
+                  fontFamily: FONT_MONO,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: C.nexonBlue,
+                  letterSpacing: '0.14em',
+                  listStyle: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                전체 자기소개 읽기 ▾
+              </summary>
+
+              {/* 북디자인 본문 — 4단락 구조 + 핵심 명사 강조 + 마지막 pull quote */}
+              <div style={{ marginTop: 56, display: 'flex', flexDirection: 'column', gap: 32, maxWidth: 640 }}>
+                {/* Lede — 정체성 한 줄 */}
+                <p
+                  style={{
+                    fontSize: 19,
+                    lineHeight: 1.6,
+                    fontWeight: 700,
+                    color: C.ink,
+                    margin: 0,
+                    letterSpacing: '-0.015em',
+                  }}
+                >
+                  <span style={{
+                    fontFamily: FONT_DISPLAY,
+                    fontSize: 36,
+                    fontWeight: 800,
+                    color: C.nexonBlue,
+                    lineHeight: 1,
+                    float: 'left',
+                    marginRight: 8,
+                    marginTop: 4,
+                  }}>D</span>
+                  데비&마를렌은 이터널 리턴 쌍둥이 실험체를 모티브로 한{' '}
+                  <span style={{ color: C.nexonBlue }}>한국어 캐릭터 챗봇</span>입니다.
+                </p>
+
+                {/* Para 2 — 운영 + 시스템 구성 */}
+                <p
+                  style={{
+                    fontSize: 16,
+                    lineHeight: 1.85,
+                    color: C.inkSoft,
+                    margin: 0,
+                    fontWeight: 400,
+                    letterSpacing: '-0.005em',
+                  }}
+                >
+                  <strong style={{ color: C.ink, fontWeight: 700 }}>1인이</strong> 기획·개발·배포·운영을 모두 맡아{' '}
+                  <strong style={{ color: C.ink, fontWeight: 700 }}>9개월간 158개 Discord 서버</strong>에 운영 중이며, 단순 명령어 봇이 아니라{' '}
+                  <strong style={{ color: C.ink, fontWeight: 700 }}>LangGraph StateGraph 2-tier 에이전트</strong>,{' '}
+                  <strong style={{ color: C.ink, fontWeight: 700 }}>Anthropic Managed Agents(claude-haiku-4-5)</strong> 호스팅, Custom tool 자율 판단·네이티브 UI post,{' '}
+                  <strong style={{ color: C.ink, fontWeight: 700 }}>패치노트 RAG</strong>, 음성 채널 실시간 응답 파이프라인(DAVE → VAD → Qwen3.5-Omni → CosyVoice3)까지 한 봇 안에 통합한 라이브 LLM 시스템입니다.
+                </p>
+
+                {/* Para 3 — 검증 활동 */}
+                <p
+                  style={{
+                    fontSize: 16,
+                    lineHeight: 1.85,
+                    color: C.inkSoft,
+                    margin: 0,
+                    fontWeight: 400,
+                    letterSpacing: '-0.005em',
+                  }}
+                >
+                  매일 운영 중 발생하는 응답 데이터를{' '}
+                  <strong style={{ color: C.ink, fontWeight: 700 }}>정량/정성으로 검증</strong>하고, 모델·프롬프트·few-shot·세션 회전 정책 변경에 따른{' '}
+                  <strong style={{ color: C.ink, fontWeight: 700 }}>톤 일관성·환각률·비용 변화</strong>를 추적해 왔습니다.
+                </p>
+
+                {/* Pull quote — 직무 연결 */}
+                <blockquote
+                  style={{
+                    margin: '16px 0 0',
+                    padding: '24px 0 0 28px',
+                    borderLeft: `3px solid ${C.nexonBlue}`,
+                    borderTop: `1px dashed ${C.cardBorder}`,
+                  }}
+                >
+                  <p
+                    style={{
+                      fontFamily: FONT_DISPLAY,
+                      fontSize: 22,
+                      lineHeight: 1.55,
+                      fontWeight: 700,
+                      color: C.ink,
+                      margin: 0,
+                      letterSpacing: '-0.02em',
+                    }}
+                  >
+                    이 라이브 검증 경험을 게임 도메인의<br />
+                    <span style={{ color: C.nexonBlue }}>LLM 평가 직무</span>로 그대로 이어 가고 싶습니다.
+                  </p>
+                </blockquote>
+              </div>
+            </details>
           </FadeIn>
         </div>
       </section>
 
-      {/* 02. 시스템 아키텍처 */}
-      <section
-        style={{
-          padding: '120px 48px',
-          background: C.bgSoft,
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <div style={{ maxWidth: 1280, margin: '0 auto', position: 'relative' }}>
-          <SectionHeader
-            no="02"
-            kicker="ARCHITECTURE · 시스템 아키텍처"
-            title={ARCHITECTURE.title}
-            dark={false}
-          />
+      <Wordmark text="DEBI&MARLENE." />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {ARCHITECTURE.steps.map((step, i) => (
-              <FadeIn key={step.n} delay={i * 0.06}>
-                <article
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '64px minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr)',
-                    gap: 32,
-                    padding: '28px 32px',
-                    borderRadius: 18,
-                    background: C.bgWhite,
-                    border: `1px solid ${C.cardBorder}`,
-                    boxShadow: C.cardShadow,
-                    alignItems: 'start',
-                  }}
-                >
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 44,
-                      height: 44,
-                      borderRadius: 9999,
-                      background: C.nexonBlue,
-                      color: C.inverse,
-                      fontFamily: FONT_MONO,
-                      fontSize: 14,
-                      fontWeight: 800,
-                    }}
-                  >
-                    {String(step.n).padStart(2, '0')}
-                  </span>
-                  <div>
-                    <div
-                      style={{
-                        fontFamily: FONT_MONO,
-                        fontSize: 11,
-                        letterSpacing: '0.12em',
-                        color: C.lime,
-                        fontWeight: 700,
-                        marginBottom: 8,
-                      }}
-                    >
-                      STEP {String(step.n).padStart(2, '0')}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 17,
-                        fontWeight: 700,
-                        color: C.ink,
-                        letterSpacing: '-0.01em',
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {step.label}
-                    </div>
-                  </div>
-                  <p
-                    style={{
-                      fontSize: 14,
-                      lineHeight: 1.7,
-                      color: C.inkSoft,
-                      margin: 0,
-                    }}
-                  >
-                    {step.desc}
-                  </p>
-                  <div
-                    style={{
-                      fontFamily: FONT_MONO,
-                      fontSize: 12,
-                      lineHeight: 1.5,
-                      color: C.nexonBlue,
-                      fontWeight: 600,
-                      letterSpacing: '-0.005em',
-                    }}
-                  >
-                    {step.cost}
-                  </div>
-                </article>
-              </FadeIn>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* 02. 시스템 아키텍처 — scroll-driven beam diagram */}
+      <div id="architecture">
+        <ArchitectureDiagram steps={ARCHITECTURE.steps} title={ARCHITECTURE.title} />
+      </div>
 
       {/* 03. 기술 스택 */}
       <section
+        id="tech"
         style={{
-          padding: '120px 48px',
+          padding: '200px clamp(48px, 8vw, 120px)',
           background: C.inverse,
         }}
       >
@@ -566,128 +661,42 @@ export default function PageLLM() {
           <SectionHeader
             no="03"
             kicker="TECH STACK · 기술 스택"
-            title={`LLM · 인프라 · 프론트엔드\n3블록으로 정리한 운영 스택`}
+            title="LLM · 인프라 · 프론트엔드 3블록으로 정리한 운영 스택"
           />
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: 20,
-            }}
-          >
-            {(['llm', 'infra', 'frontend'] as const).map((key, blockIdx) => {
-              const labelMap = { llm: 'LLM', infra: 'INFRA', frontend: 'FRONTEND' } as const
-              const items = TECH_STACK[key]
-              return (
-                <FadeIn key={key} delay={blockIdx * 0.06}>
-                  <article
-                    style={{
-                      background: C.bgWhite,
-                      borderRadius: 18,
-                      padding: 28,
-                      border: '1px solid rgba(26, 43, 71, 0.06)',
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 20,
-                    }}
-                  >
-                    <header style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-                      <span
-                        style={{
-                          fontFamily: FONT_MONO,
-                          fontSize: 11,
-                          letterSpacing: '0.15em',
-                          color: C.nexonBlue,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {labelMap[key]}
-                      </span>
-                      <span style={{ flex: 1, height: 1, background: 'rgba(26, 43, 71, 0.1)' }} />
-                    </header>
-                    <ul
-                      style={{
-                        margin: 0,
-                        padding: 0,
-                        listStyle: 'none',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 14,
-                      }}
-                    >
-                      {items.map((it) => (
-                        <li
-                          key={it.label}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 4,
-                            paddingBottom: 12,
-                            borderBottom: '1px dashed rgba(26, 43, 71, 0.08)',
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontFamily: FONT_MONO,
-                              fontSize: 11,
-                              letterSpacing: '0.05em',
-                              color: C.inkMuted,
-                              fontWeight: 600,
-                            }}
-                          >
-                            {it.label}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 14,
-                              lineHeight: 1.55,
-                              color: C.ink,
-                              fontWeight: 600,
-                              letterSpacing: '-0.005em',
-                            }}
-                          >
-                            {it.value}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </article>
-                </FadeIn>
-              )
-            })}
-          </div>
+          <FadeIn delay={0.05}>
+            <TechStackChips stack={TECH_STACK} highlightCount={3} />
+          </FadeIn>
         </div>
       </section>
 
       {/* 04. 주요 업무 매칭 */}
       <section
+        id="jdmatch"
         style={{
-          padding: '120px 48px',
-          background: '#F4F8FA',
+          padding: '200px clamp(48px, 8vw, 120px)',
+          background: C.bgLight,
         }}
       >
         <div style={{ maxWidth: 1280, margin: '0 auto' }}>
           <SectionHeader
             no="04"
             kicker="JOB DESCRIPTION · 주요 업무"
-            title={`공고 4가지 주요 업무에\n대한 1:1 매칭 근거`}
+            title="공고 4가지 주요 업무에 대한 1:1 매칭 근거"
           />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
-            {JD_MATCHES.map((m, i) => (
-              <FadeIn key={m.n} delay={i * 0.06}>
-                <JdMatchCard n={m.n} jdTitle={m.jdTitle} jdSub={m.jdSub} evidence={m.evidence} />
-              </FadeIn>
-            ))}
-          </div>
+          <FadeIn delay={0.05}>
+            <JdMatchAccordion items={JD_MATCHES} />
+          </FadeIn>
         </div>
       </section>
 
+      <Wordmark text="LIVE LLM." />
+
       {/* 05. 지원 자격 */}
       <section
+        id="eligibility"
         style={{
-          padding: '120px 48px',
+          padding: '200px clamp(48px, 8vw, 120px)',
           background: C.inverse,
         }}
       >
@@ -695,7 +704,7 @@ export default function PageLLM() {
           <SectionHeader
             no="05"
             kicker="ELIGIBILITY · 지원 자격"
-            title={ELIGIBILITY.headline}
+            title="메이플 16년, 하드 세렌까지 — 라이트 유저가 못 밟는 깊이"
           />
 
           <FadeIn delay={0.05}>
@@ -760,16 +769,17 @@ export default function PageLLM() {
 
       {/* 06. 우대 사항 매칭 */}
       <section
+        id="preferred"
         style={{
-          padding: '120px 48px',
-          background: '#F4F8FA',
+          padding: '200px clamp(48px, 8vw, 120px)',
+          background: C.bgLight,
         }}
       >
         <div style={{ maxWidth: 1280, margin: '0 auto' }}>
           <SectionHeader
             no="06"
             kicker="PREFERRED · 우대 사항"
-            title={`다양한 장르 · LLM 평가 경험\n· 명확한 문서화`}
+            title="다양한 장르 · LLM 평가 경험 · 명확한 문서화"
           />
 
           <FadeIn delay={0.05}>
@@ -809,9 +819,9 @@ export default function PageLLM() {
             </div>
           </FadeIn>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             {CASES.map((c, i) => (
-              <FadeIn key={c.no} delay={i * 0.06}>
+              <FadeIn key={c.no} delay={i * 0.04}>
                 <CaseCard
                   no={c.no}
                   title={c.title}
@@ -826,10 +836,13 @@ export default function PageLLM() {
         </div>
       </section>
 
+      <Wordmark text="GENO." />
+
       {/* 07. 협업 사례 */}
       <section
+        id="collab"
         style={{
-          padding: '120px 48px',
+          padding: '200px clamp(48px, 8vw, 120px)',
           background: C.inverse,
         }}
       >
@@ -837,13 +850,13 @@ export default function PageLLM() {
           <SectionHeader
             no="07"
             kicker="COLLABORATION · 협업"
-            title={COLLAB.title}
+            title="다른 직군과 부딪힐 때 데이터 위에서 합의를 만들어 왔습니다"
           />
 
           <FadeIn delay={0.05}>
             <article
               style={{
-                background: '#F4F8FA',
+                background: C.bgLight,
                 borderRadius: 20,
                 padding: 40,
                 border: '1px solid rgba(26, 43, 71, 0.06)',
@@ -926,6 +939,92 @@ export default function PageLLM() {
         </div>
       </section>
 
+      {/* HIGHLIGHTS — Magic Bento (라이트 안에 다크 카드로 인셋) */}
+      <section id="highlights" style={{ padding: '120px clamp(24px, 5vw, 80px)', background: C.bgLight }}>
+        <div style={{
+          maxWidth: 1480,
+          margin: '0 auto',
+          background: '#070B14',
+          borderRadius: 32,
+          padding: 'clamp(56px, 7vw, 96px)',
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          <div style={{ marginBottom: 80 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 18, marginBottom: 32 }}>
+              <span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 700, color: C.lime, letterSpacing: '0.2em' }}>
+                HIGHLIGHTS
+              </span>
+              <span style={{ fontFamily: FONT_MONO, fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.2em' }}>
+                AT A GLANCE
+              </span>
+              <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.18)' }} />
+            </div>
+            <h2 style={{
+              fontFamily: FONT_DISPLAY,
+              fontSize: 'clamp(36px, 5vw, 64px)',
+              fontWeight: 700,
+              lineHeight: 1.12,
+              letterSpacing: '-0.03em',
+              color: C.inverse,
+              margin: 0,
+            }}>
+              핵심 6가지를 한눈에
+            </h2>
+          </div>
+          <MagicBento
+            glowColor="0, 145, 204"
+            spotlightRadius={320}
+            items={[
+              {
+                label: 'LIVE',
+                title: '158서버 × 9개월',
+                description: '1인 라이브 LLM 챗봇 운영. 매일 응답 데이터 직접 관측.',
+                span: { col: 2 },
+              },
+              {
+                label: 'CACHE',
+                title: '99%+ 적중률',
+                description: 'system block ephemeral cache 적용 — 비용·지연 정량 개선.',
+              },
+              {
+                label: 'SPEED',
+                title: '0.1ms 분류',
+                description: 'classify_intent (정규식, LLM 호출 없음) — 비용 분리 측정.',
+              },
+              {
+                label: 'STACK',
+                title: '2-tier 폴백 아키텍처',
+                description: 'LangGraph StateGraph + Anthropic Managed Agents (haiku-4-5).',
+                span: { col: 2 },
+              },
+              {
+                label: 'GAME',
+                title: '메이플 16년 · 하드 세렌',
+                description: '프로즌샤 · 어센틱/시메라 콘텐츠 정점까지 직접 격파.',
+              },
+              {
+                label: 'EVAL',
+                title: '정량/정성 평가 감각',
+                description: '모델·프롬프트·세션 회전 변화에 따른 톤·환각·비용 추적.',
+              },
+            ]}
+          />
+        </div>
+      </section>
+
+      <div id="contact">
+        <CtaSection
+          kicker="LET'S TALK"
+          headline={`라이브 LLM을 운영해 본 사람이\n넥슨 LLM 평가에 합류하면 좋겠습니다`}
+          sub="158서버 × 9개월 × 매일 측정. 게임 도메인 16년의 사용자 시점과 LLM 운영자의 평가 감각이 한 자리에서 만나는 자리, LLM 평가 어시스턴트가 그 자리라고 확신합니다."
+          items={[
+            { label: 'GitHub · debi-marlene', href: CONTACT.github, primary: true },
+            { label: 'Live · debimarlene.com', href: CONTACT.domain },
+            { label: `Email · ${CONTACT.email}`, href: `mailto:${CONTACT.email}` },
+          ]}
+        />
+      </div>
       <Footer email={CONTACT.email} github={CONTACT.github} domain={CONTACT.domain} edu={CONTACT.edu} />
     </div>
   )

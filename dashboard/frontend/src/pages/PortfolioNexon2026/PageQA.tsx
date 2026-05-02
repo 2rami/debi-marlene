@@ -14,7 +14,8 @@
 import { useEffect, useRef } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import Lenis from 'lenis'
-import GradientText from '../../components/common/GradientText'
+import Aurora from '../../components/common/Aurora'
+import BlurText from '../../components/common/BlurText'
 import { C, FONT_BODY, FONT_MONO } from './shared/colors'
 import FloatingShapes from './shared/FloatingShapes'
 import StatGrid from './shared/StatGrid'
@@ -117,35 +118,10 @@ function Hero() {
         overflow: 'hidden',
       }}
     >
-      {/* 그라디언트 BG 블롭 (Nexon Vibe - QA: Coral) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: -100,
-          left: '-10%',
-          width: 800,
-          height: 800,
-          borderRadius: '50%',
-          filter: 'blur(120px)',
-          background: 'rgba(0, 98, 223, 0.15)', // Nexon Blue
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          top: 200,
-          right: '-5%',
-          width: 600,
-          height: 600,
-          borderRadius: '50%',
-          filter: 'blur(120px)',
-          background: 'rgba(255, 75, 75, 0.15)', // Coral
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
+      {/* Aurora Background */}
+      <div className="absolute inset-0 opacity-40 mix-blend-screen pointer-events-none" style={{ zIndex: 0 }}>
+        <Aurora colorStops={[C.nexonBlue, C.coral, '#FFA6D7']} amplitude={1.2} speed={0.5} />
+      </div>
 
       <motion.div style={{ y: shapesY, position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
         <FloatingShapes />
@@ -217,26 +193,23 @@ function Hero() {
           </div>
         </FadeIn>
 
-        {/* 타이틀: GradientText + 큰 산세리프 */}
+        {/* 타이틀: BlurText */}
         <FadeIn delay={0.15}>
-          <GradientText
-            colors={[C.nexonBlue, C.coral, C.nexonBlue]}
-            animationSpeed={6}
-            className="!mx-0"
-          >
-            <h1
-              style={{
-                fontSize: 'clamp(44px, 8vw, 88px)',
-                fontWeight: 900,
-                lineHeight: 1.05,
-                letterSpacing: '-0.03em',
-                margin: 0,
-                whiteSpace: 'pre-line',
-              }}
-            >
-              {HERO.title}
-            </h1>
-          </GradientText>
+          <div style={{
+            fontSize: 'clamp(44px, 8vw, 88px)',
+            fontWeight: 900,
+            lineHeight: 1.05,
+            letterSpacing: '-0.03em',
+            margin: 0,
+          }}>
+            <BlurText
+              text={HERO.title}
+              delay={100}
+              animateBy="words"
+              direction="bottom"
+              className="bg-clip-text text-transparent bg-gradient-to-r from-[#0062DF] via-[#FF4B3E] to-[#0062DF] !mx-0 inline-block"
+            />
+          </div>
         </FadeIn>
 
         <FadeIn delay={0.22}>

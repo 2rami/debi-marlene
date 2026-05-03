@@ -1,0 +1,201 @@
+{
+  "version": "2026-05-04",
+  "type": "multi-turn dialogue evaluation",
+  "language": "ko",
+  "notes": "각 세트 history는 시드 (모델에게 이전 대화로 던짐). final_user_turn 응답이 평가 대상. context_dependent_explanation은 채점 judge에게 힌트로 전달. assistant 시드 응답은 source_excerpt 기반 정답 — 평가 대상은 아니지만 모델이 신뢰하는 컨텍스트.",
+  "phenomena": ["coreference", "implicit_referent", "temporal_followup", "topic_continuation", "clarification"],
+  "items": [
+    {
+      "id": "mt-01",
+      "domain": "maple",
+      "category": "직업",
+      "phenomenon": "coreference",
+      "difficulty": "medium",
+      "history": [
+        {"role": "user", "content": "메이플스토리에서 듀얼블레이드는 다른 직업이랑 전직 단계가 다르다던데?"},
+        {"role": "assistant", "content": "네, 듀얼블레이드는 7단계 전직을 합니다. 보통 직업이 5단계 전직(제로는 2단계)인 것과 달리, 20레벨에 1.5차(1+) 전직, 45레벨에 2.5차(2+) 전직이 추가로 들어갑니다."},
+        {"role": "user", "content": "그럼 그 직업은 모험가 계열에 속해?"},
+        {"role": "assistant", "content": "네, 듀얼블레이드는 모험가 계열의 도적 직업군에 속합니다."}
+      ],
+      "final_user_turn": "그 캐릭터는 성별 선택이 자유로워?",
+      "expected_keywords": ["듀얼블레이드", "자유", "선택 가능", "미하일", "엔젤릭버스터", "제로"],
+      "reference_answer": "네, 듀얼블레이드는 성별 선택이 자유롭습니다. 성별이 고정된 직업은 미하일, 엔젤릭버스터, 제로 세 직업뿐이며, 듀얼블레이드는 거기에 포함되지 않습니다.",
+      "context_dependent_explanation": "'그 캐릭터'는 history의 듀얼블레이드를 가리킴. 맥락 없이 final_user_turn만 보면 누구의 성별을 묻는지 알 수 없음.",
+      "source_excerpt": "다만 미하일, 엔젤릭버스터, 제로를 제외한 나머지 직업은 성별 선택이 자유롭다.",
+      "source_url": "https://namu.wiki/w/메이플스토리/직업"
+    },
+    {
+      "id": "mt-02",
+      "domain": "maple",
+      "category": "보스",
+      "phenomenon": "implicit_referent",
+      "difficulty": "medium",
+      "history": [
+        {"role": "user", "content": "검은 마법사 보스 입장하려면 레벨 얼마 필요해?"},
+        {"role": "assistant", "content": "검은 마법사는 Lv.255 이상이어야 입장 가능합니다. 추가로 (Lv.255) [리멘] '운명을 넘어선 자' 퀘스트를 완료해야 합니다."},
+        {"role": "user", "content": "데스 카운트는 몇이야?"},
+        {"role": "assistant", "content": "데스 카운트는 12입니다."}
+      ],
+      "final_user_turn": "제한 시간은 난이도별로 어떻게 돼?",
+      "expected_keywords": ["하드", "1시간", "익스트림", "30분"],
+      "reference_answer": "검은 마법사의 제한 시간은 하드 모드가 1시간, 익스트림 모드가 30분입니다.",
+      "context_dependent_explanation": "어떤 보스의 제한 시간인지 final_user_turn에 명시 안 됨. history에서 화제가 검은 마법사로 잡혀 있어야 답할 수 있음.",
+      "source_excerpt": "제한 시간: 하드 1시간 / 익스트림 30분 데스 카운트: 12",
+      "source_url": "https://namu.wiki/w/검은%20마법사(보스%20몬스터)"
+    },
+    {
+      "id": "mt-03",
+      "domain": "maple",
+      "category": "시스템",
+      "phenomenon": "clarification",
+      "difficulty": "medium",
+      "history": [
+        {"role": "user", "content": "메이플 직업 설명 보면 '극딜'이라는 말이 자주 나오는데 뭐야?"},
+        {"role": "assistant", "content": "극딜은 120초마다 순간적인 강화 버프를 올리고 바인드(행동 불가)와 필요에 따라 무적 버프를 쓰면서 맹공을 가하는 행위를 의미합니다."},
+        {"role": "user", "content": "준극딜이라는 것도 있던데?"},
+        {"role": "assistant", "content": "준극딜은 60초 주기의 누킹기를 의미합니다. 극딜기보다는 약하지만 주력기보다 짧은 시간 안에 큰 피해량을 뽑아낼 수 있습니다."}
+      ],
+      "final_user_turn": "방금 말한 그 바인드는 정확히 어떤 효과야?",
+      "expected_keywords": ["10초", "행동 불가", "패턴", "움직이지 않"],
+      "reference_answer": "바인드는 약 10초간 몬스터가 움직이지 않고 패턴도 사용하지 않는 '행동 불가 상태'로 만드는 유틸 효과입니다. 보통 극딜을 하기 전에 바인드를 걸어 안정적으로 극딜을 넣습니다.",
+      "context_dependent_explanation": "'그 바인드'는 첫 turn의 극딜 설명에서 언급된 바인드를 가리킴. 명확화 요청. history 없으면 어떤 게임의 어떤 바인드인지 모호.",
+      "source_excerpt": "바인드: 약 10초간 몬스터들이 움직이지 않고, 패턴도 사용하지 않는 '행동 불가 상태'로 만드는 유틸. 극딜을 하기 전에 바인드를 걸고 안정적으로 극딜을 넣는다.",
+      "source_url": "https://namu.wiki/w/메이플스토리/직업"
+    },
+    {
+      "id": "mt-04",
+      "domain": "maple",
+      "category": "시스템",
+      "phenomenon": "topic_continuation",
+      "difficulty": "hard",
+      "history": [
+        {"role": "user", "content": "유니온 시스템 시작하려면 조건이 어떻게 돼?"},
+        {"role": "assistant", "content": "두 조건 중 하나만 만족하면 됩니다. (1) 2차 전직을 완료한 60레벨 이상 캐릭터가 3명 이상이고 레벨 총합이 500 이상, 또는 (2) 5차 전직을 완료한 캐릭터가 1명 이상. 마을의 MS. 어카운트에게서 '메이플 유니온' 퀘스트를 받으면 됩니다."},
+        {"role": "user", "content": "유니온 레벨은 어떻게 합산돼?"},
+        {"role": "assistant", "content": "월드에서 캐릭터 레벨이 가장 높은 순서대로 최대 42명까지 합산됩니다. 따라서 43번째 이후 캐릭터의 레벨은 반영되지 않습니다."}
+      ],
+      "final_user_turn": "그 시스템에서 제로는 다른 직업이랑 다르게 처리된다며?",
+      "expected_keywords": ["제로", "최고 레벨", "하나", "유니온 레벨", "합산"],
+      "reference_answer": "네, 다른 직업은 같은 직업이 여러 명 있어도 각각 유니온 레벨에 합산되지만, 제로는 최고 레벨 캐릭터 단 하나만 유니온 총합 레벨 합산에 적용됩니다. 단 공격대원 배치 자체는 여러 명을 동시에 할 수 있습니다.",
+      "context_dependent_explanation": "'그 시스템'은 history의 유니온 시스템을 가리킴. 화제가 유니온으로 유지되고 있어야 final_user_turn이 자연스럽게 해석됨.",
+      "source_excerpt": "다른 직업은 중복이어도 유니온 레벨에 반영되나 제로 캐릭터는 제일 높은 레벨 캐릭터 단 하나만 유니온 총합 레벨 합산에 적용된다.",
+      "source_url": "https://namu.wiki/w/유니온(메이플스토리)"
+    },
+    {
+      "id": "mt-05",
+      "domain": "maple",
+      "category": "시스템",
+      "phenomenon": "temporal_followup",
+      "difficulty": "hard",
+      "history": [
+        {"role": "user", "content": "환생의 불꽃 종류 알려줘"},
+        {"role": "assistant", "content": "현재 사용 가능한 환생의 불꽃은 3종류입니다. (1) 타오르는 환생의 불꽃 (2) 검은 환생의 불꽃 — 메모리얼 기능(BEFORE/AFTER 선택) 추가 (3) 심연의 환생의 불꽃 — 최상위. 이름 앞에 '카르마'가 붙은 환생의 불꽃은 교환 불가 장비에만 사용할 수 있습니다."},
+        {"role": "user", "content": "심연이랑 검은 환생의 불꽃 차이가 뭐야?"},
+        {"role": "assistant", "content": "검환불은 추가옵션 단계가 2~5(4~7)단계가 붙고, 심환불은 3~5(5~7)단계가 붙습니다. 즉 고점은 같지만 저점이 올라갔습니다. 또한 5(7)단계 확률이 검환불 1%에서 심환불 3%로 3배 높습니다."}
+      ],
+      "final_user_turn": "그 전에는 어떻게 추옵을 변경했어?",
+      "expected_keywords": ["110", "120", "130", "140", "150", "단종", "강력한", "영원한", "환생의 불꽃 조각"],
+      "reference_answer": "심환불·검환불 이전에는 110/120/130/140/150 레벨대 일반 환생의 불꽃과 강력한 환생의 불꽃, 영원한 환생의 불꽃 등을 사용했습니다. 다만 2025년 4월 17일 패치로 110~150 레벨 환생의 불꽃은 단종되었고, 보상으로는 환생의 불꽃 조각이 드롭되도록 변경되었습니다.",
+      "context_dependent_explanation": "'그 전'은 history에서 언급한 현 환생의 불꽃 3종(타오르는/검은/심연) 이전 시점을 가리킴. 시간 의존 후속질문.",
+      "source_excerpt": "2025년 4월 17일 패치로 기존 필드 사냥이나 보스 레이드 보상으로 드롭되던 110레벨~150레벨 환생의 불꽃 대신 보상으로 환생의 불꽃 조각이 드롭되게 변경되었다. 또한, 더이상 사용이 불가능하게 변경되었으며",
+      "source_url": "https://namu.wiki/w/환생의%20불꽃"
+    },
+    {
+      "id": "mt-06",
+      "domain": "er",
+      "category": "실험체",
+      "phenomenon": "implicit_referent",
+      "difficulty": "easy",
+      "history": [
+        {"role": "user", "content": "11.0 패치에서 블레어 어떻게 바뀌었어?"},
+        {"role": "assistant", "content": "블레어는 전술 스킬 '거짓 서약' 삭제로 의존도가 높았던 내구도가 보완되었습니다. 기본 체력이 940 → 970으로 증가했고, 패시브 '블레이드 시프트'의 체력 회복량도 입힌 피해의 8(+추가 공격력의 4%)% → 8(+추가 공격력의 5%)%로 변경되었습니다."},
+        {"role": "user", "content": "히스이도 같이 버프됐다고 들었는데?"},
+        {"role": "assistant", "content": "맞습니다. 히스이도 거짓 서약 의존도가 높았던 만큼 내구도가 보완됐습니다. 기본 체력 940 → 980, 기본 방어력 52 → 54로 상향됐습니다."}
+      ],
+      "final_user_turn": "방어력은?",
+      "expected_keywords": ["히스이", "52", "54"],
+      "reference_answer": "히스이의 기본 방어력은 52에서 54로 증가했습니다.",
+      "context_dependent_explanation": "주체 생략 — '누구의 방어력'인지 명시 안 됨. 직전 turn 화제가 히스이라서 히스이 방어력으로 해석해야 함. (블레어는 방어력 변경 없음)",
+      "source_excerpt": "히스이 ... 기본 체력 940 → 980 기본 방어력 52 → 54",
+      "source_url": "https://playeternalreturn.com/posts/news/3531?lang=ko"
+    },
+    {
+      "id": "mt-07",
+      "domain": "er",
+      "category": "특성",
+      "phenomenon": "coreference",
+      "difficulty": "medium",
+      "history": [
+        {"role": "user", "content": "11.0 패치에서 '취약' 특성 어떻게 바뀌었어?"},
+        {"role": "assistant", "content": "취약 특성의 피해량이 30(+레벨*3) → 20(+레벨*5)로, 방어력 감소가 10(+레벨*0.5)% → 15%로 변경되었습니다."},
+        {"role": "user", "content": "'초재생'은?"},
+        {"role": "assistant", "content": "초재생 특성의 맞춤형 능력치 증가가 5(+레벨*0.5) → 1(+레벨*0.5)로 너프되었습니다."}
+      ],
+      "final_user_turn": "이거 둘 다 어떤 분류 특성이야?",
+      "expected_keywords": ["취약", "파괴", "초재생", "지원"],
+      "reference_answer": "취약은 '파괴' 분류 특성, 초재생은 '지원' 분류 특성입니다.",
+      "context_dependent_explanation": "'이거 둘 다'는 history에서 언급된 취약과 초재생을 가리킴. 두 특성 동시 지시 → 지시어 해소 능력 평가.",
+      "source_excerpt": "특성 파괴 취약 ... 지원 초재생",
+      "source_url": "https://playeternalreturn.com/posts/news/3530?lang=ko"
+    },
+    {
+      "id": "mt-08",
+      "domain": "er",
+      "category": "전술 스킬",
+      "phenomenon": "temporal_followup",
+      "difficulty": "hard",
+      "history": [
+        {"role": "user", "content": "11.0에 새로 추가된 전술 스킬 뭐 있어?"},
+        {"role": "assistant", "content": "신규 전술 스킬로 '라이트 윙', '리펄서 미사일', '플라즈마 대시'가 추가되었습니다. 또 코발트 프로토콜 진영에는 '쇠약'도 신규로 추가되었습니다."},
+        {"role": "user", "content": "라이트 윙 효과 자세히 설명해줘"},
+        {"role": "assistant", "content": "라이트 윙은 사용 시 자신에게 걸린 이동 속도 감소 효과를 제거하며 7초 동안 이동 속도가 15/20(+레벨*1)%, 공격 속도가 20% 증가합니다. 적 실험체에게 기본 공격 적중 시 적의 이동 속도가 0.8초 동안 10% 감소합니다. 쿨다운은 50/40초입니다."}
+      ],
+      "final_user_turn": "이게 추가되면서 빠진 전술 스킬은 뭐야?",
+      "expected_keywords": ["거짓 서약", "삭제"],
+      "reference_answer": "11.0 패치에서 전술 스킬 '거짓 서약'이 삭제되었습니다. 이로 인해 거짓 서약 의존도가 높았던 블레어와 히스이의 내구도가 보완 상향되었습니다.",
+      "context_dependent_explanation": "'이게 추가되면서'는 history의 신규 전술 스킬(라이트 윙 등) 추가 시점을 가리킴. 시간/순서 의존 후속질문 — 같은 패치 안에서의 삭제 항목을 묻는 것.",
+      "source_excerpt": "전술 스킬 거짓 서약 (삭제) ​ 라이트 윙 (신규)",
+      "source_url": "https://playeternalreturn.com/posts/news/3530?lang=ko"
+    },
+    {
+      "id": "mt-09",
+      "domain": "er",
+      "category": "전술 스킬",
+      "phenomenon": "clarification",
+      "difficulty": "medium",
+      "history": [
+        {"role": "user", "content": "11.0 패치에서 '무효화' 전술 스킬 뭐가 바뀌었어?"},
+        {"role": "assistant", "content": "무효화는 시전 시 해로운 상태 이상 해제 및 이동 속도 증가 효과가 주변 아군에게도 적용되도록 신규 추가되었습니다(범위 6m). 또 이동 속도 증가 지속 시간이 2초 → 1초로, 이동 속도 증가량이 60% → 20/30%로 너프됐고, 쿨다운은 30/20초 → 40/30초로 늘었습니다."},
+        {"role": "user", "content": "모듈 강화 효과는?"},
+        {"role": "assistant", "content": "기존 '1.5초 동안 모든 방해 효과 면역 상태'는 삭제되고, '시전 시 자신과 주변 아군의 방해 효과 저항이 3초 동안 60% 증가'로 신규 변경되었습니다."}
+      ],
+      "final_user_turn": "그 '방해 효과 저항'이 정확히 뭐 막는 거야?",
+      "expected_keywords": ["방해 효과", "상태 이상", "이동 방해", "스턴", "기절"],
+      "reference_answer": "방해 효과 저항은 스턴, 속박, 침묵, 넉백 같은 상대의 행동 방해 계열 상태 이상에 걸릴 확률·지속시간을 줄여주는 능력치입니다. 100% 저항이면 대부분의 행동 방해 효과를 무시합니다. (11.0 패치에서는 무효화 모듈 강화 효과로 자신과 아군에게 3초간 60% 증가시킵니다.)",
+      "context_dependent_explanation": "'그 방해 효과 저항'은 직전 assistant turn에서 언급된 용어를 명확화 요청한 것. history 없으면 어떤 게임/시스템의 용어인지 모호.",
+      "source_excerpt": "시전 시 자신과 주변 아군의 방해 효과 저항이 3초 동안 60% 증가 (신규)",
+      "source_url": "https://playeternalreturn.com/posts/news/3530?lang=ko"
+    },
+    {
+      "id": "mt-10",
+      "domain": "er",
+      "category": "시즌",
+      "phenomenon": "topic_continuation",
+      "difficulty": "medium",
+      "history": [
+        {"role": "user", "content": "11.0이 시즌 11 시작이야?"},
+        {"role": "assistant", "content": "정확히는 11.0부터 1주간 시즌 11 프리 시즌 기간에 돌입합니다. 정규 시즌 11은 2026년 5월 7일(목) 11.1 점검 완료 시점부터 시작될 예정이고, 시즌 10은 2026.04.30 09:00에 종료됩니다."},
+        {"role": "user", "content": "그럼 시즌 10 랭크 보상은 언제 받아?"},
+        {"role": "assistant", "content": "시즌 10 최종 랭크 포인트 기준으로 지급되는 시즌 10 랭크 보상(사관후보생 시셀라 스킨 포함)은 시즌 11 시작과 함께 지급됩니다. 이터니티/데미갓 티어는 귀속 서버 기준으로 티어를 산정해서 지급됩니다."},
+        {"role": "user", "content": "프리시즌 동안 랭크 점수는 어떻게 처리돼?"},
+        {"role": "assistant", "content": "시즌 11 시작 시 해당 프리 시즌 기간 동안의 랭크 기록은 최종 점수를 기준으로 소프트 리셋됩니다."}
+      ],
+      "final_user_turn": "이번에 새로 나오는 시즌팩 이름이 뭐야?",
+      "expected_keywords": ["쁘띠 미뇽", "Petit Mignon"],
+      "reference_answer": "시즌 11 사전 판매 시즌팩의 이름은 '쁘띠 미뇽(Petit Mignon)'입니다. 기존 [시즌팩 - 로얄(Royal)] 판매가 종료되고 출시되며, 16,950 NP에서 6,900 NP(약 59% 할인)로 사전 판매됩니다.",
+      "context_dependent_explanation": "'이번에'는 history에서 화제가 되고 있는 11.0/시즌 11 시점을 가리킴. 화제 유지 의존 — 어떤 시즌의 시즌팩인지 history로만 결정됨.",
+      "source_excerpt": "[시즌팩 - 로얄(Royal)] 판매가 종료되고 정규 시즌 11에 출시하는 컨텐츠를 할인된 가격으로 사전에 구독하는 [시즌팩 - 쁘띠 미뇽(Petit Mignon)]이 판매됩니다.",
+      "source_url": "https://playeternalreturn.com/posts/news/3530?lang=ko"
+    }
+  ]
+}

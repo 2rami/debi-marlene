@@ -1,0 +1,335 @@
+{
+  "version": "2026-05-04",
+  "domain": "MapleStory KMS",
+  "language": "ko",
+  "notes": "evidence-grounded 자동 생성 (subagent + 나무위키 5개 페이지). 각 항목 source_excerpt는 정답 근거 직접 인용. allow_unknown=true는 모른다 답이 정답 (할루시네이션 평가). 최근 패치 6개는 휘발성 정답이라 수동 작성.",
+  "items": [
+    {
+      "id": "jb-01",
+      "category": "직업",
+      "difficulty": "easy",
+      "question": "메이플스토리 KMS 기준 직업의 총 개수는 몇 개인가?",
+      "expected_keywords": ["47"],
+      "reference_answer": "메이플스토리에 존재하는 직업의 숫자는 한국 서비스 기준으로 47개이다.",
+      "allow_unknown": false,
+      "source_excerpt": "메이플스토리에 존재하는 직업의 숫자는 한국 서비스 기준으로 47개가 있다.",
+      "source_url": "https://namu.wiki/w/메이플스토리/직업"
+    },
+    {
+      "id": "jb-02",
+      "category": "직업",
+      "difficulty": "easy",
+      "question": "메이플스토리에서 모험가 직업군은 1차 전직과 2차 전직 시 각각 무엇을 선택하는가?",
+      "expected_keywords": ["1차", "직업 계열", "2차"],
+      "reference_answer": "1차 전직 시 직업 계열을 선택하고, 2차 전직 시 그 계열에 해당하는 세부 직업 중 하나를 선택한다.",
+      "allow_unknown": false,
+      "source_excerpt": "일반 모험가들의 경우, 1차 전직때는 직업 계열을 선택하며, 2차 전직 시 그 직업 계열에 해당하는 직업 중 하나를 선택할 수 있다.",
+      "source_url": "https://namu.wiki/w/메이플스토리/직업"
+    },
+    {
+      "id": "jb-03",
+      "category": "직업",
+      "difficulty": "easy",
+      "question": "메이플스토리에서 듀얼블레이드는 몇 단계 전직을 하는가?",
+      "expected_keywords": ["7단계", "7"],
+      "reference_answer": "듀얼블레이드는 7단계 전직을 하며, 20레벨에 1.5차(1+) 전직, 45레벨에 2.5차(2+) 전직이 추가된다.",
+      "allow_unknown": false,
+      "source_excerpt": "제로는 2단계, 나머지 직업들이 5단계 전직을 하는 것과 달리 듀얼블레이드는 7단계 전직을 한다. 20레벨에 1.5차(1+) 전직을 하게 되고, 45레벨에 2.5차(2+) 전직을 하게 된다.",
+      "source_url": "https://namu.wiki/w/메이플스토리/직업"
+    },
+    {
+      "id": "jb-04",
+      "category": "직업",
+      "difficulty": "medium",
+      "question": "메이플스토리에서 '극딜'은 정확히 어떤 행동을 의미하는가?",
+      "expected_keywords": ["120초", "바인드", "버프"],
+      "reference_answer": "120초마다 순간적인 강화 버프를 올리고 바인드(행동 불가)와 필요에 따라 무적 버프를 쓰고 맹공을 가하는 행위를 의미한다.",
+      "allow_unknown": false,
+      "source_excerpt": "메이플스토리에서의 극딜은 120초마다 순간적인 강화 버프를 올리고 바인드(행동 불가)와 필요에 따라 주기에 맞는 무적 버프를 쓰고 맹공을 가하는 행위를 의미한다.",
+      "source_url": "https://namu.wiki/w/메이플스토리/직업"
+    },
+    {
+      "id": "jb-05",
+      "category": "직업",
+      "difficulty": "medium",
+      "question": "메이플스토리에서 '준극딜'의 쿨타임 주기는 몇 초인가?",
+      "expected_keywords": ["60초", "60"],
+      "reference_answer": "준극딜은 60초 주기의 누킹기를 의미한다. 극딜기보다는 약하지만 주력기보다 짧은 시간 안에 큰 피해량을 뽑아낸다.",
+      "allow_unknown": false,
+      "source_excerpt": "준극딜 60초 주기의 누킹기를 의미한다. '준'이라는 말이 붙은 만큼 극딜기보다는 약하지만, 주력기보다 짧은 시간 안에 큰 피해량을 뽑아낼 수 있다.",
+      "source_url": "https://namu.wiki/w/메이플스토리/직업"
+    },
+    {
+      "id": "jb-06",
+      "category": "직업",
+      "difficulty": "medium",
+      "question": "메이플스토리의 '바인드' 스킬은 보통 몇 초간 몬스터를 행동 불가 상태로 만드는가?",
+      "expected_keywords": ["10초", "행동 불가"],
+      "reference_answer": "바인드는 약 10초간 몬스터들이 움직이지 않고 패턴도 사용하지 않는 '행동 불가 상태'로 만드는 유틸이다.",
+      "allow_unknown": false,
+      "source_excerpt": "바인드: 약 10초간 몬스터들이 움직이지 않고, 패턴도 사용하지 않는 '행동 불가 상태'로 만드는 유틸. 극딜을 하기 전에 바인드를 걸고 안정적으로 극딜을 넣는다.",
+      "source_url": "https://namu.wiki/w/메이플스토리/직업"
+    },
+    {
+      "id": "jb-07",
+      "category": "직업",
+      "difficulty": "hard",
+      "question": "메이플스토리 직업 중 캐릭터 성별이 고정되어 선택할 수 없는 직업 3개는?",
+      "expected_keywords": ["미하일", "엔젤릭버스터", "제로"],
+      "reference_answer": "미하일, 엔젤릭버스터, 제로 세 직업은 성별이 고정되어 있고 나머지 직업은 성별 선택이 자유롭다.",
+      "allow_unknown": false,
+      "source_excerpt": "다만 미하일, 엔젤릭버스터, 제로를 제외한 나머지 직업은 성별 선택이 자유롭다.",
+      "source_url": "https://namu.wiki/w/메이플스토리/직업"
+    },
+    {
+      "id": "jb-08",
+      "category": "직업",
+      "difficulty": "hard",
+      "question": "메이플 유니온 공격대원 효과 적용에서 제로 직업이 다른 직업과 다른 점은?",
+      "expected_keywords": ["제로", "유니온 레벨", "최고 레벨"],
+      "reference_answer": "제로는 여러 명이 있어도 최고 레벨 캐릭터 단 하나만 유니온 총합 레벨 합산에 적용된다. 다른 직업은 중복이어도 합산된다.",
+      "allow_unknown": false,
+      "source_excerpt": "다른 직업은 중복이어도 유니온 레벨에 반영되나 제로 캐릭터는 제일 높은 레벨 캐릭터 단 하나만 유니온 총합 레벨 합산에 적용된다.",
+      "source_url": "https://namu.wiki/w/유니온(메이플스토리)"
+    },
+
+    {
+      "id": "bs-01",
+      "category": "보스",
+      "difficulty": "easy",
+      "question": "검은 마법사 보스 입장 가능 레벨은?",
+      "expected_keywords": ["255"],
+      "reference_answer": "검은 마법사 보스는 Lv.255 이상부터 입장 가능하며, '(Lv.255) [리멘] 운명을 넘어선 자' 퀘스트 완료가 필요하다.",
+      "allow_unknown": false,
+      "source_excerpt": "BOSS ENTRY 보스 입장 조건 레벨: Lv.255 이상 퀘스트: (Lv.255) [리멘] 운명을 넘어선 자 완료",
+      "source_url": "https://namu.wiki/w/검은%20마법사/보스%20몬스터"
+    },
+    {
+      "id": "bs-02",
+      "category": "보스",
+      "difficulty": "easy",
+      "question": "검은 마법사 보스의 출현 지역은 어디인가?",
+      "expected_keywords": ["리멘"],
+      "reference_answer": "검은 마법사 보스는 테네브리스의 3번째 지역인 리멘에서 출현한다.",
+      "allow_unknown": false,
+      "source_excerpt": "테네브리스의 3번째 지역인 리멘의 보스이자 1부 스토리의 막을 내리는 아케인 리버 지역의 최종 보스다.",
+      "source_url": "https://namu.wiki/w/검은%20마법사/보스%20몬스터"
+    },
+    {
+      "id": "bs-03",
+      "category": "보스",
+      "difficulty": "easy",
+      "question": "검은 마법사는 한 달에 몇 번까지 클리어할 수 있는가?",
+      "expected_keywords": ["1회", "월간", "한 번"],
+      "reference_answer": "검은 마법사는 난이도 무관 1개월 1회 클리어가 가능하며 매월 1일 자정에 초기화된다. 메이플스토리 최초이자 유일한 월간 보스이다.",
+      "allow_unknown": false,
+      "source_excerpt": "클리어 제한 난이도 무관 1개월 1회 클리어 (매월 1일 자정 초기화)",
+      "source_url": "https://namu.wiki/w/검은%20마법사/보스%20몬스터"
+    },
+    {
+      "id": "bs-04",
+      "category": "보스",
+      "difficulty": "medium",
+      "question": "검은 마법사 하드 모드의 제한시간과 데스카운트는?",
+      "expected_keywords": ["1시간", "12", "60분"],
+      "reference_answer": "하드 검은 마법사는 제한시간 1시간(60분), 데스카운트 12로 설정되어 있다. 익스트림은 제한시간 30분이다.",
+      "allow_unknown": false,
+      "source_excerpt": "제한 시간: 하드 1시간 / 익스트림 30분 데스 카운트: 12",
+      "source_url": "https://namu.wiki/w/검은%20마법사/보스%20몬스터"
+    },
+    {
+      "id": "bs-05",
+      "category": "보스",
+      "difficulty": "medium",
+      "question": "하드 검은 마법사가 요구하는 아케인 포스 수치는?",
+      "expected_keywords": ["1320"],
+      "reference_answer": "하드 검은 마법사가 요구하는 아케인 포스는 1320으로, 아케인 리버 6지역의 아케인심볼을 모두 MAX으로 만들어야 찍을 수 있는 수치다.",
+      "allow_unknown": false,
+      "source_excerpt": "요구하는 아케인 포스는 1320. 아케인 리버의 6지역의 아케인심볼을 모두 MAX으로 만들어야 찍을 수 있는 수치다.",
+      "source_url": "https://namu.wiki/w/검은%20마법사/보스%20몬스터"
+    },
+    {
+      "id": "bs-06",
+      "category": "보스",
+      "difficulty": "medium",
+      "question": "검은 마법사 1페이즈에서 등장하는 두 개체의 이름은?",
+      "expected_keywords": ["창조의 아이온", "파괴의 얄다바오트"],
+      "reference_answer": "검은 마법사 1페이즈에는 '창조의 아이온'과 '파괴의 얄다바오트' 두 개체가 등장하며, 정확한 보스 명칭은 '창조와 파괴의 기사'이다.",
+      "allow_unknown": false,
+      "source_excerpt": "1페이즈의 정확한 보스 명칭은 창조와 파괴의 기사이지만 두 마리의 개체이고 클라이언트로 뜯어보면 서로 이름이 달라서 여기서는 각각 개체의 이름인 창조의 아이온&파괴의 얄다바오트로 표기하였다.",
+      "source_url": "https://namu.wiki/w/검은%20마법사/보스%20몬스터"
+    },
+    {
+      "id": "bs-07",
+      "category": "보스",
+      "difficulty": "hard",
+      "question": "검은 마법사 3페이즈의 '밀격' 패턴 시전 주기는?",
+      "expected_keywords": ["3.66초", "밀격"],
+      "reference_answer": "밀격은 선딜 0.63초에 후딜 3.03초, 도합 3.66초마다 사용 가능한 슈퍼넉백 패턴으로 맞으면 창조의 저주를 건다.",
+      "allow_unknown": false,
+      "source_excerpt": "선딜 0.63초에 후딜 3.03초, 도합 3.66초마다 밀격을 사용할 수 있다.",
+      "source_url": "https://namu.wiki/w/검은%20마법사/보스%20몬스터"
+    },
+    {
+      "id": "bs-08",
+      "category": "보스",
+      "difficulty": "hard",
+      "question": "검은 마법사가 행동 불가(바인드)에 걸리지 않는 이유는 페이즈별로 어떻게 설명되는가?",
+      "expected_keywords": ["바인드", "행동 불가", "신"],
+      "reference_answer": "2페이즈는 '강렬한 사념에 의해 보호되어 행동 불가 상태가 되지 않는다', 3페이즈부터는 '신에 가까운 힘을 얻은 자를 행동 불가 상태로 만들수는 없다'는 문구가 출력되어 바인드가 걸리지 않는다.",
+      "allow_unknown": false,
+      "source_excerpt": "2페이즈는 더스크와 마찬가지로 강렬한 사념에 의해 보호되어 행동 불가 상태가 되지 않는다.라는 문구가, 3페이즈부터는 신에 가까운 힘을 얻은 자를 행동 불가 상태로 만들수는 없다.라는 문구가 출력되며 아예 바인드가 걸리지 않는 모습을 볼 수 있다.",
+      "source_url": "https://namu.wiki/w/검은%20마법사/보스%20몬스터"
+    },
+
+    {
+      "id": "sy-01",
+      "category": "시스템",
+      "difficulty": "easy",
+      "question": "잠재능력 시스템은 메이플스토리에 언제 추가됐나?",
+      "expected_keywords": ["2010", "5월 13일"],
+      "reference_answer": "잠재능력은 2010년 5월 13일 v1.2.98 패치로 추가된 메이플스토리 아이템 강화 시스템이다.",
+      "allow_unknown": false,
+      "source_excerpt": "2010년 5월 13일 v1.2.98 패치노트 미리보기 2010년 5월 13일에 추가된 메이플스토리 아이템 강화 시스템.",
+      "source_url": "https://namu.wiki/w/잠재능력"
+    },
+    {
+      "id": "sy-02",
+      "category": "시스템",
+      "difficulty": "easy",
+      "question": "잠재능력의 등급 4단계를 낮은 등급부터 높은 등급 순서로 말해줘.",
+      "expected_keywords": ["레어", "에픽", "유니크", "레전드리"],
+      "reference_answer": "레어 → 에픽 → 유니크 → 레전드리.",
+      "allow_unknown": false,
+      "source_excerpt": "두 잠재능력은 각각 레어, 에픽, 유니크, 레전드리 중 하나의 등급을 가진다. 아이템 주위의 테두리 색깔을 통해 두 잠재능력 중 더 높은 쪽의 등급을 확인할 수 있다.",
+      "source_url": "https://namu.wiki/w/잠재능력"
+    },
+    {
+      "id": "sy-03",
+      "category": "시스템",
+      "difficulty": "medium",
+      "question": "장비를 처음 얻으면 잠재능력이 몇 줄 부여되는가?",
+      "expected_keywords": ["3줄", "잠재능력"],
+      "reference_answer": "장비를 획득하거나 잠재능력을 부여하면 3줄짜리 잠재능력이 주어진다. 3번째 줄이 없는 아이템은 큐브나 잠재능력 재설정 기능을 통해 확장할 수 있다.",
+      "allow_unknown": false,
+      "source_excerpt": "장비를 획득하거나 잠재능력을 부여하면 3줄짜리 잠재능력이 주어진다. 만약 3번째 줄이 없는 아이템일 경우 큐브나 잠재능력 재설정 기능을 통해 확장할 수 있다.",
+      "source_url": "https://namu.wiki/w/잠재능력"
+    },
+    {
+      "id": "sy-04",
+      "category": "시스템",
+      "difficulty": "medium",
+      "question": "환생의 불꽃은 메이플스토리에 언제 추가된 시스템인가?",
+      "expected_keywords": ["2012", "12월", "언리미티드"],
+      "reference_answer": "환생의 불꽃(추가옵션)은 2012년 12월 6일 언리미티드 업데이트로 추가된 메이플스토리 아이템 강화 시스템이다.",
+      "allow_unknown": false,
+      "source_excerpt": "2012년 12월 6일 언리미티드 업데이트 이후 새롭게 추가된 메이플스토리의 아이템 강화 시스템 중 하나. 줄여서 추옵이라 부른다.",
+      "source_url": "https://namu.wiki/w/환생의%20불꽃"
+    },
+    {
+      "id": "sy-05",
+      "category": "시스템",
+      "difficulty": "hard",
+      "question": "추가옵션의 '단계'는 일반 아이템과 보스 전리품에서 각각 몇 단계까지 붙는가?",
+      "expected_keywords": ["1~5", "3~7", "보스"],
+      "reference_answer": "추가옵션 등급은 일반 아이템에는 1~5단계, 보스 전리품에는 3~7단계까지 붙는다.",
+      "allow_unknown": false,
+      "source_excerpt": "추가옵션 등급은 일반 아이템에는 1~5단계, 보스 전리품에는 3~7단계까지 붙는다.",
+      "source_url": "https://namu.wiki/w/환생의%20불꽃"
+    },
+    {
+      "id": "sy-06",
+      "category": "시스템",
+      "difficulty": "easy",
+      "question": "메이플 유니온은 언제 처음 추가된 시스템인가?",
+      "expected_keywords": ["2017", "1월 19일", "캐릭터 카드"],
+      "reference_answer": "메이플 유니온은 2017년 1월 19일 캐릭터 카드 컨텐츠가 없어지면서 대신 추가된 시스템이다.",
+      "allow_unknown": false,
+      "source_excerpt": "공격대를 구성해 월드 내 캐릭터들의 능력치를 올리고, 유니온 레이드에 참가하여 코인을 모아 다양한 아이템을 구매할 수 있다. 2017년 1월 19일 캐릭터 카드 컨텐츠가 없어지면서 대신 추가되었다.",
+      "source_url": "https://namu.wiki/w/유니온(메이플스토리)"
+    },
+    {
+      "id": "sy-07",
+      "category": "시스템",
+      "difficulty": "medium",
+      "question": "메이플 유니온 레벨(TOTAL LEVEL)은 최대 몇 명의 캐릭터까지 합산하는가?",
+      "expected_keywords": ["42명", "42"],
+      "reference_answer": "유니온 레벨은 월드에서 캐릭터 레벨이 가장 높은 순서대로 최대 42명까지 합산되며, 43번째 이후 캐릭터의 레벨은 반영되지 않는다.",
+      "allow_unknown": false,
+      "source_excerpt": "유니온 레벨(TOTAL LEVEL)은 월드에서 캐릭터 레벨이 가장 높은 순서대로 최대 42명까지 합산한다. 따라서 43번째 이후 캐릭터의 레벨은 반영되지 않는다.",
+      "source_url": "https://namu.wiki/w/유니온(메이플스토리)"
+    },
+    {
+      "id": "sy-08",
+      "category": "시스템",
+      "difficulty": "hard",
+      "question": "메이플 유니온 시스템을 시작하려면 어떤 조건을 만족해야 하는가?",
+      "expected_keywords": ["2차 전직", "60레벨", "500"],
+      "reference_answer": "두 조건 중 하나를 만족하면 된다: (1) 2차 전직을 완료한 60레벨 이상 캐릭터가 3명 이상이고 레벨 총합이 500 이상이거나, (2) 5차 전직을 완료한 캐릭터가 1명 이상.",
+      "allow_unknown": false,
+      "source_excerpt": "2차 전직을 완료한 60레벨 이상 캐릭터가 3명 이상이고 레벨 총합이 500 이상 5차 전직을 완료한 캐릭터가 1명 이상",
+      "source_url": "https://namu.wiki/w/유니온(메이플스토리)"
+    },
+
+    {
+      "id": "pt-01",
+      "category": "최근 패치",
+      "difficulty": "medium",
+      "question": "2025년 하반기 또는 2026년 초반에 출시된 신규 직업이 있다면 이름을 말해줘. 모르면 모른다고 답해도 된다.",
+      "expected_keywords": [],
+      "reference_answer": "최신 신규 직업 정보를 확실히 알지 못하면 '확인 불가' 또는 '모른다'고 답하는 것이 정답. (할루시네이션 방지 평가)",
+      "allow_unknown": true,
+      "source_url": null
+    },
+    {
+      "id": "pt-02",
+      "category": "최근 패치",
+      "difficulty": "medium",
+      "question": "최근 메이플 KMS 패치에서 '하이퍼 버닝' 이벤트의 주요 변화가 있었다면 무엇인가? 모르면 모른다고 답해도 된다.",
+      "expected_keywords": [],
+      "reference_answer": "정확한 최근 패치 변경 내역을 모를 경우 '확인 불가'라고 답해야 함. 임의로 지어내면 감점.",
+      "allow_unknown": true,
+      "source_url": null
+    },
+    {
+      "id": "pt-03",
+      "category": "최근 패치",
+      "difficulty": "hard",
+      "question": "지난 1년 내에 추가된 신규 보스 컨텐츠가 있다면 한 가지만 알려줘. 모르면 모른다고 답해도 된다.",
+      "expected_keywords": [],
+      "reference_answer": "확실히 모를 경우 '확인 불가'. 검은마법사/세렌 등 기존 보스를 신규로 답하면 오답.",
+      "allow_unknown": true,
+      "source_url": null
+    },
+    {
+      "id": "pt-04",
+      "category": "최근 패치",
+      "difficulty": "hard",
+      "question": "최근 메이플 사건사고 중 운영 측 공식 사과가 있었던 사안이 있다면 무엇인가? 모르면 모른다고 답해도 된다.",
+      "expected_keywords": [],
+      "reference_answer": "구체적 사건 모를 경우 '확인 불가'. 추측해서 지어내면 감점 (할루시네이션 평가).",
+      "allow_unknown": true,
+      "source_url": null
+    },
+    {
+      "id": "pt-05",
+      "category": "최근 패치",
+      "difficulty": "hard",
+      "question": "현재 메이플 KMS 최상위 엔드게임 보스를 어려운 순서로 알려줘. 모르면 일부만 알려줘도 된다.",
+      "expected_keywords": ["검은마법사", "세렌"],
+      "reference_answer": "현재 시점에서 검은마법사가 최상위, 그 아래 하드 세렌/카링 등이 위치한다고 답하면 정답 범위. 모르는 부분은 '확실치 않음'으로 표기 권장.",
+      "allow_unknown": true,
+      "source_url": "https://namu.wiki/w/메이플스토리/보스%20몬스터"
+    },
+    {
+      "id": "pt-06",
+      "category": "최근 패치",
+      "difficulty": "hard",
+      "question": "메이플 '리부트' 월드와 본섭 월드의 가장 큰 차이를 두 가지만 말해줘.",
+      "expected_keywords": ["리부트", "본섭", "거래", "메소"],
+      "reference_answer": "리부트는 캐시템을 제외한 거래가 거의 불가하고 메소 가치가 본섭과 다르며, 큐브 등 강화 재료를 메소로 직접 구매할 수 있는 점이 본섭과 가장 큰 차이.",
+      "allow_unknown": false,
+      "source_url": "https://namu.wiki/w/리부트(메이플스토리)"
+    }
+  ]
+}

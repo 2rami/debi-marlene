@@ -28,8 +28,8 @@ export const HERO = {
 export const STATS = [
   { label: '운영 중인 Discord 서버', value: '158', unit: '개', sub: 'debi-marlene · 9개월 라이브' },
   { label: '메이플 라이브 플레이', value: '16', unit: '년+', sub: '하드 세렌 파티 격파' },
-  { label: 'Prompt Cache 적중률', value: '99', unit: '%+', sub: 'system block ephemeral cache' },
-  { label: 'LangGraph 정규식 분류', value: '0.1', unit: 'ms', sub: 'classify_intent (LLM 호출 없음)' },
+  { label: 'LLM 평가 자동 채점', value: '520', unit: '응답', sub: '4 small × closed/open + multi-turn (PDF 8p)' },
+  { label: 'LangGraph 정규식 분류', value: '0.1', unit: 'ms', sub: 'classify_intent · LLM 호출 없이 도메인 키워드 자동 분기' },
 ] as const
 
 export const ABOUT = `데비&마를렌은 이터널 리턴 쌍둥이 실험체를 모티브로 한 한국어 캐릭터 챗봇입니다. 1인이 기획·개발·배포·운영을 모두 맡아 9개월간 158개 Discord 서버에 운영 중이며, 단순 명령어 봇이 아니라 LangGraph StateGraph 2-tier 에이전트, Anthropic Managed Agents(claude-haiku-4-5) 호스팅, Custom tool 자율 판단·네이티브 UI post, 패치노트 RAG, 음성 채널 실시간 응답 파이프라인(DAVE → VAD → Qwen3.5-Omni → CosyVoice3) 까지 한 봇 안에 통합한 라이브 LLM 시스템입니다. 매일 운영 중 발생하는 응답 데이터를 정량/정성으로 검증하고, 모델·프롬프트·few-shot·세션 회전 정책 변경에 따른 톤 일관성·환각률·비용 변화를 추적해 왔습니다. 이 라이브 검증 경험을 게임 도메인의 LLM 평가 직무로 그대로 이어 가고 싶습니다.`
@@ -51,7 +51,7 @@ export const JD_MATCHES = [
     jdTitle: '평가 지표 및 기준 개발',
     jdSub: '평가 기준·스코어링·체크리스트·정량 지표 설계',
     evidence: [
-      'system prompt를 `cache_control: ephemeral`로 분리해 prompt cache 적중률 99%+ 안정화 — 비용·지연 정량 개선',
+      'Anthropic Managed Agents로 백엔드 이관 — 본 보고서에서 Haiku 4.5의 closed-book 정직성(hall 0%) + RAG 결합 시 안전선(corr 4.87/5) 정량 검증 후 채용',
       '봇 LLM 백엔드를 Modal Gemma4 LoRA → Anthropic Managed Agents(claude-haiku-4-5)로 이관, `CHAT_BACKEND` 환경변수로 두 백엔드 폴백 가능 — 동일 입력에 대한 백엔드 비교 측정 가능',
       '솔로봇(debi / marlene) identity별 agent 분리: 페르소나만 생성 → 체감 속도 2배·토큰 절약 정량 측정',
       'Daily AI Feed 큐레이터 모델 `claude-sonnet-4-6` 채택 → Opus 대비 비용·품질 트레이드오프 정량 비교',
@@ -78,9 +78,25 @@ export const JD_MATCHES = [
     jdTitle: '결과 분석 및 보고서 정리',
     jdSub: '평가 결과 분석·보고서·인사이트 전달',
     evidence: [
+      {
+        text: '본 지원에 맞춰 직접 작성한 LLM 평가 보고서(PDF 8p) — 4 small 모델(Gemma4+LoRA / EXAONE 3.5 / Haiku 4.5 / GPT-5.4-mini) × 2 도메인(메이플 / ER 11.0) × closed/open + multi-turn 10세트 = 520 응답을 LLM-as-judge(GPT-4o-mini)로 자동 채점',
+        highlight: 'LLM 평가 보고서(PDF 8p)',
+        report: {
+          title: 'LLM 평가 보고서 v2 — Self-host vs Commercial Small',
+          subtitle: '메이플 + ER 도메인 · closed/open + multi-turn · 520 응답 · 8p',
+          insights: [
+            'RAG 효과 +3점 일관 (closed→open, 4 모델 공통)',
+            'Haiku 4.5 closed-book 할루시네이션 0% — 가장 정직',
+            '부분 학습 도메인이 가장 위험 (같은 모델 hall 0% ↔ 70%)',
+            'Self-host LoRA = commercial small 동등 (single-turn)',
+            'Multi-turn에선 LoRA 약점 — 거노 봇은 single-turn으로 한정',
+          ],
+          pdfHref: '/llm_eval_report.pdf',
+        },
+      },
+      '결과 → 본인 운영 결정 close loop: closed-book 정직성 0% + RAG +3점 효과 → 데비&마를렌 봇에 Haiku 4.5 + search_patchnote custom tool RAG 채용. multi-turn LoRA 약점(1.30 vs 2.60) → 봇은 single-turn 키워드 트리거로 의도적 한정',
       '봇 운영 전반의 트러블슈팅·아키텍처 변경·실험 결과를 마크다운 메모리(원인 / 재현 / 교훈 일관 구조)에 누적 — 후속 의사결정 근거로 재사용',
-      'Firestore 운영 데이터(`feed_seen` 중복 제거 30일 TTL · `daily_feeds` 적재 · settings 3컬렉션 148+23+1 docs) 분석으로 사용 빈도·이상 호출 패턴·이탈 지점 보고서화',
-      '시각디자인과 4년의 사용자 경험 사고 훈련 — 데이터 → 인사이트 → 의사결정 파이프라인의 시각 자료를 직접 제작',
+      '시각디자인과 4년의 사용자 경험 사고 훈련 — 데이터 → 인사이트 → 의사결정 파이프라인의 시각 자료를 직접 제작 (이번 PDF 보고서 표지/차트/결론 페이지 포함)',
       '커뮤니케이션 국제 디자인 공모전 입상 — 다른 직군과 의견이 충돌할 때 일정·인력·시나리오 표로 같은 기준을 만들어 합의를 이끄는 협업 패턴',
     ],
   },
@@ -169,8 +185,8 @@ export const ARCHITECTURE = {
     {
       n: 4,
       label: 'call_llm · Managed Agents',
-      desc: 'claude-haiku-4-5 호스팅 에이전트 호출. system prompt + few-shot 5쌍 + 4가지 방어 규칙. cache_control: ephemeral',
-      cost: 'prompt cache 적중률 99%+',
+      desc: 'claude-haiku-4-5 호스팅 에이전트 호출. system prompt + few-shot 5쌍 + 4가지 방어 규칙',
+      cost: 'Anthropic 세션 자동 관리 · 모델 교체 1줄로 가능',
     },
     {
       n: 5,
@@ -216,7 +232,7 @@ export const CASES = [
     approach:
       '`CHAT_BACKEND` 환경변수로 modal/managed 2종 백엔드 분기. Managed Agents(claude-haiku-4-5) 채택. Custom tool 2종(search_patchnote·search_player_stats) + 4가지 방어 규칙 system prompt + (guild_id, user_id) 단위 SQLite 세션 영속화.',
     result:
-      'system block에 cache_control: ephemeral 적용 → prompt cache 적중률 99%+ 안정. 응답 지연·비용 정량 개선. 폴백 가능한 2-tier 아키텍처로 다음 모델 교체 시 동일 측정 프레임워크 재사용 가능.',
+      '본 LLM 평가 보고서에서 Haiku 4.5의 closed-book 정직성(hall 0%) + RAG 결합 안전선(corr 4.87/5) 정량 검증 후 채택. 폴백 가능한 2-tier 아키텍처로 다음 모델 교체 시 동일 측정 프레임워크 재사용 가능.',
     bridge:
       '정량 지표 정의 → 측정 → 모델 교체 → 재측정의 평가 파이프라인 그 자체. 평가 지표 개발 직무와 1:1 대응.',
   },

@@ -1,12 +1,24 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { C, FONT_MONO } from './colors'
+import TooltipCard from './TooltipCard'
+
+export interface ReportTooltip {
+  title: string
+  subtitle: string
+  insights: readonly string[]
+  pdfHref: string
+}
+
+export type EvidenceItem =
+  | string
+  | { text: string; highlight: string; report: ReportTooltip }
 
 interface JdItem {
   n: number
   jdTitle: string
   jdSub: string
-  evidence: readonly string[]
+  evidence: readonly EvidenceItem[]
 }
 
 const HOOK_CHIPS: Record<number, string[]> = {
@@ -15,6 +27,76 @@ const HOOK_CHIPS: Record<number, string[]> = {
   3: ['158서버 × 9개월', 'Custom tool 3종', 'last_trace 기록'],
   4: ['Firestore 분석', '시각디자인 4년', '공모전 입상'],
 }
+
+function ReportCard({ report }: { report: ReportTooltip }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div
+        style={{
+          fontFamily: FONT_MONO,
+          fontSize: 10,
+          letterSpacing: '0.18em',
+          color: '#7dd3fc',
+          fontWeight: 700,
+        }}
+      >
+        REPORT · PDF
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', lineHeight: 1.35 }}>
+        {report.title}
+      </div>
+      <div style={{ fontSize: 11, color: '#a8a8b3', lineHeight: 1.5 }}>{report.subtitle}</div>
+      <ul
+        style={{
+          margin: '6px 0 4px',
+          padding: 0,
+          listStyle: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+        }}
+      >
+        {report.insights.map((v, i) => (
+          <li
+            key={i}
+            style={{
+              fontSize: 11.5,
+              color: '#e0e0e8',
+              paddingLeft: 12,
+              position: 'relative',
+              lineHeight: 1.5,
+            }}
+          >
+            <span style={{ position: 'absolute', left: 0, color: '#7dd3fc' }}>·</span>
+            {v}
+          </li>
+        ))}
+      </ul>
+      <a
+        href={report.pdfHref}
+        target="_blank"
+        rel="noopener"
+        style={{
+          marginTop: 4,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          fontFamily: FONT_MONO,
+          fontSize: 11,
+          color: '#7dd3fc',
+          textDecoration: 'none',
+          fontWeight: 700,
+          pointerEvents: 'auto',
+          letterSpacing: '0.04em',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span>PDF 열기 →</span>
+      </a>
+    </div>
+  )
+}
+
 
 export default function JdMatchAccordion({ items }: { items: readonly JdItem[] }) {
   const [open, setOpen] = useState<number | null>(null)
@@ -201,37 +283,58 @@ export default function JdMatchAccordion({ items }: { items: readonly JdItem[] }
                       borderTop: `1px dashed rgba(0, 98, 223, 0.2)`,
                     }}
                   >
-                    {item.evidence.map((e, i) => (
-                      <motion.li
-                        key={i}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.05 + i * 0.04, duration: 0.3 }}
-                        style={{
-                          fontSize: 14.5,
-                          lineHeight: 1.65,
-                          color: C.inkSoft,
-                          paddingLeft: 26,
-                          position: 'relative',
-                          fontWeight: 700,
-                        }}
-                      >
-                        <svg
-                          style={{ position: 'absolute', left: 0, top: 4 }}
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke={C.nexonLightBlue}
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                    {item.evidence.map((e, i) => {
+                      const text = typeof e === 'string' ? e : e.text
+                      const isReport = typeof e !== 'string'
+                      // highlight 가 본문 안에 있으면 그 부분만 TooltipCard 트리거
+                      let body: React.ReactNode = text
+                      if (isReport && e.highlight && text.includes(e.highlight)) {
+                        const [before, after] = text.split(e.highlight)
+                        body = (
+                          <>
+                            {before}
+                            <TooltipCard
+                              card={<ReportCard report={e.report} />}
+                              width={400}
+                            >
+                              {e.highlight}
+                            </TooltipCard>
+                            {after}
+                          </>
+                        )
+                      }
+                      return (
+                        <motion.li
+                          key={i}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.05 + i * 0.04, duration: 0.3 }}
+                          style={{
+                            fontSize: 14.5,
+                            lineHeight: 1.65,
+                            color: C.inkSoft,
+                            paddingLeft: 26,
+                            position: 'relative',
+                            fontWeight: 700,
+                          }}
                         >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        {e}
-                      </motion.li>
-                    ))}
+                          <svg
+                            style={{ position: 'absolute', left: 0, top: 4 }}
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke={C.nexonLightBlue}
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          {body}
+                        </motion.li>
+                      )
+                    })}
                   </ul>
                 </motion.div>
               )}

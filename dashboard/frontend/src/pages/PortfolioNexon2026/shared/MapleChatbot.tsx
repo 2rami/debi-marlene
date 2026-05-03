@@ -72,16 +72,16 @@ function buildLookUrl(hash: string, state: MotionState) {
 
 function fakeReply(prompt: string): string {
   if (prompt.includes('어떤 사람'))
-    return '거노는 메이플 16년·하드 세렌 격파한 헤비 게이머이자, Discord LLM 봇 데비&마를렌을 9개월간 158서버에 1인 운영 중인 개발자야.'
+    return '저는 메이플스토리 16년 차 헤비 게이머이자, Discord LLM 봇 데비&마를렌을 9개월간 158개 서버에 1인 운영 중인 개발자 양건호입니다. ✨'
   if (prompt.includes('메이플'))
-    return '오로라 서버 프로즌샤 · 아크메이지(썬,콜) · Lv.284 · 하드 세렌 파티 격파까지 직접 해봤어.'
+    return '오로라 서버 프로즌샤 · 아크메이지(썬콜) · Lv.284 · 하드 세렌 파티 격파까지 직접 경험했습니다.'
   if (prompt.includes('봇'))
-    return 'LangGraph 2-tier + Anthropic Managed Agents + 패치노트 RAG + 음성 파이프라인 한 봇 안에서. 매일 라이브로 LLM 응답 정량/정성 검증 중.'
+    return 'LangGraph 2-tier + Anthropic Managed Agents + 패치노트 RAG + 음성 파이프라인을 한 봇에 통합해 운영하고 있습니다. 매일 라이브로 LLM 응답을 정량/정성 검증 중입니다.'
   if (prompt.includes('NEXON'))
-    return '게임 도메인 16년 사용자 시점 + 라이브 LLM 운영 검증 감각이 같이 들어가야 하는 자리, 그게 LLM 평가 어시스턴트라고 봐.'
+    return '게임 도메인 16년 사용자 시점과 라이브 LLM 운영 검증 감각이 같이 필요한 자리, 그게 바로 LLM 평가 어시스턴트라고 생각합니다.'
   if (prompt.includes('JD') || prompt.includes('매칭'))
-    return '4가지 업무(벤치마크 / 평가지표 / 응답품질 평가 / 결과 보고)에 1:1 매칭 — 페이지 04 섹션을 봐줘.'
-  return '아직 backend 안 떠있어서 임시 응답이야. 곧 진짜 답변으로 바뀔 거야.'
+    return '벤치마크 / 평가지표 / 응답품질 평가 / 결과 보고 4가지 업무에 1:1로 매칭됩니다. 페이지 04 섹션을 참고해 주세요.'
+  return '잠시 응답이 지연되고 있습니다. 곧 정상화될 예정이니 다시 한 번 질문해 주세요.'
 }
 
 export default function MapleChatbot({
@@ -400,9 +400,9 @@ export default function MapleChatbot({
         switch (res.status) {
           case 400:
             if (code === 'prompt_too_long') {
-              pushAgent(`질문이 너무 길어. ${PROMPT_MAX_LEN}자 이내로.`)
+              pushAgent(`질문이 다소 깁니다. ${PROMPT_MAX_LEN}자 이내로 다시 입력해 주세요.`)
             } else {
-              pushAgent('질문을 다시 입력해줘.')
+              pushAgent('질문을 다시 한 번 입력해 주세요.')
             }
             return
           case 429:
@@ -415,7 +415,7 @@ export default function MapleChatbot({
             pushAgent(fakeReply(prompt))
             return
           case 504:
-            pushAgent('답변이 늦어지고 있어. 잠시 후 다시 물어봐줘.')
+            pushAgent('답변이 다소 지연되고 있습니다. 잠시 후 다시 질문해 주세요.')
             return
           default:
             pushAgent('잠깐만요... 다시 시도해주세요.')

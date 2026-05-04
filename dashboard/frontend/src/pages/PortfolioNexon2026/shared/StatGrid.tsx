@@ -15,7 +15,7 @@ export default function StatGrid({ stats }: { stats: readonly Stat[] }) {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(auto-fit, minmax(220px, 1fr))`,
+        gridTemplateColumns: `repeat(auto-fit, minmax(160px, 1fr))`,
         gap: 24,
       }}
     >
@@ -25,7 +25,7 @@ export default function StatGrid({ stats }: { stats: readonly Stat[] }) {
           style={{
             background: C.bgWhite,
             borderRadius: 24,
-            padding: '32px 24px',
+            padding: '24px 20px',
             borderTop: `6px solid ${borderColors[i % borderColors.length]}`,
             boxShadow: C.cardShadow,
             display: 'flex',

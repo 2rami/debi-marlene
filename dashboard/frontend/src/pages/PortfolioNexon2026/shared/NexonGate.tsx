@@ -1,39 +1,50 @@
 import { useRef } from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion'
 import { C, FONT_BODY, FONT_DISPLAY, GATE_COLORS } from './colors'
 
 /**
- * CH 0 GATE.
+ * CH 0 GATE + Hero 크로스페이드 (디졸브)
  *
- * NEXON CI 로고를 4개 polygon 으로 분해해 scroll 진행에 따라 facet 별로
- * 흩어지며 페이지 본문으로 빨려 들어가는 진입 모션.
- * 라임/네이비/블루 facet 은 본 컴포넌트에서만 사용 (페이지 본문은 nexonBlue 1 색).
+ * 280vh 스크롤 영역:
+ *   0–0.25  : NEXON 로고 facet 모임
+ *   0.25–0.45: 로고 완성, 라벨 표시
+ *   0.40–0.55: 로고 축소 + 블러 디졸브
+ *   0.48–0.65: Hero 콘텐츠 크로스페이드인
+ *   0.65–1.0 : Hero 유지 → unstick
  */
-export default function NexonGate() {
+export default function NexonGate({
+  children,
+}: {
+  children?: (progress: MotionValue<number>) => React.ReactNode
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start start', 'end start'],
   })
 
-  // Phase A (0 → 0.35): 흩어진 facet 들이 중앙으로 모이며 등장
-  // Phase B (0.45 → 1.0): 합쳐진 로고가 작아지며 페이드 아웃
-  const facetOpacity = useTransform(scrollYProgress, [0, 0.1, 0.35], [0, 0.4, 1])
-  const scale = useTransform(scrollYProgress, [0, 0.35, 1], [1, 1, 0.28])
-  const logoOpacity = useTransform(scrollYProgress, [0.7, 1], [1, 0])
+  // ── facet 등장 (0 → 0.25) ──
+  const facetOpacity = useTransform(scrollYProgress, [0, 0.06, 0.22], [0, 0.4, 1])
+  const blueX = useTransform(scrollYProgress, [0, 0.22], [-360, 0])
+  const blueY = useTransform(scrollYProgress, [0, 0.22], [180, 0])
+  const navyX = useTransform(scrollYProgress, [0, 0.22], [-60, 0])
+  const navyY = useTransform(scrollYProgress, [0, 0.22], [-340, 0])
+  const limeX = useTransform(scrollYProgress, [0, 0.22], [400, 0])
+  const limeY = useTransform(scrollYProgress, [0, 0.22], [140, 0])
 
-  // facet 별 진입 — 멀리서 중앙으로
-  const blueX = useTransform(scrollYProgress, [0, 0.35], [-360, 0])
-  const blueY = useTransform(scrollYProgress, [0, 0.35], [180, 0])
-  const navyX = useTransform(scrollYProgress, [0, 0.35], [-60, 0])
-  const navyY = useTransform(scrollYProgress, [0, 0.35], [-340, 0])
-  const limeX = useTransform(scrollYProgress, [0, 0.35], [400, 0])
-  const limeY = useTransform(scrollYProgress, [0, 0.35], [140, 0])
+  // ── 로고 축소 + 디졸브 (0.25 → 0.55) ──
+  const scale = useTransform(scrollYProgress, [0, 0.25, 0.55], [1, 1, 0.12])
+  const logoOpacity = useTransform(scrollYProgress, [0.38, 0.52], [1, 0])
+  // 디졸브 블러 효과: 사라지면서 흐려짐
+  const logoBlur = useTransform(scrollYProgress, [0.38, 0.52], [0, 20])
 
-  // 코너 라벨 — 합쳐지기 시작하면 등장, 작아질 때 사라짐
-  const labelOpacity = useTransform(scrollYProgress, [0.2, 0.4, 0.7, 0.9], [0, 1, 1, 0])
-  // 진입 힌트 — 로고가 모인 직후 잠깐
-  const hintOpacity = useTransform(scrollYProgress, [0.35, 0.45, 0.6, 0.7], [0, 1, 1, 0])
+  // ── 코너 라벨 ──
+  const labelOpacity = useTransform(scrollYProgress, [0.15, 0.28, 0.38, 0.48], [0, 1, 1, 0])
+  // ── 진입 힌트 ──
+  const hintOpacity = useTransform(scrollYProgress, [0.22, 0.30, 0.36, 0.44], [0, 1, 1, 0])
+
+  // ── children (Hero) 크로스페이드 (0.48 → 0.60) ──
+  const childrenOpacity = useTransform(scrollYProgress, [0.48, 0.60], [0, 1])
 
   return (
     <section
@@ -41,7 +52,7 @@ export default function NexonGate() {
       id="hero"
       style={{
         position: 'relative',
-        height: '180vh',
+        height: '280vh',
         background: C.bgWhite,
       }}
     >
@@ -92,7 +103,7 @@ export default function NexonGate() {
           </span>
         </motion.div>
 
-        {/* 우상단: 호 */}
+        {/* 우상단 */}
         <motion.div
           style={{
             opacity: labelOpacity,
@@ -119,8 +130,13 @@ export default function NexonGate() {
           </div>
         </motion.div>
 
-        {/* 중앙 로고 — facet 흩어진 상태에서 합쳐졌다가 작아짐 */}
-        <motion.div style={{ scale, opacity: logoOpacity, willChange: 'transform' }}>
+        {/* 중앙 로고 — 축소 + 블러 디졸브 */}
+        <motion.div style={{
+          scale,
+          opacity: logoOpacity,
+          filter: useTransform(logoBlur, (v) => `blur(${v}px)`),
+          willChange: 'transform, filter',
+        }}>
           <svg
             viewBox="0 0 493.85 480.16"
             width="min(60vw, 540px)"
@@ -147,7 +163,7 @@ export default function NexonGate() {
               />
             </motion.g>
 
-            {/* NEXON 워드마크 — facet 합쳐질 때 함께 등장 */}
+            {/* NEXON 워드마크 */}
             <motion.g fill={GATE_COLORS.black} style={{ opacity: facetOpacity }}>
               <polygon points="193.73 414.2 145.75 414.2 145.75 402.01 193.73 402.01 193.73 388.45 145.75 388.45 145.75 377.56 193.73 377.56 193.73 364.07 128.74 364.07 128.74 427.67 193.73 427.67 193.73 414.2" />
               <polygon points="400.46 389.22 440.75 427.67 453.58 427.67 453.58 364.07 436.57 364.07 436.57 402.53 396.28 364.07 383.45 364.07 383.45 427.67 400.46 427.67 400.46 389.22" />
@@ -158,7 +174,7 @@ export default function NexonGate() {
           </svg>
         </motion.div>
 
-        {/* 진입 힌트 — 살짝 떴다 사라짐 */}
+        {/* 진입 힌트 */}
         <motion.div
           style={{
             opacity: hintOpacity,
@@ -190,6 +206,20 @@ export default function NexonGate() {
             }}
           />
         </motion.div>
+
+        {/* ── Children (Hero) — 로고 디졸브 후 크로스페이드 ── */}
+        {children && (
+          <motion.div
+            style={{
+              opacity: childrenOpacity,
+              position: 'absolute',
+              inset: 0,
+              zIndex: 10,
+            }}
+          >
+            {children(scrollYProgress)}
+          </motion.div>
+        )}
       </div>
     </section>
   )

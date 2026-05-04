@@ -1,5 +1,32 @@
+import { useState, useEffect, useRef } from 'react'
+import { motion, useScroll, useTransform } from 'framer-motion'
 import { C, FONT_MONO } from './colors'
 import FloatingShapes from './FloatingShapes'
+
+function Typewriter({ text, delay = 0, speed = 50 }: { text: string, delay?: number, speed?: number }) {
+  const [displayed, setDisplayed] = useState('')
+  
+  useEffect(() => {
+    let i = 0
+    let timeout: ReturnType<typeof setTimeout>
+    const startTimeout = setTimeout(() => {
+      const type = () => {
+        if (i < text.length) {
+          setDisplayed(text.slice(0, i + 1))
+          i++
+          timeout = setTimeout(type, speed)
+        }
+      }
+      type()
+    }, delay)
+    return () => {
+      clearTimeout(startTimeout)
+      clearTimeout(timeout)
+    }
+  }, [text, delay, speed])
+
+  return <>{displayed}</>
+}
 
 interface HeroProps {
   badge: string
@@ -10,13 +37,23 @@ interface HeroProps {
 }
 
 export default function Hero({ badge, jobCode, title, subtitle, ctas }: HeroProps) {
+  const { scrollY } = useScroll()
+  
+  // 0px ~ 400px 스크롤할 때 투명도는 1 -> 0, Y위치는 0 -> -50px 로 이동 (퇴장 애니메이션)
+  const opacity = useTransform(scrollY, [0, 400], [1, 0])
+  const y = useTransform(scrollY, [0, 400], [0, -50])
+
   return (
-    <section
+    <motion.section
       style={{
         position: 'relative',
-        minHeight: 'min(900px, 100vh)',
-        padding: '64px 48px',
+        minHeight: '80vh',
+        padding: '32px 48px',
         overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        opacity,
+        y,
       }}
     >
       <FloatingShapes />
@@ -50,18 +87,22 @@ export default function Hero({ badge, jobCode, title, subtitle, ctas }: HeroProp
       <div
         style={{
           maxWidth: 1200,
-          margin: '0 auto',
+          margin: 'auto',
           position: 'relative',
           zIndex: 1,
-          paddingTop: 80,
-          paddingBottom: 40,
+          paddingTop: 40,
+          paddingBottom: 20,
+          width: '100%',
         }}
       >
         {/* Badge */}
-        <div
+        <motion.div
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut', delay: 0.1 }}
           style={{
             display: 'inline-block',
-            padding: '8px 16px',
+            padding: '6px 14px',
             background: C.lime,
             color: C.ink,
             fontSize: 12,
@@ -69,54 +110,50 @@ export default function Hero({ badge, jobCode, title, subtitle, ctas }: HeroProp
             letterSpacing: '0.15em',
             textTransform: 'uppercase',
             borderRadius: 9999,
-            marginBottom: 32,
+            marginBottom: 20,
           }}
         >
           {badge}
-        </div>
+        </motion.div>
 
         {/* No 표기 + 본명 */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 28 }}>
+        <motion.div 
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
+          style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 20 }}
+        >
           <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.nexonBlue, letterSpacing: '0.05em' }}>
             {jobCode} — 양건호
           </span>
           <span style={{ flex: 1, height: 1, background: 'rgba(245, 250, 249, 0.3)' }} />
-        </div>
+        </motion.div>
 
         {/* Title */}
         <h1
           style={{
-            fontSize: 'clamp(40px, 7.5vw, 84px)',
+            fontSize: 'clamp(28px, 5.5vw, 64px)',
             fontWeight: 800,
-            lineHeight: 1.1,
+            lineHeight: 1.15,
             letterSpacing: '-0.02em',
             color: C.inverse,
             margin: 0,
-            marginBottom: 32,
+            marginBottom: 28,
             whiteSpace: 'pre-line',
             textShadow: '0 2px 16px rgba(26, 43, 71, 0.2)',
+            minHeight: '2.3em', // 타이핑 도중 높이 유지
           }}
         >
-          {title}
+          <Typewriter text={title} delay={300} speed={40} />
         </h1>
 
-        {/* Subtitle */}
-        <p
-          style={{
-            fontSize: 'clamp(17px, 2.2vw, 22px)',
-            fontWeight: 500,
-            lineHeight: 1.7,
-            color: 'rgba(245, 250, 249, 0.92)',
-            maxWidth: 720,
-            margin: 0,
-            marginBottom: 56,
-          }}
-        >
-          {subtitle}
-        </p>
-
         {/* CTAs */}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <motion.div 
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut', delay: 1.2 }}
+          style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 36 }}
+        >
           {ctas.map((cta) => (
             <a
               key={cta.label}
@@ -126,8 +163,8 @@ export default function Hero({ badge, jobCode, title, subtitle, ctas }: HeroProp
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                padding: '14px 24px',
-                fontSize: 16,
+                padding: '12px 20px',
+                fontSize: 15,
                 fontWeight: 600,
                 borderRadius: 9999,
                 textDecoration: 'none',
@@ -156,8 +193,26 @@ export default function Hero({ badge, jobCode, title, subtitle, ctas }: HeroProp
               {cta.label}
             </a>
           ))}
-        </div>
+        </motion.div>
+
+        {/* Subtitle */}
+        <motion.p
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut', delay: 1.6 }} // 타이핑 끝날 즈음 등장
+          style={{
+            fontSize: 'clamp(16px, 2vw, 20px)',
+            fontWeight: 500,
+            lineHeight: 1.7,
+            color: 'rgba(245, 250, 249, 0.92)',
+            maxWidth: 720,
+            margin: 0,
+            marginBottom: 20,
+          }}
+        >
+          {subtitle}
+        </motion.p>
       </div>
-    </section>
+    </motion.section>
   )
 }

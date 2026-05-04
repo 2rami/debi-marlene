@@ -14,13 +14,16 @@
 import { useEffect, useRef } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import Lenis from 'lenis'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Aurora from '../../components/common/Aurora'
 import BlurText from '../../components/common/BlurText'
 import { C, FONT_BODY, FONT_MONO } from './shared/colors'
 import FloatingShapes from './shared/FloatingShapes'
 import StatGrid from './shared/StatGrid'
-import JdMatchCard from './shared/JdMatchCard'
 import CaseCard from './shared/CaseCard'
+import PinFadeStack from './shared/PinFadeStack'
+import JdMatchCard from './shared/JdMatchCard'
 import CharacterBox from './shared/CharacterBox'
 import GameList from './shared/GameList'
 import Footer from './shared/Footer'
@@ -349,12 +352,14 @@ export default function PageQA() {
     })
     ;(window as any).__lenis = lenis
     lenis.scrollTo(0, { immediate: true })
-    function raf(time: number) {
-      lenis.raf(time)
-      requestAnimationFrame(raf)
-    }
-    requestAnimationFrame(raf)
+    lenis.on('scroll', ScrollTrigger.update)
+    const tickerCb = (time: number) => lenis.raf(time * 1000)
+    gsap.ticker.add(tickerCb)
+    gsap.ticker.lagSmoothing(0)
+
     return () => {
+      gsap.ticker.remove(tickerCb)
+      ScrollTrigger.getAll().forEach((st) => st.kill())
       lenis.destroy()
       ;(window as any).__lenis = null
     }
@@ -372,81 +377,89 @@ export default function PageQA() {
       }}
     >
       <MapleChatbot />
-      <Hero />
+      <PinFadeStack>
+        <div data-pinfade>
+          <Hero />
+        </div>
 
-      {/* 01. ABOUT */}
-      <section
-        id="about"
-        style={{
-          padding: '96px 48px',
-          background: C.inverse,
-        }}
-      >
-        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-          <SectionHeader no="01" kicker="ABOUT" title="저는 이런 사람입니다" />
-          <FadeIn delay={0.05}>
-            <div
+        <div data-pinfade>
+          {/* 01. ABOUT */}
+          <section
+            id="about"
+            style={{
+              padding: '96px 48px',
+              background: C.inverse,
+            }}
+          >
+            <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+              <SectionHeader no="01" kicker="ABOUT" title="저는 이런 사람입니다" />
+              <FadeIn delay={0.05}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0, 5fr) minmax(0, 7fr)',
+                    gap: 64,
+                    alignItems: 'start',
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 22,
+                      fontWeight: 700,
+                      lineHeight: 1.5,
+                      color: C.ink,
+                      margin: 0,
+                      letterSpacing: '-0.015em',
+                    }}
+                  >
+                    헤비유저로서의 게임 도메인 깊이와<br />
+                    봇 운영자로서의 결함 추적 습관이 결합된<br />
+                    <span style={{ color: C.nexonBlue }}>지점이 게임 QA 직무의 본질입니다.</span>
+                  </p>
+                  <p style={{ fontSize: 16, lineHeight: 1.85, color: C.inkSoft, margin: 0 }}>
+                    {ABOUT}
+                  </p>
+                </div>
+              </FadeIn>
+
+              <FadeIn delay={0.15}>
+                <div style={{ marginTop: 64 }}>
+                  <StatGrid stats={STATS} />
+                </div>
+              </FadeIn>
+            </div>
+          </section>
+        </div>
+
+        {/* 02. 주요 업무 매칭 - 개별 분할 */}
+        {JD_MATCHES.map((m, i) => (
+          <div data-pinfade key={`jd-${m.n}`}>
+            <section
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(0, 5fr) minmax(0, 7fr)',
-                gap: 64,
-                alignItems: 'start',
+                padding: '120px 48px',
+                background: C.bgWhite,
               }}
             >
-              <p
-                style={{
-                  fontSize: 22,
-                  fontWeight: 700,
-                  lineHeight: 1.5,
-                  color: C.ink,
-                  margin: 0,
-                  letterSpacing: '-0.015em',
-                }}
-              >
-                헤비유저로서의 게임 도메인 깊이와<br />
-                봇 운영자로서의 결함 추적 습관이 결합된<br />
-                <span style={{ color: C.nexonBlue }}>지점이 게임 QA 직무의 본질입니다.</span>
-              </p>
-              <p style={{ fontSize: 16, lineHeight: 1.85, color: C.inkSoft, margin: 0 }}>
-                {ABOUT}
-              </p>
-            </div>
-          </FadeIn>
-
-          <FadeIn delay={0.15}>
-            <div style={{ marginTop: 64 }}>
-              <StatGrid stats={STATS} />
-            </div>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* 02. 주요 업무 매칭 */}
-      <section
-        style={{
-          padding: '120px 48px',
-          background: C.bgWhite,
-        }}
-      >
-        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-          <SectionHeader
-            no="02"
-            kicker="JOB DESCRIPTION · 주요 업무"
-            title={`공고 5가지 주요 업무에\n대한 1:1 매칭 근거`}
-          />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
-            {JD_MATCHES.map((m, i) => (
-              <FadeIn key={m.n} delay={i * 0.06}>
-                <JdMatchCard n={m.n} jdTitle={m.jdTitle} jdSub={m.jdSub} evidence={m.evidence} />
-              </FadeIn>
-            ))}
+              <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+                <SectionHeader
+                  no={i === 0 ? "02" : `02 - ${i + 1}`}
+                  kicker="JOB DESCRIPTION · 주요 업무"
+                  title={`공고 5가지 주요 업무에\n대한 1:1 매칭 근거`}
+                />
+                <div style={{ marginTop: 24 }}>
+                  <FadeIn delay={0.05}>
+                    <JdMatchCard {...m} />
+                  </FadeIn>
+                </div>
+              </div>
+            </section>
           </div>
-        </div>
-      </section>
+        ))}
 
-      {/* 03. 지원 자격 */}
-      <section
-        style={{
+        <div data-pinfade>
+          {/* 03. 지원 자격 */}
+          <section
+            style={{
           padding: '120px 48px',
           background: C.inverse,
         }}
@@ -683,52 +696,35 @@ export default function PageQA() {
             ))}
           </div>
 
-          {/* 운영 트러블슈팅 케이스 6건 — QA 사이클 직접 사례 */}
-          <FadeIn>
-            <div style={{ marginBottom: 32 }}>
-              <div
-                style={{
-                  fontFamily: FONT_MONO,
-                  fontSize: 11,
-                  letterSpacing: '0.18em',
-                  color: C.nexonBlue,
-                  fontWeight: 700,
-                  marginBottom: 8,
-                }}
-              >
-                CASES · 결함 추적·재현·재발 차단 사이클
-              </div>
-              <h3
-                style={{
-                  fontSize: 28,
-                  fontWeight: 800,
-                  color: C.ink,
-                  margin: 0,
-                  letterSpacing: '-0.02em',
-                  lineHeight: 1.25,
-                }}
-              >
-                실제로 운영하며 추적·해결·메모리화한 결함 6건
-              </h3>
-            </div>
-          </FadeIn>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
-            {CASES.map((c, i) => (
-              <FadeIn key={c.no} delay={i * 0.06}>
-                <CaseCard
-                  no={c.no}
-                  title={c.title}
-                  problem={c.problem}
-                  approach={c.approach}
-                  result={c.result}
-                  bridge={c.bridge}
-                />
-              </FadeIn>
-            ))}
           </div>
+        </section>
         </div>
-      </section>
+
+        {/* 운영 트러블슈팅 케이스 6건 - 개별 분할 */}
+        {CASES.map((c, i) => (
+          <div data-pinfade key={`case-${c.no}`}>
+            <section
+              style={{
+                padding: '120px 48px',
+                background: C.bgWhite,
+              }}
+            >
+              <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+                <SectionHeader
+                  no={`05 - ${i + 1}`}
+                  kicker="CASES · 결함 추적·재현·재발 차단 사이클"
+                  title="실제로 운영하며 추적·해결·메모리화한 결함 6건"
+                />
+                <div style={{ marginTop: 24 }}>
+                  <FadeIn delay={0.05}>
+                    <CaseCard {...c} />
+                  </FadeIn>
+                </div>
+              </div>
+            </section>
+          </div>
+        ))}
+      </PinFadeStack>
 
       <Footer email={CONTACT.email} github={CONTACT.github} domain={CONTACT.domain} edu={CONTACT.edu} />
     </div>

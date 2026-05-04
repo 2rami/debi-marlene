@@ -23,6 +23,7 @@ import PortfolioSmilegateCompare from './pages/PortfolioSmilegateCompare'
 import PageLLM from './pages/PortfolioNexon2026/PageLLM'
 import PageService from './pages/PortfolioNexon2026/PageService'
 import PageQA from './pages/PortfolioNexon2026/PageQA'
+import PageMotionCatalog from './pages/PortfolioNexon2026/PageMotionCatalog'
 import Feed from './pages/Feed'
 import NotFound from './pages/NotFound'
 
@@ -63,6 +64,7 @@ function App() {
           <Route path="/portfolio/nexon/llm" element={<PageLLM />} />
           <Route path="/portfolio/nexon/service" element={<PageService />} />
           <Route path="/portfolio/nexon/qa" element={<PageQA />} />
+          <Route path="/portfolio/nexon/maple-motions" element={<PageMotionCatalog />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>

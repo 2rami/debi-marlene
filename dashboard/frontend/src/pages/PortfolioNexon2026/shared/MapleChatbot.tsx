@@ -10,9 +10,11 @@ import {
   AnimatePresence,
   motion,
   useAnimationControls,
+  useMotionValue,
   useScroll,
   useSpring,
   useTransform,
+  animate as fmAnimate,
 } from 'framer-motion'
 import { Send, X, Loader2 } from 'lucide-react'
 import { FONT_BODY, FONT_DISPLAY } from './colors'
@@ -24,16 +26,43 @@ const NEXON_LOOK_BASE = 'https://open.api.nexon.com/static/maplestory/character/
 
 const PROMPT_MAX_LEN = 500
 
-type MotionState = 'idle' | 'thinking' | 'talk' | 'drag' | 'walk1' | 'walk2'
+type MotionState =
+  | 'idle' | 'thinking' | 'talk' | 'drag' | 'grab'
+  | 'walk1' | 'walk2'
+  | 'jump' | 'attack1' | 'attack2' | 'attack3' | 'attack4' | 'attackF'
 
 const POSE: Record<MotionState, { wmotion: string; emotion: string; action: string }> = {
   idle: { wmotion: 'W00', emotion: 'E00', action: 'A00' },
   thinking: { wmotion: 'W02', emotion: 'E03', action: 'A01' },
   talk: { wmotion: 'W04', emotion: 'E01', action: 'A06' },
-  drag: { wmotion: 'W04', emotion: 'E02', action: 'A05' }, // 점프 모션 (A05)
-  walk1: { wmotion: 'W01', emotion: 'E00', action: 'A02' }, // 걷기 프레임 1
-  walk2: { wmotion: 'W01', emotion: 'E00', action: 'A03' }, // 걷기 프레임 2
+  drag: { wmotion: 'W04', emotion: 'E02', action: 'A05' }, // 점프(Fly)
+  grab: { wmotion: 'W04', emotion: 'E20', action: 'A06' }, // 마우스로 잡힘
+  walk1: { wmotion: 'W01', emotion: 'E00', action: 'A02' },
+  walk2: { wmotion: 'W01', emotion: 'E00', action: 'A03' },
+  jump: { wmotion: 'W02', emotion: 'E07', action: 'A06' }, // Alt 점프
+  // 공격 5프레임 — frame 분리 활용 (A20.0~2 = 들기→휘두름, A22.2 = 광채, A23.0 = 잔상)
+  attack1: { wmotion: 'W02', emotion: 'E04', action: 'A20.0' },
+  attack2: { wmotion: 'W02', emotion: 'E04', action: 'A20.1' },
+  attack3: { wmotion: 'W02', emotion: 'E04', action: 'A20.2' },
+  attack4: { wmotion: 'W02', emotion: 'E04', action: 'A22.2' },
+  attackF: { wmotion: 'W02', emotion: 'E04', action: 'A23.0' },
 }
+
+const ATTACK_SEQUENCE: MotionState[] = ['attack1', 'attack2', 'attack3', 'attack4', 'attackF']
+const ATTACK_FRAME_MS = 100
+
+const JUMP_HEIGHT = 90 // 위로 점프 픽셀
+const JUMP_DURATION_MS = 600
+
+// walk cycle: walk1.0~3 4프레임. walk2 는 팔 자세가 walk1 과 달라서 cycle 끊김 보임 → walk1 만 사용.
+type WalkStep = { state: 'walk1' | 'walk2'; frame: number }
+const WALK_CYCLE: WalkStep[] = [
+  { state: 'walk1', frame: 0 },
+  { state: 'walk1', frame: 1 },
+  { state: 'walk1', frame: 2 },
+  { state: 'walk1', frame: 3 },
+]
+const WALK_FRAME_MS = 130
 
 const MOTION_STATES: MotionState[] = ['idle', 'thinking', 'talk']
 
@@ -65,9 +94,10 @@ const API_BASE =
 
 const SESSION_KEY = 'nexon-portfolio-chatbot-session'
 
-function buildLookUrl(hash: string, state: MotionState) {
+function buildLookUrl(hash: string, state: MotionState, frame?: number) {
   const p = POSE[state]
-  return `${NEXON_LOOK_BASE}/${hash}?wmotion=${p.wmotion}&emotion=${p.emotion}&action=${p.action}`
+  const action = frame != null ? `${p.action}.${frame}` : p.action
+  return `${NEXON_LOOK_BASE}/${hash}?wmotion=${p.wmotion}&emotion=${p.emotion}&action=${action}`
 }
 
 function fakeReply(prompt: string): string {
@@ -101,16 +131,36 @@ export default function MapleChatbot({
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [motionState, setMotionState] = useState<MotionState>('idle')
+  const [walkFrame, setWalkFrame] = useState(0) // 0~3, walk1/walk2 각각 4프레임
   const [facingRight, setFacingRight] = useState(false)
   const [isWalking, setIsWalking] = useState(false)
-  const [bubbleText, setBubbleText] = useState('아래로 스크롤 해보세요! 👇')
+  const [bubbleText, setBubbleText] = useState('← → 로 움직여요!\nALT 점프 · CTRL 공격 🎮')
+  const keyboardHintRef = useRef(true)
   const [paintingMode, setPaintingMode] = useState(false)
+  const [hasDragged, setHasDragged] = useState(false)
   const paintingRect = useRef<DOMRect | null>(null)
 
   const sessionRef = useRef<string | null>(
     typeof window !== 'undefined' ? localStorage.getItem(SESSION_KEY) : null
   )
   const listRef = useRef<HTMLDivElement>(null)
+
+  // 모든 모션 URL preload — walk cycle 8프레임 + 다른 모션 4종 모두
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const staticStates: MotionState[] = [
+      'idle', 'thinking', 'talk', 'drag', 'grab',
+      'jump', 'attack1', 'attack2', 'attack3', 'attack4', 'attackF',
+    ]
+    staticStates.forEach((s) => {
+      const img = new Image()
+      img.src = buildLookUrl(hash, s)
+    })
+    WALK_CYCLE.forEach(({ state, frame }) => {
+      const img = new Image()
+      img.src = buildLookUrl(hash, state, frame)
+    })
+  }, [hash])
 
   const [viewport, setViewport] = useState(() =>
     typeof window !== 'undefined'
@@ -164,8 +214,20 @@ export default function MapleChatbot({
 
   const { scrollYProgress } = useScroll()
 
+  // 첫 5초간 키보드 안내 우선 표시 — 그 후 scroll progress 기반
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      keyboardHintRef.current = false
+      // 5초 후 진행도 따라 즉시 전환
+      const v = scrollYProgress.get()
+      if (v < 0.1) setBubbleText('아래로 스크롤 해보세요! 👇')
+    }, 5000)
+    return () => window.clearTimeout(t)
+  }, [scrollYProgress])
+
   useEffect(() => {
     return scrollYProgress.onChange((v) => {
+      if (keyboardHintRef.current) return // 안내 표시 중엔 덮어쓰지 않음
       if (v < 0.1) {
         setBubbleText('아래로 스크롤 해보세요! 👇')
       } else if (v >= 0.1 && v < 0.3) {
@@ -183,6 +245,26 @@ export default function MapleChatbot({
   const controls = useAnimationControls()
   const firstRunRef = useRef(true)
   const currentXRef = useRef(viewport.w - MARGIN - CHAR_SIZE)
+  const lastDragPosRef = useRef<{ x: number; y: number } | null>(null)
+  const charDivRef = useRef<HTMLDivElement>(null)
+  // 챗 헤더 캐릭터 Y motion value — base 60 (80은 발 잘림, 40은 너무 위), jump 시 위로 spring
+  const HEADER_BASE_Y = 60
+  const HEADER_JUMP_Y = -30
+  const headerY = useMotionValue(120)
+  // 챗 헤더 캐릭터 X motion value — base 0, ←→ 키로 좌우 이동
+  const headerX = useMotionValue(0)
+  const HEADER_HALF_RANGE = 70 // 헤더 폭 (PANEL_W=380) - 캐릭터 폭(240) 의 절반
+
+  // 챗 열릴 때 등장 애니메이션 (120 → 40) — 닫힐 땐 다음 mount 위해 reset
+  useEffect(() => {
+    if (open) {
+      fmAnimate(headerY, HEADER_BASE_Y, { type: 'spring', bounce: 0.4, delay: 0.1 })
+    } else {
+      headerY.set(120)
+      headerX.set(0)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   // 테두리 걷기 로직 (bottom edge)
   useEffect(() => {
@@ -197,6 +279,16 @@ export default function MapleChatbot({
         controls.set({ x: initX, y: initY, scale: 1, opacity: 1 });
         currentXRef.current = initX;
         firstRunRef.current = false;
+      } else if (hasDragged) {
+        // 사용자가 드래그해서 버려둔 상태 — drag 끝 위치 그대로, spring 복귀 안 함.
+        // controls.set 으로 명시 안 하면 mount 시 initial opacity:0 에 멈춰서 안 보임.
+        const pos = lastDragPosRef.current
+        if (pos) {
+          controls.set({ x: pos.x, y: pos.y, scale: 1, opacity: 1 })
+        } else {
+          controls.set({ opacity: 1, scale: 1 })
+        }
+        setMotionState('idle');
       } else {
         // 채팅창에서 튀어나오는 팝업 아웃 애니메이션
         const chatX = viewport.w - PANEL_RIGHT - PANEL_W / 2 - CHAR_SIZE / 2;
@@ -206,12 +298,12 @@ export default function MapleChatbot({
 
         controls.set({ x: chatX, y: chatY, scale: 0.3, opacity: 1 });
         setMotionState('drag'); // 튀어나올 때 점프(만세) 포즈
-        
+
         await controls.start(
           { x: targetX, y: targetY, scale: 1 },
           { type: 'spring', stiffness: 90, damping: 14, mass: 1 }
         );
-        
+
         if (cancelled) return;
         setMotionState('idle');
         currentXRef.current = targetX;
@@ -250,6 +342,12 @@ export default function MapleChatbot({
           
           if (cancelled) break;
           
+          // 사용자가 드래그해서 버려둔 상태면 안 움직임
+          if (hasDragged) {
+            await new Promise(r => setTimeout(r, 1000));
+            continue;
+          }
+          
           // 다시 튀어나옴
           setMotionState('drag');
           await controls.start(
@@ -258,6 +356,12 @@ export default function MapleChatbot({
           );
           setMotionState('idle');
           currentXRef.current = viewport.w - MARGIN - CHAR_SIZE;
+          continue;
+        }
+
+        // 사용자가 드래그해서 화면에 버려둔 상태면 안 움직임
+        if (hasDragged) {
+          await new Promise(r => setTimeout(r, 1000));
           continue;
         }
 
@@ -294,23 +398,30 @@ export default function MapleChatbot({
       cancelled = true;
       setIsWalking(false);
     }
-  }, [open, isDragging, reduced, viewport.w, viewport.h, controls])
+  }, [open, isDragging, reduced, viewport.w, viewport.h, controls, hasDragged])
 
-  // 걷기 모션 프레임 교체 (W01, W02 번갈아가며)
+  // 걷기 모션: walk1.0 → walk1.3 4프레임 cycle (walk2 는 팔 끊김으로 제외)
   useEffect(() => {
-    if (!isWalking || open || isDragging) return;
-    
-    let frame = 1;
+    if (!isWalking || isDragging) return;
+
+    let i = 0;
+    const apply = (idx: number) => {
+      const step = WALK_CYCLE[idx];
+      setMotionState(step.state);
+      setWalkFrame(step.frame);
+    };
+    apply(0);
     const interval = setInterval(() => {
-      setMotionState(frame === 1 ? 'walk1' : 'walk2');
-      frame = frame === 1 ? 2 : 1;
-    }, 250);
-    
+      i = (i + 1) % WALK_CYCLE.length;
+      apply(i);
+    }, WALK_FRAME_MS);
+
     return () => {
       clearInterval(interval);
       setMotionState('idle');
+      setWalkFrame(0);
     }
-  }, [isWalking, open, isDragging]);
+  }, [isWalking, isDragging]);
 
   // 대기 중 랜덤 모션 (idle, thinking, talk)
   useEffect(() => {
@@ -323,6 +434,168 @@ export default function MapleChatbot({
     }, 4000)
     return () => window.clearInterval(id)
   }, [open, isDragging, isWalking, reduced])
+
+  // 키보드 조작: ←→ 좌우 이동 / Alt(Option) 점프 / Ctrl 공격
+  useEffect(() => {
+    if (reduced) return
+
+    const isInputFocused = () => {
+      const el = document.activeElement as HTMLElement | null
+      if (!el) return false
+      return (
+        el.tagName === 'INPUT' ||
+        el.tagName === 'TEXTAREA' ||
+        el.isContentEditable
+      )
+    }
+
+    const heldKeys = new Set<string>()
+    let attackTimer: number | null = null
+    let moveTimer: number | null = null
+    let busyAttack = false
+
+    const stopAttack = () => {
+      if (attackTimer) {
+        window.clearInterval(attackTimer)
+        attackTimer = null
+      }
+      busyAttack = false
+    }
+
+    const startAttack = () => {
+      if (busyAttack) return
+      busyAttack = true
+      let i = 0
+      setMotionState(ATTACK_SEQUENCE[0])
+      attackTimer = window.setInterval(() => {
+        i++
+        if (i >= ATTACK_SEQUENCE.length) {
+          stopAttack()
+          setMotionState('idle')
+          return
+        }
+        setMotionState(ATTACK_SEQUENCE[i])
+      }, ATTACK_FRAME_MS)
+    }
+
+    const stepMove = () => {
+      const left = heldKeys.has('ArrowLeft')
+      const right = heldKeys.has('ArrowRight')
+      if (!left && !right) {
+        if (moveTimer) {
+          window.clearInterval(moveTimer)
+          moveTimer = null
+        }
+        setIsWalking(false)
+        return
+      }
+      const dir = right ? 1 : -1
+      if (open) {
+        // 챗 헤더 안 좌우 이동
+        const cur = headerX.get()
+        const next = Math.max(-HEADER_HALF_RANGE, Math.min(HEADER_HALF_RANGE, cur + dir * 4))
+        headerX.set(next)
+      } else {
+        // 떠다니는 캐릭터 위치 이동
+        const minX = MARGIN
+        const maxX = viewport.w - MARGIN - CHAR_SIZE
+        const next = Math.max(minX, Math.min(maxX, currentXRef.current + dir * 6))
+        currentXRef.current = next
+        const y = lastDragPosRef.current?.y ?? viewport.h - MARGIN - CHAR_SIZE
+        controls.set({ x: next, y, scale: 1, opacity: 1 })
+        lastDragPosRef.current = { x: next, y }
+      }
+    }
+
+    const isAttackKey = (code: string) =>
+      code === 'ControlLeft' || code === 'ControlRight' ||
+      code === 'MetaLeft' || code === 'MetaRight' ||
+      code === 'KeyZ'
+    const isJumpKey = (code: string) =>
+      code === 'AltLeft' || code === 'AltRight' || code === 'Space' || code === 'KeyX'
+
+    const doJump = () => {
+      setMotionState('jump')
+      if (open) {
+        // 챗 헤더 캐릭터 점프 — headerY 위로 → 아래로
+        fmAnimate(headerY, HEADER_JUMP_Y, { duration: JUMP_DURATION_MS / 2 / 1000, ease: 'easeOut' })
+          .then(() =>
+            fmAnimate(headerY, HEADER_BASE_Y, { duration: JUMP_DURATION_MS / 2 / 1000, ease: 'easeIn' })
+          )
+      } else {
+        // 떠다니는 캐릭터 점프 — 위치 spring up/down
+        const baseY = lastDragPosRef.current?.y ?? viewport.h - MARGIN - CHAR_SIZE
+        const x = currentXRef.current
+        controls
+          .start({ y: baseY - JUMP_HEIGHT }, { duration: JUMP_DURATION_MS / 2 / 1000, ease: 'easeOut' })
+          .then(() =>
+            controls.start({ y: baseY }, { duration: JUMP_DURATION_MS / 2 / 1000, ease: 'easeIn' })
+          )
+        lastDragPosRef.current = { x, y: baseY }
+      }
+      window.setTimeout(() => {
+        if (!busyAttack) setMotionState('idle')
+      }, JUMP_DURATION_MS)
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isInputFocused()) return
+      if (heldKeys.has(e.code)) return
+      heldKeys.add(e.code)
+
+      // 키 한 번 누르면 키보드 안내 즉시 끄기
+      if (keyboardHintRef.current) {
+        keyboardHintRef.current = false
+        const v = scrollYProgress.get()
+        if (v < 0.1) setBubbleText('아래로 스크롤 해보세요! 👇')
+      }
+
+      if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+        e.preventDefault()
+        if (busyAttack) return
+        const right = e.code === 'ArrowRight'
+        setFacingRight(right)
+        if (!open) {
+          // idle roam 정지 + 키보드 직접 제어
+          setHasDragged(true)
+        }
+        setIsWalking(true)
+        if (!moveTimer) {
+          stepMove()
+          moveTimer = window.setInterval(stepMove, 24)
+        }
+      } else if (isJumpKey(e.code)) {
+        e.preventDefault()
+        if (busyAttack) return
+        doJump()
+      } else if (isAttackKey(e.code)) {
+        e.preventDefault()
+        startAttack()
+      }
+    }
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      heldKeys.delete(e.code)
+      if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+        if (!heldKeys.has('ArrowLeft') && !heldKeys.has('ArrowRight')) {
+          if (moveTimer) {
+            window.clearInterval(moveTimer)
+            moveTimer = null
+          }
+          setIsWalking(false)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      if (attackTimer) window.clearInterval(attackTimer)
+      if (moveTimer) window.clearInterval(moveTimer)
+    }
+  }, [open, reduced, viewport.w, viewport.h, controls])
 
   const { scrollY } = useScroll()
   const bobRaw = useTransform(scrollY, (v) => Math.sin(v / 240) * 4)
@@ -479,6 +752,7 @@ export default function MapleChatbot({
       <AnimatePresence>
         {!open && (
           <motion.div
+            ref={charDivRef}
             style={charWrap}
             initial={{ opacity: 0 }}
             animate={controls}
@@ -491,16 +765,24 @@ export default function MapleChatbot({
             drag
             dragConstraints={{ left: MARGIN, top: MARGIN, right: viewport.w - MARGIN - CHAR_SIZE, bottom: viewport.h - MARGIN - CHAR_SIZE }}
             dragElastic={0.1}
+            dragMomentum={false}
             onDragStart={() => {
               setIsDragging(true)
-              setMotionState('drag')
+              setMotionState('grab')
             }}
-            onDragEnd={(_, info) => {
+            onDragEnd={() => {
+              // ref 통해 실제 화면 위 위치 직접 읽기 (info.point 는 cursor 좌표라 부정확)
+              // charWrap 이 position:fixed top:0 left:0 이라 rect.left/top 이 motion.div transform x/y.
+              const el = charDivRef.current
+              if (el) {
+                const rect = el.getBoundingClientRect()
+                currentXRef.current = rect.left
+                lastDragPosRef.current = { x: rect.left, y: rect.top }
+              }
               setTimeout(() => {
                 setIsDragging(false)
                 setMotionState('idle')
-                // 드래그가 끝난 x 위치를 기록하여 계속 그 위치에서부터 걷도록 설정
-                currentXRef.current = info.point.x;
+                setHasDragged(true)
               }, 150)
             }}
           >
@@ -535,7 +817,11 @@ export default function MapleChatbot({
                 </motion.div>
                 
                 <motion.img
-                  src={buildLookUrl(hash, motionState)}
+                  src={
+                    isWalking && (motionState === 'walk1' || motionState === 'walk2')
+                      ? buildLookUrl(hash, motionState, walkFrame)
+                      : buildLookUrl(hash, motionState)
+                  }
                   alt="거노 캐릭터"
                   style={charImg}
                   draggable={false}
@@ -572,8 +858,13 @@ export default function MapleChatbot({
           >
             {/* Header with Character Upper Body */}
             <div className="relative bg-gradient-to-br from-[#0062DF] to-[#1E3A8A] h-36 flex-shrink-0 flex items-end justify-center overflow-hidden">
-              <button 
-                onClick={() => setOpen(false)}
+              <button
+                onClick={() => {
+                  // 챗 닫으면 캐릭터를 우측하단으로 (drag 위치 reset)
+                  setHasDragged(false)
+                  lastDragPosRef.current = null
+                  setOpen(false)
+                }}
                 className="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
               >
                 <X size={18} />
@@ -585,22 +876,26 @@ export default function MapleChatbot({
                 </span>
               </div>
               
-              {/* 캐릭터 상반신 */}
-              <motion.img 
-                src={buildLookUrl(hash, motionState)}
-                alt="AI Interviewer" 
+              {/* 캐릭터 상반신 — walk frame cycle 적용, ←→ 시 headerX 이동 + facing, 점프 시 headerY spring */}
+              <motion.img
+                src={
+                  isWalking && (motionState === 'walk1' || motionState === 'walk2')
+                    ? buildLookUrl(hash, motionState, walkFrame)
+                    : buildLookUrl(hash, motionState)
+                }
+                alt="AI Interviewer"
                 className="relative z-10"
                 style={{
                   width: 240,
                   height: 240,
                   objectFit: 'contain',
                   objectPosition: 'center bottom',
-                  transform: 'translateY(80px) scale(1.2)',
+                  scaleX: facingRight ? -1.2 : 1.2,
+                  scaleY: 1.2,
+                  x: headerX,
+                  y: headerY,
                   imageRendering: 'pixelated',
                 }}
-                initial={{ y: 120 }}
-                animate={{ y: 80 }}
-                transition={{ type: 'spring', delay: 0.1, bounce: 0.4 }}
               />
             </div>
 

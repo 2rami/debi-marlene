@@ -45,8 +45,14 @@ firestore_client = None
 _gcs_client_lock = threading.Lock()
 _firestore_client_lock = threading.Lock()
 
-# 설정 캐시 (save 시에만 무효화)
+# 설정 캐시
+# - listener 활성 시: snapshot callback 이 자동 동기화 → load_settings 는 read 0회
+# - listener 비활성 시 (init 실패/dashboard 단발 호출): 기존처럼 lazy load
 settings_cache = None
+_cache_lock = threading.Lock()
+_listeners_active = False
+_listener_watches = []  # unsubscribe 용 핸들 보관
+_first_snapshot_event = threading.Event()  # 첫 동기화 완료 대기
 
 
 # ───────────────────── 클라이언트 초기화 ─────────────────────
@@ -265,6 +271,117 @@ def _fs_update_global(fields):
         return False
 
 
+# ───────────────────── Snapshot Listener (실시간 캐시 동기화) ─────────────────────
+# 봇 시작 시 1회 init → 3 collection on_snapshot 등록 → 변경 시 자동 cache 갱신
+# load_settings() 는 cache 만 반환, Firestore read 0회
+# 변경 비용: 변경된 doc 만 청구 (전체 172 docs 매번 X)
+
+def _on_guilds_snapshot(col_snapshot, changes, read_time):
+    global settings_cache
+    with _cache_lock:
+        if settings_cache is None:
+            settings_cache = {'guilds': {}, 'users': {}, 'global': {}}
+        guilds = settings_cache.setdefault('guilds', {})
+        for change in changes:
+            doc_id = change.document.id
+            if change.type.name == 'REMOVED':
+                guilds.pop(doc_id, None)
+            else:  # ADDED, MODIFIED
+                guilds[doc_id] = change.document.to_dict() or {}
+    _first_snapshot_event.set()
+
+
+def _on_users_snapshot(col_snapshot, changes, read_time):
+    global settings_cache
+    with _cache_lock:
+        if settings_cache is None:
+            settings_cache = {'guilds': {}, 'users': {}, 'global': {}}
+        users = settings_cache.setdefault('users', {})
+        for change in changes:
+            doc_id = change.document.id
+            if change.type.name == 'REMOVED':
+                users.pop(doc_id, None)
+            else:
+                users[doc_id] = change.document.to_dict() or {}
+
+
+def _on_global_snapshot(doc_snapshot, changes, read_time):
+    global settings_cache
+    with _cache_lock:
+        if settings_cache is None:
+            settings_cache = {'guilds': {}, 'users': {}, 'global': {}}
+        # global 은 단일 doc → snapshot list 에 1개만 옴
+        for snap in doc_snapshot:
+            if snap.exists:
+                settings_cache['global'] = snap.to_dict() or {}
+            else:
+                settings_cache['global'] = {}
+
+
+def init_settings_listeners(wait_first_snapshot_seconds=5):
+    """3 collection 에 on_snapshot listener 등록.
+
+    봇 startup 시 1회 호출. 호출 후 load_settings() 는 cache 만 참조 (Firestore read 0).
+    변경은 Firestore SDK 가 push 로 받아서 callback 에서 cache 갱신.
+
+    Returns:
+        True = listener 등록 성공, False = 실패 (기존 lazy-load 동작 유지)
+    """
+    global _listeners_active, _listener_watches
+
+    if _listeners_active:
+        return True
+
+    fs = get_firestore_client()
+    if not fs:
+        print("[Firestore listener] 클라이언트 없음 → 기존 lazy-load 모드 유지", flush=True)
+        return False
+
+    try:
+        # 첫 snapshot 이 받기 전엔 cache 가 비어있음 → 명시적 초기화
+        global settings_cache
+        with _cache_lock:
+            if settings_cache is None:
+                settings_cache = {'guilds': {}, 'users': {}, 'global': {}}
+
+        watches = [
+            fs.collection('guilds').on_snapshot(_on_guilds_snapshot),
+            fs.collection('users').on_snapshot(_on_users_snapshot),
+            fs.collection('global').on_snapshot(_on_global_snapshot),
+        ]
+        _listener_watches = watches
+        _listeners_active = True
+
+        # 첫 snapshot 받을 때까지 짧게 대기 (ADDED 폭발로 cache 채워짐)
+        if _first_snapshot_event.wait(timeout=wait_first_snapshot_seconds):
+            with _cache_lock:
+                gc = len(settings_cache.get('guilds', {}))
+                uc = len(settings_cache.get('users', {}))
+            print(f"[Firestore listener] 등록 완료, 첫 snapshot OK (guilds={gc}, users={uc})", flush=True)
+        else:
+            print(f"[Firestore listener] 등록됐지만 첫 snapshot 대기 timeout ({wait_first_snapshot_seconds}s)", flush=True)
+
+        return True
+    except Exception as e:
+        import traceback
+        print(f"[Firestore listener] 등록 실패: {e}", flush=True)
+        print(f"[Firestore listener] 상세: {traceback.format_exc()}", flush=True)
+        _listeners_active = False
+        return False
+
+
+def shutdown_settings_listeners():
+    """봇 종료 시 listener unsubscribe (선택사항, 프로세스 종료로도 정리됨)."""
+    global _listeners_active, _listener_watches
+    for watch in _listener_watches:
+        try:
+            watch.unsubscribe()
+        except Exception:
+            pass
+    _listener_watches = []
+    _listeners_active = False
+
+
 # ───────────────────── 저장소: GCS (레거시 fallback) ─────────────────────
 
 def _gcs_load_settings():
@@ -308,8 +425,16 @@ def load_settings(force_reload=False):
     1. Firestore (단일 진실 소스, 2026-04-27 이관)
     2. GCS settings.json (fallback, Firestore 실패 시)
     3. 로컬 backups/settings_backup.json (최후 fallback)
+
+    listener 활성 시 force_reload 는 무시됨 (snapshot 으로 자동 동기화).
     """
     global settings_cache
+
+    # listener 활성: cache 가 항상 최신 (snapshot 으로 push) → force_reload 무의미
+    if _listeners_active:
+        with _cache_lock:
+            if settings_cache is not None:
+                return settings_cache.copy()
 
     # 캐시 (단일 프로세스 내 마이크로 버스트 방지)
     if not force_reload and settings_cache is not None:
@@ -384,7 +509,10 @@ def save_settings(settings, silent=False):
     내부적으로 3 컬렉션 batch write 로 분산.
     """
     global settings_cache
-    settings_cache = None  # 무효화
+    # listener 활성 시: write → snapshot callback 이 자동으로 cache 갱신 (read 1회)
+    # listener 비활성 시: 기존처럼 무효화 (다음 load_settings 가 재로딩)
+    if not _listeners_active:
+        settings_cache = None
 
     primary_success = False
 
@@ -430,7 +558,8 @@ def save_guild_settings(guild_id, announcement_id=None, chat_id=None, guild_name
         silent: True면 로그 출력 안 함 (대량 저장 시)
     """
     global settings_cache
-    settings_cache = None
+    if not _listeners_active:
+        settings_cache = None
 
     fields = {}
     if guild_name is not None:
@@ -487,7 +616,8 @@ def set_solo_chat_channels(guild_id, identity: str, channel_ids: list[int]) -> b
         raise ValueError(f"identity는 'debi'/'marlene'만 허용: {identity}")
 
     global settings_cache
-    settings_cache = None
+    if not _listeners_active:
+        settings_cache = None
 
     if SETTINGS_BACKEND in ('firestore', 'dual'):
         # 기존 solo_chat_channels 가져와서 머지 (다른 identity 보존)
@@ -512,7 +642,8 @@ def set_solo_chat_channels(guild_id, identity: str, channel_ids: list[int]) -> b
 def remove_guild_settings(guild_id):
     """특정 서버(guild)에 삭제됨 표시를 추가합니다 (atomic)."""
     global settings_cache
-    settings_cache = None
+    if not _listeners_active:
+        settings_cache = None
 
     from datetime import datetime
     fields = {
@@ -555,7 +686,8 @@ def get_global_setting(key):
 def save_global_setting(key, value):
     """전역 설정을 저장합니다 (atomic 단일 필드 업데이트)."""
     global settings_cache
-    settings_cache = None
+    if not _listeners_active:
+        settings_cache = None
 
     if SETTINGS_BACKEND in ('firestore', 'dual'):
         ok = _fs_update_global({key: value})
@@ -573,7 +705,8 @@ def save_global_setting(key, value):
 def save_last_video_info(video_id, video_title=None):
     """마지막 체크된 비디오 정보를 저장합니다 (atomic)."""
     global settings_cache
-    settings_cache = None
+    if not _listeners_active:
+        settings_cache = None
 
     fields = {"LAST_CHECKED_VIDEO_ID": video_id}
     if video_title:
@@ -624,7 +757,8 @@ def get_youtube_subscribers():
 def log_user_interaction(user_id, user_name=None):
     """사용자가 봇과 상호작용했을 때 기록합니다 (atomic)."""
     global settings_cache
-    settings_cache = None
+    if not _listeners_active:
+        settings_cache = None
 
     from datetime import datetime
     fields = {
@@ -706,7 +840,8 @@ def get_all_users():
 def add_user_interaction(user_id, interaction_type="general"):
     """사용자 상호작용을 기록합니다 (atomic, DM 외 용도 - interaction_count 증가 안 함)."""
     global settings_cache
-    settings_cache = None
+    if not _listeners_active:
+        settings_cache = None
 
     from datetime import datetime
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -739,7 +874,8 @@ def add_user_interaction(user_id, interaction_type="general"):
 def set_youtube_subscription(user_id, subscribe: bool, user_name=None):
     """사용자의 유튜브 DM 알림 구독 상태를 설정합니다 (atomic — drift kill)."""
     global settings_cache
-    settings_cache = None
+    if not _listeners_active:
+        settings_cache = None
 
     fields = {"youtube_subscribed": subscribe}
     if user_name:
@@ -803,7 +939,8 @@ def get_server_admins(guild_id=None):
 def set_server_admin(user_id, guild_id, is_admin=True):
     """사용자를 특정 서버의 관리자로 설정하거나 해제합니다 (atomic)."""
     global settings_cache
-    settings_cache = None
+    if not _listeners_active:
+        settings_cache = None
 
     guild_str = str(guild_id)
 
@@ -844,7 +981,8 @@ def save_user_dm_interaction(user_id, channel_id, user_name=None):
         - 사용자 이름
     """
     global settings_cache
-    settings_cache = None
+    if not _listeners_active:
+        settings_cache = None
 
     from datetime import datetime
     now = datetime.now().isoformat()

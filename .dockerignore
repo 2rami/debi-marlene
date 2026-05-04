@@ -6,6 +6,9 @@ dashboard/
 webpanel/
 companion_bot/
 
+# ─────────── 봇 자산 폴더 (코드 미참조, 42M) ───────────
+Debi&Marlene_KOR/
+
 # ─────────── ML/training 자료 (런타임 무관) ───────────
 finetune/
 vlm_training/

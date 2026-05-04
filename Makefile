@@ -221,7 +221,7 @@ start-vm:
 test-local: stop-vm
 	@echo "로컬 봇 시작 중..."
 	@echo "테스트 종료 후 'make start-vm'을 실행하세요!"
-	@PYTHONUNBUFFERED=1 python3 -u main.py
+	@PYTHONUNBUFFERED=1 BOT_ENV=local python3 -u main.py
 
 # ============================================================
 # Dashboard 배포

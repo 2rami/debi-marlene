@@ -46,7 +46,13 @@ intents.presences = False
 
 class DebiMarleneBot(commands.Bot):
     async def setup_hook(self):
-        """봇 연결 전 Cog 등록 (bot.run() 내부에서 호출됨)"""
+        """봇 연결 전 Cog 등록 + Firestore listener 시작 (bot.run() 내부에서 호출됨)"""
+        # Firestore snapshot listener 등록 → settings cache 실시간 동기화 (read 0회 운영)
+        try:
+            await asyncio.to_thread(config.init_settings_listeners)
+        except Exception as e:
+            print(f"[경고] Firestore listener 초기화 실패 — lazy-load 모드 유지: {e}", flush=True)
+
         from run.cogs import setup_all_cogs
         await setup_all_cogs(self)
 
@@ -497,12 +503,6 @@ async def _background_init():
         print(f"[경고] 서버 정보 업데이트 태스크 시작 실패: {e}", flush=True)
 
     try:
-        if not periodic_settings_cache_refresh.is_running():
-            periodic_settings_cache_refresh.start()
-    except Exception as e:
-        print(f"[경고] settings 캐시 리프레시 태스크 시작 실패: {e}", flush=True)
-
-    try:
         await initialize_game_data()
         print("[완료] 게임 데이터 초기화 완료.", flush=True)
 
@@ -772,9 +772,9 @@ async def _handle_sticky_message(message):
     if now - last_sent < STICKY_COOLDOWN_SECONDS:
         return
 
-    # GCS에서 설정 로드 (캐시 우회)
+    # 설정 로드 (listener cache 활용 → Firestore read 0)
     try:
-        settings = await asyncio.to_thread(config.load_settings, True)
+        settings = await asyncio.to_thread(config.load_settings)
     except Exception as e:
         print(f"[스티키] 설정 로드 실패: {e}", flush=True)
         return
@@ -915,8 +915,6 @@ async def periodic_guild_logging():
     sys.stdout.flush()
 
 
-@tasks.loop(seconds=30)
-async def periodic_settings_cache_refresh():
-    # 대시보드/다른 컨테이너가 GCS settings.json 저장해도 이 프로세스 in-memory 캐시는 모름.
-    # 30초마다 무효화 → 다음 load_settings 호출 시 GCS 재읽음. 솔로봇 지정 채널 drift 방지.
-    config.settings_cache = None
+# periodic_settings_cache_refresh 제거됨 (2026-05-04)
+# Firestore snapshot listener 가 변경을 push 받아 cache 자동 갱신 → polling 불필요
+# config.init_settings_listeners() 가 on_ready 에서 등록

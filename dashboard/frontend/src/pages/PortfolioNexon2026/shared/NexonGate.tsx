@@ -1,50 +1,61 @@
 import { useRef } from 'react'
-import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion'
-import { C, FONT_BODY, FONT_DISPLAY, GATE_COLORS } from './colors'
+import { motion, useScroll, useTransform } from 'framer-motion'
+import { C, FONT_BODY, FONT_DISPLAY, GATE_COLORS, FONT_MONO } from './colors'
+import Button from './Button'
+import Aurora from '../../../components/common/Aurora'
+import FloatingShapes from './FloatingShapes'
 
-/**
- * CH 0 GATE + Hero 크로스페이드 (디졸브)
- *
- * 280vh 스크롤 영역:
- *   0–0.25  : NEXON 로고 facet 모임
- *   0.25–0.45: 로고 완성, 라벨 표시
- *   0.40–0.55: 로고 축소 + 블러 디졸브
- *   0.48–0.65: Hero 콘텐츠 크로스페이드인
- *   0.65–1.0 : Hero 유지 → unstick
- */
-export default function NexonGate({
-  children,
-}: {
-  children?: (progress: MotionValue<number>) => React.ReactNode
-}) {
+// 원본 데이터
+import { HERO, STATS } from '../content/llm'
+
+export default function NexonGate() {
   const ref = useRef<HTMLDivElement>(null)
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start start', 'end start'],
-  })
+  const { scrollY } = useScroll()
 
-  // ── facet 등장 (0 → 0.25) ──
-  const facetOpacity = useTransform(scrollYProgress, [0, 0.06, 0.22], [0, 0.4, 1])
-  const blueX = useTransform(scrollYProgress, [0, 0.22], [-360, 0])
-  const blueY = useTransform(scrollYProgress, [0, 0.22], [180, 0])
-  const navyX = useTransform(scrollYProgress, [0, 0.22], [-60, 0])
-  const navyY = useTransform(scrollYProgress, [0, 0.22], [-340, 0])
-  const limeX = useTransform(scrollYProgress, [0, 0.22], [400, 0])
-  const limeY = useTransform(scrollYProgress, [0, 0.22], [140, 0])
+  // ── 1. 로고 합체 (0 ~ 1200px) ──
+  const facetOpacity = useTransform(scrollY, [0, 300, 800], [0, 0.7, 1])
+  const blueX = useTransform(scrollY, [0, 1000], [-400, 0])
+  const blueY = useTransform(scrollY, [0, 1000], [200, 0])
+  const navyX = useTransform(scrollY, [0, 1000], [-100, 0])
+  const navyY = useTransform(scrollY, [0, 1000], [-350, 0])
+  const limeX = useTransform(scrollY, [0, 1000], [450, 0])
+  const limeY = useTransform(scrollY, [0, 1000], [150, 0])
 
-  // ── 로고 축소 + 디졸브 (0.25 → 0.55) ──
-  const scale = useTransform(scrollYProgress, [0, 0.25, 0.55], [1, 1, 0.12])
-  const logoOpacity = useTransform(scrollYProgress, [0.38, 0.52], [1, 0])
-  // 디졸브 블러 효과: 사라지면서 흐려짐
-  const logoBlur = useTransform(scrollYProgress, [0.38, 0.52], [0, 20])
+  // ── 2. 로고 축소 및 퇴장 (1200 ~ 2200px) ──
+  const logoScale = useTransform(scrollY, [1200, 2000], [1, 0.12])
+  const logoOpacity = useTransform(scrollY, [1500, 2200], [1, 0])
 
-  // ── 코너 라벨 ──
-  const labelOpacity = useTransform(scrollYProgress, [0.15, 0.28, 0.38, 0.48], [0, 1, 1, 0])
-  // ── 진입 힌트 ──
-  const hintOpacity = useTransform(scrollYProgress, [0.22, 0.30, 0.36, 0.44], [0, 1, 1, 0])
+  // ── 3. Hero 등장 (1300 ~ 2700px) ──
+  // 등장 후 유지되다가 마지막에 퇴장(Fade-out) 하도록 구간 추가
+  // 2900px부터 서서히 사라지기 시작해서 3300px에 완전 소멸
+  const heroOpacity = useTransform(scrollY, [1400, 2400, 2900, 3300], [0, 1, 1, 0])
+  
+  const badgeOpacity = useTransform(scrollY, [1500, 1900, 2900, 3300], [0, 1, 1, 0])
+  const badgeX = useTransform(scrollY, [1500, 1900], [-80, 0])
+  
+  const title1Opacity = useTransform(scrollY, [1600, 2000, 2900, 3300], [0, 1, 1, 0])
+  const title1X = useTransform(scrollY, [1600, 2000], [-80, 0])
+  
+  const title2Opacity = useTransform(scrollY, [1700, 2100, 2900, 3300], [0, 1, 1, 0])
+  const title2X = useTransform(scrollY, [1700, 2100], [-80, 0])
+  
+  const title3Opacity = useTransform(scrollY, [1800, 2200, 2900, 3300], [0, 1, 1, 0])
+  const title3X = useTransform(scrollY, [1800, 2200], [-80, 0])
+  
+  const ctaOpacity = useTransform(scrollY, [1900, 2300, 2900, 3300], [0, 1, 1, 0])
+  const ctaX = useTransform(scrollY, [1900, 2300], [-80, 0])
+  
+  const subtitleOpacity = useTransform(scrollY, [2000, 2500, 2900, 3300], [0, 1, 1, 0])
+  const subtitleX = useTransform(scrollY, [2000, 2500], [80, 0])
+  
+  const infoOpacity = useTransform(scrollY, [1800, 2600, 2900, 3300], [0, 1, 1, 0])
+  const infoX = useTransform(scrollY, [1800, 2600], [80, 0])
 
-  // ── children (Hero) 크로스페이드 (0.48 → 0.60) ──
-  const childrenOpacity = useTransform(scrollYProgress, [0.48, 0.60], [0, 1])
+  const titleTransforms = [
+    { opacity: title1Opacity, x: title1X },
+    { opacity: title2Opacity, x: title2X },
+    { opacity: title3Opacity, x: title3X },
+  ]
 
   return (
     <section
@@ -52,8 +63,9 @@ export default function NexonGate({
       id="hero"
       style={{
         position: 'relative',
-        height: '280vh',
+        height: '500vh', // 퇴장 구간 확보를 위해 전체 길이를 살짝 더 늘림
         background: C.bgWhite,
+        zIndex: 10,
       }}
     >
       <div
@@ -67,103 +79,28 @@ export default function NexonGate({
           overflow: 'hidden',
         }}
       >
-        {/* 좌상단: CH 번호 */}
-        <motion.div
-          style={{
-            opacity: labelOpacity,
-            position: 'absolute',
-            top: 'clamp(80px, 9vh, 120px)',
-            left: 'clamp(40px, 6vw, 120px)',
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: 14,
-          }}
-        >
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 11,
-              letterSpacing: '0.24em',
-              fontWeight: 800,
-              color: C.nexonBlue,
-            }}
-          >
-            CH 0 / 4
-          </span>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 11,
-              letterSpacing: '0.24em',
-              fontWeight: 800,
-              color: C.inkMuted,
-            }}
-          >
-            GATE.
-          </span>
-        </motion.div>
-
-        {/* 우상단 */}
-        <motion.div
-          style={{
-            opacity: labelOpacity,
-            position: 'absolute',
-            top: 'clamp(80px, 9vh, 120px)',
-            right: 'clamp(40px, 6vw, 120px)',
-            textAlign: 'right',
-            fontFamily: FONT_BODY,
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.inkMuted, letterSpacing: '0.24em' }}>
-            ISSUE / 2026.05
+        {/* 오로라 배경 (마지막에 같이 사라짐) */}
+        <motion.div style={{ opacity: heroOpacity, position: 'absolute', inset: 0 }}>
+          <div className="absolute inset-0 opacity-20 mix-blend-screen pointer-events-none">
+            <Aurora colorStops={[C.nexonBlue, C.nexonLightBlue, C.nexonBlueAlt]} amplitude={0.9} speed={0.4} />
           </div>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 800,
-              color: C.inkMuted,
-              letterSpacing: '0.24em',
-              marginTop: 4,
-            }}
-          >
-            YANG GEONHO · 9802
+          <div style={{ position: 'absolute', inset: 0, opacity: 0.3 }}>
+            <FloatingShapes />
           </div>
         </motion.div>
 
-        {/* 중앙 로고 — 축소 + 블러 디졸브 */}
-        <motion.div style={{
-          scale,
-          opacity: logoOpacity,
-          filter: useTransform(logoBlur, (v) => `blur(${v}px)`),
-          willChange: 'transform, filter',
-        }}>
-          <svg
-            viewBox="0 0 493.85 480.16"
-            width="min(60vw, 540px)"
-            height="auto"
-            aria-label="NEXON"
-            style={{ display: 'block' }}
-          >
+        {/* 로고 레이어 */}
+        <motion.div style={{ scale: logoScale, opacity: logoOpacity, zIndex: 10, pointerEvents: 'none', position: 'absolute' }}>
+          <svg viewBox="0 0 493.85 480.16" width="min(60vw, 540px)">
             <motion.g style={{ x: blueX, y: blueY, opacity: facetOpacity }}>
-              <polygon
-                fill={GATE_COLORS.blue}
-                points="128.74 196.98 128.74 286.79 247.95 223.4"
-              />
+              <polygon fill={GATE_COLORS.blue} points="128.74 196.98 128.74 286.79 247.95 223.4" />
             </motion.g>
             <motion.g style={{ x: navyX, y: navyY, opacity: facetOpacity }}>
-              <polygon
-                fill={GATE_COLORS.navy}
-                points="247.95 52.49 128.74 115.88 128.74 196.98 247.95 223.4"
-              />
+              <polygon fill={GATE_COLORS.navy} points="247.95 52.49 128.74 115.88 128.74 196.98 247.95 223.4" />
             </motion.g>
             <motion.g style={{ x: limeX, y: limeY, opacity: facetOpacity }}>
-              <polygon
-                fill={GATE_COLORS.lime}
-                points="247.95 223.4 128.74 286.79 276.58 319.58 395.79 256.18"
-              />
+              <polygon fill={GATE_COLORS.lime} points="247.95 223.4 128.74 286.79 276.58 319.58 395.79 256.18" />
             </motion.g>
-
-            {/* NEXON 워드마크 */}
             <motion.g fill={GATE_COLORS.black} style={{ opacity: facetOpacity }}>
               <polygon points="193.73 414.2 145.75 414.2 145.75 402.01 193.73 402.01 193.73 388.45 145.75 388.45 145.75 377.56 193.73 377.56 193.73 364.07 128.74 364.07 128.74 427.67 193.73 427.67 193.73 414.2" />
               <polygon points="400.46 389.22 440.75 427.67 453.58 427.67 453.58 364.07 436.57 364.07 436.57 402.53 396.28 364.07 383.45 364.07 383.45 427.67 400.46 427.67 400.46 389.22" />
@@ -174,52 +111,94 @@ export default function NexonGate({
           </svg>
         </motion.div>
 
-        {/* 진입 힌트 */}
-        <motion.div
+        <div
           style={{
-            opacity: hintOpacity,
-            position: 'absolute',
-            bottom: 'clamp(40px, 7vh, 96px)',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontFamily: FONT_DISPLAY,
-            fontSize: 'clamp(12px, 1vw, 14px)',
-            fontWeight: 700,
-            letterSpacing: '0.4em',
-            color: C.ink,
-            textTransform: 'uppercase',
+            width: '100%',
+            height: '100%',
+            padding: '60px clamp(48px, 8vw, 120px) 40px',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
-            gap: 18,
+            position: 'relative',
+            zIndex: 5,
           }}
         >
-          <span>ENTER</span>
-          <motion.span
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+          <div
             style={{
-              width: 1,
-              height: 56,
-              background: `linear-gradient(180deg, ${C.ink}, transparent)`,
-              display: 'block',
-            }}
-          />
-        </motion.div>
-
-        {/* ── Children (Hero) — 로고 디졸브 후 크로스페이드 ── */}
-        {children && (
-          <motion.div
-            style={{
-              opacity: childrenOpacity,
-              position: 'absolute',
-              inset: 0,
-              zIndex: 10,
+              maxWidth: 1480,
+              margin: '0 auto',
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1.6fr) minmax(280px, 1fr)',
+              gap: 64,
+              alignItems: 'start',
+              width: '100%',
             }}
           >
-            {children(scrollYProgress)}
-          </motion.div>
-        )}
+            <div>
+              <motion.div style={{ opacity: badgeOpacity, x: badgeX }}>
+                <div style={{ display: 'inline-block', padding: '6px 14px', color: C.nexonBlue, border: `1px solid ${C.nexonBlue}`, borderRadius: 9999, fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 32 }}>
+                  {HERO.badge}
+                </div>
+              </motion.div>
+
+              <h1 style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(36px, 5.5vw, 76px)', fontWeight: 700, lineHeight: 1.08, letterSpacing: '-0.04em', color: C.ink, margin: '0 0 24px', wordBreak: 'keep-all' }}>
+                {HERO.titleLines.map((line, i) => {
+                  const isHighlight = line.includes(HERO.highlightWord)
+                  const t = titleTransforms[i] || titleTransforms[titleTransforms.length - 1]
+                  return (
+                    <motion.span key={i} style={{ display: 'block', opacity: t.opacity, x: t.x }}>
+                      {isHighlight ? (
+                        <>
+                          <span style={{ color: C.nexonBlue }}>{HERO.highlightWord}</span>
+                          {line.replace(HERO.highlightWord, '')}
+                        </>
+                      ) : (
+                        line
+                      )}
+                    </motion.span>
+                  )
+                })}
+              </h1>
+
+              <motion.div style={{ opacity: ctaOpacity, x: ctaX, display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 28 }}>
+                {HERO.ctas.map(cta => <Button key={cta.label} label={cta.label} href={cta.href} variant="outline" />)}
+              </motion.div>
+              
+              <motion.div style={{ opacity: subtitleOpacity, x: subtitleX, fontSize: 'clamp(15px, 1.3vw, 19px)', fontWeight: 500, lineHeight: 1.7, color: C.inkSoft, maxWidth: 720, minHeight: '4em', fontFamily: FONT_BODY }}>
+                {HERO.subtitle}
+              </motion.div>
+            </div>
+
+            <motion.div style={{ opacity: infoOpacity, x: infoX }}>
+              <div style={{ padding: '32px 0 0', borderTop: `2px solid ${C.ink}` }}>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.2em', color: C.nexonBlue, fontWeight: 700, marginBottom: 24 }}>INFO</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <tbody>
+                    {HERO.meta.map(row => (
+                      <tr key={row.label} style={{ borderBottom: `1px solid ${C.cardBorder}` }}>
+                        <td style={{ fontFamily: FONT_MONO, fontSize: 10.5, letterSpacing: '0.16em', color: C.inkMuted, fontWeight: 700, padding: '14px 0', width: 100, verticalAlign: 'top' }}>{row.label}</td>
+                        <td style={{ fontSize: 14.5, color: C.ink, fontWeight: 600, padding: '14px 0', lineHeight: 1.45 }}>{row.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div style={{ marginTop: 32, paddingTop: 24, borderTop: `1px dashed ${C.cardBorder}`, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
+                  {STATS.map((s) => (
+                    <div key={s.label}>
+                      <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.025em', color: C.ink }}>
+                        {s.value}
+                        {s.unit && <span style={{ fontSize: '0.45em', fontWeight: 700, marginLeft: 3, color: C.inkMuted }}>{s.unit}</span>}
+                      </div>
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: C.inkMuted, letterSpacing: '0.08em', fontWeight: 700, marginTop: 6 }}>
+                        {s.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
       </div>
     </section>
   )

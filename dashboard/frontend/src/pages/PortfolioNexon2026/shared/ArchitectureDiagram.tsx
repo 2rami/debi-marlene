@@ -1,5 +1,9 @@
 import React, { forwardRef, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import { AnimatedBeam } from '../../../components/magicui/animated-beam'
+import ScrollFloat from '../../../components/reactbits/ScrollFloat'
+import TextType from '../../../components/reactbits/TextType'
 import SectionShell from './SectionShell'
 import { C, FONT_BODY, FONT_MONO, FONT_DISPLAY } from './colors'
 
@@ -108,45 +112,45 @@ const EVIDENCE: Evidence[] = [
   {
     kind: 'code',
     lang: 'python',
-    body: `# run/llm/classify_intent.py
+    body: `# run/services/chat/chat_agent_graph.py
 PATCH_KEYWORDS = re.compile(
-    r"(패치|너프|버프|변경|밸런스|상향|하향|OP)"
+    r"(패치|너프|버프|변경|밸런스|조정|상향|하향|OP"
+    r"|약해졌|강해졌|업데이트|노트"
+    r"|추가|신규|새로|등장|개편|새.{0,3}스킬)"
 )
 intent = "patch" if PATCH_KEYWORDS.search(text) else "general"`,
-    caption: '정규식 한 번으로 patch / general 분기 — LLM 호출 0회',
+    caption: '정규식 한 번으로 patch / general 분기 — LLM 호출 0회. 자연어 누수 발견 시 키워드 보강',
   },
   {
     kind: 'image',
     src: '/portfolio/architecture/patchnote.png',
-    alt: 'ER 패치노트 응답 임베드',
-    caption: '데비&마를렌이 ER 공식 패치노트에서 캐릭터 별칭을 매핑해 응답',
+    alt: '데비&마를렌 패치노트 응답 + V2 Container 카드',
+    caption: '"새로운 전술 스킬 추가" 같은 자연어 → fetch_patchnote → 11.0 핫픽스 + Part.1 메인 두 패치 합쳐서 카드 송출. 페르소나 톤 + 출처 표기 동시',
   },
   {
     kind: 'code',
     lang: 'python',
-    body: `# run/llm/session_store.py
-async def get_or_create_session(guild_id, user_id):
-    row = await db.fetch_one(
-        "SELECT session_id, turn, last_at FROM sessions "
-        "WHERE guild_id=? AND user_id=?",
-        (guild_id, user_id),
-    )
-    if row and row.turn < 50 and not idle_over(row.last_at, hours=6):
-        return row.session_id
-    return await rotate(guild_id, user_id)  # 요약→archive→새 세션`,
-    caption: '(guild_id, user_id) → session_id 영속. turn 50 / 6h idle 자동 회전',
+    body: `# run/services/chat/managed_agents_client.py
+session_id, summary = await session_store.get_or_rotate_session(
+    guild_id, user_id,
+    create_fn=self._create_session,
+    archive_fn=self._archive_session,
+    summarize_fn=self._summarize_session,
+)
+# turn 50 / 6h idle 도달 시 요약 → archive → 새 세션`,
+    caption: '(guild_id, user_id) → session_id SQLite 영속 매핑. Anthropic Sessions가 history 자동 유지',
   },
   {
     kind: 'image',
-    src: '/portfolio/architecture/llm-response.png',
-    alt: 'Discord LLM 응답 말풍선',
-    caption: 'few-shot 5쌍 + 4가지 방어 규칙으로 캐릭터 톤 유지',
+    src: '/portfolio/architecture/character-stats.png',
+    alt: 'get_character_stats 응답 + CharacterStatsView 카드',
+    caption: '"지금 통계 봐바" → claude-haiku-4-5가 get_character_stats 자율 호출 → 다이아+ 7일 티어 카드 + 페르소나가 결과 paraphrase',
   },
   {
     kind: 'image',
     src: '/portfolio/architecture/stats-card.png',
-    alt: 'StatsLayoutView 네이티브 카드',
-    caption: 'Claude가 search_player_stats 자율 호출 → LayoutView v2로 직접 post',
+    alt: 'StatsLayoutView 네이티브 v2 카드',
+    caption: '"데비야 모모모 전적 검색해줘" → search_player_stats(nickname) → StatsLayoutView v2 Container를 채널에 직접 post',
   },
 ]
 
@@ -187,20 +191,44 @@ export default function ArchitectureDiagram({ steps, title }: Props) {
       kicker="ARCHITECTURE · 입력 한 번에 일어나는 일"
       title={
         <span style={{ display: 'block' }}>
-          <span style={{ display: 'block' }}>{titleParts.head}</span>
+          <ScrollFloat
+            animationDuration={0.9}
+            ease="back.out(1.6)"
+            stagger={0.025}
+            scrollStart="top bottom-=10%"
+            scrollEnd="bottom center+=20%"
+            textStyle={{
+              display: 'block',
+              fontFamily: 'inherit',
+              fontSize: 'inherit',
+              fontWeight: 'inherit',
+              lineHeight: 'inherit',
+              letterSpacing: 'inherit',
+              color: 'inherit',
+            }}
+          >
+            {titleParts.head}
+          </ScrollFloat>
           {titleParts.tail && (
-            <span
-              style={{
+            <ScrollFloat
+              animationDuration={0.9}
+              ease="back.out(1.6)"
+              stagger={0.018}
+              scrollStart="top bottom-=20%"
+              scrollEnd="bottom center+=10%"
+              textStyle={{
                 display: 'block',
+                fontFamily: 'inherit',
                 fontSize: '0.62em',
                 fontWeight: 500,
                 color: C.inkSoft,
                 letterSpacing: '-0.005em',
+                lineHeight: 1.3,
                 marginTop: 10,
               }}
             >
               {titleParts.tail}
-            </span>
+            </ScrollFloat>
           )}
         </span>
       }
@@ -213,12 +241,12 @@ export default function ArchitectureDiagram({ steps, title }: Props) {
         style={{
           position: 'relative',
           width: '100%',
-          height: 440,
-          marginBottom: 56,
+          height: 320,
+          marginBottom: 24,
           borderTop: `1px solid ${C.cardBorder}`,
           borderBottom: `1px solid ${C.cardBorder}`,
-          paddingTop: 24,
-          paddingBottom: 24,
+          paddingTop: 16,
+          paddingBottom: 16,
         }}
       >
         {/* USER */}
@@ -451,24 +479,69 @@ function EvidencePane({ evidence }: { evidence: Evidence }) {
 
 function ImageEvidence({ src, alt }: { src: string; alt: string }) {
   const [errored, setErrored] = useState(false)
+  const [hover, setHover] = useState(false)
+
   return (
     <div
+      onMouseEnter={() => !errored && setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
         position: 'relative',
         background: C.bgWhite,
-        border: `1px solid ${C.cardBorder}`,
+        border: `1px solid ${hover ? C.nexonBlue : C.cardBorder}`,
         borderRadius: 12,
-        overflow: 'hidden',
+        // overflow는 thumb 박스에서만 — popover는 viewport에 떠야 해서 outer에선 visible
+        overflow: 'visible',
         aspectRatio: '16 / 10',
+        cursor: errored ? 'default' : 'zoom-in',
+        transition: 'border-color 180ms ease',
       }}
     >
       {!errored ? (
-        <img
-          src={src}
-          alt={alt}
-          onError={() => setErrored(true)}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        />
+        <>
+          {/* thumb 자체는 overflow hidden + radius 처리 */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src={src}
+              alt={alt}
+              onError={() => setErrored(true)}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          </div>
+          {/* zoom 안내 배지 */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              padding: '4px 8px',
+              borderRadius: 999,
+              background: 'rgba(10, 18, 36, 0.72)',
+              color: '#fff',
+              fontFamily: FONT_MONO,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              opacity: hover ? 0 : 0.85,
+              transition: 'opacity 180ms ease',
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          >
+            HOVER
+          </div>
+          <AnimatePresence>
+            {hover && <ImagePreviewPopover src={src} alt={alt} />}
+          </AnimatePresence>
+        </>
       ) : (
         <div
           style={{
@@ -487,6 +560,7 @@ function ImageEvidence({ src, alt }: { src: string; alt: string }) {
             textTransform: 'uppercase',
             padding: 20,
             textAlign: 'center',
+            borderRadius: 12,
           }}
         >
           <span style={{ fontWeight: 800, color: C.nexonBlue }}>SCREENSHOT</span>
@@ -500,38 +574,138 @@ function ImageEvidence({ src, alt }: { src: string; alt: string }) {
   )
 }
 
-function CodeEvidence({ body, lang }: { body: string; lang: string }) {
-  return (
-    <pre
+function ImagePreviewPopover({ src, alt }: { src: string; alt: string }) {
+  // body 포털로 렌더링 — 상위 transform/will-change 영향 우회, viewport 정중앙 보장
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <motion.div
+      initial={{ opacity: 0, scale: 0.94 }}
+      animate={{
+        opacity: 1,
+        scale: 1,
+        transition: { type: 'spring', stiffness: 240, damping: 22 },
+      }}
+      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
       style={{
-        margin: 0,
-        background: C.ink,
-        color: '#e6edf3',
-        border: `1px solid ${C.ink}`,
-        borderRadius: 12,
-        padding: '16px 18px',
-        fontFamily: '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace',
-        fontSize: 12.5,
-        lineHeight: 1.6,
-        overflow: 'auto',
-        maxHeight: 240,
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        pointerEvents: 'none',
       }}
     >
+      <img
+        src={src}
+        alt={alt}
+        style={{
+          display: 'block',
+          width: 'auto',
+          height: 'auto',
+          maxWidth: 'min(820px, 92vw)',
+          maxHeight: '86vh',
+          objectFit: 'contain',
+          borderRadius: 12,
+          boxShadow:
+            '0 28px 80px -12px rgba(10, 18, 36, 0.45), 0 0 0 1px rgba(10, 18, 36, 0.08)',
+        }}
+      />
+    </motion.div>,
+    document.body,
+  )
+}
+
+function CodeEvidence({ body, lang }: { body: string; lang: string }) {
+  // 첫 줄이 `# path/to/file.py` 형태면 터미널 title로 분리
+  const lines = body.split('\n')
+  const isPathComment = (lines[0] || '').trim().startsWith('#')
+  const title = isPathComment
+    ? lines[0].replace(/^#\s*/, '').trim()
+    : lang.toUpperCase()
+  const codeBody = (isPathComment ? lines.slice(1).join('\n').replace(/^\n+/, '') : body)
+
+  return (
+    <div
+      style={{
+        margin: 0,
+        background: '#0d1117',
+        borderRadius: 12,
+        overflow: 'hidden',
+        boxShadow: '0 12px 40px -12px rgba(10, 18, 36, 0.32), 0 0 0 1px rgba(255,255,255,0.05)',
+      }}
+    >
+      {/* macOS 터미널 title bar */}
       <div
         style={{
-          fontFamily: FONT_MONO,
-          fontSize: 10,
-          fontWeight: 800,
-          letterSpacing: '0.18em',
-          color: C.nexonLightBlue,
-          textTransform: 'uppercase',
-          marginBottom: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '10px 14px',
+          background: '#161b22',
+          borderBottom: '1px solid rgba(255,255,255,0.05)',
         }}
       >
-        {lang}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <TerminalDot color="#ff5f57" />
+          <TerminalDot color="#febc2e" />
+          <TerminalDot color="#28c840" />
+        </div>
+        <div
+          style={{
+            flex: 1,
+            textAlign: 'center',
+            fontFamily: '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+            color: 'rgba(230, 237, 243, 0.55)',
+            paddingRight: 36, // dot 영역 보정
+          }}
+        >
+          {title}
+        </div>
       </div>
-      <code style={{ fontFamily: 'inherit' }}>{body}</code>
-    </pre>
+
+      {/* 코드 본문 — 타이핑 효과 */}
+      <pre
+        style={{
+          margin: 0,
+          padding: '18px 20px',
+          fontFamily: '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace',
+          fontSize: 12.5,
+          lineHeight: 1.65,
+          color: '#e6edf3',
+          whiteSpace: 'pre',
+          overflowX: 'auto',
+        }}
+      >
+        <TextType
+          as="code"
+          text={codeBody}
+          typingSpeed={14}
+          loop={false}
+          startOnVisible
+          showCursor
+          cursorCharacter="▍"
+          cursorClassName="terminal-cursor"
+        />
+      </pre>
+    </div>
+  )
+}
+
+function TerminalDot({ color }: { color: string }) {
+  return (
+    <span
+      style={{
+        width: 12,
+        height: 12,
+        borderRadius: '50%',
+        background: color,
+        display: 'inline-block',
+      }}
+    />
   )
 }
 

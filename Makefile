@@ -20,6 +20,9 @@ IMAGE_TAG = $(REGISTRY)/$(CONTAINER_NAME):latest
 DASHBOARD_CONTAINER = debi-marlene-dashboard
 DASHBOARD_IMAGE_TAG = $(REGISTRY)/$(DASHBOARD_CONTAINER):latest
 
+# Cloudflare 캐시 퍼지용 토큰 (.env 에서 자동 로드)
+CF_API_TOKEN ?= $(shell grep -E '^CF_API_TOKEN=' .env 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '[:space:]')
+
 # Companion-bot (나쵸네코) 설정 — 별도 Dockerfile, 별도 이미지
 COMPANION_CONTAINER = companion-bot
 COMPANION_IMAGE_TAG = $(REGISTRY)/$(COMPANION_CONTAINER):latest
@@ -175,7 +178,7 @@ stop:
 start:
 	@echo "VM에서 최신 이미지 pull 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker pull $(IMAGE_TAG) && docker image prune -af"
+		--command="docker pull $(IMAGE_TAG)"
 	@echo "컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
@@ -235,12 +238,13 @@ deploy-dashboard: build-dashboard push-dashboard restart-dashboard
 build-dashboard:
 	@echo "봇 모듈 복사 (환영 이미지 생성용)..."
 	@rm -rf dashboard/run
-	@mkdir -p dashboard/run/core dashboard/run/services/welcome
+	@mkdir -p dashboard/run/core dashboard/run/services/welcome dashboard/run/services/quiz
 	@cp run/__init__.py dashboard/run/__init__.py
 	@cp run/core/__init__.py dashboard/run/core/__init__.py
 	@cp run/core/config.py dashboard/run/core/config.py
 	@cp run/services/__init__.py dashboard/run/services/__init__.py
 	@cp -r run/services/welcome/* dashboard/run/services/welcome/
+	@cp -r run/services/quiz/* dashboard/run/services/quiz/
 	@echo "대시보드 Docker 이미지 빌드 중 (linux/amd64)..."
 	@docker build --platform linux/amd64 -t $(DASHBOARD_CONTAINER) -t $(DASHBOARD_IMAGE_TAG) ./dashboard
 	@rm -rf dashboard/run

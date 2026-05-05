@@ -12,13 +12,26 @@ Decider 게이트: 쿨다운 → 봇 streak 캡 → 확률 → Claude judge.
 
 import logging
 import os
+import re
 
 import anthropic
 import discord
 from discord.ext import commands
 
 from run.core import config
+from run.services.chat.chat_agent_graph import PATCH_KEYWORDS
 from run.services.chat.chime_decider import ChimeInDecider, has_keyword, is_question
+
+# Managed Agent tool 호출 의도가 강한 자연어 키워드.
+# 매칭되면 chime_in의 짧은 judge 대신 ChatCog로 위임 → LangGraph + tool 사용.
+# tool 이름 기준 — search_player_stats / get_character_stats / get_season_info /
+# get_online_players / remember_about_user 등 10종.
+TOOL_INTENT_KEYWORDS = re.compile(
+    r"(전적|랭킹|전력|TMI|기록|MMR|RP|티어|승률|픽률|메타|플레이"
+    r"|시즌|동접|접속자|유저수|온라인"
+    r"|기억해|까먹|잊어|리셋|초기화|회의록"
+    r"|통계|주캐|주력|실험체|챔피언|영웅)"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +96,20 @@ class ChimeInCog(commands.Cog, name="끼어들기"):
         # identity별로 분리 — 데비는 데비 호명만, 마를렌은 마를렌 호명만.
         if not is_bot and has_keyword(message.content, self.identity):
             return
+
+        # 패치/통계/메모리 등 tool 호출 의도 감지 — 호명 없어도 ChatCog 경유로 풀 응답.
+        # ChimeInDecider는 짧은 끼어들기용이라 tool 동작에 부적합.
+        if not is_bot and (
+            PATCH_KEYWORDS.search(message.content)
+            or TOOL_INTENT_KEYWORDS.search(message.content)
+        ):
+            chat_cog = self.bot.get_cog("대화")
+            if chat_cog is not None and hasattr(chat_cog, "_respond_via_agent"):
+                try:
+                    await chat_cog._respond_via_agent(message, message.content)
+                except Exception as e:
+                    logger.warning("chime_in→chat 위임 실패: %s", e)
+                return
 
         # 질문 vs 일반 채팅
         question_hit = not is_bot and is_question(message.content)

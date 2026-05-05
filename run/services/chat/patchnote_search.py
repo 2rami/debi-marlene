@@ -22,7 +22,10 @@ _parsed_cache: dict = {}
 _patchnote_list: list = []
 CACHE_TTL = 3600
 
-PATCH_KEYWORDS = ["패치", "너프", "버프", "변경", "수정", "밸런스", "상향", "하향", "바뀌"]
+PATCH_KEYWORDS = [
+    "패치", "너프", "버프", "변경", "수정", "밸런스", "상향", "하향", "바뀌",
+    "추가", "신규", "새로", "등장", "개편", "조정", "업데이트", "노트",
+]
 
 # 캐릭터 별칭 -> 패치노트에 표기되는 한글 정식명
 # 패치노트 실제 표기 기준 (10.6 기준 확인)
@@ -148,18 +151,25 @@ def _parse_character_sections(text: str) -> dict:
 
 
 def _find_section_by_keyword(text: str, keyword: str) -> Optional[str]:
-    """전체 텍스트에서 keyword가 제목인 ### 섹션 찾기."""
-    # ### 실험체, ### **무기**, ### 방어구 등 다양한 형태 매칭
+    """전체 텍스트에서 keyword가 제목에 포함된 ### 섹션 모두 찾아 합치기.
+
+    핫픽스/메인 패치 한 문서 안에도 같은 키워드 섹션이 여러 개 있을 수 있음
+    (예: '아이템 스킬' + '신규 아이템'). 첫 매칭만 반환하면 누락 발생.
+    """
     header_pattern = re.compile(r"^#{2,5}\s+\*{0,2}([^*\n]+?)\*{0,2}\s*$", re.MULTILINE)
     matches = list(header_pattern.finditer(text))
 
+    parts: list[str] = []
     for i, m in enumerate(matches):
         title = m.group(1).strip()
         if keyword in title:
             start = m.end()
             end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-            return text[start:end].strip()
-    return None
+            body = text[start:end].strip()
+            parts.append(f"### {title}\n{body}")
+    if not parts:
+        return None
+    return "\n\n".join(parts)
 
 
 async def _fetch_and_parse(post_id: str) -> Optional[dict]:
@@ -286,14 +296,34 @@ async def get_patch_context(message: str) -> tuple:
                 return context, patch_info
         return f"[{posts[0]['title']}] {detected_char}: 최근 패치에 변경사항 없음.", None
 
-    # 캐릭터 특정 안 되면 일반 패치
-    section_keywords = {"아이템": "아이템 스킬", "무기": "무기", "방어구": "방어구", "증강": "특성", "전술": "전술 스킬"}
+    # 캐릭터 특정 안 되면 일반 패치 — 핫픽스/메인 패치 모두 모아서 합치기.
+    # 첫 매칭에서 stop하면 핫픽스만 보고 "신규 추가 없다"는 식의 결론으로 빠짐.
+    # 메시지 키워드 → 섹션 헤더 substring. _find_section_by_keyword가 substring 매칭.
+    section_keywords = {"아이템": "아이템", "무기": "무기", "방어구": "방어구", "증강": "특성", "전술": "전술"}
     for kw, section_name in section_keywords.items():
         if kw in message:
-            parsed = await _fetch_and_parse(posts[0]["id"])
-            if parsed:
+            parts: list[str] = []
+            post_titles: list[str] = []
+            merged_changes: list = []
+            for post in posts[:3]:
+                parsed = await _fetch_and_parse(post["id"])
+                if not parsed:
+                    continue
                 section = _find_section_by_keyword(parsed["full_text"], section_name)
                 if section:
-                    return f"[{posts[0]['title']}] {section_name}:\n{section[:600]}", None
+                    parts.append(f"[{post['title']}] {section_name}:\n{section[:300]}")
+                    post_titles.append(post["title"])
+                    merged_changes.extend(_parse_changes(section))
+            if parts:
+                patch_info = (
+                    {
+                        "title": " + ".join(post_titles),
+                        "character": section_name,  # 임베드 카드 라벨로 재사용 (섹션명)
+                        "changes": merged_changes,
+                    }
+                    if merged_changes
+                    else None
+                )
+                return "\n\n".join(parts), patch_info
 
     return f"[{posts[0]['title']}] 최신 패치 적용됨.", None

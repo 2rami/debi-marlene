@@ -114,6 +114,13 @@ class ManagedAgentsClient:
 
         parts = []
         if context:
+            parts.append(
+                "[동작 규칙]\n"
+                "아래 [참고 컨텍스트]는 너희 둘이 이미 알고 있는 정보야. "
+                "톤은 평소처럼 츤츤대고 장난쳐도 좋은데, 핵심 정보는 반드시 답변에 포함해. "
+                '"모른다 / 정보 없다 / 또 같은 거 물어보네" 같은 회피·생략 금지. '
+                "정보 먼저 짧게 전달한 뒤에 캐릭터 코멘트 붙이는 식으로."
+            )
             parts.append(f"[참고 컨텍스트]\n{context}")
         if summary:
             parts.append(f"[이전 대화 요약 — 컨텍스트 복원용]\n{summary}")

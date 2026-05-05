@@ -18,6 +18,7 @@ import {
 } from 'framer-motion'
 import { Send, X, Loader2 } from 'lucide-react'
 import { FONT_BODY, FONT_DISPLAY } from './colors'
+import { useCharacterDock } from './dockContext'
 
 const DEFAULT_HASH =
   'MDJEJPMDEMDJHNEBBNNMJECMFOIONCHJIBOCJJPBFCKNKIGKBBENDHPPFHLIDKILPPFEBOKAIFAAKEJLHEFKOHJLCMDDILIMKIMBGIMEHGCPBKLEPJLPEDJJNJJCAGDEJHMAAOGLLFGLBMMHDNCPPFLPPCPACKODADBBKKEGDIGMKDHJALDIDBOBMGMPMKNJMJNENGMFMPONCFMLNIDJMFAHPNKMBCPEILEMDIDFDFBHNAPPHMPEKIMKNCJAOOIB'
@@ -136,9 +137,10 @@ export default function MapleChatbot({
   const [isWalking, setIsWalking] = useState(false)
   const [bubbleText, setBubbleText] = useState('← → 로 움직여요!\nALT 점프 · CTRL 공격 🎮')
   const keyboardHintRef = useRef(true)
-  const [paintingMode, setPaintingMode] = useState(false)
   const [hasDragged, setHasDragged] = useState(false)
-  const paintingRect = useRef<DOMRect | null>(null)
+
+  // 도킹 — 특정 섹션 슬롯에 캐릭터 고정 (bubble useEffect 가 일찍 참조하니 위로)
+  const { dockEl } = useCharacterDock()
 
   const sessionRef = useRef<string | null>(
     typeof window !== 'undefined' ? localStorage.getItem(SESSION_KEY) : null
@@ -189,26 +191,10 @@ export default function MapleChatbot({
       setReduced(e.matches)
     }
     mq.addEventListener('change', onMq)
-    
-    // 전우치 모드 옵저버
-    const interval = setInterval(() => {
-      const el = document.getElementById('character-painting')
-      if (el) {
-        const rect = el.getBoundingClientRect()
-        // 그림이 화면의 중앙 부근에 들어왔는지 체크 (약 화면 20% ~ 80% 사이)
-        if (rect.top > window.innerHeight * 0.1 && rect.bottom < window.innerHeight * 0.9) {
-          paintingRect.current = rect
-          setPaintingMode(true)
-        } else {
-          setPaintingMode(false)
-        }
-      }
-    }, 200)
 
     return () => {
       window.removeEventListener('resize', onResize)
       mq.removeEventListener('change', onMq)
-      clearInterval(interval)
     }
   }, [])
 
@@ -228,19 +214,18 @@ export default function MapleChatbot({
   useEffect(() => {
     return scrollYProgress.onChange((v) => {
       if (keyboardHintRef.current) return // 안내 표시 중엔 덮어쓰지 않음
+      if (dockEl) return // 도킹 중엔 dock 전용 버블 유지
       if (v < 0.1) {
         setBubbleText('아래로 스크롤 해보세요! 👇')
       } else if (v >= 0.1 && v < 0.3) {
         setBubbleText('저는 데비&마를렌을 9개월째\n1인 운영 중인 양건호입니다! 😎')
       } else if (v >= 0.3 && v < 0.6) {
         setBubbleText('넥슨의 JD와 제가\n어떻게 매칭되는지 볼까요? 🎯')
-      } else if (v >= 0.6 && v < 0.8) {
-        setBubbleText('저 그림 속으로 들어갑니다!!\n얍!! 전우치!! 🏃‍♂️💨')
       } else {
         setBubbleText('저에게 궁금한 점을\n물어보세요! 💬')
       }
     })
-  }, [scrollYProgress])
+  }, [scrollYProgress, dockEl])
 
   const controls = useAnimationControls()
   const firstRunRef = useRef(true)
@@ -266,10 +251,10 @@ export default function MapleChatbot({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  // 테두리 걷기 로직 (bottom edge)
+  // 테두리 걷기 로직 (bottom edge) — 도킹 중엔 정지
   useEffect(() => {
-    if (open || isDragging || reduced) return;
-    
+    if (open || isDragging || reduced || dockEl) return;
+
     let cancelled = false;
     
     async function roam() {
@@ -279,15 +264,14 @@ export default function MapleChatbot({
         controls.set({ x: initX, y: initY, scale: 1, opacity: 1 });
         currentXRef.current = initX;
         firstRunRef.current = false;
-      } else if (hasDragged) {
-        // 사용자가 드래그해서 버려둔 상태 — drag 끝 위치 그대로, spring 복귀 안 함.
-        // controls.set 으로 명시 안 하면 mount 시 initial opacity:0 에 멈춰서 안 보임.
-        const pos = lastDragPosRef.current
-        if (pos) {
-          controls.set({ x: pos.x, y: pos.y, scale: 1, opacity: 1 })
-        } else {
-          controls.set({ opacity: 1, scale: 1 })
-        }
+      } else if (hasDragged || lastDragPosRef.current) {
+        // 사용자가 드래그했거나 도킹에서 빠져나온 상태 — 위치 유지, scale만 1로 부드럽게 복귀.
+        await controls.start(
+          { scale: 1, opacity: 1 },
+          { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
+        )
+        if (cancelled) return;
+        // currentXRef 는 마지막 dock x 그대로 — 다음 random walk 가 거기서 시작
         setMotionState('idle');
       } else {
         // 채팅창에서 튀어나오는 팝업 아웃 애니메이션
@@ -314,50 +298,6 @@ export default function MapleChatbot({
         const dwell = 4000 + Math.random() * 4000;
         await new Promise(r => setTimeout(r, dwell));
         if (cancelled) break;
-        
-        // 전우치 모드: 그림으로 빨려들어감
-        if (paintingMode && paintingRect.current) {
-          const rect = paintingRect.current;
-          const targetX = rect.left + rect.width / 2 - CHAR_SIZE / 2;
-          const targetY = rect.top + rect.height / 2 - CHAR_SIZE / 2;
-          
-          setMotionState('drag');
-          await controls.start(
-            { x: targetX, y: targetY, scale: 0, opacity: 0, rotate: 720 },
-            { duration: 1.2, ease: 'easeInOut' }
-          );
-          
-          // 그림 안에 들어간 상태로 대기하면서 위치 동기화
-          while (paintingMode && !cancelled) {
-            const el = document.getElementById('character-painting');
-            if (el) {
-               const r = el.getBoundingClientRect();
-               controls.set({ 
-                 x: r.left + r.width / 2 - CHAR_SIZE / 2, 
-                 y: r.top + r.height / 2 - CHAR_SIZE / 2 
-               });
-            }
-            await new Promise(r => setTimeout(r, 100));
-          }
-          
-          if (cancelled) break;
-          
-          // 사용자가 드래그해서 버려둔 상태면 안 움직임
-          if (hasDragged) {
-            await new Promise(r => setTimeout(r, 1000));
-            continue;
-          }
-          
-          // 다시 튀어나옴
-          setMotionState('drag');
-          await controls.start(
-            { x: viewport.w - MARGIN - CHAR_SIZE, y: viewport.h - MARGIN - CHAR_SIZE, scale: 1, opacity: 1, rotate: 0 },
-            { type: 'spring', stiffness: 70, damping: 14 }
-          );
-          setMotionState('idle');
-          currentXRef.current = viewport.w - MARGIN - CHAR_SIZE;
-          continue;
-        }
 
         // 사용자가 드래그해서 화면에 버려둔 상태면 안 움직임
         if (hasDragged) {
@@ -398,7 +338,58 @@ export default function MapleChatbot({
       cancelled = true;
       setIsWalking(false);
     }
-  }, [open, isDragging, reduced, viewport.w, viewport.h, controls, hasDragged])
+  }, [open, isDragging, reduced, viewport.w, viewport.h, controls, hasDragged, dockEl])
+
+  // 도킹 — dockEl 이 set 되면 매 프레임 lerp 로 slot 위치 따라잡음 (discrete animation 없음)
+  const DOCK_SCALE = 1.7
+  useEffect(() => {
+    if (!dockEl || open || isDragging) return
+
+    let cancelled = false
+    let raf = 0
+
+    const getTarget = () => {
+      const rect = dockEl.getBoundingClientRect()
+      const rawX = rect.left + (rect.width - CHAR_SIZE) / 2
+      const rawY = rect.top + (rect.height - CHAR_SIZE) / 2 + 60
+      return {
+        x: Math.max(MARGIN, Math.min(viewport.w - MARGIN - CHAR_SIZE, rawX)),
+        y: Math.max(MARGIN, Math.min(viewport.h - MARGIN - CHAR_SIZE, rawY)),
+      }
+    }
+
+    setIsWalking(false)
+    setMotionState('idle')
+    setFacingRight(false)
+    setBubbleText('저의 메이플\n경력입니다!')
+
+    // 시작 위치 — 현재 캐릭터 위치 (controls 에 직접 조회 어려워 ref 추정)
+    let curX = currentXRef.current
+    let curY = lastDragPosRef.current?.y ?? viewport.h - MARGIN - CHAR_SIZE
+    let curScale = 1
+
+    // 매 프레임 16% 비율로 따라잡음 — 부드럽고 빠른 spring 느낌
+    const SPEED = 0.16
+    const tick = () => {
+      if (cancelled) return
+      const t = getTarget()
+      curX += (t.x - curX) * SPEED
+      curY += (t.y - curY) * SPEED
+      curScale += (DOCK_SCALE - curScale) * SPEED
+      controls.set({ x: curX, y: curY, scale: curScale, opacity: 1 })
+      currentXRef.current = curX
+      lastDragPosRef.current = { x: curX, y: curY }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(raf)
+      // 언도킹 — lastDragPosRef 가 마지막 위치로 세팅돼있어 roam 의 resume 분기 진입.
+      // rAF tick 에서 Y clamp 했으니 viewport 안 안전 영역. 위치 그대로 두고 scale 만 1로 복귀.
+    }
+  }, [dockEl, open, isDragging, controls, viewport.w, viewport.h])
 
   // 걷기 모션: walk1.0 → walk1.3 4프레임 cycle (walk2 는 팔 끊김으로 제외)
   useEffect(() => {
@@ -538,7 +529,7 @@ export default function MapleChatbot({
       }, JUMP_DURATION_MS)
     }
 
-    const onKeyDown = (e: KeyboardEvent) => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
       if (isInputFocused()) return
       if (heldKeys.has(e.code)) return
       heldKeys.add(e.code)
@@ -574,7 +565,7 @@ export default function MapleChatbot({
       }
     }
 
-    const onKeyUp = (e: KeyboardEvent) => {
+    const onKeyUp = (e: globalThis.KeyboardEvent) => {
       heldKeys.delete(e.code)
       if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
         if (!heldKeys.has('ArrowLeft') && !heldKeys.has('ArrowRight')) {
@@ -744,7 +735,7 @@ export default function MapleChatbot({
     transformOrigin: 'center bottom',
     filter: 'drop-shadow(0 6px 14px rgba(10,18,36,0.3))',
     pointerEvents: 'none',
-    transition: 'transform 0.15s ease-out'
+    // flip 은 instant — facing 변경 시 회전 없이 바로 바뀜
   }
 
   return (

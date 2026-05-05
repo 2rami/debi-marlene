@@ -49,23 +49,23 @@ function Block({
   return (
     <article
       style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(220px, 320px) minmax(0, 1fr)',
-        gap: 64,
-        alignItems: 'start',
-        paddingBottom: 56,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 24,
+        paddingBottom: 40,
+        marginBottom: 16,
         borderBottom: `1px solid ${C.cardBorder}`,
       }}
     >
-      <div>
+      <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div
           style={{
             fontFamily: FONT_MONO,
             fontSize: 11,
-            letterSpacing: '0.2em',
+            letterSpacing: '0.22em',
             color: C.nexonBlue,
-            fontWeight: 500,
-            marginBottom: 12,
+            fontWeight: 800,
+            textTransform: 'uppercase',
           }}
         >
           {title}
@@ -73,17 +73,24 @@ function Block({
         <div
           style={{
             fontFamily: FONT_MONO,
-            fontSize: 13,
+            fontSize: 11,
             color: C.inkMuted,
-            fontWeight: 500,
-            letterSpacing: '0.04em',
+            fontWeight: 600,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
           }}
         >
-          {items.length} ITEMS · TOP {top.length}
+          {items.length} items · top {top.length}
         </div>
-      </div>
+      </header>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: 'clamp(16px, 2vw, 28px)',
+        }}
+      >
         {top.map((it) => (
           <Row key={it.label} item={it} />
         ))}
@@ -99,8 +106,8 @@ function Row({ item }: { item: StackItem }) {
         display: 'flex',
         flexDirection: 'column',
         gap: 6,
-        paddingLeft: 16,
-        borderLeft: `2px solid ${C.nexonBlue}`,
+        paddingTop: 12,
+        borderTop: `1px solid ${C.cardBorder}`,
       }}
     >
       <span

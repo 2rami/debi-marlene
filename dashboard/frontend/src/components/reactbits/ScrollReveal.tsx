@@ -49,51 +49,50 @@ const ScrollReveal: React.FC<ScrollRevealProps> = ({
     const el = containerRef.current
     if (!el) return
 
+    // ?reveal=off 가드 — Figma html-to-design 등 정적 캡처용
+    if (typeof window !== 'undefined') {
+      try {
+        if (new URLSearchParams(window.location.search).get('reveal') === 'off') {
+          const wordEls = el.querySelectorAll<HTMLElement>('.word')
+          wordEls.forEach((w) => {
+            w.style.opacity = '1'
+            w.style.filter = 'blur(0px)'
+          })
+          el.style.transform = 'none'
+          return
+        }
+      } catch {}
+    }
+
     const scroller = scrollContainerRef && scrollContainerRef.current ? scrollContainerRef.current : window
 
-    gsap.fromTo(
-      el,
-      { transformOrigin: '0% 50%', rotate: baseRotation },
-      {
-        ease: 'none',
-        rotate: 0,
-        scrollTrigger: {
-          trigger: el,
-          scroller,
-          start: 'top bottom',
-          end: rotationEnd,
-          scrub: true,
-        },
-      },
-    )
-
-    const wordElements = el.querySelectorAll<HTMLElement>('.word')
-
-    gsap.fromTo(
-      wordElements,
-      { opacity: baseOpacity, willChange: 'opacity' },
-      {
-        ease: 'none',
-        opacity: 1,
-        stagger: 0.05,
-        scrollTrigger: {
-          trigger: el,
-          scroller,
-          start: 'top bottom-=20%',
-          end: wordAnimationEnd,
-          scrub: true,
-        },
-      },
-    )
-
-    if (enableBlur) {
+    // gsap.context 로 묶어서 자기 만든 trigger 만 cleanup
+    const ctx = gsap.context(() => {
       gsap.fromTo(
-        wordElements,
-        { filter: `blur(${blurStrength}px)` },
+        el,
+        { transformOrigin: '0% 50%', rotate: baseRotation },
         {
           ease: 'none',
-          filter: 'blur(0px)',
-          stagger: 0.05,
+          rotate: 0,
+          scrollTrigger: {
+            trigger: el,
+            scroller,
+            start: 'top bottom',
+            end: rotationEnd,
+            scrub: true,
+          },
+        },
+      )
+
+      const wordElements = el.querySelectorAll<HTMLElement>('.word')
+
+      gsap.fromTo(
+        wordElements,
+        { opacity: baseOpacity, willChange: 'opacity' },
+        {
+          ease: 'none',
+          opacity: 1,
+          stagger: 0.1,
           scrollTrigger: {
             trigger: el,
             scroller,
@@ -103,15 +102,34 @@ const ScrollReveal: React.FC<ScrollRevealProps> = ({
           },
         },
       )
-    }
+
+      if (enableBlur) {
+        gsap.fromTo(
+          wordElements,
+          { filter: `blur(${blurStrength}px)` },
+          {
+            ease: 'none',
+            filter: 'blur(0px)',
+            stagger: 0.1,
+            scrollTrigger: {
+              trigger: el,
+              scroller,
+              start: 'top bottom-=20%',
+              end: wordAnimationEnd,
+              scrub: true,
+            },
+          },
+        )
+      }
+    }, el)
 
     return () => {
-      ScrollTrigger.getAll().forEach((trigger) => trigger.kill())
+      ctx.revert() // 자기 컨텍스트 trigger 만 정리 (다른 컴포넌트 trigger 보존)
     }
   }, [scrollContainerRef, enableBlur, baseRotation, baseOpacity, rotationEnd, wordAnimationEnd, blurStrength])
 
   return (
-    <div ref={containerRef} className={containerClassName}>
+    <div ref={containerRef} className={containerClassName} data-no-reveal>
       <p className={textClassName} style={textStyle}>{splitText}</p>
     </div>
   )

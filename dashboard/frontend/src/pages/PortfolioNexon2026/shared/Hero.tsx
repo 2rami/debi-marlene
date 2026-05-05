@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { C, FONT_MONO } from './colors'
 import FloatingShapes from './FloatingShapes'

@@ -3,111 +3,100 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { C, FONT_DISPLAY } from './colors'
 
+gsap.registerPlugin(ScrollTrigger)
+
 /**
- * 스크롤 시 화면 중앙에 있던 큰 워드마크(CH 1 WHO.)가
- * 부드럽게 축소되면서 좌측 상단으로 이동하여 고정되는 컴포넌트입니다.
- * 여기에 "전체 섹션 진입 연출(Scale-up)"을 추가했습니다.
+ * 챕터 워드마크 + content wrapper.
+ * 워드마크는 단어별로 split → stagger reveal (NexonGate Hero 의 순차 등장 패턴).
  */
+type StickyMode = 'off' | 'entry' | 'full'
+
 export default function StickyChapterTitle({
   text,
   children,
 }: {
   text: string
   children: React.ReactNode
+  mode?: StickyMode
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const textContainerRef = useRef<HTMLDivElement>(null)
-  const textRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
+
+  // 단어별 split — "CH 1 WHO." → ["CH", "1", "WHO."]
+  const words = text.split(/\s+/).filter(Boolean)
 
   useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger)
     const container = containerRef.current
-    const textContainer = textContainerRef.current
-    const textEl = textRef.current
-    const contentEl = contentRef.current
-    if (!container || !textContainer || !textEl || !contentEl) return
+    if (!container) return
+
+    const wordEls = container.querySelectorAll<HTMLElement>('.word-piece')
+    if (wordEls.length === 0) return
+
+    // ?reveal=off — 정적 캡처용 instant visible
+    if (typeof window !== 'undefined') {
+      try {
+        if (new URLSearchParams(window.location.search).get('reveal') === 'off') {
+          wordEls.forEach((w) => { w.style.opacity = '1' })
+          return
+        }
+      } catch {}
+    }
 
     const ctx = gsap.context(() => {
-      // ── 1. 전체 섹션 진입 연출 (사용자 요청: 다 작아지고 올라오게) ──
-      // 워드마크와 내용물 전체를 감싸서 진입 모션 적용
-      gsap.fromTo([textEl, contentEl], 
-        { scale: 0.7, y: 150, opacity: 0 },
+      // ScrollReveal 패턴 — 모든 단어가 흐릿하게 보이고, 스크롤 진행에 따라 한 단어씩 진해짐
+      gsap.fromTo(wordEls,
+        { opacity: 0.15 },
         {
-          scale: 1,
-          y: 0,
           opacity: 1,
-          ease: 'power3.out',
+          stagger: 0.2,
+          ease: 'none',
           scrollTrigger: {
             trigger: container,
-            start: 'top 90%', 
-            end: 'top 20%',
-            scrub: 1,
-          }
+            start: 'top 85%',
+            end: 'top 25%',
+            scrub: true,
+            invalidateOnRefresh: true,
+          },
         }
       )
-
-      // ── 2. 워드마크 축소 및 이동 (기존 로직) ──
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: container,
-          start: 'top top',
-          end: '+=100%', 
-          scrub: 1,
-        },
-      })
-
-      const finalScale = 0.15
-      tl.to(textEl, {
-        scale: finalScale,
-        xPercent: 45,
-        yPercent: -45,
-        opacity: 0.3,
-        ease: 'power2.inOut',
-        duration: 1,
-      })
     }, container)
 
     return () => ctx.revert()
   }, [])
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      {/* 고정되는 텍스트 영역 */}
+    <div style={{ position: 'relative', width: '100%' }}>
       <div
-        ref={textContainerRef}
+        ref={containerRef}
         style={{
-          position: 'sticky',
-          top: 0,
-          width: '100%',
           padding: '12vh 0',
-          pointerEvents: 'none',
-          zIndex: 50,
+          textAlign: 'center',
           overflow: 'hidden',
+          pointerEvents: 'none',
+          fontFamily: FONT_DISPLAY,
+          fontSize: 'clamp(80px, 18vw, 224px)',
+          fontWeight: 900,
+          lineHeight: 0.85,
+          letterSpacing: '-0.05em',
+          color: C.nexonBlue,
+          whiteSpace: 'nowrap',
         }}
       >
-        <div
-          ref={textRef}
-          style={{
-            fontFamily: FONT_DISPLAY,
-            fontSize: 'clamp(80px, 18vw, 224px)',
-            fontWeight: 900,
-            lineHeight: 0.85,
-            letterSpacing: '-0.05em',
-            color: C.nexonBlue,
-            whiteSpace: 'nowrap',
-            willChange: 'transform',
-            transformOrigin: 'center center',
-          }}
-        >
-          {text}
-        </div>
+        {words.map((w, i) => (
+          <span
+            key={i}
+            className="word-piece"
+            style={{
+              display: 'inline-block',
+              willChange: 'transform, clip-path',
+              marginRight: i < words.length - 1 ? '0.25em' : 0,
+            }}
+          >
+            {w}
+          </span>
+        ))}
       </div>
-      
-      {/* 실제 챕터 내용 (contentRef로 감싸서 전체 애니메이션 적용) */}
-      <div ref={contentRef} style={{ position: 'relative', zIndex: 1 }}>
-        {children}
-      </div>
+
+      <div style={{ position: 'relative' }}>{children}</div>
     </div>
   )
 }

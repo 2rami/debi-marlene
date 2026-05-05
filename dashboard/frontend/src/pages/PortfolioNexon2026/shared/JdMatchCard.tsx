@@ -1,4 +1,4 @@
-import { C, FONT_MONO } from './colors'
+import { C, FONT_MONO, FONT_DISPLAY } from './colors'
 import TooltipCard from './TooltipCard'
 
 export interface ReportTooltip {
@@ -54,70 +54,70 @@ export default function JdMatchCard({ n, jdTitle, jdSub, evidence }: JdMatchProp
   return (
     <article
       style={{
-        background: C.bgWhite,
-        borderRadius: 24,
-        padding: '36px 32px',
-        border: `1px solid ${C.cardBorder}`,
-        boxShadow: C.cardShadow,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 20,
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+        gap: 'clamp(28px, 4vw, 56px)',
+        alignItems: 'start',
         position: 'relative',
-        overflow: 'hidden',
-        transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-6px)'
-        e.currentTarget.style.boxShadow = C.cardShadowHover
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.boxShadow = C.cardShadow
+        paddingTop: 32,
+        borderTop: `1px solid ${C.cardBorder}`,
       }}
     >
-      {/* Top Accent Line */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, background: C.nexonBlue }} />
+      {/* 좌 — 번호 + 제목 + 부제 (sticky 가능 영역) */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 20,
+          position: 'sticky',
+          top: 'clamp(120px, 14vh, 180px)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
+          <span
+            style={{
+              fontFamily: FONT_DISPLAY,
+              fontSize: 'clamp(40px, 5vw, 56px)',
+              fontWeight: 800,
+              color: C.nexonBlue,
+              lineHeight: 1,
+              letterSpacing: '-0.04em',
+            }}
+          >
+            {String(n).padStart(2, '0')}
+          </span>
+          <span
+            style={{
+              fontFamily: FONT_MONO,
+              fontSize: 11,
+              color: C.inkMuted,
+              letterSpacing: '0.22em',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+            }}
+          >
+            JD Match · 0{n}
+          </span>
+        </div>
 
-      {/* 번호 칩 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 36,
-            height: 36,
-            borderRadius: 12,
-            background: C.bgSoft,
-            color: C.nexonBlue,
-            fontFamily: FONT_MONO,
-            fontSize: 14,
-            fontWeight: 800,
-          }}
-        >
-          {String(n).padStart(2, '0')}
-        </span>
-        <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.inkMuted, letterSpacing: '0.1em', fontWeight: 700 }}>
-          JD MATCH
-        </span>
-      </div>
-
-      {/* JD Title */}
-      <div>
-        <h3
-          style={{
-            fontSize: 22,
-            fontWeight: 800,
-            lineHeight: 1.4,
-            color: C.ink,
-            margin: 0,
-            marginBottom: 8,
-            letterSpacing: '-0.02em',
-          }}
-        >
-          {jdTitle}
-        </h3>
-        <p style={{ fontSize: 14, color: C.inkMuted, margin: 0, lineHeight: 1.5, fontWeight: 500 }}>{jdSub}</p>
+        <div>
+          <h3
+            style={{
+              fontFamily: FONT_DISPLAY,
+              fontSize: 'clamp(22px, 2.4vw, 28px)',
+              fontWeight: 800,
+              lineHeight: 1.32,
+              color: C.ink,
+              margin: 0,
+              marginBottom: 10,
+              letterSpacing: '-0.022em',
+              wordBreak: 'keep-all',
+            }}
+          >
+            {jdTitle}
+          </h3>
+          <p style={{ fontSize: 14, color: C.inkMuted, margin: 0, lineHeight: 1.6, fontWeight: 500, wordBreak: 'keep-all' }}>{jdSub}</p>
+        </div>
       </div>
 
       {/* Evidence list */}

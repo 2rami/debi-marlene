@@ -51,7 +51,8 @@
 /* ── YPairingFont (Display) ── */
 @font-face {
   font-family: 'YPairingFont';
-  src: url('/fonts/YPairingFont-Regular.ttf') format('truetype');
+  src: url('/fonts/YPairingFont-Regular.woff2') format('woff2'),
+       url('/fonts/YPairingFont-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -59,7 +60,8 @@
 
 @font-face {
   font-family: 'YPairingFont';
-  src: url('/fonts/YPairingFont-Bold.ttf') format('truetype');
+  src: url('/fonts/YPairingFont-Bold.woff2') format('woff2'),
+       url('/fonts/YPairingFont-Bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;

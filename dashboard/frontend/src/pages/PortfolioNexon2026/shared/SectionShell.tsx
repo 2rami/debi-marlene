@@ -16,12 +16,17 @@ interface Props {
   ch: string // 'CH 2'
   no: string // '03'
   kicker: string // 'TECH STACK · 기술 스택'
-  title: string
+  title: ReactNode
   variant?: Variant
   background?: string
   children: ReactNode
   rightAccessory?: ReactNode // split 패턴 좌측 슬롯 (이미지 등)
   paddingY?: string // override
+  /**
+   * 같은 그룹의 후속 섹션. 헤더(번호·키커·타이틀) 숨기고 본문만 렌더.
+   * 첫 섹션만 헤더, 후속은 hideHeader=true 로 반복 제거.
+   */
+  hideHeader?: boolean
 }
 
 export default function SectionShell({
@@ -34,7 +39,8 @@ export default function SectionShell({
   background = C.bgWhite,
   children,
   rightAccessory,
-  paddingY = '160px',
+  paddingY = '110px',
+  hideHeader = false,
 }: Props) {
   if (variant === 'bleed') {
     return (
@@ -45,7 +51,9 @@ export default function SectionShell({
           background,
         }}
       >
-        <Header ch={ch} no={no} kicker={kicker} title={title} variant="bleed" />
+        {!hideHeader && (
+          <Header ch={ch} no={no} kicker={kicker} title={title} variant="bleed" />
+        )}
         <div>{children}</div>
       </section>
     )
@@ -71,13 +79,15 @@ export default function SectionShell({
           }}
         >
           <div>
-            <Header
-              ch={ch}
-              no={no}
-              kicker={kicker}
-              title={title}
-              variant="split"
-            />
+            {!hideHeader && (
+              <Header
+                ch={ch}
+                no={no}
+                kicker={kicker}
+                title={title}
+                variant="split"
+              />
+            )}
             {rightAccessory}
           </div>
           <div>{children}</div>
@@ -106,30 +116,34 @@ export default function SectionShell({
         }}
       >
         <div>
-          <div
-            style={{
-              position: 'sticky',
-              top: 'clamp(120px, 14vh, 180px)',
-            }}
-          >
-            <StickyLabel ch={ch} no={no} kicker={kicker} />
-          </div>
+          {!hideHeader && (
+            <div
+              style={{
+                position: 'sticky',
+                top: 'clamp(120px, 14vh, 180px)',
+              }}
+            >
+              <StickyLabel ch={ch} no={no} kicker={kicker} />
+            </div>
+          )}
         </div>
-        <div style={{ maxWidth: 760 }}>
-          <h2
-            style={{
-              fontFamily: FONT_DISPLAY,
-              fontSize: 'clamp(28px, 3.4vw, 44px)',
-              fontWeight: 700,
-              lineHeight: 1.22,
-              letterSpacing: '-0.025em',
-              color: C.ink,
-              margin: '0 0 56px',
-              wordBreak: 'keep-all',
-            }}
-          >
-            {title}
-          </h2>
+        <div style={{ maxWidth: 920 }}>
+          {!hideHeader && (
+            <h2
+              style={{
+                fontFamily: FONT_DISPLAY,
+                fontSize: 'clamp(28px, 3.4vw, 44px)',
+                fontWeight: 700,
+                lineHeight: 1.22,
+                letterSpacing: '-0.025em',
+                color: C.ink,
+                margin: '0 0 56px',
+                wordBreak: 'keep-all',
+              }}
+            >
+              {title}
+            </h2>
+          )}
           {children}
         </div>
       </div>
@@ -147,7 +161,7 @@ function Header({
   ch: string
   no: string
   kicker: string
-  title: string
+  title: ReactNode
   variant: 'bleed' | 'split'
 }) {
   if (variant === 'bleed') {

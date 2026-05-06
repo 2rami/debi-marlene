@@ -119,6 +119,16 @@ def gacha():
     return jsonify(result), 200
 
 
+@credits_bp.route('/guild/<guild_id>', methods=['GET'])
+@login_required
+def guild_balance(guild_id):
+    """단일 길드 공동 지갑 잔고 — 서버 헤더 뱃지용. 멤버십 체크 X (잔고 표시는 공개)."""
+    return jsonify({
+        'guild_id': str(guild_id),
+        'balance': credits_service.get_guild_balance(str(guild_id)),
+    })
+
+
 @credits_bp.route('/guilds', methods=['GET'])
 @login_required
 def my_guild_balances():

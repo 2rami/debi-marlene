@@ -92,6 +92,16 @@ class ChimeInCog(commands.Cog, name="끼어들기"):
         if cid not in designated_channels:
             return
 
+        # 관리자 차단 체크 — solo_chat 차단된 유저면 끼어들기 스킵
+        if not is_bot:
+            try:
+                import asyncio as _aio
+                from run.services import blocklist as _bl
+                if await _aio.to_thread(_bl.is_blocked, gid, message.author.id, "solo_chat"):
+                    return
+            except Exception as e:
+                logger.warning("chime_in blocklist 체크 실패: %s", e)
+
         # 키워드 호명은 ChatCog이 Managed Agent 경유로 처리(tool 사용). chime 스킵.
         # identity별로 분리 — 데비는 데비 호명만, 마를렌은 마를렌 호명만.
         if not is_bot and has_keyword(message.content, self.identity):

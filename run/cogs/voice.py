@@ -597,7 +597,7 @@ async def _generate_tts_audio(
     future: asyncio.Future,
     message: discord.Message,
     guild_id: str,
-    guild_settings: dict
+    guild_settings: dict,
 ):
     """TTS 오디오를 생성하고 PCM 변환 후 Future에 결과를 설정합니다."""
     try:
@@ -724,9 +724,19 @@ async def handle_tts_message(message: discord.Message):
     if not message.content.strip():
         return
 
+    # 관리자 차단 체크 — tts 차단된 유저면 읽지 않음 (조용히 무반응)
+    try:
+        from run.services import blocklist as _bl
+        if message.guild and await asyncio.to_thread(
+            _bl.is_blocked, message.guild.id, message.author.id, "tts",
+        ):
+            return
+    except Exception as e:
+        logger.warning("tts blocklist 체크 실패: %s", e)
+
     # 크레딧 차감 (TTS 길이 기반, 10초당 -1).
-    # 실제 audio duration 은 생성 후에야 알 수 있으므로 텍스트 길이 기반 추정.
-    # 한국어 ~3 chars/sec → 텍스트 길이 / 3.0 ≈ 초.
+    # 거노 결정: 엔진 분기 보류 (유저별 보이스 설정 보존). 모든 TTS 메시지 동일 차감.
+    # 한국어 ~3 chars/sec → len/3.0 ≈ 추정 초.
     try:
         from run.services import credits as credits_service
         est_seconds = min(60.0, max(1.0, len(message.content) / 3.0))
@@ -736,9 +746,10 @@ async def handle_tts_message(message: discord.Message):
         if not charge.get('ok'):
             try:
                 await message.channel.send(
-                    f"{message.author.mention} 크레딧이 부족해서 TTS를 못 읽겠어요. "
-                    f"대시보드에서 출석체크 받고 와주세요.",
-                    delete_after=10,
+                    f"{message.author.mention} TTS 크레딧 부족 "
+                    f"(필요 {charge.get('needed', 0)} · 보유 {charge.get('balance', 0)}).\n"
+                    f"매일 출석체크 +10 (연속 3일 +30 · 7일 +100) → https://debimarlene.com",
+                    delete_after=12,
                 )
             except Exception:
                 pass

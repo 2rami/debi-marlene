@@ -15,6 +15,7 @@ import QuizDashboard from '../components/server/QuizDashboard'
 import TTSSettings from '../components/server/TTSSettings'
 import ChannelPurge from '../components/server/ChannelPurge'
 import SoloChatSettings from '../components/server/SoloChatSettings'
+import BlockedUsers from '../components/server/BlockedUsers'
 
 interface NotifToggleProps {
   title: string
@@ -364,6 +365,9 @@ export default function ServerManagement() {
 
           {/* 통계 */}
           {activeTab === 'stats' && <ServerStats guildId={guildId!} />}
+
+          {/* 기능 차단 */}
+          {activeTab === 'blocklist' && <BlockedUsers guildId={guildId!} />}
 
           {/* 채널 청소 */}
           {activeTab === 'purge' && <ChannelPurge channels={channels} guildId={guildId!} />}

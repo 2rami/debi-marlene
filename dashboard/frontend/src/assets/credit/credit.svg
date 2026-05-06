@@ -1,1 +1,25 @@
-<svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Credit"><rect x="0.5" y="0.5" width="13" height="13" rx="6.5" fill="#326D1B"/><rect x="0.5" y="0.5" width="13" height="13" rx="6.5" stroke="#E5FC8A"/><path d="M7.19856 3L3.75 4.99103V8.97308L7.21496 10.9736L10.25 9L9.14711 8.05108V8.05758L7.19856 9.23205L5.25 8.10705V5.85705L7.19856 4.73205L9.00256 5.7736L10.25 4.76511V4.75L7.19856 3Z" fill="#E5FC8A"/></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_레이어_1" data-name="레이어 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+        stroke: #e5fc8a;
+      }
+
+      .cls-2 {
+        fill: #326d1b;
+      }
+
+      .cls-3 {
+        fill: #e5fc8a;
+      }
+    </style>
+  </defs>
+  <polygon class="cls-2" points="1.36 3.73 1.36 10.24 7 13.5 12.64 10.24 12.64 3.73 7 .47 1.36 3.73"/>
+  <path class="cls-3" d="M7.2,3l-3.45,1.99v3.98l3.46,2,3.04-1.97-1.1-.95h0s-1.95,1.18-1.95,1.18l-1.95-1.12v-2.25l1.95-1.12,1.8,1.04,1.25-1.01v-.02l-3.05-1.75Z"/>
+  <polyline class="cls-1" points="1.36 8.49 1.36 10.24 7 13.5 12.64 10.24 12.64 8.49"/>
+  <polyline class="cls-1" points="12.64 6.02 12.64 3.73 7 .47 1.36 3.73 1.36 6.02"/>
+  <line class="cls-1" x1="1.36" y1="7.74" x2="1.36" y2="6.77"/>
+  <line class="cls-1" x1="12.64" y1="7.74" x2="12.64" y2="6.77"/>
+</svg>

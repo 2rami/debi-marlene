@@ -5,6 +5,8 @@ import { api } from '../../services/api'
 import LOGO from '../../assets/images/profile.jpg'
 import EMOTICON from '../../assets/images/event/emoticon_uniform.png'
 import CreditWalletDropdown from '../credits/CreditWalletDropdown'
+import CreditIcon from '../credits/CreditIcon'
+import { creditsApi } from '../../lib/credits'
 
 const getServerAcronym = (name: string) => {
   const acronym = name.split(/\s+/).map(w => w[0]).join('').substring(0, 3).toUpperCase()
@@ -43,6 +45,7 @@ export default function DashboardLayout({ children }: Props) {
   const location = useLocation()
   const { guildId } = useParams()
   const [servers, setServers] = useState<Server[]>([])
+  const [guildCreditBalance, setGuildCreditBalance] = useState<number | null>(null)
 
   useEffect(() => {
     const fetchServers = async () => {
@@ -55,6 +58,16 @@ export default function DashboardLayout({ children }: Props) {
     }
     fetchServers()
   }, [])
+
+  // 서버 모드 진입/전환 시 공동 지갑 잔고 fetch
+  useEffect(() => {
+    if (!guildId) { setGuildCreditBalance(null); return }
+    let cancelled = false
+    creditsApi.guildBalance(guildId)
+      .then(r => { if (!cancelled) setGuildCreditBalance(r.balance) })
+      .catch(() => { if (!cancelled) setGuildCreditBalance(null) })
+    return () => { cancelled = true }
+  }, [guildId])
 
   const menuGroups = [
     {
@@ -82,6 +95,7 @@ export default function DashboardLayout({ children }: Props) {
         { id: 'autoresponse', label: '자동응답', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z' },
         { id: 'filter', label: '필터', icon: 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z' },
         { id: 'moderation', label: '제재', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
+        { id: 'blocklist', label: '기능 차단', icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' },
         { id: 'tickets', label: '티켓', icon: 'M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z' },
         { id: 'purge', label: '채널 청소', icon: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' },
       ]
@@ -245,10 +259,19 @@ export default function DashboardLayout({ children }: Props) {
       {/* Channel/Menu Sidebar */}
       <div className="w-64 bg-discord-darker flex flex-col">
         {/* Server Header */}
-        <div className="h-12 px-4 flex items-center border-b border-discord-darkest shadow-sm">
-          <h2 className="font-semibold text-white truncate">
+        <div className="h-12 px-4 flex items-center justify-between gap-2 border-b border-discord-darkest shadow-sm">
+          <h2 className="font-semibold text-white truncate flex-1 min-w-0">
             {selectedServer?.name || '서버'}
           </h2>
+          {guildCreditBalance !== null && (
+            <span
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#326D1B]/25 border border-[#326D1B]/40 text-[#E5FC8A] text-[11px] font-bold tabular-nums shrink-0"
+              title={`서버 공동 지갑 ${guildCreditBalance.toLocaleString()}`}
+            >
+              <CreditIcon size={12} />
+              {guildCreditBalance.toLocaleString()}
+            </span>
+          )}
         </div>
 
         {/* Menu List */}

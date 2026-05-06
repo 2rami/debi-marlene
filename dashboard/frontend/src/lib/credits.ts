@@ -74,4 +74,34 @@ export const creditsApi = {
     api.post<GachaResponse>('/credits/gacha', { bet }).then(r => r.data),
   guilds: () =>
     api.get<{ guilds: GuildBalance[] }>('/credits/guilds').then(r => r.data),
+  guildBalance: (guildId: string) =>
+    api.get<GuildBalance>(`/credits/guild/${guildId}`).then(r => r.data),
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 기능 차단 (블랙리스트)
+
+export type BlockableFeature = 'chat' | 'solo_chat' | 'tts' | 'credits'
+
+export interface BlockedUserItem {
+  user_id: string
+  features: BlockableFeature[]
+  blocked_at: string | null
+  blocked_by: string | null
+}
+
+export const blocklistApi = {
+  list: (guildId: string) =>
+    api.get<{ guild_id: string; items: BlockedUserItem[] }>(
+      `/servers/${guildId}/blocked-users`,
+    ).then(r => r.data),
+  upsert: (guildId: string, user_id: string, features: BlockableFeature[]) =>
+    api.post<{ ok: boolean; entry: BlockedUserItem }>(
+      `/servers/${guildId}/blocked-users`,
+      { user_id, features },
+    ).then(r => r.data),
+  remove: (guildId: string, user_id: string) =>
+    api.delete<{ ok: boolean }>(
+      `/servers/${guildId}/blocked-users/${user_id}`,
+    ).then(r => r.data),
 }

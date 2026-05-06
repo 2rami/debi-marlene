@@ -20,9 +20,10 @@ class CreditsCog(commands.Cog, name="크레딧"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="크레딧", description="내 크레딧 지갑 + 도박 (출석은 대시보드)")
+    @app_commands.command(name="크레딧", description="내 크레딧 지갑 (도박/출석은 대시보드)")
     async def credits(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
+        # ephemeral 제거 — 채널에 공개. 베팅 UI 가 봇에서 빠지면서 잔고 노출만 남아 OK.
+        await interaction.response.defer()
 
         guild = interaction.guild
 
@@ -40,7 +41,7 @@ class CreditsCog(commands.Cog, name="크레딧"):
 
         # 헤더 Section 의 Thumbnail accessory 가 attachment://credit.png 를 참조 →
         # 같은 파일명으로 discord.File 첨부. asset 누락 시엔 첨부 생략 (Thumbnail 깨짐 감수).
-        send_kwargs: dict = {"view": view, "ephemeral": True}
+        send_kwargs: dict = {"view": view}
         if ASSET_PATH.is_file():
             send_kwargs["file"] = discord.File(str(ASSET_PATH), filename=ASSET_FILENAME)
 

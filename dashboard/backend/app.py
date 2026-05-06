@@ -20,6 +20,7 @@ from routes.quiz import quiz_bp
 from routes.me import me_bp
 from routes.portfolio import portfolio_bp
 from routes.credits import credits_bp
+from routes.blocked_users import blocked_bp
 
 # Configure logging
 logging.basicConfig(
@@ -57,6 +58,7 @@ app.register_blueprint(quiz_bp, url_prefix='/api/quiz')
 app.register_blueprint(me_bp, url_prefix='/api/me')
 app.register_blueprint(portfolio_bp, url_prefix='/api/portfolio')
 app.register_blueprint(credits_bp, url_prefix='/api/credits')
+app.register_blueprint(blocked_bp, url_prefix='/api')
 
 # Health check endpoint
 @app.route('/api/health')

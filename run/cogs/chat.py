@@ -198,12 +198,29 @@ class ChatCog(commands.Cog, name="대화"):
         """Managed Agent 경유 응답 (tool 사용 가능)."""
         guild_id = message.guild.id if message.guild else None
 
+        # 차단 체크 — 관리자가 이 유저의 chat 기능을 차단했으면 응답 안 함
+        try:
+            import asyncio as _aio
+            from run.services import blocklist as _bl
+            if guild_id is not None and await _aio.to_thread(
+                _bl.is_blocked, guild_id, message.author.id, "chat",
+            ):
+                await message.reply(
+                    "관리자가 이 서버에서 대화 기능을 차단했어요.",
+                    mention_author=False,
+                )
+                return
+        except Exception as e:
+            logger.warning("chat blocklist 체크 실패: %s", e)
+
         # 무료 잔여 또는 크레딧 차감
         charge = await _charge_chat_or_deny(message.author.id)
         if not charge['ok']:
             await message.reply(
-                f"...오늘 무료 {DAILY_FREE_CHAT}번 다 썼고 크레딧도 부족해. "
-                f"대시보드에서 출석 받고 와. (필요 {charge['needed']} · 보유 {charge['balance']})",
+                f"...오늘 무료 {DAILY_FREE_CHAT}번 다 썼고 크레딧도 부족해 "
+                f"(필요 {charge['needed']} · 보유 {charge['balance']}).\n"
+                f"매일 출석체크하면 +10 (연속 3일 +30 · 7일 +100).\n"
+                f"https://debimarlene.com",
                 mention_author=False,
             )
             return
@@ -301,13 +318,29 @@ class ChatCog(commands.Cog, name="대화"):
                 )
                 return
 
+        # 차단 체크 — 관리자가 이 유저의 chat 기능을 차단했으면 응답 안 함
+        try:
+            import asyncio as _aio
+            from run.services import blocklist as _bl
+            if guild_id is not None and await _aio.to_thread(
+                _bl.is_blocked, guild_id, user_id, "chat",
+            ):
+                await interaction.response.send_message(
+                    "관리자가 이 서버에서 대화 기능을 차단했어요.",
+                    ephemeral=True,
+                )
+                return
+        except Exception as e:
+            logger.warning("chat blocklist 체크 실패: %s", e)
+
         # 무료 잔여 또는 크레딧 차감 (잔고 부족 시 거절)
         charge = await _charge_chat_or_deny(user_id)
         if not charge['ok']:
             await interaction.response.send_message(
-                f"데비: ...오늘 무료 {DAILY_FREE_CHAT}번 다 썼고 크레딧도 부족해.\n"
-                f"마를렌: ...대시보드에서 출석 받고 와. "
-                f"(필요 {charge['needed']} · 보유 {charge['balance']})",
+                f"데비: ...오늘 무료 {DAILY_FREE_CHAT}번 다 썼고 크레딧도 부족해 "
+                f"(필요 {charge['needed']} · 보유 {charge['balance']}).\n"
+                f"마를렌: ...매일 출석체크 +10, 연속 3일 +30, 7일 +100. "
+                f"https://debimarlene.com",
                 ephemeral=True,
             )
             return

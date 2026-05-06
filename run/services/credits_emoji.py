@@ -19,8 +19,8 @@ import discord
 
 logger = logging.getLogger(__name__)
 
-# 'credit' 은 PIL 자동 생성 잔재가 있을 수 있어 v2 로 우회
-EMOJI_NAME = "credit_v2"
+# v3 — 거노 제공 84x84 PNG (라임 외곽 + 다크그린 안 + 라임 C). 이전 PNG 캐시 invalidate
+EMOJI_NAME = "credit_v3"
 
 # debi-marlene/run/services/credits_emoji.py → debi-marlene/assets/credit/credit.png
 ASSET_PATH = Path(__file__).resolve().parents[2] / "assets" / "credit" / "credit.png"

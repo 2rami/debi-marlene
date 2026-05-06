@@ -24,20 +24,24 @@ EMOJI_NAME = "credit_v3"
 
 # debi-marlene/run/services/credits_emoji.py → debi-marlene/assets/credit/...
 _ASSET_DIR = Path(__file__).resolve().parents[2] / "assets" / "credit"
-ASSET_PATH = _ASSET_DIR / "credit.png"           # 기본 (잔고 < 50)
-ASSET_PATH_MID = _ASSET_DIR / "credit_mid.png"   # 잔고 50~99
-ASSET_PATH_HIGH = _ASSET_DIR / "credit_high.png" # 잔고 100+
+# credit.png (84×84) 는 application emoji 전용. 썸네일은 low/mid/high 3단계.
+ASSET_PATH = _ASSET_DIR / "credit.png"            # emoji 소스 (84×84)
+ASSET_PATH_LOW = _ASSET_DIR / "credit_low.png"    # 잔고 < 50 (정식 두 코인)
+ASSET_PATH_MID = _ASSET_DIR / "credit_mid.png"    # 잔고 50~99
+ASSET_PATH_HIGH = _ASSET_DIR / "credit_high.png"  # 잔고 100+
 ASSET_FILENAME = "credit.png"  # 첨부 파일명 = view 의 attachment:// URI 와 매칭. PNG 분기와 무관하게 고정.
 _ASSET_PATH = ASSET_PATH  # 하위 호환
 
 
 def pick_thumbnail_path(balance: int) -> Path:
-    """잔고 단계별 헤더 썸네일 PNG 경로. 분기 PNG 누락 시 기본으로 폴백."""
+    """잔고 단계별 헤더 썸네일 PNG 경로. 분기 PNG 누락 시 한 단계 아래로 폴백."""
     if balance >= 100 and ASSET_PATH_HIGH.is_file():
         return ASSET_PATH_HIGH
     if balance >= 50 and ASSET_PATH_MID.is_file():
         return ASSET_PATH_MID
-    return ASSET_PATH
+    if ASSET_PATH_LOW.is_file():
+        return ASSET_PATH_LOW
+    return ASSET_PATH  # 최후 폴백 — 작은 emoji 소스 PNG
 
 _emoji_cache: discord.Emoji | None | bool = None  # None=untouched, False=실패, Emoji=ok
 

@@ -124,12 +124,10 @@ class CreditsLayoutView(discord.ui.LayoutView):
                 f"-# 멤버들이 기부한 누적 크레딧"
             )
 
-        # ── 안내 (출석/도박 대시보드 유도) ──
+        # ── 안내 (대시보드 유도, 짧게 링크만) ──
         notice = discord.ui.TextDisplay(
-            f"**출석체크** · 매일 +{credits_service.DAILY_CHECK_IN} "
-            f"(연속 3일 +{credits_service.STREAK_3_BONUS} · 7일 +{credits_service.STREAK_7_BONUS})\n"
-            f"**도박 / 뽑기** · 70% 0배 / 20% 2배 / 8% 3배 / 2% 10배 (일일 한도 50)\n\n"
-            f"두 기능 모두 대시보드에서 → **[debimarlene.com](https://debimarlene.com)**"
+            "**[출석체크](https://debimarlene.com)** · "
+            "**[도박하러 가기](https://debimarlene.com)**"
         )
 
         # ── 액션 row ──

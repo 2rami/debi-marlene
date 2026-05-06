@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_API_URL: string
   readonly VITE_DISCORD_CLIENT_ID: string
   readonly VITE_TOSS_CLIENT_KEY: string
+  readonly VITE_GA_MEASUREMENT_ID: string
 }
 
 interface ImportMeta {

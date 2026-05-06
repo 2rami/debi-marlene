@@ -10,8 +10,9 @@
  *   Ch4Reach    — CTA + Footer
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import Lenis from 'lenis'
+import { trackEvent } from '../../lib/analytics'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { C, FONT_BODY } from './shared/colors'
@@ -26,6 +27,33 @@ import Ch1About from './sections/Ch1About'
 import Ch2What from './sections/Ch2What'
 import Ch3Why from './sections/Ch3Why'
 import Ch4Reach from './sections/Ch4Reach'
+
+// 챕터별 진입 1회 발사. IntersectionObserver 25% 임계, fired flag 로 dedup.
+function ChapterTrack({ chapter, children }: { chapter: string; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const fired = useRef(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && !fired.current) {
+            fired.current = true
+            trackEvent('portfolio_chapter_view', { chapter })
+            io.disconnect()
+          }
+        }
+      },
+      // viewport 위/아래 25% 를 잘라낸 가운데 50% 영역에 target 의 어떤 부분이라도
+      // 들어오면 fire. 챕터 높이가 viewport 보다 큰 경우에도 안전하게 트리거됨.
+      { threshold: 0, rootMargin: '-25% 0px -25% 0px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [chapter])
+  return <div ref={ref}>{children}</div>
+}
 
 export default function PageLLM() {
   const revealOff = useRevealOff()
@@ -105,10 +133,10 @@ export default function PageLLM() {
       />
 
       <NexonGate />
-      <Ch1About />
-      <Ch2What />
-      <Ch3Why />
-      <Ch4Reach />
+      <ChapterTrack chapter="ch1_about"><Ch1About /></ChapterTrack>
+      <ChapterTrack chapter="ch2_what"><Ch2What /></ChapterTrack>
+      <ChapterTrack chapter="ch3_why"><Ch3Why /></ChapterTrack>
+      <ChapterTrack chapter="ch4_reach"><Ch4Reach /></ChapterTrack>
     </div>
     </CharacterDockProvider>
   )

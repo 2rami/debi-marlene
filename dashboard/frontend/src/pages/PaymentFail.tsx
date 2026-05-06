@@ -24,10 +24,10 @@ export default function PaymentFail() {
         )}
         <div className="flex gap-3 justify-center">
           <Link
-            to="/premium"
+            to="/"
             className="px-6 py-3 btn-gradient rounded-lg text-white font-semibold"
           >
-            다시 시도하기
+            홈으로
           </Link>
           <Link
             to="/dashboard"

@@ -30,29 +30,59 @@ logger = logging.getLogger(__name__)
 _histories: Dict[str, List[dict]] = {}
 MAX_HISTORY = 5
 
-# ========== 서버별 일일 대화 쿼터 ==========
-# Managed Agents는 세션당 비용 있어서 스팸 방지 + 비용 한도 설정
-# 봇 재시작 시 리셋됨 (단순화). GCS 저장 원하면 rate_limit.py 별도 생성 권장.
+# ========== 사용자별 일일 무료 + 크레딧 차감 ==========
+# 거노 결정: 하루 무료 5회까지, 그 이후엔 크레딧 -2/회. 봇 재시작 시 무료 카운터 리셋.
+# 크레딧 잔고는 Firestore 영속 → run.services.credits.debit 위임.
 from datetime import datetime, timezone, timedelta
 _KST = timezone(timedelta(hours=9))
-DAILY_CHAT_LIMIT = 20  # 서버당 하루 최대 대화 수
-_daily_counts: Dict[tuple, int] = {}  # {(guild_scope, YYYY-MM-DD): count}
+DAILY_FREE_CHAT = 5            # 하루 무료 대화 수 (사용자당)
+CHAT_CREDIT_COST = 2           # 무료 초과 시 메시지당 크레딧 차감
+_daily_counts: Dict[tuple, int] = {}  # {(user_scope, YYYY-MM-DD): count}
 
 
-def _chat_quota_key(guild_id) -> tuple:
-    scope = str(guild_id) if guild_id else "dm"
+def _chat_quota_key(user_id) -> tuple:
+    scope = f"u:{user_id}" if user_id is not None else "anon"
     today = datetime.now(_KST).strftime("%Y-%m-%d")
     return (scope, today)
 
 
-def _over_daily_quota(guild_id) -> bool:
-    return _daily_counts.get(_chat_quota_key(guild_id), 0) >= DAILY_CHAT_LIMIT
+def _free_used(user_id) -> int:
+    return _daily_counts.get(_chat_quota_key(user_id), 0)
 
 
-def _inc_daily_quota(guild_id) -> int:
-    key = _chat_quota_key(guild_id)
+def _free_remaining(user_id) -> int:
+    return max(0, DAILY_FREE_CHAT - _free_used(user_id))
+
+
+def _inc_free_quota(user_id) -> int:
+    key = _chat_quota_key(user_id)
     _daily_counts[key] = _daily_counts.get(key, 0) + 1
     return _daily_counts[key]
+
+
+async def _charge_chat_or_deny(user_id) -> dict:
+    """무료 잔여 → 그것부터 소진. 없으면 크레딧 -CHAT_CREDIT_COST. 부족하면 deny.
+
+    Returns:
+        { ok: bool, mode: 'free'|'paid'|'insufficient', used?, balance?, charged? }
+    """
+    import asyncio
+    from run.services import credits as credits_service
+
+    if _free_remaining(user_id) > 0:
+        used = _inc_free_quota(user_id)
+        return {'ok': True, 'mode': 'free', 'used': used, 'free_max': DAILY_FREE_CHAT}
+
+    # 무료 소진 → 크레딧 차감
+    result = await asyncio.to_thread(
+        credits_service.debit, user_id, CHAT_CREDIT_COST, 'chat_message',
+    )
+    if result.get('ok'):
+        return {'ok': True, 'mode': 'paid', 'charged': CHAT_CREDIT_COST,
+                'balance': result.get('balance', 0)}
+    return {'ok': False, 'mode': 'insufficient',
+            'needed': CHAT_CREDIT_COST,
+            'balance': result.get('balance', 0)}
 
 from run.core import config as _bot_config
 _IDENTITY = _bot_config.BOT_IDENTITY
@@ -168,12 +198,12 @@ class ChatCog(commands.Cog, name="대화"):
         """Managed Agent 경유 응답 (tool 사용 가능)."""
         guild_id = message.guild.id if message.guild else None
 
-        # 일일 쿼터
-        if _over_daily_quota(guild_id):
-            current = _daily_counts.get(_chat_quota_key(guild_id), 0)
+        # 무료 잔여 또는 크레딧 차감
+        charge = await _charge_chat_or_deny(message.author.id)
+        if not charge['ok']:
             await message.reply(
-                f"...오늘은 이미 {current}번 얘기해서 좀 쉴래. 내일 다시 불러. "
-                f"(하루 {DAILY_CHAT_LIMIT}번 제한)",
+                f"...오늘 무료 {DAILY_FREE_CHAT}번 다 썼고 크레딧도 부족해. "
+                f"대시보드에서 출석 받고 와. (필요 {charge['needed']} · 보유 {charge['balance']})",
                 mention_author=False,
             )
             return
@@ -189,7 +219,10 @@ class ChatCog(commands.Cog, name="대화"):
         except Exception:
             pass
 
-        current_count = _inc_daily_quota(guild_id)
+        if charge['mode'] == 'free':
+            quota_tag_value = f"free {charge['used']}/{DAILY_FREE_CHAT}"
+        else:
+            quota_tag_value = f"paid -{charge['charged']} bal={charge['balance']}"
         key = _history_key(guild_id, message.author.id)
         history = _histories.get(key, [])
 
@@ -211,7 +244,7 @@ class ChatCog(commands.Cog, name="대화"):
         patch_info = result.get("patch_info")
         intent = result.get("intent", "general")
 
-        quota_tag = f" [{current_count}/{DAILY_CHAT_LIMIT}]"
+        quota_tag = f" [{quota_tag_value}]"
         print(
             f"[대화:{self.identity}] [{intent}]{quota_tag} Q: {user_msg[:30]} | A: {(response or '-')[:40]}",
             flush=True,
@@ -268,12 +301,13 @@ class ChatCog(commands.Cog, name="대화"):
                 )
                 return
 
-        # 쿼터
-        if _over_daily_quota(guild_id):
-            current = _daily_counts.get(_chat_quota_key(guild_id), 0)
+        # 무료 잔여 또는 크레딧 차감 (잔고 부족 시 거절)
+        charge = await _charge_chat_or_deny(user_id)
+        if not charge['ok']:
             await interaction.response.send_message(
-                f"데비: ...오늘은 이미 {current}번 얘기해서 좀 쉴래.\n"
-                f"마를렌: ...내일 다시 불러. (하루 {DAILY_CHAT_LIMIT}번 제한)",
+                f"데비: ...오늘 무료 {DAILY_FREE_CHAT}번 다 썼고 크레딧도 부족해.\n"
+                f"마를렌: ...대시보드에서 출석 받고 와. "
+                f"(필요 {charge['needed']} · 보유 {charge['balance']})",
                 ephemeral=True,
             )
             return
@@ -300,7 +334,11 @@ class ChatCog(commands.Cog, name="대화"):
         except Exception:
             pass
 
-        current_count = _inc_daily_quota(guild_id)
+        # 무료/유료 표기용. 차감은 _charge_chat_or_deny 단계에서 이미 완료.
+        if charge['mode'] == 'free':
+            quota_tag_value = f"free {charge['used']}/{DAILY_FREE_CHAT}"
+        else:
+            quota_tag_value = f"paid -{charge['charged']} bal={charge['balance']}"
         key = _history_key(guild_id, user_id)
         history = _histories.get(key, [])
 
@@ -326,7 +364,7 @@ class ChatCog(commands.Cog, name="대화"):
         ctx_tag = " [+patch]" if patch_info else ""
         mem_tag = " [+mem]" if corrections else ""
         intent_tag = f" [{intent}]"
-        quota_tag = f" [{current_count}/{DAILY_CHAT_LIMIT}]"
+        quota_tag = f" [{quota_tag_value}]"
         print(
             f"[/대화] {elapsed:.1f}s{intent_tag}{ctx_tag}{mem_tag}{quota_tag} "
             f"| Q: {message[:30]} | A: {(response or '-')[:40]}",

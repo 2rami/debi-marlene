@@ -2,11 +2,13 @@ import { Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import CookieConsent from './components/common/CookieConsent'
+import { initGA, trackPageView } from './lib/analytics'
+import { pauseAds, removeAdSlots, resumeAds } from './lib/adsBlock'
 import CharacterSelect from './pages/CharacterSelect'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import ServerManagement from './pages/ServerManagement'
-import Premium from './pages/Premium'
 import PaymentSuccess from './pages/PaymentSuccess'
 import PaymentFail from './pages/PaymentFail'
 import Commands from './pages/Commands'
@@ -37,12 +39,54 @@ function ScrollToTop() {
   return null
 }
 
+// 라우트 변경 시 GA page_view 발사. SPA 자동 page_view 는 끄고 여기서만 쏨.
+function GAPageTracker() {
+  const { pathname, search } = useLocation()
+  useEffect(() => {
+    trackPageView(pathname + search)
+  }, [pathname, search])
+  return null
+}
+
+// /portfolio/* 진입 시 AdSense Auto Ads 차단. NEXON 면접관 노출 페이지 → 광고 마이너스.
+// index.html 의 inline 가드가 첫 로드를 막고, 이 컴포넌트가 SPA 네비게이션을 막음.
+function AdsRouteGate() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    const isPortfolio = pathname.startsWith('/portfolio/')
+    if (!isPortfolio) {
+      resumeAds()
+      return
+    }
+    pauseAds()
+    // Auto Ads 가 비동기로 슬롯을 다시 끼울 수 있어 5초간 0.5초마다 청소
+    const cleanId = window.setInterval(removeAdSlots, 500)
+    const stopId = window.setTimeout(() => window.clearInterval(cleanId), 5000)
+    return () => {
+      window.clearInterval(cleanId)
+      window.clearTimeout(stopId)
+    }
+  }, [pathname])
+  return null
+}
+
+// 앱 부팅 시 1회 GA 초기화. consent === granted + PROD + 측정 ID 모두 만족해야 실제 로드.
+function GABootstrap() {
+  useEffect(() => {
+    initGA()
+  }, [])
+  return null
+}
+
 function App() {
   return (
     <ThemeProvider>
     <AuthProvider>
       <div className="min-h-screen bg-discord-darkest">
         <ScrollToTop />
+        <GABootstrap />
+        <GAPageTracker />
+        <AdsRouteGate />
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<CharacterSelect />} />
@@ -51,7 +95,6 @@ function App() {
           <Route path="/commands" element={<Commands />} />
           <Route path="/docs" element={<Docs />} />
           <Route path="/bot-guide" element={<BotGuide />} />
-          <Route path="/premium" element={<Premium />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/fail" element={<PaymentFail />} />
           <Route path="/terms" element={<Terms />} />
@@ -77,6 +120,7 @@ function App() {
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <CookieConsent />
       </div>
     </AuthProvider>
     </ThemeProvider>

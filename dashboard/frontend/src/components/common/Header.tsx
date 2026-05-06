@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useState, useEffect } from 'react'
 import PatchNotesModal from './PatchNotesModal'
 import BubbleMenu from './BubbleMenu'
+import CreditWalletDropdown from '../credits/CreditWalletDropdown'
 import LOGO from '../../assets/images/profile.jpg'
 
 const LATEST_PATCH_VERSION = 'beta'
@@ -108,6 +109,9 @@ export default function Header() {
           {hasUnread && <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-[#e58fb6] rounded-full" />}
         </div>
       </button>
+      <div className="fixed top-8 z-[1002] pointer-events-auto" style={{ right: 'calc(6% + 128px)' }}>
+        <CreditWalletDropdown />
+      </div>
       <PatchNotesModal isOpen={showPatchNotes} onClose={() => setShowPatchNotes(false)} />
     </>
   )

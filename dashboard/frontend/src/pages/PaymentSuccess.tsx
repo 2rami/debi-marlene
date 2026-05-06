@@ -65,10 +65,10 @@ export default function PaymentSuccess() {
           <h1 className="text-2xl font-bold text-discord-text mb-2">결제 오류</h1>
           <p className="text-discord-muted mb-6">{error}</p>
           <Link
-            to="/premium"
+            to="/"
             className="inline-block px-6 py-3 bg-discord-light rounded-lg text-discord-text hover:bg-discord-muted/20 transition-colors"
           >
-            다시 시도하기
+            홈으로
           </Link>
         </div>
       </div>

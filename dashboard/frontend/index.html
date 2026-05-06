@@ -12,6 +12,16 @@
     <link rel="preload" href="/fonts/MemomentKkukkukk.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/fonts/YPairingFont-Bold.woff2" as="font" type="font/woff2" crossorigin>
     <title>Debi Marlene Dashboard</title>
+    <script>
+      // /portfolio/* 라우트는 AdSense Auto Ads 차단 — 면접관이 보는 페이지에 광고 노출 금지.
+      // adsbygoogle 스크립트가 로드되기 전에 pauseAdRequests=1 을 박아둬야 첫 광고 요청 자체를 막음.
+      (function () {
+        if (window.location.pathname.indexOf('/portfolio/') === 0) {
+          window.adsbygoogle = window.adsbygoogle || [];
+          window.adsbygoogle.pauseAdRequests = 1;
+        }
+      })();
+    </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5829025678144174"
      crossorigin="anonymous"></script>
   </head>

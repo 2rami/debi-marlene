@@ -724,6 +724,29 @@ async def handle_tts_message(message: discord.Message):
     if not message.content.strip():
         return
 
+    # 크레딧 차감 (TTS 길이 기반, 10초당 -1).
+    # 실제 audio duration 은 생성 후에야 알 수 있으므로 텍스트 길이 기반 추정.
+    # 한국어 ~3 chars/sec → 텍스트 길이 / 3.0 ≈ 초.
+    try:
+        from run.services import credits as credits_service
+        est_seconds = min(60.0, max(1.0, len(message.content) / 3.0))
+        charge = await asyncio.to_thread(
+            credits_service.debit_for_tts, message.author.id, est_seconds, 'tts',
+        )
+        if not charge.get('ok'):
+            try:
+                await message.channel.send(
+                    f"{message.author.mention} 크레딧이 부족해서 TTS를 못 읽겠어요. "
+                    f"대시보드에서 출석체크 받고 와주세요.",
+                    delete_after=10,
+                )
+            except Exception:
+                pass
+            return
+    except Exception as e:
+        # 크레딧 시스템 장애가 TTS 자체를 막지 않게 — 안전 fallback (무료 처리).
+        logger.warning(f"TTS 크레딧 차감 실패 (무료 진행): {e}")
+
     print(f"[TTS] {message.author.name}: {message.content[:30]}", flush=True)
 
     # TTS 메시지 자동 삭제

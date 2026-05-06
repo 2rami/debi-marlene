@@ -1,0 +1,62 @@
+"""크레딧 슬래시 Cog.
+
+`/크레딧` — V2 LayoutView (Container/Separator/ActionRow 분할) + application emoji.
+"""
+
+from __future__ import annotations
+
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+from run.views.credits_view import CreditsLayoutView
+from run.services.credits_emoji import (
+    get_credit_emoji, format_emoji, ASSET_PATH, ASSET_FILENAME,
+)
+from run.utils.command_logger import log_command_usage
+
+
+class CreditsCog(commands.Cog, name="크레딧"):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    @app_commands.command(name="크레딧", description="내 크레딧 지갑 + 도박 (출석은 대시보드)")
+    async def credits(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        guild = interaction.guild
+
+        # application emoji — 첫 호출 시 등록, 이후 캐시. 실패해도 [C] 폴백.
+        emoji = await get_credit_emoji(self.bot)
+        emoji_str = format_emoji(emoji)
+
+        view = await CreditsLayoutView.create(
+            user_id=interaction.user.id,
+            user_name=interaction.user.display_name or interaction.user.name,
+            guild_id=guild.id if guild else None,
+            guild_name=guild.name if guild else None,
+            emoji_str=emoji_str,
+        )
+
+        # 헤더 Section 의 Thumbnail accessory 가 attachment://credit.png 를 참조 →
+        # 같은 파일명으로 discord.File 첨부. asset 누락 시엔 첨부 생략 (Thumbnail 깨짐 감수).
+        send_kwargs: dict = {"view": view, "ephemeral": True}
+        if ASSET_PATH.is_file():
+            send_kwargs["file"] = discord.File(str(ASSET_PATH), filename=ASSET_FILENAME)
+
+        await interaction.followup.send(**send_kwargs)
+
+        await log_command_usage(
+            command_name="크레딧",
+            user_id=interaction.user.id,
+            user_name=interaction.user.display_name or interaction.user.name,
+            guild_id=guild.id if guild else None,
+            guild_name=guild.name if guild else None,
+            channel_id=interaction.channel_id,
+            channel_name=interaction.channel.name if interaction.channel else None,
+            args={},
+        )
+
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(CreditsCog(bot))

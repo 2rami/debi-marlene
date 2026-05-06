@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { api } from '../../services/api'
 import LOGO from '../../assets/images/profile.jpg'
 import EMOTICON from '../../assets/images/event/emoticon_uniform.png'
+import CreditWalletDropdown from '../credits/CreditWalletDropdown'
 
 const getServerAcronym = (name: string) => {
   const acronym = name.split(/\s+/).map(w => w[0]).join('').substring(0, 3).toUpperCase()
@@ -134,25 +135,11 @@ export default function DashboardLayout({ children }: Props) {
               >
                 문서
               </Link>
-              <Link
-                to="/premium"
-                className={`text-sm font-medium transition-colors ${location.pathname === '/premium' ? 'text-white' : 'text-discord-muted hover:text-white'
-                  }`}
-              >
-                후원
-              </Link>
+              {/* Credit Wallet (replaces dashboard link inside dashboard) */}
+              <CreditWalletDropdown />
 
               {/* Divider */}
               <div className="w-px h-6 bg-discord-light/20" />
-
-              {/* Dashboard Link */}
-              <Link
-                to="/dashboard"
-                className={`text-sm font-medium transition-colors ${location.pathname === '/dashboard' ? 'text-debi-primary' : 'text-discord-muted hover:text-white'
-                  }`}
-              >
-                대시보드
-              </Link>
 
               {/* User */}
               <div className="flex items-center gap-3">

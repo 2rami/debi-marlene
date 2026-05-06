@@ -40,6 +40,7 @@ async def setup_all_cogs(bot):
     from run.cogs.stats import StatsCog
     from run.cogs.quiz import QuizCog
     from run.cogs.voice_listen import VoiceListenCog
+    from run.cogs.credits import CreditsCog
 
     await bot.add_cog(EternalReturnCog(bot))
     await bot.add_cog(VoiceCog(bot))
@@ -52,6 +53,7 @@ async def setup_all_cogs(bot):
     await bot.add_cog(ChatCog(bot))
     await bot.add_cog(ChimeInCog(bot))
     await bot.add_cog(VoiceListenCog(bot))
+    await bot.add_cog(CreditsCog(bot))
 
     print("[완료] 모든 Cog 등록 완료")
 

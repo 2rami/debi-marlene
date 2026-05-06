@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { creditsApi, GuildBalance } from '../../lib/credits'
 import { trackEvent } from '../../lib/analytics'
+import { api } from '../../services/api'
 import CreditIcon from './CreditIcon'
+
+interface ServerLite { id: string; name: string; icon: string | null; hasBot: boolean }
 
 interface Props {
   isOpen: boolean
@@ -15,6 +18,7 @@ interface Props {
  */
 export default function CreditDonateModal({ isOpen, onClose, onDone }: Props) {
   const [guilds, setGuilds] = useState<GuildBalance[]>([])
+  const [serverNames, setServerNames] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<string>('')
   const [amount, setAmount] = useState<number>(10)
   const [busy, setBusy] = useState(false)
@@ -32,6 +36,13 @@ export default function CreditDonateModal({ isOpen, onClose, onDone }: Props) {
         if (r.guilds[0]) setSelected(r.guilds[0].guild_id)
       }).catch(() => setGuilds([])),
       creditsApi.me().then(r => setMyBalance(r.balance)).catch(() => setMyBalance(0)),
+      api.get<{ servers: ServerLite[] }>('/servers')
+        .then(r => {
+          const map: Record<string, string> = {}
+          r.data.servers.forEach(s => { map[s.id] = s.name })
+          setServerNames(map)
+        })
+        .catch(() => setServerNames({})),
     ])
   }, [isOpen])
 
@@ -99,7 +110,7 @@ export default function CreditDonateModal({ isOpen, onClose, onDone }: Props) {
               {guilds.length === 0 && <option value="">관리 가능한 서버 없음</option>}
               {guilds.map(g => (
                 <option key={g.guild_id} value={g.guild_id}>
-                  {g.guild_id} (현재 {g.balance.toLocaleString()})
+                  {serverNames[g.guild_id] || g.guild_id} (현재 {g.balance.toLocaleString()})
                 </option>
               ))}
             </select>

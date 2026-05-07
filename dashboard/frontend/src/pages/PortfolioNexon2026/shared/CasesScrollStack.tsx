@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion'
+import { motion, useMotionValue, useScroll, useTransform, type MotionValue } from 'framer-motion'
 import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from './colors'
 import { useRevealOff } from './useRevealOff'
 import useIsMobile from './useIsMobile'
@@ -110,8 +110,10 @@ export default function CasesScrollStack({ items }: Props) {
 // ─────────────────────────────────────────────
 
 function Header({ total, progress }: { total: number; progress?: MotionValue<number> }) {
-  // 카운터: 활성 카드 인덱스 (floor(progress) + 1, but clamp)
-  const counter = useTransform(progress ?? createDummyMotion(), (p) =>
+  // progress 없을 때(mobile/revealOff)도 훅 호출 개수 유지 + 실제 MotionValue 보장
+  // (가짜 객체는 framer 12 의 useCombineValues 가 .on() 호출하면서 터짐)
+  const fallback = useMotionValue(0)
+  const counter = useTransform(progress ?? fallback, (p) =>
     String(Math.min(total, Math.floor(p) + 1)).padStart(2, '0'),
   )
   return (
@@ -135,12 +137,6 @@ function Header({ total, progress }: { total: number; progress?: MotionValue<num
       </span>
     </div>
   )
-}
-
-// dummy MotionValue for static (revealOff) header
-function createDummyMotion(): MotionValue<number> {
-  // never actually used because progress fallback handled above
-  return { get: () => 0 } as unknown as MotionValue<number>
 }
 
 function metaStyle(color: string): React.CSSProperties {

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { C, FONT_MONO } from './colors'
 import TooltipCard from './TooltipCard'
+import useIsMobile from './useIsMobile'
 
 export interface ReportTooltip {
   title: string
@@ -22,10 +23,10 @@ interface JdItem {
 }
 
 const HOOK_CHIPS: Record<number, string[]> = {
-  1: ['메이플 16년 · 하드 세렌', '5장르 플레이', 'patchnote RAG 자체 구현'],
-  2: ['LLM 평가 520응답', '2-tier 폴백', 'few-shot 5쌍'],
+  1: ['메이플 16년 · 검은마법사·하드세렌', '5종 플레이', 'patchnote RAG 자체 구현'],
+  2: ['eval 프레임 설계', '2-tier 폴백', 'few-shot 5쌍'],
   3: ['158서버 × 9개월', 'Custom tool 3종', 'last_trace 기록'],
-  4: ['Firestore 분석', '시각디자인 4년', '공모전 입상'],
+  4: ['LLM 평가 520응답', '시각디자인 전공 4년', '공모전 입상'],
 }
 
 function ReportCard({ report }: { report: ReportTooltip }) {
@@ -100,6 +101,7 @@ function ReportCard({ report }: { report: ReportTooltip }) {
 
 export default function JdMatchAccordion({ items }: { items: readonly JdItem[] }) {
   const [open, setOpen] = useState<number | null>(null)
+  const isMobile = useIsMobile()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -114,7 +116,7 @@ export default function JdMatchAccordion({ items }: { items: readonly JdItem[] }
             style={{
               background: C.bgWhite,
               borderRadius: 18,
-              padding: '48px 56px',
+              padding: isMobile ? '32px 22px' : '48px 56px',
               border: `1px solid ${isOpen ? C.nexonBlue : C.cardBorder}`,
               boxShadow: isOpen ? C.cardShadowHover : C.cardShadow,
               position: 'relative',
@@ -140,8 +142,8 @@ export default function JdMatchAccordion({ items }: { items: readonly JdItem[] }
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.5fr)',
-                gap: 56,
+                gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) minmax(0, 1.5fr)',
+                gap: isMobile ? 24 : 56,
                 alignItems: 'start',
               }}
             >

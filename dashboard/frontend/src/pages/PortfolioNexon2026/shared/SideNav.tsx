@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { C, FONT_MONO } from './colors'
+import useIsMobile from './useIsMobile'
 
 export type NavSection = {
   id: string
@@ -11,6 +12,7 @@ export type NavSection = {
 export default function SideNav({ sections }: { sections: NavSection[] }) {
   const [activeId, setActiveId] = useState<string>(sections[0]?.id ?? '')
   const [progress, setProgress] = useState(0)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     const onScroll = () => {
@@ -18,7 +20,6 @@ export default function SideNav({ sections }: { sections: NavSection[] }) {
       const ratio = Math.min(1, Math.max(0, window.scrollY / docHeight))
       setProgress(ratio)
 
-      // active section: 화면 중앙에 가장 가까운 섹션
       const viewportMid = window.innerHeight * 0.4
       let bestId = sections[0]?.id ?? ''
       let bestDist = Infinity
@@ -26,10 +27,8 @@ export default function SideNav({ sections }: { sections: NavSection[] }) {
         const el = document.getElementById(s.id)
         if (!el) return
         const rect = el.getBoundingClientRect()
-        // 섹션 상단이 화면 viewportMid 위 어딘가에 있고, 하단은 그 아래
         const dist = Math.abs(rect.top - viewportMid)
         if (rect.top < viewportMid && rect.bottom > viewportMid) {
-          // 현재 화면 차지 → 우선
           bestId = s.id
           bestDist = -1
           return
@@ -53,8 +52,14 @@ export default function SideNav({ sections }: { sections: NavSection[] }) {
   const scrollTo = (id: string) => {
     const el = document.getElementById(id)
     if (!el) return
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // CH 3·04 다이얼처럼 immediate 점프 — 핀 스크롤 챕터를 통과하지 않고 한 번에 이동
+    const targetY = el.getBoundingClientRect().top + window.scrollY
+    const lenis = (window as { __lenis?: { scrollTo: (y: number, opts?: { immediate?: boolean }) => void } }).__lenis
+    if (lenis) lenis.scrollTo(targetY, { immediate: true })
+    else window.scrollTo({ top: targetY })
   }
+
+  if (isMobile) return null
 
   return (
     <nav
@@ -91,7 +96,7 @@ export default function SideNav({ sections }: { sections: NavSection[] }) {
         const isActive = s.id === activeId
         return (
           <button
-            key={s.id}
+            key={`${s.id}-${s.no}`}
             onClick={() => scrollTo(s.id)}
             aria-label={`${s.no} ${s.label}`}
             style={{
@@ -115,7 +120,6 @@ export default function SideNav({ sections }: { sections: NavSection[] }) {
               if (tooltip) tooltip.style.opacity = '0'
             }}
           >
-            {/* Tooltip */}
             <div
               data-nav-tooltip
               style={{
@@ -143,12 +147,8 @@ export default function SideNav({ sections }: { sections: NavSection[] }) {
               {s.no} · {s.label}
             </div>
 
-            {/* Number — only on active */}
             <motion.span
-              animate={{
-                opacity: isActive ? 1 : 0,
-                x: isActive ? 0 : 8,
-              }}
+              animate={{ opacity: isActive ? 1 : 0, x: isActive ? 0 : 8 }}
               transition={{ duration: 0.25 }}
               style={{
                 fontFamily: FONT_MONO,
@@ -162,7 +162,6 @@ export default function SideNav({ sections }: { sections: NavSection[] }) {
               {s.no}
             </motion.span>
 
-            {/* Dot/line indicator */}
             <motion.span
               animate={{
                 width: isActive ? 28 : 12,

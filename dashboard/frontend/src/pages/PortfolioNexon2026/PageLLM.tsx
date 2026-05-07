@@ -127,7 +127,10 @@ export default function PageLLM() {
           { id: 'hero', no: 'CH 0', label: 'GATE' },
           { id: 'about', no: 'CH 1', label: 'WHO' },
           { id: 'architecture', no: 'CH 2', label: 'WHAT' },
-          { id: 'jdmatch', no: 'CH 3', label: 'WHY' },
+          { id: 'jdmatch', no: 'CH 3·04', label: 'JD' },
+          { id: 'eligibility', no: 'CH 3·05', label: 'ELIG' },
+          { id: 'preferred', no: 'CH 3·06', label: 'PREF' },
+          { id: 'troubleshooting', no: 'CH 3·07', label: 'CASES' },
           { id: 'contact', no: 'CH 4', label: 'REACH' },
         ]}
       />

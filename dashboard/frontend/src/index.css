@@ -144,6 +144,9 @@
 
 /* ── Theme transition ── */
 html {
+  /* framer-motion useScroll({ target }) — html이 scroll container 이므로
+     non-static position 이 필요. static 이면 dev 경고 발생. */
+  position: relative;
   transition: background-color 0.4s ease, color 0.4s ease;
 }
 

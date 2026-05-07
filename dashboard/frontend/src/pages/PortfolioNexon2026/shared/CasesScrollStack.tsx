@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion'
 import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from './colors'
 import { useRevealOff } from './useRevealOff'
+import useIsMobile from './useIsMobile'
 
 interface CaseItem {
   readonly no: number
@@ -41,6 +42,7 @@ const STACK_SCALE_STEP = 0.04
 export default function CasesScrollStack({ items }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const revealOff = useRevealOff()
+  const isMobile = useIsMobile()
   const total = items.length
 
   const { scrollYProgress } = useScroll({
@@ -50,13 +52,14 @@ export default function CasesScrollStack({ items }: Props) {
 
   const progress = useTransform(scrollYProgress, [0, 1], [0, total - 0.0001])
 
-  if (revealOff) {
+  // 모바일은 sticky pin + 가운데 정렬 카드 transform 이 viewport 좁을 때 잘림 → 정적 stack
+  if (revealOff || isMobile) {
     return (
       <section
         id="troubleshooting"
         style={{
           background: C.bgWhite,
-          padding: 'clamp(80px, 10vh, 120px) clamp(40px, 6vw, 120px)',
+          padding: 'clamp(72px, 12vw, 120px) clamp(20px, 6vw, 120px)',
         }}
       >
         <Header total={total} />

@@ -13,7 +13,7 @@ export default function Footer({ email, github, domain, edu }: FooterProps) {
       style={{
         background: C.nexonBlue,
         color: C.inverse,
-        padding: '120px clamp(48px, 8vw, 120px) 56px',
+        padding: 'clamp(72px, 14vw, 120px) clamp(24px, 8vw, 120px) clamp(40px, 8vw, 56px)',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -24,7 +24,7 @@ export default function Footer({ email, github, domain, edu }: FooterProps) {
 
       <div style={{ maxWidth: 1280, margin: '0 auto', position: 'relative', zIndex: 1 }}>
         {/* Giant Footer Title */}
-        <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(40px, 8vw, 120px)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-0.04em', margin: '0 0 64px', color: 'rgba(255,255,255,0.95)' }}>
+        <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(40px, 9vw, 120px)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-0.04em', margin: '0 0 clamp(36px, 8vw, 64px)', color: 'rgba(255,255,255,0.95)', wordBreak: 'keep-all' }}>
           LET'S WORK<br />TOGETHER.
         </h2>
 

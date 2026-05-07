@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from '../shared/colors'
 import { STATS } from '../content/llm'
 import { useRevealOff } from '../shared/useRevealOff'
+import useIsMobile from '../shared/useIsMobile'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -19,7 +20,7 @@ gsap.registerPlugin(ScrollTrigger)
 const POINTS = [
   { k: 'SCALE',  t: '158 Discord 서버',     d: '9개월간 라이브 운영' },
   { k: 'AGENT',  t: '2-tier StateGraph',    d: 'LangGraph + Anthropic Managed Agents (claude-haiku-4-5)' },
-  { k: 'TOOLS',  t: 'Custom tool 자율 판단', d: '네이티브 UI post · 패치노트 RAG' },
+  { k: 'TOOLS',  t: 'Custom tool 자율 판단', d: '네이티브 UI 직접 발행 · 패치노트 RAG' },
   { k: 'VOICE',  t: '음성 실시간 파이프라인',  d: 'DAVE → VAD → Qwen3.5-Omni → CosyVoice3' },
   { k: 'METRIC', t: '매일 정량/정성 검증',   d: '톤 일관성 · 환각률 · 비용' },
   { k: 'OPS',    t: '모델·프롬프트 회전',    d: 'few-shot · 세션 정책 변경 추적' },
@@ -27,6 +28,7 @@ const POINTS = [
 
 export default function Ch1About() {
   const revealOff = useRevealOff()
+  const isMobile = useIsMobile()
   const containerRef = useRef<HTMLDivElement>(null)
 
   const { scrollYProgress } = useScroll({
@@ -37,7 +39,8 @@ export default function Ch1About() {
   // 슬라이드용 progress — INTRO_FRAC 이후를 [0, 1] 로 remap.
   const slideProgress = useTransform(scrollYProgress, [INTRO_FRAC, 1], [0, 1])
 
-  if (revealOff) return <Ch1Static />
+  // 모바일은 sticky pin + scrollY transform 으로 카드 스택이 의도대로 안 잡힘 → 정적 그리드 사용
+  if (revealOff || isMobile) return <Ch1Static />
 
   const N = POINTS.length
   const M = N + 1 // 카드 N장 + 마지막 pull quote 1장
@@ -48,7 +51,7 @@ export default function Ch1About() {
       <div
         ref={containerRef}
         style={{
-          height: `${M * 450}vh`,
+          height: `${M * 280}vh`,
           position: 'relative',
         }}
       >
@@ -67,10 +70,10 @@ export default function Ch1About() {
               width: '100%',
               maxWidth: 1320,
               margin: '0 auto',
-              padding: '0 clamp(40px, 6vw, 120px)',
+              padding: '0 clamp(20px, 6vw, 120px)',
               display: 'grid',
-              gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
-              gap: 'clamp(40px, 5vw, 88px)',
+              gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
+              gap: isMobile ? 28 : 'clamp(40px, 5vw, 88px)',
               alignItems: 'center',
             }}
           >
@@ -116,13 +119,12 @@ function LeftIntro({ triggerRef }: { triggerRef: React.RefObject<HTMLDivElement 
 
       // scrub timeline — 핀 outer container 를 trigger 로.
       // start: 'top 70%' (섹션이 viewport 70% 지점 도달 — 등장 시작)
-      // end: start 시점부터 1.5 viewport 더 스크롤 — 카드 2번 보일 즈음 완료.
-      // (핀 engage 후에도 container 의 top 은 위로 계속 올라가므로 scrub 가능)
+      // end: 컨테이너 단축(450→280vh)에 맞춰 1.0 viewport. 슬라이드 시작 전 reveal 완료.
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger,
           start: 'top 70%',
-          end: () => '+=' + window.innerHeight * 1.5,
+          end: () => '+=' + window.innerHeight * 1.0,
           scrub: 0.8,
           invalidateOnRefresh: true,
         },
@@ -819,10 +821,10 @@ function StickyLabel({ ch, no, kicker }: { ch: string; no: string; kicker: strin
 /** ?reveal=off — 정적 캡처용 fallback. 슬라이드 비활성, 모든 카드 그리드로 표시 */
 function Ch1Static() {
   return (
-    <section id="about" style={{ background: C.bgWhite, padding: '110px clamp(40px, 6vw, 120px)' }}>
-      <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 48 }}>
+    <section id="about" style={{ background: C.bgWhite, padding: 'clamp(72px, 12vw, 110px) clamp(20px, 6vw, 120px)' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'clamp(28px, 5vw, 48px)' }}>
         <StickyLabel ch="CH 1" no="01—02" kicker="WHO · ABOUT" />
-        <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 44, fontWeight: 800, margin: 0 }}>저는 이런 사람입니다</h2>
+        <h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(28px, 7vw, 44px)', fontWeight: 800, margin: 0, lineHeight: 1.18, wordBreak: 'keep-all' }}>저는 이런 사람입니다</h2>
         <StatStripe />
         <div
           style={{

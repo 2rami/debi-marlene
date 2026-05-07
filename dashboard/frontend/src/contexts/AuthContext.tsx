@@ -49,6 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    // 포폴 라우트는 인증 불필요 — 면접관 환경에서 불필요한 콘솔 에러 노이즈 방지
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/portfolio')) {
+      setLoading(false)
+      return
+    }
     const checkAuth = async () => {
       setLoading(true)
       await refreshUser()

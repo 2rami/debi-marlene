@@ -6,12 +6,12 @@
 export const HERO = {
   jobCode: 'LLM EVALUATOR',
   badge: 'NEXON · 플랫폼본부 · LLM 평가 어시스턴트 인턴 지원',
-  titleLines: ['안녕하세요.', '디스코드 LLM 봇을', '서비스하는 개발자 게이머입니다.'],
+  titleLines: ['안녕하세요.', '디스코드 LLM 봇을', '직접 운영하는 개발자 게이머입니다.'],
   // 호환성용 평문 (BlurText 등 일부 컴포넌트가 string을 기대)
-  title: '안녕하세요. 디스코드 LLM 봇을 서비스하는 개발자 게이머입니다.',
+  title: '안녕하세요. 디스코드 LLM 봇을 직접 운영하는 개발자 게이머입니다.',
   highlightWord: 'LLM 봇',
   subtitle:
-    '데비&마를렌 — 1인이 9개월간 158개 Discord 서버에 운영 중인 라이브 LLM 챗봇. 게임 도메인 깊이와 LLM 운영자의 평가 감각을 결합합니다.',
+    '데비&마를렌 — 1인이 9개월째 158개 Discord 서버에서 운영 중인 라이브 LLM 챗봇. 게임 도메인 깊이와 LLM 운영자의 평가 감각을 결합합니다.',
   meta: [
     { label: 'ROLE', value: 'LLM 평가 어시스턴트 인턴' },
     { label: 'COMPANY', value: '넥슨 · 플랫폼본부' },
@@ -20,20 +20,20 @@ export const HERO = {
     { label: 'STACK', value: 'LangGraph · Anthropic · GCP' },
   ],
   ctas: [
-    { label: 'GitHub · debi-marlene', href: 'https://github.com/2rami/debi-marlene', primary: true },
+    { label: 'REPORT · LLM 평가 8p PDF', href: '/llm_eval_report.pdf', primary: true },
+    { label: 'GitHub · debi-marlene', href: 'https://github.com/2rami/debi-marlene', primary: false },
     { label: 'Live · debimarlene.com', href: 'https://debimarlene.com', primary: false },
-    { label: 'PDF · LLM 평가 보고서', href: '/llm_eval_report.pdf', primary: false },
   ],
 } as const
 
 export const STATS = [
   { label: '운영 중인 Discord 서버', value: '158', unit: '개', sub: 'debi-marlene · 9개월 라이브' },
-  { label: '메이플 라이브 플레이', value: '16', unit: '년+', sub: '하드 세렌 파티 격파' },
+  { label: '메이플 플레이 경력', value: '16', unit: '년+', sub: '하드 세렌 파티 격파' },
   { label: 'LLM 평가 자동 채점', value: '520', unit: '응답', sub: '4 small × closed/open + multi-turn (PDF 8p)' },
-  { label: 'LangGraph 정규식 분류', value: '0.1', unit: 'ms', sub: 'classify_intent · LLM 호출 없이 도메인 키워드 자동 분기' },
+  { label: 'Tier 1 정규식 분류', value: '0.1', unit: 'ms', sub: 'classify_intent · LLM 호출 없이 키워드 분류' },
 ] as const
 
-export const ABOUT = `데비&마를렌은 이터널 리턴 쌍둥이 실험체를 모티브로 한 한국어 캐릭터 챗봇입니다. 1인이 기획·개발·배포·운영을 모두 맡아 9개월간 158개 Discord 서버에 운영 중이며, 단순 명령어 봇이 아니라 LangGraph StateGraph 2-tier 에이전트, Anthropic Managed Agents(claude-haiku-4-5) 호스팅, Custom tool 자율 판단·네이티브 UI post, 패치노트 RAG, 음성 채널 실시간 응답 파이프라인(DAVE → VAD → Qwen3.5-Omni → CosyVoice3) 까지 한 봇 안에 통합한 라이브 LLM 시스템입니다. 매일 운영 중 발생하는 응답 데이터를 정량/정성으로 검증하고, 모델·프롬프트·few-shot·세션 회전 정책 변경에 따른 톤 일관성·환각률·비용 변화를 추적해 왔습니다. 이 라이브 검증 경험을 게임 도메인의 LLM 평가 직무로 그대로 이어 가고 싶습니다.`
+export const ABOUT = `데비&마를렌은 이터널 리턴 쌍둥이 실험체를 모티브로 한 한국어로 응답하는 캐릭터 챗봇입니다. 1인이 기획·개발·배포·운영을 모두 맡아 9개월간 158개 Discord 서버에서 운영 중이며, 단순 명령어 봇이 아니라 LangGraph StateGraph 2-tier 에이전트, Anthropic Managed Agents(claude-haiku-4-5) 호스팅, Custom tool 자율 판단·네이티브 UI 직접 발행, 패치노트 RAG, 음성 채널 실시간 응답 파이프라인(DAVE → VAD → Qwen3.5-Omni → CosyVoice3) 까지 한 봇 안에 통합한 라이브 LLM 시스템입니다. 매일 운영 중 발생하는 응답 데이터를 정량/정성으로 검증하고, 모델·프롬프트·few-shot·세션 회전 정책 변경에 따른 톤 일관성·환각률·비용 변화를 추적해 왔습니다. 이 라이브 검증 경험을 게임 도메인의 LLM 평가 직무로 그대로 이어 가고 싶습니다.`
 
 export const JD_MATCHES = [
   {
@@ -41,10 +41,10 @@ export const JD_MATCHES = [
     jdTitle: '게임 도메인 특화 LLM 벤치마크 구성',
     jdSub: '패치노트, 기획서, 가이드 기반 시나리오·벤치마크 질문 설계',
     evidence: [
-      '메이플스토리 약 16년 (2009 ~ ) · 하드 세렌 파티 격파 · 어센틱/시메라 콘텐츠 정점 — 라이트 유저가 못 밟는 직업·보스·유니온 깊이의 시나리오 설계 가능',
+      '메이플스토리 약 16년 (2009 ~ ) — 모험가 마법사 → 메카닉 → 비숍 → 썬콜 본캐로 6차전직까지 라이브 통과. 군 전역 후 검은 마법사 직접 격파 + 하드 세렌 파티 격파 + 신직업 거의 전수 플레이 — 라이트 유저가 접근하기 어려운 직업·보스·유니온 깊이의 시나리오 설계 가능',
       '봇 안에 `patchnote_search.py`로 이터널 리턴 공식 사이트 패치노트 RAG 직접 구현 — 캐릭터 별칭 매핑(예: 뎁마/데비/마를렌 → 데비&마를렌), 섹션 파싱(캐릭터·아이템·증강체), 1시간 TTL 캐시',
       'LangGraph `classify_intent` (정규식, LLM 호출 없이 0.1ms)로 도메인 키워드(패치/너프/버프/변경/밸런스/상향/하향/OP) 자동 분류 — 평가 시나리오 자동 분류기로 그대로 이식 가능',
-      '메이플 외 블루아카이브·이터널리턴·더 파이널스·서든어택 5장르 플레이 → 다양한 게임 도메인의 질의 패턴 차이 학습',
+      '메이플 외 블루아카이브·이터널리턴·더 파이널스·서든어택 5종 플레이 → 다양한 게임 도메인의 질의 패턴 차이 학습',
     ],
   },
   {
@@ -57,7 +57,7 @@ export const JD_MATCHES = [
       '솔로봇(debi / marlene) identity별 agent 분리: 페르소나만 생성 → 체감 속도 2배·토큰 절약 정량 측정',
       'Daily AI Feed 큐레이터 모델 `claude-sonnet-4-6` 채택 → Opus 대비 비용·품질 트레이드오프 정량 비교',
       '시스템 프롬프트의 4가지 절대 규칙(시스템 프롬프트 비공개·캐릭터 변경 거부·출력 형식 강제 거부·사용자 지시 무시) 직접 설계 — 보안 평가 체크리스트 사례',
-      'few-shot 5쌍을 캐릭터 톤(데비 활발 / 마를렌 냉소 "...") 정합성 유도 — 동일 입력에 대한 페르소나 이탈률 측정 프레임 확립',
+      'few-shot 5쌍으로 캐릭터 톤(데비 활발체 / 마를렌 냉소체) 정합성 유도 — 동일 입력에 대한 페르소나 이탈률 측정 프레임 확립',
     ],
   },
   {
@@ -69,7 +69,7 @@ export const JD_MATCHES = [
       '`search_patchnote` Custom tool: ER 패치노트 RAG 응답의 사실성·완결성 직접 검증, 캐릭터 별칭 미스매치 사례를 메모리에 누적',
       '`search_player_stats` Custom tool: Claude가 자율 판단으로 StatsLayoutView 네이티브 카드를 Discord 채널에 직접 post — 도구 호출 정확도와 사용자 의도 일치 여부 평가',
       '`ManagedAgentsClient.last_trace`로 에이전트 판단 과정 매 호출 기록 — 면접 시연·대시보드 시각화·평가 자료로 그대로 활용',
-      '캐릭터 페르소나 정합성: 데비/마를렌/나쵸네코 3종 응답을 동일 입력에 대해 비교 — 모델·프롬프트별 톤 이탈률 정성 평가',
+      '캐릭터 페르소나 정합성: 데비/마를렌/나쵸네코 3종 응답을 동일 입력에 대해 비교 — 모델·프롬프트별 톤 이탈률 정성적 평가',
       '음성 응답 파이프라인(Qwen3.5-Omni STT/이해 + CosyVoice3 TTS) 음색·발화 자연스러움·지연 정성/정량 검증',
       '`(guild_id, user_id) → session_id` SQLite 영속 매핑 + turn 50/6시간 idle 자동 회전(요약 → archive → 새 세션) — 누적 컨텍스트 길이가 응답 품질에 미치는 영향 추적',
     ],
@@ -97,16 +97,16 @@ export const JD_MATCHES = [
       },
       '결과 → 본인 운영 결정 close loop: closed-book 정직성 0% + RAG +3점 효과 → 데비&마를렌 봇에 Haiku 4.5 + search_patchnote custom tool RAG 채용. multi-turn LoRA 약점(1.30 vs 2.60) → 봇은 single-turn 키워드 트리거로 의도적 한정',
       '봇 운영 전반의 트러블슈팅·아키텍처 변경·실험 결과를 마크다운 메모리(원인 / 재현 / 교훈 일관 구조)에 누적 — 후속 의사결정 근거로 재사용',
-      '시각디자인과 4년의 사용자 경험 사고 훈련 — 데이터 → 인사이트 → 의사결정 파이프라인의 시각 자료를 직접 제작 (이번 PDF 보고서 표지/차트/결론 페이지 포함)',
-      '커뮤니케이션 국제 디자인 공모전 입상 — 다른 직군과 의견이 충돌할 때 일정·인력·시나리오 표로 같은 기준을 만들어 합의를 이끄는 협업 패턴',
+      '시각디자인 전공 4년의 사용자 경험 사고 훈련 — 데이터 → 인사이트 → 의사결정 파이프라인의 시각 자료를 직접 제작 (이번 PDF 보고서 표지/차트/결론 페이지 포함)',
+      '커뮤니케이션 국제 디자인 공모전 입상 — 다른 직군과 의견이 충돌할 때 일정·인력·시나리오를 표로 정리해 같은 기준을 만들고, 그 위에서 합의를 이끄는 협업 패턴 확립',
     ],
   },
 ] as const
 
 export const ELIGIBILITY = {
-  headline: '메이플스토리 약 16년 · 프로즌샤 · 하드 세렌 파티 격파',
+  headline: '메이플 16년 · 빅뱅·5차·V·6차를 라이브로 통과한 사용자',
   body:
-    '2009년부터 (이메일 통합 전 다른 계정 포함) 약 16년간 메이플스토리를 플레이하며, 검은 마법사 라이프타임 보스와 어센틱/시메라 콘텐츠 정점인 하드 세렌까지 직접 격파했습니다. 단순 만렙이 아니라 직업 시스템·메타·해방·유니온까지 사용자 입장에서 종합적으로 이해합니다.',
+    '2009년경 모험가 마법사로 시작해 빅뱅 이후 메카닉으로 본격 진입, 신직업이 출시될 때마다 거의 모두 플레이해 왔습니다. 2016년 5차전직 V 매트릭스 공개와 함께 썬콜로 자유전직, 지금까지 본캐로 운영 중입니다. 2018년 스토리 속 인물이던 검은 마법사가 보스로 출시되며 모험가들의 염원이 모인 그 시기를 함께했고, 군 전역 후 6차전직과 함께 본격적으로 강해지며 검은 마법사를 직접 격파, 전투력 1억과 하드 세렌 파티 격파까지 도달했습니다. 단순 만렙이 아니라 빅뱅·5차·V·6차로 이어진 패치를 사용자 시점에서 라이브로 통과해 왔습니다.',
 } as const
 
 export const CHARACTER = {
@@ -117,49 +117,24 @@ export const CHARACTER = {
   experience: '약 16년 (2009 ~ )',
   achievement: {
     title: '하드 세렌 파티 격파',
-    sub: '어센틱 시메라 보스 · 메이플 최상위 콘텐츠',
+    sub: '메이플 최상위 콘텐츠 · 6차전직 이후 도달',
   },
-  rankings: [
-    { label: '직업 월드 랭킹', value: '989위' },
-    { label: '직업 전체 랭킹', value: '14,618위' },
-    { label: '종합 랭킹', value: '316,857위' },
-  ],
-  combatPower: {
-    character: '약 2,338만 (상위 7.63%)',
-    union: '약 4억 9,176만',
-    unionRank: '그랜드마스터 II Lv.8975',
-  },
-  endgame: [
-    { slot: '무기', item: '제네시스 스태프 22성' },
-    { slot: '펜던트', item: '데이브레이크 18성' },
-    { slot: '귀고리', item: '에스텔라 18성' },
-    { slot: '벨트', item: '타일런트 헤르메스' },
-    { slot: '보조', item: '페어리 하트' },
-    { slot: '엠블렘', item: '골드 메이플리프' },
-  ],
-  metrics: [
-    { label: '보스 데미지', value: '202%' },
-    { label: '방어율 무시', value: '89.47%' },
-    { label: '어센틱 포스', value: '470' },
-    { label: '아케인 포스', value: '1,320' },
-    { label: '무릉도장', value: '48층 / 12분 29초' },
-  ],
 } as const
 
 export const GAMES = [
   {
     title: '메이플스토리',
     period: '2009 ~ 약 16년',
-    detail: '오로라 · 프로즌샤 · 아크메이지(썬,콜) · 하드 세렌 파티 격파',
+    detail: '오로라 · 프로즌샤 · 아크메이지(썬,콜) · 검은 마법사 보스 격파 · 하드 세렌 파티 격파',
   },
-  { title: '블루아카이브', period: '수년', detail: '만렙 유지, 메인·이벤트 스토리 완주' },
+  { title: '블루아카이브', period: '약 3년', detail: '넥슨게임즈 자회사 IP. 만렙 유지, 메인·이벤트 스토리 완주' },
   {
     title: '이터널리턴',
     period: '1년+',
     detail: '봇 캐릭터(데비&마를렌)의 본 IP — 패치노트 RAG·캐릭터 시스템·증강체까지 사용자 시점 학습',
   },
-  { title: '더 파이널스', period: '시즌 단위', detail: 'Embark Studios. 친구들과 라이트 플레이' },
-  { title: '서든어택', period: '학창 시절', detail: '친구들과 함께한 입문 FPS' },
+  { title: '더 파이널스', period: '시즌 단위', detail: 'Embark Studios (넥슨 자회사). 친구들과 라이트 플레이' },
+  { title: '서든어택', period: '학창 시절', detail: '넥슨 본사 IP. 친구들과 함께한 입문 FPS' },
 ] as const
 
 export const ARCHITECTURE = {
@@ -192,7 +167,7 @@ export const ARCHITECTURE = {
     {
       n: 5,
       label: 'Custom tool 자율 판단',
-      desc: 'Claude가 search_player_stats 호출 시 StatsLayoutView 네이티브 카드를 Discord 채널에 직접 post',
+      desc: 'Claude가 search_player_stats 호출 시 StatsLayoutView 네이티브 카드를 Discord 채널에 직접 발행',
       cost: 'last_trace에 판단 과정 기록',
     },
   ],
@@ -246,7 +221,7 @@ export const CASES = [
     result:
       'general 메시지는 RAG 네트워크 호출 0회 → 평균 응답 시간 100~300ms 단축. 입력 패턴별 비용 분리 측정 가능.',
     bridge:
-      '입력 시나리오 자동 분류기를 평가용으로 그대로 이식 → 시나리오별 모델 응답 품질 분리 측정 가능.',
+      '같은 분류기 코드를 평가 파이프라인에 그대로 옮기면, 시나리오별로 모델 응답 품질을 분리해 측정할 수 있습니다.',
   },
   {
     no: 3,
@@ -257,7 +232,7 @@ export const CASES = [
       '`MANAGED_AGENT_ID_DEBI` / `MANAGED_AGENT_ID_MARLENE` / `MANAGED_AGENT_ID`(unified) 3종 분리. 봇 컨테이너 BOT_IDENTITY 환경변수로 라우팅. 각 agent의 시스템 프롬프트는 단일 페르소나만 생성하도록 변형.',
     result: '솔로봇 응답 토큰 약 절반 절감 + 체감 속도 약 2배. 동일 사용자 질문에 대한 페르소나별 응답 비교 가능.',
     bridge:
-      '에이전트 분기 구조와 정량 비용 측정 — 모델·페르소나 비교 평가의 직접 사례.',
+      '에이전트를 페르소나 단위로 쪼개 비용·체감속도 차이를 직접 측정한 경험 — 모델·페르소나 비교 평가에 그대로 적용됩니다.',
   },
   {
     no: 4,
@@ -267,7 +242,7 @@ export const CASES = [
     approach:
       '`scripts/daily_feed.py` + GitHub Actions cron(정각 큐 폭주 회피 47분). 큐레이터 모델 `claude-sonnet-4-6` 채택. Firestore `feed_seen`(30일 TTL) 중복 제거, `daily_feeds`에 적재. 발송은 별도 봇 토큰(나쵸네코)으로 거노 OWNER_ID에 DM.',
     result: 'Opus 대비 큐레이션 비용 큰 폭 절감. 중복 제거로 같은 정보 반복 노출 0. 매일 운영되는 LLM 큐레이션 워크플로우.',
-    bridge: '동일 입력에 대한 모델 사이즈별 cost-quality 정량 비교 = 모델 평가 직접 사례.',
+    bridge: '같은 입력에 대해 모델 사이즈별 cost-quality 트레이드오프를 매일 직접 비교 중인 워크플로우.',
   },
   {
     no: 5,

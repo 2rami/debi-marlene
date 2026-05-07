@@ -67,13 +67,16 @@ const WALK_FRAME_MS = 130
 
 const MOTION_STATES: MotionState[] = ['idle', 'thinking', 'talk']
 
-const CHAR_SIZE = 180
-const CHAR_IMG_SCALE = 1.6
-const MARGIN = 32
+// 모바일은 viewport 좁아 180px 캐릭터가 콘텐츠 가림 → 768 이하에서 한 번만 120 으로 축소.
+// 초기 1회 평가 — orientation/리사이즈 시 유지 (드래그/위치 계산 단순화)
+const _isMobileInit = typeof window !== 'undefined' && window.innerWidth <= 768
+const CHAR_SIZE = _isMobileInit ? 120 : 180
+const CHAR_IMG_SCALE = _isMobileInit ? 1.4 : 1.6
+const MARGIN = _isMobileInit ? 16 : 32
 const PANEL_W = 380
 const PANEL_H = 600
-const PANEL_RIGHT = 32
-const PANEL_BOTTOM = 32
+const PANEL_RIGHT = _isMobileInit ? 16 : 32
+const PANEL_BOTTOM = _isMobileInit ? 16 : 32
 
 type ChatRole = 'user' | 'agent'
 interface ChatMsg {
@@ -213,7 +216,7 @@ export default function MapleChatbot({
   }, [scrollYProgress])
 
   useEffect(() => {
-    return scrollYProgress.onChange((v) => {
+    return scrollYProgress.on('change', (v) => {
       if (keyboardHintRef.current) return // 안내 표시 중엔 덮어쓰지 않음
       if (dockEl) return // 도킹 중엔 dock 전용 버블 유지
       if (v < 0.1) {

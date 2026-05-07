@@ -4,6 +4,7 @@ import Button from './Button'
 import Aurora from '../../../components/common/Aurora'
 import FloatingShapes from './FloatingShapes'
 import { useRevealOff } from './useRevealOff'
+import useIsMobile from './useIsMobile'
 
 import { HERO, STATS } from '../content/llm'
 
@@ -29,6 +30,7 @@ const HERO_STAGGER = 0.12
 
 export default function NexonGate() {
   const revealOff = useRevealOff()
+  const isMobile = useIsMobile()
 
   // revealOff 모드면 instant — 모든 timeline duration 0, delay 0
   const T = revealOff ? 0 : 1
@@ -46,7 +48,10 @@ export default function NexonGate() {
       <div
         style={{
           position: 'relative',
-          height: '100vh',
+          // 모바일은 100vh 강제 시 INFO 패널이 잘림 — auto 로 풀어 자연 스크롤 허용
+          minHeight: '100vh',
+          height: isMobile ? 'auto' : '100vh',
+          padding: isMobile ? '24px 0' : 0,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -73,7 +78,7 @@ export default function NexonGate() {
           }}
           style={{ zIndex: 10, pointerEvents: 'none', position: 'absolute' }}
         >
-          <svg viewBox="0 0 493.85 480.16" width="min(60vw, 540px)">
+          <svg viewBox="0 0 493.85 480.16" width={isMobile ? 'min(72vw, 320px)' : 'min(60vw, 540px)'}>
             <Facet
               fill={GATE_COLORS.blue}
               points="128.74 196.98 128.74 286.79 247.95 223.4"
@@ -116,7 +121,7 @@ export default function NexonGate() {
           style={{
             width: '100%',
             height: '100%',
-            padding: '60px clamp(48px, 8vw, 120px) 40px',
+            padding: isMobile ? '80px 22px 32px' : '60px clamp(48px, 8vw, 120px) 40px',
             display: 'flex',
             alignItems: 'center',
             position: 'relative',
@@ -128,8 +133,8 @@ export default function NexonGate() {
               maxWidth: 1480,
               margin: '0 auto',
               display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1.6fr) minmax(280px, 1fr)',
-              gap: 64,
+              gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.6fr) minmax(280px, 1fr)',
+              gap: isMobile ? 36 : 64,
               alignItems: 'start',
               width: '100%',
             }}
@@ -167,18 +172,17 @@ export default function NexonGate() {
                 }}
               >
                 {HERO.titleLines.map((line, i) => {
-                  const isHighlight = line.includes(HERO.highlightWord)
+                  const idx = line.indexOf(HERO.highlightWord)
+                  const before = idx >= 0 ? line.slice(0, idx) : line
+                  const after = idx >= 0 ? line.slice(idx + HERO.highlightWord.length) : ''
                   return (
                     <HeroIn key={i} delayIndex={1 + i} fromX={-80} T={T}>
                       <span style={{ display: 'block' }}>
-                        {isHighlight ? (
-                          <>
-                            <span style={{ color: C.nexonBlue }}>{HERO.highlightWord}</span>
-                            {line.replace(HERO.highlightWord, '')}
-                          </>
-                        ) : (
-                          line
+                        {before}
+                        {idx >= 0 && (
+                          <span style={{ color: C.nexonBlue }}>{HERO.highlightWord}</span>
                         )}
+                        {after}
                       </span>
                     </HeroIn>
                   )
@@ -192,7 +196,7 @@ export default function NexonGate() {
                       key={cta.label}
                       label={cta.label}
                       href={cta.href}
-                      variant="outline"
+                      variant={cta.primary ? 'primary' : 'outline'}
                       external={cta.href.startsWith('http') || cta.href.endsWith('.pdf')}
                     />
                   ))}

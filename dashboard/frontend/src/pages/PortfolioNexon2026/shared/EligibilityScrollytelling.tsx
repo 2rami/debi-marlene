@@ -11,6 +11,7 @@ import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from './colors'
 import frozenshaUrl from '../../../assets/portfolio-nexon-2026/frozensha.png'
 import serenUrl from '../../../assets/portfolio-nexon-2026/seren.gif'
 import { useRevealOff } from './useRevealOff'
+import useIsMobile from './useIsMobile'
 import { useCharacterDock } from './dockContext'
 
 interface EligibilityData {
@@ -55,6 +56,7 @@ const VERTICAL_OFFSET = -36
 export default function EligibilityScrollytelling({ eligibility, character }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const revealOff = useRevealOff()
+  const isMobile = useIsMobile()
 
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -70,7 +72,7 @@ export default function EligibilityScrollytelling({ eligibility, character }: Pr
     localPos.set(Math.max(0, Math.min(STAGES - 0.0001, adjusted)))
   })
 
-  if (revealOff) {
+  if (revealOff || isMobile) {
     return <StaticEligibility eligibility={eligibility} character={character} />
   }
 
@@ -491,7 +493,7 @@ function StaticEligibility({
       id="eligibility"
       style={{
         background: C.bgLight,
-        padding: 'clamp(80px, 10vh, 120px) clamp(40px, 6vw, 120px)',
+        padding: 'clamp(56px, 8vh, 120px) clamp(20px, 6vw, 120px)',
       }}
     >
       <div
@@ -499,7 +501,7 @@ function StaticEligibility({
           maxWidth: 1280,
           margin: '0 auto',
           display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
           gap: 'clamp(40px, 5vw, 80px)',
           alignItems: 'center',
         }}

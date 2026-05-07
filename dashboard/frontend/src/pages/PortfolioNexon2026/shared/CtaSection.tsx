@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { C, FONT_BODY, FONT_DISPLAY } from './colors'
 import Button from './Button'
+import useIsMobile from './useIsMobile'
 
 type CtaItem = {
   label: string
@@ -24,19 +25,20 @@ export default function CtaSection({
   sub?: string
   items: CtaItem[]
 }) {
+  const isMobile = useIsMobile()
   return (
     <section
       style={{
         position: 'relative',
         background: C.bgWhite,
-        padding: '160px clamp(40px, 6vw, 120px) 200px',
+        padding: 'clamp(96px, 16vw, 160px) clamp(20px, 6vw, 120px) clamp(120px, 18vw, 200px)',
       }}
     >
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(160px, 220px) minmax(0, 1fr)',
-          gap: 'clamp(32px, 5vw, 80px)',
+          gridTemplateColumns: isMobile ? '1fr' : 'minmax(160px, 220px) minmax(0, 1fr)',
+          gap: isMobile ? 24 : 'clamp(32px, 5vw, 80px)',
           maxWidth: 1280,
           margin: '0 auto',
         }}

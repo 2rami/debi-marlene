@@ -10,6 +10,7 @@ import {
 } from 'framer-motion'
 import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from './colors'
 import { useRevealOff } from './useRevealOff'
+import useIsMobile from './useIsMobile'
 import TooltipCard from './TooltipCard'
 import type { EvidenceItem, ReportTooltip } from './JdMatchCard'
 
@@ -42,6 +43,7 @@ const STEP_VH = 200 // 한 step (header / 각 evidence) 당 2 viewport — 느�
 export default function JdScrollytelling({ items }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const revealOff = useRevealOff()
+  const isMobile = useIsMobile()
 
   const stepCounts = items.map((i) => 1 + i.evidence.length)
   const totalSteps = stepCounts.reduce((a, b) => a + b, 0)
@@ -77,11 +79,11 @@ export default function JdScrollytelling({ items }: Props) {
     }
   })
 
-  if (revealOff) {
+  if (revealOff || isMobile) {
     return (
-      <section style={{ background: C.bgWhite, padding: 'clamp(80px, 10vh, 120px) clamp(40px, 6vw, 120px)' }}>
+      <section id="jdmatch" style={{ background: C.bgWhite, padding: 'clamp(56px, 8vh, 120px) clamp(20px, 6vw, 120px)' }}>
         <Header active={items.length - 1} total={items.length} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(64px, 8vh, 96px)', maxWidth: 1280, margin: '0 auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(40px, 6vh, 96px)', maxWidth: 1280, margin: '0 auto' }}>
           {items.map((it) => (
             <StaticSlide key={it.n} item={it} />
           ))}
@@ -113,6 +115,7 @@ export default function JdScrollytelling({ items }: Props) {
   return (
     <section
       ref={ref}
+      id="jdmatch"
       style={{
         position: 'relative',
         height: `${totalSteps * STEP_VH}vh`,
@@ -575,8 +578,9 @@ function StaticSlide({ item }: { item: JdItem }) {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'minmax(140px, 200px) minmax(0, 600px)',
-        columnGap: 'clamp(32px, 4vw, 64px)',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+        columnGap: 'clamp(24px, 4vw, 64px)',
+        rowGap: 16,
         alignItems: 'start',
       }}
     >

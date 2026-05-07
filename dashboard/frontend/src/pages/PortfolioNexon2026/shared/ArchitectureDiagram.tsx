@@ -6,6 +6,7 @@ import ScrollFloat from '../../../components/reactbits/ScrollFloat'
 import TextType from '../../../components/reactbits/TextType'
 import SectionShell from './SectionShell'
 import { C, FONT_BODY, FONT_MONO, FONT_DISPLAY } from './colors'
+import useIsMobile from './useIsMobile'
 
 type NodeProps = {
   label: string
@@ -155,6 +156,7 @@ session_id, summary = await session_store.get_or_rotate_session(
 ]
 
 export default function ArchitectureDiagram({ steps, title }: Props) {
+  const isMobile = useIsMobile()
   const containerRef = useRef<HTMLDivElement>(null)
   const userRef = useRef<HTMLDivElement>(null)
   const classifyRef = useRef<HTMLDivElement>(null)
@@ -235,20 +237,63 @@ export default function ArchitectureDiagram({ steps, title }: Props) {
       variant="aside"
       background={C.bgLight}
     >
-      {/* Diagram canvas — 라이트, 단일 nexonBlue 빔 */}
+      {/* Diagram canvas — 라이트, 단일 nexonBlue 빔. 모바일은 가로 스크롤 우회 위해 세로 스택 */}
       <div
         ref={containerRef}
         style={{
           position: 'relative',
           width: '100%',
-          height: 320,
+          height: isMobile ? 'auto' : 320,
           marginBottom: 24,
           borderTop: `1px solid ${C.cardBorder}`,
           borderBottom: `1px solid ${C.cardBorder}`,
           paddingTop: 16,
           paddingBottom: 16,
+          display: isMobile ? 'flex' : 'block',
+          flexDirection: isMobile ? 'column' : undefined,
+          gap: isMobile ? 12 : undefined,
         }}
       >
+      {isMobile && (
+        <>
+          <MobileNode label="USER" sub="Discord 입력" stack="discord.py" terminal />
+          <MobileArrow />
+          {NODE_NAMES.map((name, i) => {
+            const sub =
+              i === 0 ? 'regex 0.1ms' :
+              i === 1 ? 'patch intent only' :
+              i === 2 ? 'SQLite 영속' :
+              i === 3 ? 'claude-haiku-4-5' :
+              'StatsLayoutView'
+            const stack =
+              i === 0 ? 'LangGraph · python re' :
+              i === 1 ? 'httpx · 1h TTL cache' :
+              i === 2 ? 'aiosqlite · 50 turns / 6h' :
+              i === 3 ? 'Anthropic Managed Agents' :
+              'Discord LayoutView v2'
+            return (
+              <div key={name}>
+                <button
+                  {...hoverProps(i)}
+                  style={{
+                    appearance: 'none',
+                    background: 'transparent',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    width: '100%',
+                    textAlign: 'left',
+                  }}
+                >
+                  <MobileNode label={name} sub={sub} stack={stack} active={activeIdx === i} terminal={i === 4} />
+                </button>
+                {i < NODE_NAMES.length - 1 && <MobileArrow />}
+              </div>
+            )
+          })}
+        </>
+      )}
+      {!isMobile && (<>
         {/* USER */}
         <div style={{ position: 'absolute', left: '8%', top: '58%', transform: 'translate(-50%, -50%)' }}>
           <NodeBox ref={userRef} label="USER" sub="Discord 입력" stack="discord.py" variant="terminal" />
@@ -342,6 +387,7 @@ export default function ArchitectureDiagram({ steps, title }: Props) {
           gradientStartColor={C.nexonLightBlue}
           gradientStopColor={C.nexonBlue}
         />
+      </>)}
       </div>
 
       {/* 노드 클릭 시 표시되는 캡션 + evidence (2칼럼) */}
@@ -358,7 +404,7 @@ export default function ArchitectureDiagram({ steps, title }: Props) {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 1fr)',
+              gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.05fr) minmax(0, 1fr)',
               columnGap: 'clamp(24px, 4vw, 56px)',
               rowGap: 24,
               alignItems: 'start',
@@ -706,6 +752,95 @@ function TerminalDot({ color }: { color: string }) {
         display: 'inline-block',
       }}
     />
+  )
+}
+
+function MobileNode({
+  label,
+  sub,
+  stack,
+  active = false,
+  terminal = false,
+}: {
+  label: string
+  sub?: string
+  stack?: string
+  active?: boolean
+  terminal?: boolean
+}) {
+  return (
+    <div
+      style={{
+        background: terminal ? C.nexonBlue : C.bgWhite,
+        border: `1px solid ${active ? C.nexonBlue : terminal ? C.nexonBlue : C.cardBorder}`,
+        borderRadius: 14,
+        padding: '12px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        boxShadow: active
+          ? '0 6px 22px rgba(0, 86, 214, 0.22)'
+          : '0 2px 8px rgba(10, 18, 36, 0.04)',
+        transition: 'border-color 180ms ease, box-shadow 180ms ease',
+      }}
+    >
+      <div
+        style={{
+          fontFamily: FONT_MONO,
+          fontSize: 11,
+          fontWeight: 800,
+          color: terminal ? C.bgWhite : C.nexonBlue,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}
+      </div>
+      {sub && (
+        <div
+          style={{
+            fontSize: 12,
+            color: terminal ? 'rgba(255,255,255,0.85)' : C.inkMuted,
+            fontFamily: FONT_BODY,
+            fontWeight: 500,
+          }}
+        >
+          {sub}
+        </div>
+      )}
+      {stack && (
+        <div
+          style={{
+            fontFamily: FONT_MONO,
+            fontSize: 10,
+            letterSpacing: '0.08em',
+            color: active ? C.nexonBlue : terminal ? 'rgba(255,255,255,0.7)' : C.inkMuted,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+          }}
+        >
+          {stack}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MobileArrow() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        color: C.cardBorder,
+        fontSize: 16,
+        lineHeight: 1,
+        margin: '2px 0',
+      }}
+    >
+      ↓
+    </div>
   )
 }
 

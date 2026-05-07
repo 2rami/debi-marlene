@@ -60,10 +60,12 @@ export default function JdScrollytelling({ items }: Props) {
     const clamped = Math.max(0, Math.min(totalSteps - 0.0001, v))
     globalPos.set(clamped)
     // VaultDial / ProgressBar 용 정수 activeIdx 도 같이 산출
+    // 좌 다이얼 회전 시점을 ContentDial 헤더 노출(opacity ramp 시작 ≈ p-0.45) 과 맞추기 위해 0.5 step 앞당김
     let cumStep = 0
     for (let i = 0; i < items.length; i++) {
       const cap = stepCounts[i]
-      if (clamped < cumStep + cap || i === items.length - 1) {
+      const advanceAt = i === items.length - 1 ? Infinity : cumStep + cap - 0.5
+      if (clamped < advanceAt) {
         const localStep = clamped - cumStep
         const subIdxNew = Math.max(-1, Math.floor(localStep) - 1)
         setActive((cur) =>
@@ -243,7 +245,7 @@ function Header({ active, total }: { active: number; total: number }) {
 
 const SLIDE_HEIGHT = 480 // px — 우측 콘텐츠 영역 높이
 
-const NUM_H = 140 // dial 한 숫자 박스 높이
+const NUM_H = 180 // dial 한 숫자 박스 높이
 
 function DialNumber({
   idx,

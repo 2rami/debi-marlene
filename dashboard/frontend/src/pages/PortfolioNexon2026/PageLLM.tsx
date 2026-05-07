@@ -64,10 +64,10 @@ export default function PageLLM() {
 
     const lenis = new Lenis({
       // 쫀득한 스크롤 — 휠 입력 후 잠시 미끄러지듯 따라옴
-      duration: 4,
+      duration: 1.2,
       // lerp 가 작을수록 더 부드럽고 길게 미끄러짐 (default 0.1)
       lerp: 0.8,
-      wheelMultiplier: 0.85,
+      wheelMultiplier: 2.0,
       easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
     })
     ;(window as any).__lenis = lenis

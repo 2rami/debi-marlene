@@ -23,7 +23,7 @@ interface JdItem {
 
 const HOOK_CHIPS: Record<number, string[]> = {
   1: ['메이플 16년 · 하드 세렌', '5장르 플레이', 'patchnote RAG 자체 구현'],
-  2: ['cache 99%+', '2-tier 폴백', 'few-shot 5쌍'],
+  2: ['LLM 평가 520응답', '2-tier 폴백', 'few-shot 5쌍'],
   3: ['158서버 × 9개월', 'Custom tool 3종', 'last_trace 기록'],
   4: ['Firestore 분석', '시각디자인 4년', '공모전 입상'],
 }
@@ -299,6 +299,30 @@ export default function JdMatchAccordion({ items }: { items: readonly JdItem[] }
                             >
                               {e.highlight}
                             </TooltipCard>
+                            <a
+                              href={e.report.pdfHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(ev) => ev.stopPropagation()}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                marginLeft: 6,
+                                marginRight: 2,
+                                padding: '2px 7px',
+                                background: C.nexonBlue,
+                                color: '#fff',
+                                borderRadius: 6,
+                                fontFamily: FONT_MONO,
+                                fontSize: 10,
+                                fontWeight: 800,
+                                letterSpacing: '0.08em',
+                                textDecoration: 'none',
+                                verticalAlign: '2px',
+                              }}
+                            >
+                              PDF
+                            </a>
                             {after}
                           </>
                         )

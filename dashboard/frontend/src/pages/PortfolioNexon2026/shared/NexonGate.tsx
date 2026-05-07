@@ -188,7 +188,13 @@ export default function NexonGate() {
               <HeroIn delayIndex={4} fromX={-80} T={T}>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 28 }}>
                   {HERO.ctas.map((cta) => (
-                    <Button key={cta.label} label={cta.label} href={cta.href} variant="outline" />
+                    <Button
+                      key={cta.label}
+                      label={cta.label}
+                      href={cta.href}
+                      variant="outline"
+                      external={cta.href.startsWith('http') || cta.href.endsWith('.pdf')}
+                    />
                   ))}
                 </div>
               </HeroIn>

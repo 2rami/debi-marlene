@@ -6,6 +6,7 @@ type CtaItem = {
   label: string
   href: string
   primary?: boolean
+  external?: boolean
 }
 
 /**
@@ -120,6 +121,7 @@ export default function CtaSection({
                 href={it.href}
                 label={it.label}
                 variant={it.primary ? 'primary' : 'outline'}
+                external={it.external}
               />
             ))}
           </motion.div>

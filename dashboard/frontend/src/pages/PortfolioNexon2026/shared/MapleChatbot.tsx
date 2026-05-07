@@ -91,7 +91,8 @@ const PROMPT_CHIPS = [
 ] as const
 
 const API_BASE =
-  (import.meta as any).env?.VITE_API_BASE ?? 'http://localhost:8081'
+  (import.meta as any).env?.VITE_API_BASE ??
+  ((import.meta as any).env?.DEV ? 'http://localhost:8081' : '')
 
 const SESSION_KEY = 'nexon-portfolio-chatbot-session'
 

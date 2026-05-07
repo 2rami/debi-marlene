@@ -22,6 +22,7 @@ export const HERO = {
   ctas: [
     { label: 'GitHub · debi-marlene', href: 'https://github.com/2rami/debi-marlene', primary: true },
     { label: 'Live · debimarlene.com', href: 'https://debimarlene.com', primary: false },
+    { label: 'PDF · LLM 평가 보고서', href: '/llm_eval_report.pdf', primary: false },
   ],
 } as const
 

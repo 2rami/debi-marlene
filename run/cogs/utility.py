@@ -49,6 +49,73 @@ class UtilityCog(commands.Cog, name="기타"):
 
         await msg.edit(content=None, embed=embed)
 
+    @app_commands.command(name="도움말", description="데비&마를렌이 할 수 있는 모든 명령어")
+    async def help_command(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="데비&마를렌 명령어",
+            description="이터널리턴 전적 + AI 대화 + 음성/음악 + 퀴즈를 한 봇에서.\n자연어로 말 걸어도 봇이 알아들어요. 예: `데비야 전적 보여줘`",
+            color=0xFFB6C1,
+        )
+        embed.add_field(
+            name="AI 대화",
+            value=(
+                "`/대화` — 데비&마를렌과 대화 (이터널리턴 정보·잡담·검색 자동)\n"
+                "채널에서 `데비야` `마를렌아` 호명해도 응답"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="이터널리턴",
+            value=(
+                "`/전적` — 플레이어 전적 검색\n"
+                "`/통계` — 캐릭터별 통계 (다이아+)\n"
+                "`/시즌` — 현재 시즌 정보\n"
+                "`/동접` — 현재 동접자 수"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="음성·음악",
+            value=(
+                "`/tts` — 봇이 음성 채널에 입장 (TTS)\n"
+                "`/음악` — YouTube 음악 재생\n"
+                "`/듣기` — 음성채널에서 유저 음성 듣기\n"
+                "`/듣기중지` — 듣기 중지"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="재미",
+            value=(
+                "`/퀴즈` — 퀴즈 게임 (이터널리턴 / 노래)\n"
+                "`/크레딧` — 내 크레딧 지갑 (도박·출석은 대시보드)"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="설정·기타",
+            value=(
+                "`/설정` — 서버 설정 (공지·TTS·알림·대시보드)\n"
+                "`/피드백` — 봇 개발자에게 피드백"
+            ),
+            inline=False,
+        )
+        embed.set_footer(text="문의·버그 제보는 /피드백")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        try:
+            await log_command_usage(
+                command_name="도움말",
+                user_id=interaction.user.id,
+                user_name=interaction.user.display_name or interaction.user.name,
+                guild_id=interaction.guild.id if interaction.guild else None,
+                guild_name=interaction.guild.name if interaction.guild else None,
+                channel_id=interaction.channel_id,
+                channel_name=interaction.channel.name if interaction.channel else None,
+            )
+        except Exception:
+            pass
+
     @app_commands.command(name="피드백", description="봇 개발자에게 피드백을 보냅니다")
     @app_commands.describe(내용="보낼 피드백 내용")
     async def feedback(self, interaction: discord.Interaction, 내용: str):

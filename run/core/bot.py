@@ -543,7 +543,12 @@ async def _background_init():
                     voice_manager.current_type[guild_id] = None
                     print(f"[음성] 기존 연결 복구: {vc.guild.name} / {vc.channel.name}", flush=True)
 
-            # 동접수 상태 업데이트 태스크 시작
+            # 봇 상태(activity) 즉시 1회 + 5분 주기 갱신
+            # 즉시 호출이 없으면 부팅 후 5분간 presence 비어있어 봇 프로필 카드가 휑함
+            try:
+                await update_presence()
+            except Exception as e:
+                print(f"[경고] 초기 presence 갱신 실패: {e}", flush=True)
             if not update_presence.is_running():
                 update_presence.start()
                 print("[완료] 동접수 상태 업데이트 태스크 시작 (5분 간격)", flush=True)
@@ -572,7 +577,15 @@ STEAM_PLAYER_COUNT_URL = "https://api.steampowered.com/ISteamUserStats/GetNumber
 
 @tasks.loop(minutes=5)
 async def update_presence():
-    """5분마다 이터널리턴 동접수를 가져와 봇 상태에 표시"""
+    """봇 상태(activity) — 이터널리턴 동접수 + /도움말 안내.
+
+    Discord 봇 계정의 CustomActivity 는 데스크톱 클라이언트에서 라벨 없이 뜨거나
+    안 보이는 케이스 있음. ActivityType.watching 으로 두면 "X 보는 중" 라벨 강제.
+    """
+    activity = discord.Activity(
+        type=discord.ActivityType.playing,
+        name="/도움말",
+    )
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(STEAM_PLAYER_COUNT_URL, timeout=aiohttp.ClientTimeout(total=10)) as response:
@@ -580,10 +593,17 @@ async def update_presence():
                     data = await response.json()
                     if data.get("response", {}).get("result") == 1:
                         count = data["response"]["player_count"]
-                        activity = discord.CustomActivity(name=f"이터널리턴 동접 {count:,}명")
-                        await bot.change_presence(activity=activity)
+                        activity = discord.Activity(
+                            type=discord.ActivityType.playing,
+                            name=f"이터널리턴 동접 {count:,}명 · /도움말",
+                        )
     except Exception as e:
-        print(f"[경고] 동접수 상태 업데이트 실패: {e}", flush=True)
+        print(f"[경고] 동접수 상태 업데이트 실패 (fallback presence 사용): {e}", flush=True)
+
+    try:
+        await bot.change_presence(activity=activity)
+    except Exception as e:
+        print(f"[경고] presence 갱신 실패: {e}", flush=True)
 
 
 @bot.event

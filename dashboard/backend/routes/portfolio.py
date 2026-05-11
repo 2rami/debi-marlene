@@ -27,7 +27,7 @@ import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 from portfolio_data import search_portfolio
 
@@ -328,3 +328,187 @@ def ask():
     })
 
     return jsonify({'text': text, 'session_id': session_id})
+
+
+def _sse(data: dict) -> str:
+    return f'data: {json.dumps(data, ensure_ascii=False)}\n\n'
+
+
+def _stream_agent_sse(prompt: str, session_id: str | None, ip: str):
+    """SSE generator. agent.message 도착 즉시 chunk 이벤트 flush."""
+    started_at = time.time()
+    parts: list[str] = []
+    tool_calls: list[dict] = []
+    final_session_id = session_id
+    final_error: str | None = None
+
+    try:
+        client = _get_anthropic()
+        if client is None:
+            yield _sse({'type': 'error', 'code': 'service_unavailable'})
+            final_error = 'anthropic_unavailable'
+            return
+        agent_id = os.getenv('PORTFOLIO_AGENT_ID')
+        if not agent_id:
+            yield _sse({'type': 'error', 'code': 'service_unavailable'})
+            final_error = 'agent_id_unset'
+            return
+
+        extra = {"anthropic-beta": BETA_HEADER}
+
+        if not final_session_id:
+            env_id = os.getenv('PORTFOLIO_ENV_ID')
+            if not env_id:
+                yield _sse({'type': 'error', 'code': 'service_unavailable'})
+                final_error = 'env_id_unset'
+                return
+            s = client.beta.sessions.create(
+                title=f"portfolio:{datetime.now(timezone.utc).isoformat(timespec='seconds')}",
+                agent={"type": "agent", "id": agent_id},
+                environment_id=env_id,
+                extra_headers=extra,
+            )
+            final_session_id = s.id
+
+        yield _sse({'type': 'session', 'session_id': final_session_id})
+
+        pending_tools: list = []
+        deadline = time.time() + RESPONSE_TIMEOUT
+
+        with client.beta.sessions.events.stream(session_id=final_session_id, extra_headers=extra) as stream:
+            client.beta.sessions.events.send(
+                session_id=final_session_id,
+                events=[{
+                    "type": "user.message",
+                    "content": [{"type": "text", "text": prompt}],
+                }],
+                extra_headers=extra,
+            )
+
+            for event in stream:
+                if time.time() > deadline:
+                    yield _sse({'type': 'error', 'code': 'timeout'})
+                    final_error = 'agent_timeout'
+                    return
+                ev_type = getattr(event, 'type', None)
+
+                if ev_type == 'agent.message':
+                    for block in getattr(event, 'content', []) or []:
+                        if getattr(block, 'type', None) == 'text':
+                            chunk = block.text
+                            parts.append(chunk)
+                            yield _sse({'type': 'chunk', 'text': chunk})
+
+                elif ev_type == 'agent.custom_tool_use':
+                    pending_tools.append(event)
+
+                elif ev_type == 'session.status_idle':
+                    stop = getattr(event, 'stop_reason', None)
+                    stop_type = getattr(stop, 'type', None) if stop else None
+
+                    if stop_type == 'end_turn':
+                        break
+
+                    if stop_type == 'requires_action':
+                        if not pending_tools:
+                            logger.warning('[portfolio/stream] requires_action 인데 pending_tools 비어있음')
+                            break
+                        results_to_send = []
+                        for tu in pending_tools:
+                            t_name = getattr(tu, 'name', '')
+                            t_input = getattr(tu, 'input', {}) or {}
+                            t_id = getattr(tu, 'id', '')
+                            t0 = time.time()
+                            content_text, is_error = _execute_tool(t_name, t_input)
+                            latency_ms = int((time.time() - t0) * 1000)
+                            tool_calls.append({
+                                'name': t_name,
+                                'input': t_input,
+                                'latency_ms': latency_ms,
+                                'is_error': is_error,
+                            })
+                            results_to_send.append({
+                                "type": "user.custom_tool_result",
+                                "custom_tool_use_id": t_id,
+                                "content": [{"type": "text", "text": content_text}],
+                                "is_error": is_error,
+                            })
+                        pending_tools = []
+                        client.beta.sessions.events.send(
+                            session_id=final_session_id,
+                            events=results_to_send,
+                            extra_headers=extra,
+                        )
+                        continue
+
+                    if stop_type == 'retries_exhausted':
+                        yield _sse({'type': 'error', 'code': 'upstream_error'})
+                        final_error = 'agent_retries_exhausted'
+                        return
+
+                    logger.warning(f'[portfolio/stream] 알 수 없는 stop_reason: {stop_type}')
+                    break
+
+        text = ''.join(parts).strip()
+        if not text:
+            yield _sse({'type': 'error', 'code': 'upstream_error'})
+            final_error = 'agent_empty_response'
+            return
+
+        if len(text) > RESPONSE_MAX_LEN:
+            text = text[:RESPONSE_MAX_LEN].rstrip() + '…'
+
+        yield _sse({'type': 'done', 'session_id': final_session_id, 'text': text})
+
+    except Exception as e:
+        logger.exception(f'[portfolio/stream] 예외 (ip={ip})')
+        yield _sse({'type': 'error', 'code': 'internal'})
+        final_error = f'exception:{type(e).__name__}'
+    finally:
+        text_final = ''.join(parts).strip()
+        if len(text_final) > RESPONSE_MAX_LEN:
+            text_final = text_final[:RESPONSE_MAX_LEN].rstrip() + '…'
+        try:
+            _log_to_firestore({
+                'timestamp': datetime.now(timezone.utc),
+                'ip': ip,
+                'prompt': prompt,
+                'text': text_final,
+                'session_id': final_session_id,
+                'agent_id': os.getenv('PORTFOLIO_AGENT_ID'),
+                'elapsed_sec': round(time.time() - started_at, 2),
+                'tool_calls': tool_calls,
+                'streamed': True,
+                'error': final_error,
+            })
+        except Exception:
+            logger.exception('[portfolio/stream] 로그 적재 실패')
+
+
+@portfolio_bp.route('/ask/stream', methods=['POST', 'OPTIONS'])
+def ask_stream():
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
+    ip = _client_ip()
+    if not _check_rate(ip):
+        return jsonify({'error': 'rate_limited', 'reason': '분당 5회 초과. 잠시 후 다시.'}), 429
+
+    body = request.get_json(silent=True) or {}
+    prompt = (body.get('prompt') or '').strip()
+    session_id = body.get('session_id') or None
+
+    if not prompt:
+        return jsonify({'error': 'invalid_request', 'reason': 'prompt 필수.'}), 400
+    if len(prompt) > PROMPT_MAX_LEN:
+        return jsonify({'error': 'prompt_too_long', 'reason': f'prompt {PROMPT_MAX_LEN}자 초과.'}), 400
+
+    return Response(
+        _stream_agent_sse(prompt, session_id, ip),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache, no-transform',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive',
+        },
+    )

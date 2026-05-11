@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import SectionShell from '../shared/SectionShell'
@@ -83,9 +83,11 @@ const STACK: StackItem[] = [
 ]
 
 function StackList({ items }: { items: StackItem[] }) {
+  const [expanded, setExpanded] = useState(false)
   const wrapRef = useRef<HTMLOListElement>(null)
 
   useEffect(() => {
+    if (!expanded) return
     const el = wrapRef.current
     if (!el) return
     const rows = el.querySelectorAll('.stack-row')
@@ -96,19 +98,48 @@ function StackList({ items }: { items: StackItem[] }) {
         {
           opacity: 1,
           y: 0,
-          duration: 0.65,
+          duration: 0.5,
           ease: 'power3.out',
-          stagger: 0.07,
-          scrollTrigger: {
-            trigger: el,
-            start: 'top bottom-=10%',
-            once: true,
-          },
+          stagger: 0.05,
         },
       )
     }, el)
     return () => ctx.revert()
-  }, [])
+  }, [expanded])
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        style={{
+          fontFamily: FONT_MONO,
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color: C.nexonBlue,
+          background: 'transparent',
+          border: `1px solid ${C.cardBorder}`,
+          padding: '14px 22px',
+          borderRadius: 999,
+          cursor: 'pointer',
+          transition: 'background 200ms ease, border-color 200ms ease',
+          alignSelf: 'flex-start',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = C.bgWhite
+          e.currentTarget.style.borderColor = C.nexonBlue
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent'
+          e.currentTarget.style.borderColor = C.cardBorder
+        }}
+      >
+        + 운영 인프라 {items.length}개 펼쳐 보기
+      </button>
+    )
+  }
 
   return (
     <ol

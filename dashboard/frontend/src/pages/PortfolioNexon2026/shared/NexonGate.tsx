@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 import { C, FONT_BODY, FONT_DISPLAY, GATE_COLORS, FONT_MONO } from './colors'
 import Button from './Button'
 import Aurora from '../../../components/common/Aurora'
@@ -11,28 +12,40 @@ import { HERO, STATS } from '../content/llm'
 /**
  * CH 0 — GATE → HERO
  *
- * 스크롤이 아닌 마운트 시간선 기반:
- *   1) 페이스트 3개 + NEXON 글자가 흩어진 위치에서 합체 (0 ~ 1.4s)
- *   2) 합체된 로고 잠시 유지 (~ 1.6s)
- *   3) 로고 축소 + 페이드 아웃 (1.6 ~ 2.3s)
- *   4) Hero content (badge / title / cta / subtitle / info) 스태거 등장 (1.7 ~ 3.0s)
+ * 마운트 즉시 자동 재생. phase 3단계로 명확히 분리:
+ *   - assemble (0 ~ 2.0s): facets 회전·스케일 풀리며 합체. blur 없음
+ *   - hold     (2.0 ~ 3.0s): 완전 합체된 로고 정지. blur 없음
+ *   - exit     (3.0 ~ 4.0s): scale 축소 + blur + fade out
  *
- * 완료 후 hero 가 정적 상태. 스크롤하면 다음 챕터로.
- * ?reveal=off 면 모든 요소 instant 노출 (Figma 캡처용).
+ * Hero content 는 hold 끝물부터 stagger 등장 (exit 과 살짝 겹침)
+ *
+ * ?reveal=off 이면 모든 단계 instant (Figma 캡처용).
  */
 
-const FACET_DUR = 1.4
-const FACET_EASE = [0.22, 1, 0.36, 1] as const
-const LOGO_EXIT_START = 1.6
-const LOGO_EXIT_DUR = 0.7
-const HERO_BASE_DELAY = 1.7
+const ASSEMBLE_DUR = 2.0
+const ASSEMBLE_EASE = [0.16, 1, 0.3, 1] as const
+const HOLD_DUR = 1.0
+const EXIT_DUR = 1.0
+const HERO_DELAY = ASSEMBLE_DUR + HOLD_DUR - 0.1 // 2.9s — exit 직전부터 등장
 const HERO_STAGGER = 0.12
+
+type Phase = 'assemble' | 'hold' | 'exit'
 
 export default function NexonGate() {
   const revealOff = useRevealOff()
   const isMobile = useIsMobile()
+  const [phase, setPhase] = useState<Phase>(revealOff ? 'exit' : 'assemble')
 
-  // revealOff 모드면 instant — 모든 timeline duration 0, delay 0
+  useEffect(() => {
+    if (revealOff) return
+    const toHold = window.setTimeout(() => setPhase('hold'), ASSEMBLE_DUR * 1000)
+    const toExit = window.setTimeout(() => setPhase('exit'), (ASSEMBLE_DUR + HOLD_DUR) * 1000)
+    return () => {
+      window.clearTimeout(toHold)
+      window.clearTimeout(toExit)
+    }
+  }, [revealOff])
+
   const T = revealOff ? 0 : 1
 
   return (
@@ -48,7 +61,6 @@ export default function NexonGate() {
       <div
         style={{
           position: 'relative',
-          // 모바일은 100vh 강제 시 INFO 패널이 잘림 — auto 로 풀어 자연 스크롤 허용
           minHeight: '100vh',
           height: isMobile ? 'auto' : '100vh',
           padding: isMobile ? '24px 0' : 0,
@@ -57,7 +69,7 @@ export default function NexonGate() {
           justifyContent: 'center',
         }}
       >
-        {/* 오로라 + FloatingShapes 배경 */}
+        {/* 배경 */}
         <div style={{ position: 'absolute', inset: 0 }}>
           <div className="absolute inset-0 opacity-20 mix-blend-screen pointer-events-none">
             <Aurora colorStops={[C.nexonBlue, C.nexonLightBlue, C.nexonBlueAlt]} amplitude={0.9} speed={0.4} />
@@ -67,14 +79,17 @@ export default function NexonGate() {
           </div>
         </div>
 
-        {/* 로고 레이어 — 합체 후 fade out */}
+        {/* 로고 컨테이너 — phase 'exit' 일 때만 축소 + blur + fade */}
         <motion.div
-          initial={{ scale: 1, opacity: 1 }}
-          animate={{ scale: revealOff ? 0.12 : [1, 1, 0.12], opacity: revealOff ? 0 : [1, 1, 0] }}
+          initial={{ scale: 1, opacity: 1, filter: 'blur(0px)' }}
+          animate={
+            phase === 'exit'
+              ? { scale: 0.12, opacity: 0, filter: 'blur(14px)' }
+              : { scale: 1, opacity: 1, filter: 'blur(0px)' }
+          }
           transition={{
-            duration: revealOff ? 0 : LOGO_EXIT_START + LOGO_EXIT_DUR,
-            times: revealOff ? undefined : [0, LOGO_EXIT_START / (LOGO_EXIT_START + LOGO_EXIT_DUR), 1],
-            ease: FACET_EASE,
+            duration: phase === 'exit' ? EXIT_DUR * T : 0,
+            ease: ASSEMBLE_EASE,
           }}
           style={{ zIndex: 10, pointerEvents: 'none', position: 'absolute' }}
         >
@@ -82,30 +97,40 @@ export default function NexonGate() {
             <Facet
               fill={GATE_COLORS.blue}
               points="128.74 196.98 128.74 286.79 247.95 223.4"
-              fromX={-400}
-              fromY={200}
+              fromX={-460}
+              fromY={260}
+              fromRotate={-32}
+              fromScale={1.6}
               T={T}
             />
             <Facet
               fill={GATE_COLORS.navy}
               points="247.95 52.49 128.74 115.88 128.74 196.98 247.95 223.4"
-              fromX={-100}
-              fromY={-350}
+              fromX={-120}
+              fromY={-420}
+              fromRotate={28}
+              fromScale={1.5}
               T={T}
             />
             <Facet
               fill={GATE_COLORS.lime}
               points="247.95 223.4 128.74 286.79 276.58 319.58 395.79 256.18"
-              fromX={450}
-              fromY={150}
+              fromX={520}
+              fromY={200}
+              fromRotate={-22}
+              fromScale={1.7}
               T={T}
             />
-            {/* NEXON 글자 — 페이드만 */}
+            {/* NEXON 글자 — 합체 후반에 페이드 */}
             <motion.g
               fill={GATE_COLORS.black}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6 * T, delay: 0.7 * T, ease: FACET_EASE }}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.7 * T,
+                delay: ASSEMBLE_DUR * 0.6 * T,
+                ease: ASSEMBLE_EASE,
+              }}
             >
               <polygon points="193.73 414.2 145.75 414.2 145.75 402.01 193.73 402.01 193.73 388.45 145.75 388.45 145.75 377.56 193.73 377.56 193.73 364.07 128.74 364.07 128.74 427.67 193.73 427.67 193.73 414.2" />
               <polygon points="400.46 389.22 440.75 427.67 453.58 427.67 453.58 364.07 436.57 364.07 436.57 402.53 396.28 364.07 383.45 364.07 383.45 427.67 400.46 427.67 400.46 389.22" />
@@ -273,19 +298,24 @@ function Facet({
   points,
   fromX,
   fromY,
+  fromRotate,
+  fromScale,
   T,
 }: {
   fill: string
   points: string
   fromX: number
   fromY: number
+  fromRotate: number
+  fromScale: number
   T: number
 }) {
   return (
     <motion.g
-      initial={{ x: fromX, y: fromY, opacity: 0 }}
-      animate={{ x: 0, y: 0, opacity: 1 }}
-      transition={{ duration: FACET_DUR * T, ease: FACET_EASE }}
+      initial={{ x: fromX, y: fromY, rotate: fromRotate, scale: fromScale, opacity: 0 }}
+      animate={{ x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 }}
+      transition={{ duration: ASSEMBLE_DUR * T, ease: ASSEMBLE_EASE }}
+      style={{ transformOrigin: '247.95px 223.4px', transformBox: 'fill-box' as const }}
     >
       <polygon fill={fill} points={points} />
     </motion.g>
@@ -309,8 +339,8 @@ function HeroIn({
       animate={{ x: 0, opacity: 1 }}
       transition={{
         duration: 0.7 * T,
-        delay: (HERO_BASE_DELAY + delayIndex * HERO_STAGGER) * T,
-        ease: FACET_EASE,
+        delay: (HERO_DELAY + delayIndex * HERO_STAGGER) * T,
+        ease: ASSEMBLE_EASE,
       }}
     >
       {children}

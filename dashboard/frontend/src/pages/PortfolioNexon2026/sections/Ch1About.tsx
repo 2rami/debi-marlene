@@ -6,6 +6,7 @@ import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from '../shared/colors'
 import { STATS } from '../content/llm'
 import { useRevealOff } from '../shared/useRevealOff'
 import useIsMobile from '../shared/useIsMobile'
+import LiveServersMarquee from '../shared/LiveServersMarquee'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -460,6 +461,7 @@ function PointCard({
   point: { k: string; t: string; d: string }
   scrollYProgress: MotionValue<number>
 }) {
+  const isScale = point.k === 'SCALE'
   // hold 구간 포함 piecewise t — 카드가 화면에 "혼자" 머무르는 시간 확보.
   // rel: scroll progress 와 카드 center 의 차.
   //   < -HOLD_HALF-TRANS : invisible (t=-1, opacity 0)
@@ -577,6 +579,11 @@ function PointCard({
         >
           {point.d}
         </p>
+        {isScale && (
+          <div style={{ marginTop: 4 }}>
+            <LiveServersMarquee compact />
+          </div>
+        )}
       </div>
 
     </motion.article>

@@ -28,6 +28,7 @@ import JdMatchCard from './shared/JdMatchCard'
 import CharacterBox from './shared/CharacterBox'
 import Footer from './shared/Footer'
 import MapleChatbot from './shared/MapleChatbot'
+import LiveServersMarquee from './shared/LiveServersMarquee'
 import {
   HERO,
   STATS,
@@ -390,6 +391,7 @@ export default function PageService() {
       <PinFadeStack>
         <div data-pinfade>
           <Hero />
+          <LiveServersMarquee />
         </div>
 
         <div data-pinfade>

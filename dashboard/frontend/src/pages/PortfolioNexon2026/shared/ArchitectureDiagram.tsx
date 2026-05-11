@@ -182,7 +182,6 @@ export default function ArchitectureDiagram({ steps, title }: Props) {
   const active = activeIdx != null ? steps[activeIdx] : null
   const evidence = activeIdx != null ? EVIDENCE[activeIdx] : null
 
-  // "debi-marlene 시스템 — 입력 한 번에 일어나는 일" 같은 한 줄 string을 두 줄 강세 구조로 분해
   const titleParts = splitTitle(title)
 
   return (
@@ -190,7 +189,7 @@ export default function ArchitectureDiagram({ steps, title }: Props) {
       id="architecture"
       ch="CH 2"
       no="02"
-      kicker="ARCHITECTURE · 입력 한 번에 일어나는 일"
+      kicker="ARCHITECTURE · 입력부터 응답까지"
       title={
         <span style={{ display: 'block' }}>
           <ScrollFloat
@@ -845,7 +844,7 @@ function MobileArrow() {
 }
 
 function splitTitle(raw: string): { head: string; tail: string | null } {
-  const m = raw.match(/^(.+?)\s*[—–-]\s*(.+)$/)
+  const m = raw.match(/^(.+?)\s+[—–]\s+(.+)$/)
   if (!m) return { head: raw, tail: null }
   return { head: m[1].trim(), tail: m[2].trim() }
 }

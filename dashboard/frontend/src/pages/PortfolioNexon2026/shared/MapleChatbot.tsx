@@ -637,60 +637,113 @@ export default function MapleChatbot({
         ])
       }
 
+      // streaming 응답 누적용 메시지 — 미리 빈 카드 push 후 텍스트 채워감
+      const agentMsgId = `a-${Date.now()}`
+      let agentBuf = ''
+      const ensureAgentMsg = () => {
+        setMsgs((m) => {
+          if (m.some((x) => x.id === agentMsgId)) return m
+          return [...m, { id: agentMsgId, role: 'agent', text: '' }]
+        })
+      }
+      const updateAgentMsg = (text: string) => {
+        setMsgs((m) =>
+          m.map((x) => (x.id === agentMsgId ? { ...x, text } : x)),
+        )
+      }
+
       try {
-        const res = await fetch(`${API_BASE}/api/portfolio/ask`, {
+        const res = await fetch(`${API_BASE}/api/portfolio/ask/stream`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
           body: JSON.stringify({
             prompt,
             session_id: sessionRef.current,
           }),
         })
 
-        let body: any = null
-        try {
-          body = await res.json()
-        } catch {
+        if (!res.ok || !res.body) {
+          // SSE 핸드셰이크 자체 실패 — JSON 에러 본문일 가능성
+          let body: any = null
+          try { body = await res.json() } catch {}
+          const code = body?.error as string | undefined
+          switch (res.status) {
+            case 400:
+              if (code === 'prompt_too_long') pushAgent(`질문이 다소 깁니다. ${PROMPT_MAX_LEN}자 이내로 다시 입력해 주세요.`)
+              else pushAgent('질문을 다시 한 번 입력해 주세요.')
+              return
+            case 429: pushAgent('잠시 후 다시 물어봐주세요.'); return
+            case 503: pushAgent(fakeReply(prompt)); return
+            case 504: pushAgent('답변이 다소 지연되고 있습니다. 잠시 후 다시 질문해 주세요.'); return
+            default: pushAgent('잠깐만요... 다시 시도해주세요.'); return
+          }
         }
 
-        if (res.ok) {
-          if (body?.session_id && body.session_id !== sessionRef.current) {
-            sessionRef.current = body.session_id
-            try {
-              localStorage.setItem(SESSION_KEY, body.session_id)
-            } catch {}
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buffer = ''
+        let sawError: string | null = null
+        let serverFinalText: string | null = null
+
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          // SSE 이벤트 분리 — \n\n
+          let sep
+          while ((sep = buffer.indexOf('\n\n')) !== -1) {
+            const raw = buffer.slice(0, sep)
+            buffer = buffer.slice(sep + 2)
+            // 각 라인 중 data: 만 파싱
+            const dataLines = raw
+              .split('\n')
+              .filter((l) => l.startsWith('data:'))
+              .map((l) => l.slice(5).trimStart())
+            if (dataLines.length === 0) continue
+            const payloadStr = dataLines.join('\n')
+            let evt: any
+            try { evt = JSON.parse(payloadStr) } catch { continue }
+            if (evt.type === 'session') {
+              if (evt.session_id && evt.session_id !== sessionRef.current) {
+                sessionRef.current = evt.session_id
+                try { localStorage.setItem(SESSION_KEY, evt.session_id) } catch {}
+              }
+            } else if (evt.type === 'chunk') {
+              ensureAgentMsg()
+              agentBuf += evt.text || ''
+              updateAgentMsg(agentBuf)
+            } else if (evt.type === 'done') {
+              if (evt.session_id && evt.session_id !== sessionRef.current) {
+                sessionRef.current = evt.session_id
+                try { localStorage.setItem(SESSION_KEY, evt.session_id) } catch {}
+              }
+              if (typeof evt.text === 'string') serverFinalText = evt.text
+            } else if (evt.type === 'error') {
+              sawError = evt.code || 'error'
+            }
           }
-          pushAgent(body?.text ?? body?.answer ?? fakeReply(prompt))
+        }
+
+        if (sawError) {
+          if (!agentBuf) {
+            if (sawError === 'rate_limited') pushAgent('잠시 후 다시 물어봐주세요.')
+            else if (sawError === 'service_unavailable') pushAgent(fakeReply(prompt))
+            else if (sawError === 'timeout') pushAgent('답변이 다소 지연되고 있습니다. 잠시 후 다시 질문해 주세요.')
+            else pushAgent('잠깐만요... 다시 시도해주세요.')
+          }
           return
         }
 
-        const code = body?.error as string | undefined
-        switch (res.status) {
-          case 400:
-            if (code === 'prompt_too_long') {
-              pushAgent(`질문이 다소 깁니다. ${PROMPT_MAX_LEN}자 이내로 다시 입력해 주세요.`)
-            } else {
-              pushAgent('질문을 다시 한 번 입력해 주세요.')
-            }
-            return
-          case 429:
-            pushAgent('잠시 후 다시 물어봐주세요.')
-            return
-          case 502:
-            pushAgent('잠깐만요... 다시 시도해주세요.')
-            return
-          case 503:
-            pushAgent(fakeReply(prompt))
-            return
-          case 504:
-            pushAgent('답변이 다소 지연되고 있습니다. 잠시 후 다시 질문해 주세요.')
-            return
-          default:
-            pushAgent('잠깐만요... 다시 시도해주세요.')
-            return
+        // 서버가 truncate 한 최종 텍스트가 있으면 그걸로 덮어씀 (길이 제한 반영)
+        if (serverFinalText && serverFinalText !== agentBuf) {
+          ensureAgentMsg()
+          updateAgentMsg(serverFinalText)
+        } else if (!agentBuf) {
+          // chunk 한 번도 못 받음
+          pushAgent(fakeReply(prompt))
         }
       } catch {
-        pushAgent(fakeReply(prompt))
+        if (!agentBuf) pushAgent(fakeReply(prompt))
       } finally {
         window.clearTimeout(talkSwap)
         setLoading(false)

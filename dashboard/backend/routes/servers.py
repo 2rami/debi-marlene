@@ -239,6 +239,71 @@ def discord_bot_request(endpoint, method='GET', data=None):
 
     return response
 
+_PUBLIC_GUILDS_CACHE = {'data': None, 'fetched_at': 0.0}
+_PUBLIC_GUILDS_TTL = 300  # 5분 — Discord rate limit + 포폴 사이트 트래픽 보호
+
+
+def _fetch_public_bot_guilds():
+    """봇이 들어가 있는 모든 길드를 멤버수 포함으로 가져온다 (페이지네이션)."""
+    headers = {'Authorization': f'Bot {DISCORD_TOKEN}'}
+    out = []
+    after = None
+    while True:
+        params = {'limit': 200, 'with_counts': 'true'}
+        if after:
+            params['after'] = after
+        r = requests.get(f'{DISCORD_API_URL}/users/@me/guilds', headers=headers, params=params, timeout=10)
+        if not r.ok:
+            logger.error(f'public bot-guilds fetch 실패: {r.status_code} {r.text[:200]}')
+            break
+        chunk = r.json()
+        if not chunk:
+            break
+        out.extend(chunk)
+        if len(chunk) < 200:
+            break
+        after = chunk[-1]['id']
+    return out
+
+
+@servers_bp.route('/public/bot-guilds')
+def get_public_bot_guilds():
+    """포폴 사이트용 공개 길드 목록. 인증 X, 5분 캐시. 이름/아이콘/멤버수만."""
+    import time
+    now = time.time()
+    cache = _PUBLIC_GUILDS_CACHE
+    if cache['data'] and (now - cache['fetched_at']) < _PUBLIC_GUILDS_TTL:
+        return jsonify(cache['data'])
+
+    raw = _fetch_public_bot_guilds()
+    guilds = []
+    for g in raw:
+        gid = g['id']
+        icon = g.get('icon')
+        icon_url = (
+            f"https://cdn.discordapp.com/icons/{gid}/{icon}.{'gif' if icon.startswith('a_') else 'png'}?size=128"
+            if icon else None
+        )
+        guilds.append({
+            'id': gid,
+            'name': g.get('name', 'Unknown'),
+            'icon_url': icon_url,
+            'member_count': g.get('approximate_member_count', 0),
+            'online_count': g.get('approximate_presence_count', 0),
+        })
+    guilds.sort(key=lambda x: x['member_count'], reverse=True)
+
+    payload = {
+        'guilds': guilds,
+        'total_servers': len(guilds),
+        'total_members': sum(x['member_count'] for x in guilds),
+        'cached_at': int(now),
+    }
+    cache['data'] = payload
+    cache['fetched_at'] = now
+    return jsonify(payload)
+
+
 @servers_bp.route('/servers')
 @login_required
 def get_servers():
@@ -308,6 +373,20 @@ def get_server(guild_id):
         'features': features,
     })
 
+def _flat_diff(before, after, prefix=''):
+    """Why: 변경된 필드 (path: before → after) 만 flat 리스트로 추출. 로그 가독성 ↑."""
+    changes = []
+    if isinstance(before, dict) and isinstance(after, dict):
+        keys = set(before.keys()) | set(after.keys())
+        for k in keys:
+            sub = f'{prefix}.{k}' if prefix else k
+            changes.extend(_flat_diff(before.get(k), after.get(k), sub))
+    else:
+        if before != after:
+            changes.append({'field': prefix or '(root)', 'before': before, 'after': after})
+    return changes
+
+
 @servers_bp.route('/servers/<guild_id>/settings', methods=['PATCH'])
 @admin_required
 def update_server_settings(guild_id):
@@ -317,18 +396,23 @@ def update_server_settings(guild_id):
 
     logger.info(f'Updating settings for guild {guild_id}: {features}')
 
-    # GCS에 설정 저장
+    # diff 를 위해 변경 전 상태 보존
+    before_features = {k: get_guild_features(guild_id).get(k) for k in features.keys()}
+
     success = save_guild_features(guild_id, features)
 
     if success:
-        # 대시보드 액션 로그 기록
         user = session.get('user', {})
+        changes = _flat_diff(before_features, features)
         log_dashboard_action(
             action_type='settings_update',
             user_id=user.get('id'),
             user_name=user.get('username'),
             guild_id=guild_id,
-            details={'features': list(features.keys())}
+            details={
+                'features': list(features.keys()),
+                'changes': changes,
+            }
         )
         return jsonify({'success': True})
     else:

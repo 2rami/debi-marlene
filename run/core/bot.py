@@ -577,15 +577,8 @@ STEAM_PLAYER_COUNT_URL = "https://api.steampowered.com/ISteamUserStats/GetNumber
 
 @tasks.loop(minutes=5)
 async def update_presence():
-    """봇 상태(activity) — 이터널리턴 동접수 + /도움말 안내.
-
-    Discord 봇 계정의 CustomActivity 는 데스크톱 클라이언트에서 라벨 없이 뜨거나
-    안 보이는 케이스 있음. ActivityType.watching 으로 두면 "X 보는 중" 라벨 강제.
-    """
-    activity = discord.Activity(
-        type=discord.ActivityType.playing,
-        name="/도움말",
-    )
+    """봇 상태(activity) — 이터널리턴 동접수 + /도움말 안내 (커스텀 상태)."""
+    activity = discord.CustomActivity(name="/도움말")
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(STEAM_PLAYER_COUNT_URL, timeout=aiohttp.ClientTimeout(total=10)) as response:
@@ -593,8 +586,7 @@ async def update_presence():
                     data = await response.json()
                     if data.get("response", {}).get("result") == 1:
                         count = data["response"]["player_count"]
-                        activity = discord.Activity(
-                            type=discord.ActivityType.playing,
+                        activity = discord.CustomActivity(
                             name=f"이터널리턴 동접 {count:,}명 · /도움말",
                         )
     except Exception as e:

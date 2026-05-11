@@ -39,7 +39,9 @@ class YouTubeExtractor:
     @classmethod
     def _get_options(cls) -> dict:
         opts = {
-            'format': 'bestaudio/best',
+            # 2026-05: ios/android 단독 player_client 가 일부 영상에서 audio format 못 잡음
+            # (Requested format is not available). web 우선 + cookie 인증과 가장 호환.
+            'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best',
             'noplaylist': True,
             'quiet': True,
             'no_warnings': True,
@@ -51,9 +53,13 @@ class YouTubeExtractor:
             'noprogress': True,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['ios', 'android'],
+                    'player_client': ['web', 'ios', 'android'],
                 }
             },
+            # YouTube signature/n-challenge 풀려면 EJS solver script 필요.
+            # deno 런타임 + GitHub 에서 solver 다운로드 허용 (yt-dlp wiki/EJS 권장).
+            # 없으면 "Only images are available" 으로 audio 추출 실패.
+            'remote_components': ['ejs:github'],
         }
         cookie_path = os.path.abspath(cls.COOKIE_PATH)
         if os.path.exists(cookie_path):

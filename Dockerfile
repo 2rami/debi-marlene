@@ -11,13 +11,21 @@ WORKDIR /app
 #   tini       : PID 1 SIGTERM 전달 (graceful shutdown)
 #   libsodium23: PyNaCl SO (Discord voice)
 #   libffi8    : libffi SO
+#   deno       : yt-dlp 가 YouTube signature/n-challenge 풀 때 사용 (yt-dlp 공식 권장 런타임).
+#                없으면 "Only images are available" 으로 /음악 죽음.
 # 빌드 시점:
 #   gcc, g++, git, libffi-dev, libnacl-dev — pip wheel 빌드 후 purge
+#   curl, unzip — deno binary 받기용
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         ffmpeg libsndfile1 tini libsodium23 libffi7 \
-        gcc g++ git libffi-dev libnacl-dev; \
+        gcc g++ git libffi-dev libnacl-dev curl unzip ca-certificates; \
+    curl -fsSL https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip -o /tmp/deno.zip; \
+    unzip /tmp/deno.zip -d /usr/local/bin/; \
+    rm /tmp/deno.zip; \
+    chmod +x /usr/local/bin/deno; \
+    deno --version; \
     rm -rf /var/lib/apt/lists/*
 
 # Python 의존성 (build deps 살아있는 동안 설치)

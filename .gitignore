@@ -3,6 +3,7 @@
 .env.local
 .env.production
 .env.solo-*
+.env*.bak*
 
 # 로컬 MySQL 백업 컨테이너 데이터 (124MB+ binary, docker volume mount)
 mysql_data/

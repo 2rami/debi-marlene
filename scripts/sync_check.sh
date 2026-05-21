@@ -15,6 +15,14 @@ ZONE="asia-northeast3-a"
 VM_CANDIDATE_DIRS=("/home/kasa/debi-marlene" "/home/2rami/debi-marlene")
 SSH_TIMEOUT=10
 
+# Windows(MINGW/MSYS)의 gcloud는 SSH 백엔드로 plink.exe를 쓰는데, OpenSSH 문법인
+# '-o ConnectTimeout='을 거부해 SSH가 실패한다(→ VM env 파일 오탐). OS를 감지해
+# 리눅스/macOS(OpenSSH)에서만 ConnectTimeout 플래그를 적용한다.
+SSH_FLAGS=()
+case "$(uname -s)" in
+    Linux|Darwin) SSH_FLAGS=(--ssh-flag="-o ConnectTimeout=${SSH_TIMEOUT}") ;;
+esac
+
 # macOS/Linux 호환 sha256 함수
 sha256_of_file() {
     if command -v sha256sum >/dev/null 2>&1; then
@@ -30,6 +38,12 @@ sha256_of_stdin() {
     else
         shasum -a 256 | awk '{print $1}'
     fi
+}
+
+# 정규화 해시: 주석/빈줄 제거 + CRLF 제거 + 정렬 후 해시. 키=값 집합만 비교해
+# 주석/공백/줄순서/CRLF 같은 무해한 포맷 차이를 동일하게 취급한다.
+normalized_hash() {
+    grep -Ev '^[[:space:]]*(#|$)' "$1" | sed 's/\r$//' | sort | sha256_of_stdin
 }
 
 require_cmd() {
@@ -76,7 +90,7 @@ fetch_vm_env() {
     cmd+=' if sudo test -f "$f"; then echo "__PATH__=$f"; sudo cat "$f"; exit 0; fi;'
     cmd+=' done; exit 1'
     if gcloud compute ssh "$VM_NAME" --zone="$ZONE" --project="$PROJECT_ID" \
-            --ssh-flag="-o ConnectTimeout=${SSH_TIMEOUT}" \
+            ${SSH_FLAGS[@]+"${SSH_FLAGS[@]}"} \
             --command="$cmd" \
             > "$out_file" 2>/dev/null; then
         # 첫 줄에서 경로 추출 후 제거
@@ -120,7 +134,7 @@ for entry in "${SETS[@]}"; do
         echo ""
         continue
     fi
-    LOCAL_HASH="$(sha256_of_file "$LOCAL_PATH")"
+    LOCAL_HASH="$(normalized_hash "$LOCAL_PATH")"
 
     # Secret Manager
     SM_FILE="$TMPDIR_LOCAL/sm-$LABEL"
@@ -130,7 +144,7 @@ for entry in "${SETS[@]}"; do
         echo ""
         continue
     fi
-    SM_HASH="$(sha256_of_file "$SM_FILE")"
+    SM_HASH="$(normalized_hash "$SM_FILE")"
 
     # VM — 두 후보 경로 탐색
     VM_FILE="$TMPDIR_LOCAL/vm-$LABEL"
@@ -142,11 +156,11 @@ for entry in "${SETS[@]}"; do
         continue
     fi
     echo "  vm    : $VM_NAME:$VM_FOUND_PATH"
-    VM_HASH="$(sha256_of_file "$VM_FILE")"
+    VM_HASH="$(normalized_hash "$VM_FILE")"
 
-    echo "  local sha256: ${LOCAL_HASH:0:12}..."
-    echo "  sm    sha256: ${SM_HASH:0:12}..."
-    echo "  vm    sha256: ${VM_HASH:0:12}..."
+    echo "  local keys: ${LOCAL_HASH:0:12}..."
+    echo "  sm    keys: ${SM_HASH:0:12}..."
+    echo "  vm    keys: ${VM_HASH:0:12}..."
 
     if [ "$LOCAL_HASH" = "$SM_HASH" ] && [ "$SM_HASH" = "$VM_HASH" ]; then
         echo "  STATUS: OK (3-way match)"
@@ -172,7 +186,7 @@ echo "[dashboard.env] (Secret Manager 미등록, 로컬 .env와 key-level 비교
 DASH_VM_FILE="$TMPDIR_LOCAL/vm-dashboard"
 DASH_CMD='for d in /home/kasa /home/2rami; do f="$d/dashboard.env"; if sudo test -f "$f"; then sudo cat "$f"; exit 0; fi; done; exit 1'
 if gcloud compute ssh "$VM_NAME" --zone="$ZONE" --project="$PROJECT_ID" \
-        --ssh-flag="-o ConnectTimeout=${SSH_TIMEOUT}" \
+        ${SSH_FLAGS[@]+"${SSH_FLAGS[@]}"} \
         --command="$DASH_CMD" \
         > "$DASH_VM_FILE" 2>/dev/null && [ -s "$DASH_VM_FILE" ]; then
     if [ -f ".env" ]; then

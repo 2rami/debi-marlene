@@ -86,19 +86,19 @@ help:
 
 # 배포 사전 체크 — Docker Desktop wrapper가 거짓 exit 0 내거나 gcloud 미인증 상태에서 deploy가 침묵 실패하던 함정 차단
 deploy-guard:
-	@echo "[guard] docker daemon 응답 확인..."
-	@docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { echo "[ERROR] docker daemon 응답 없음. Docker Desktop 실행 + WSL 통합 활성화 필요"; exit 1; }
-	@echo "[guard] gcloud 인증 확인..."
-	@gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | grep -q . || { echo "[ERROR] gcloud 미인증. 'gcloud auth login' 실행 필요"; exit 1; }
-	@echo "[guard] gcloud project 확인..."
-	@test "$$(gcloud config get-value project 2>/dev/null)" = "$(PROJECT_ID)" || { echo "[ERROR] gcloud project가 $(PROJECT_ID) 가 아님. 'gcloud config set project $(PROJECT_ID)' 실행 필요"; exit 1; }
+	@echo "[guard] checking docker daemon..."
+	@docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { echo "[ERROR] docker daemon not responding. Start Docker Desktop + enable WSL integration"; exit 1; }
+	@echo "[guard] checking gcloud auth..."
+	@gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | grep -q . || { echo "[ERROR] gcloud not authenticated. Run: gcloud auth login"; exit 1; }
+	@echo "[guard] checking gcloud project..."
+	@test "$$(gcloud config get-value project 2>/dev/null)" = "$(PROJECT_ID)" || { echo "[ERROR] gcloud project is not $(PROJECT_ID). Run: gcloud config set project $(PROJECT_ID)"; exit 1; }
 	@echo "[guard] OK"
 
 # env drift 가드 — deploy(전체, env-file 영향) 전용. deploy-quick(docker cp, env 무관)은 미적용.
 # project_env_drift_guard 사고 재발 방지: SM/VM/로컬 .env 어긋난 상태로 deploy 시 OAuth/서버목록 깨짐.
 deploy-env-guard:
 	@echo "[env-guard] env 3-way sync-check (local x Secret Manager x VM)..."
-	@bash scripts/sync_check.sh >/dev/null 2>&1 || { echo "[ERROR] env drift 감지. 'make sync-check' 로 상세 확인 후 './scripts/sync_env.sh pull' 또는 'push' 로 정렬 필요. drift 상태에서 deploy 시 OAuth/서버목록 깨짐 (project_env_drift_guard)"; exit 1; }
+	@bash scripts/sync_check.sh >/dev/null 2>&1 || { echo "[ERROR] env drift detected. Run 'make sync-check' for details, then 'scripts/sync_env.sh pull' or 'push' to align. Deploying while drifted breaks OAuth/server list (project_env_drift_guard)"; exit 1; }
 	@echo "[env-guard] OK"
 
 # 봇 빠른 배포
@@ -148,41 +148,41 @@ deploy-webpanel-backend-quick:
 
 # 전체 배포 프로세스
 deploy: deploy-guard deploy-env-guard build-local push-image restart
-	@echo "배포 완료!"
+	@echo "Deploy complete!"
 
 # 로컬에서 Docker 이미지 빌드 — wrapper가 거짓 exit 0 내는 케이스를 위해 명시적 실패 체크
 build-local:
-	@echo "로컬에서 Docker 이미지 빌드 중 (linux/amd64)..."
-	@docker build --platform linux/amd64 -t $(CONTAINER_NAME) -t $(IMAGE_TAG) . || { echo "[ERROR] docker build 실패"; exit 1; }
-	@docker image inspect $(IMAGE_TAG) >/dev/null 2>&1 || { echo "[ERROR] 빌드 결과 이미지($(IMAGE_TAG)) 없음. wrapper가 거짓 성공 보고"; exit 1; }
-	@echo "빌드 완료"
+	@echo "Building Docker image locally (linux/amd64)..."
+	@docker build --platform linux/amd64 -t $(CONTAINER_NAME) -t $(IMAGE_TAG) . || { echo "[ERROR] docker build failed"; exit 1; }
+	@docker image inspect $(IMAGE_TAG) >/dev/null 2>&1 || { echo "[ERROR] built image ($(IMAGE_TAG)) not found. wrapper reported false success"; exit 1; }
+	@echo "Build complete"
 
 # Docker 이미지를 Artifact Registry에 푸시
 push-image:
-	@echo "Docker 이미지를 Artifact Registry에 푸시 중..."
-	@docker push $(IMAGE_TAG) || { echo "[ERROR] docker push 실패. 'gcloud auth configure-docker $(REGION)-docker.pkg.dev' 실행 후 재시도"; exit 1; }
-	@echo "푸시 완료"
+	@echo "Pushing Docker image to Artifact Registry..."
+	@docker push $(IMAGE_TAG) || { echo "[ERROR] docker push failed. Run: gcloud auth configure-docker $(REGION)-docker.pkg.dev"; exit 1; }
+	@echo "Push complete"
 
 # 컨테이너 재시작
 restart: stop start
-	@echo "재시작 완료"
+	@echo "Restart complete"
 
 # 컨테이너 중지 및 제거
 stop:
-	@echo "컨테이너 중지 중..."
+	@echo "Stopping container..."
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker stop debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true && docker rm debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true"
-	@echo "중지 완료"
+	@echo "Stop complete"
 
 # 새 컨테이너 시작 (SQLite 영속 볼륨 포함)
 start:
-	@echo "VM에서 최신 이미지 pull 중..."
+	@echo "Pulling latest image on VM..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="docker pull $(IMAGE_TAG)"
-	@echo "컨테이너 시작 중..."
+	@echo "Starting container..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
-	@echo "시작 완료"
+	@echo "Start complete"
 
 # 컨테이너 로그 확인
 logs:

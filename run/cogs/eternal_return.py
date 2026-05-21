@@ -150,6 +150,8 @@ class EternalReturnCog(commands.Cog, name="이터널리턴"):
             description += f" | {info['day']}일차"
         if info["start_date"]:
             description += f"\n시작일: {info['start_date'].strftime('%Y.%m.%d')}"
+        if info["remaining_days"] > 0:
+            description += f"\n남은 일수: 약 {info['remaining_days']}일 (추정)"
 
         embed = discord.Embed(
             title="이터널 리턴 시즌 정보",

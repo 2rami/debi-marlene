@@ -1,7 +1,7 @@
 import asyncio
 import aiohttp
 import urllib.parse
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional, Dict, Any, List
 
 # 글로벌 봇 인스턴스 저장
@@ -190,14 +190,20 @@ SEASON_START_DATES: Dict[str, date] = {
     "SEASON_17": date(2025, 10, 16),  # 시즌 8
     "SEASON_18": date(2025, 10, 16),  # 프리시즌 (시즌 9와 동일 시작)
     "SEASON_19": date(2026, 1, 22),   # 시즌 10
+    "SEASON_20": date(2026, 5, 7),    # 시즌 11 (11.1 정규 시작)
 }
+
+# 시즌 종료일은 공식 API/사전 발표에 없다. 과거 정규 시즌 길이 평균(약 98일)으로
+# 종료일을 추정해 '남은 일수'를 계산한다. 정확한 종료일이 발표되면 갱신 필요.
+SEASON_AVG_DAYS = 98
 
 
 def get_current_season_info() -> Dict[str, Any]:
-    """현재 시즌 이름과 경과일 반환"""
+    """현재 시즌 이름, 경과일, 추정 남은 일수 반환"""
     season_id = game_data.current_season_id
     if not season_id:
-        return {"name": "알 수 없음", "day": 0, "start_date": None}
+        return {"name": "알 수 없음", "day": 0, "start_date": None,
+                "estimated_end": None, "remaining_days": 0}
 
     season_info = game_data.seasons.get(str(season_id), {})
     season_name = season_info.get("name", f"Season {season_id}")
@@ -206,7 +212,12 @@ def get_current_season_info() -> Dict[str, Any]:
     start_date = SEASON_START_DATES.get(season_key) if season_key else None
     day = (date.today() - start_date).days + 1 if start_date else 0
 
-    return {"name": season_name, "day": day, "start_date": start_date, "key": season_key}
+    estimated_end = start_date + timedelta(days=SEASON_AVG_DAYS) if start_date else None
+    remaining_days = max((estimated_end - date.today()).days, 0) if estimated_end else 0
+
+    return {"name": season_name, "day": day, "start_date": start_date,
+            "estimated_end": estimated_end, "remaining_days": remaining_days,
+            "key": season_key}
 
 
 DAKGG_API_BASE = "https://er.dakgg.io/api/v1"

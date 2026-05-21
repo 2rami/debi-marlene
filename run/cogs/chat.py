@@ -27,6 +27,30 @@ from run.utils.command_logger import log_command_usage
 
 logger = logging.getLogger(__name__)
 
+
+async def _safe_followup(
+    interaction: discord.Interaction,
+    content: Optional[str] = None,
+    *,
+    view: Optional[discord.ui.View] = None,
+) -> None:
+    """defer가 만든 'thinking' 메시지가 외부(모더레이션 봇/사용자)에서 삭제되면
+    첫 followup.send가 10008(Unknown Message)로 죽는다. 그 경우 채널로 직접
+    보내 응답이 유실되지 않게 한다."""
+    kwargs = {}
+    if content is not None:
+        kwargs["content"] = content
+    if view is not None:
+        kwargs["view"] = view
+    try:
+        await interaction.followup.send(**kwargs)
+    except discord.NotFound:
+        try:
+            await interaction.channel.send(**kwargs)
+        except Exception as e:
+            logger.warning("채널 폴백 전송 실패: %s", e)
+
+
 _histories: Dict[str, List[dict]] = {}
 MAX_HISTORY = 5
 
@@ -385,7 +409,7 @@ class ChatCog(commands.Cog, name="대화"):
             })
         except Exception as e:
             logger.error("슬래시 /대화 실행 실패: %s", e)
-            await interaction.followup.send("...연결이 안 돼.")
+            await _safe_followup(interaction, "...연결이 안 돼.")
             return
 
         response = result.get("response")
@@ -405,7 +429,7 @@ class ChatCog(commands.Cog, name="대화"):
         )
 
         if not response:
-            await interaction.followup.send("...연결이 안 돼.")
+            await _safe_followup(interaction, "...연결이 안 돼.")
             return
 
         # 히스토리 저장
@@ -415,13 +439,13 @@ class ChatCog(commands.Cog, name="대화"):
         _histories[key] = history
 
         # 응답 전송
-        await interaction.followup.send(response)
+        await _safe_followup(interaction, response)
 
         # 패치 V2 Container 추가
         if patch_info and patch_info.get("changes"):
             try:
                 patch_view = _build_patch_view(patch_info)
-                await interaction.followup.send(view=patch_view)
+                await _safe_followup(interaction, view=patch_view)
             except Exception as e:
                 logger.warning("패치 V2 전송 실패: %s", e)
 

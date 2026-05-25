@@ -85,6 +85,9 @@ class DebiMarleneBot(commands.Bot):
 
 bot = DebiMarleneBot(command_prefix='!', intents=intents, help_command=None)
 
+# App Command Mention 맵 {명령어이름: "</이름:ID>"}. sync 직후 채워짐 (on_ready)
+bot.command_mentions = {}
+
 # Gateway 데이터 저장용 전역 변수
 gateway_guild_data = {}  # 서버 데이터
 gateway_dm_messages = []  # DM 메시지
@@ -398,6 +401,8 @@ async def on_ready():
     try:
         synced = await bot.tree.sync()
         print(f"[완료] 명령어 동기화 완료 ({len(synced)}개)", flush=True)
+        # 재등록 때마다 ID 가 바뀌므로 매 sync 결과로 멘션 맵을 새로 만든다
+        bot.command_mentions = {cmd.name: f"</{cmd.name}:{cmd.id}>" for cmd in synced}
     except Exception as e:
         print(f"[오류] 명령어 동기화 실패: {e}", flush=True)
 

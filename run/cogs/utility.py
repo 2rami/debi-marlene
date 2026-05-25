@@ -19,6 +19,10 @@ class UtilityCog(commands.Cog, name="기타"):
         self.bot = bot
         self.bot_start_time = time.time()
 
+    def _cmd(self, name: str) -> str:
+        """슬래시 명령어를 클릭 칩(App Command Mention)으로. sync 전/미등록이면 코드 텍스트로 폴백."""
+        return self.bot.command_mentions.get(name, f"`/{name}`")
+
     @commands.command(name="핑")
     async def ping(self, ctx: commands.Context):
         """봇 상태 확인 (프리픽스 명령어)"""
@@ -59,7 +63,7 @@ class UtilityCog(commands.Cog, name="기타"):
         embed.add_field(
             name="AI 대화",
             value=(
-                "`/대화` — 데비&마를렌과 대화 (이터널리턴 정보·잡담·검색 자동)\n"
+                f"{self._cmd('대화')} — 데비&마를렌과 대화 (이터널리턴 정보·잡담·검색 자동)\n"
                 "채널에서 `데비야` `마를렌아` 호명해도 응답"
             ),
             inline=False,
@@ -67,36 +71,36 @@ class UtilityCog(commands.Cog, name="기타"):
         embed.add_field(
             name="이터널리턴",
             value=(
-                "`/전적` — 플레이어 전적 검색\n"
-                "`/통계` — 캐릭터별 통계 (다이아+)\n"
-                "`/시즌` — 현재 시즌 정보\n"
-                "`/동접` — 현재 동접자 수"
+                f"{self._cmd('전적')} — 플레이어 전적 검색\n"
+                f"{self._cmd('통계')} — 캐릭터별 통계 (다이아+)\n"
+                f"{self._cmd('시즌')} — 현재 시즌 정보\n"
+                f"{self._cmd('동접')} — 현재 동접자 수"
             ),
             inline=False,
         )
         embed.add_field(
             name="음성·음악",
             value=(
-                "`/tts` — 봇이 음성 채널에 입장 (TTS)\n"
-                "`/음악` — YouTube 음악 재생\n"
-                "`/듣기` — 음성채널에서 유저 음성 듣기\n"
-                "`/듣기중지` — 듣기 중지"
+                f"{self._cmd('tts')} — 봇이 음성 채널에 입장 (TTS)\n"
+                f"{self._cmd('음악')} — YouTube 음악 재생\n"
+                f"{self._cmd('듣기')} — 음성채널에서 유저 음성 듣기\n"
+                f"{self._cmd('듣기중지')} — 듣기 중지"
             ),
             inline=False,
         )
         embed.add_field(
             name="재미",
             value=(
-                "`/퀴즈` — 퀴즈 게임 (이터널리턴 / 노래)\n"
-                "`/크레딧` — 내 크레딧 지갑 (도박·출석은 대시보드)"
+                f"{self._cmd('퀴즈')} — 퀴즈 게임 (이터널리턴 / 노래)\n"
+                f"{self._cmd('크레딧')} — 내 크레딧 지갑 (도박·출석은 대시보드)"
             ),
             inline=False,
         )
         embed.add_field(
             name="설정·기타",
             value=(
-                "`/설정` — 서버 설정 (공지·TTS·알림·대시보드)\n"
-                "`/피드백` — 봇 개발자에게 피드백"
+                f"{self._cmd('설정')} — 서버 설정 (공지·TTS·알림·대시보드)\n"
+                f"{self._cmd('피드백')} — 봇 개발자에게 피드백"
             ),
             inline=False,
         )

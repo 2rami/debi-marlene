@@ -4,11 +4,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node patch-sw.cjs",
+    "build": "tsc && vite build && node patch-sw.cjs && node scripts/prerender.cjs",
+    "build:noprerender": "tsc && vite build && node patch-sw.cjs",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tosspayments/payment-widget-sdk": "^0.11.0",
+    "@tosspayments/tosspayments-sdk": "^2.7.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.29.2",
     "gsap": "^3.14.2",

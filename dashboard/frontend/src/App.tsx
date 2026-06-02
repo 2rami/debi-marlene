@@ -9,14 +9,23 @@ import CharacterSelect from './pages/CharacterSelect'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import ServerManagement from './pages/ServerManagement'
-import PaymentSuccess from './pages/PaymentSuccess'
-import PaymentFail from './pages/PaymentFail'
+import TopupSuccess from './pages/TopupSuccess'
+import TopupFail from './pages/TopupFail'
 import Commands from './pages/Commands'
 import Docs from './pages/Docs'
 import Terms from './pages/Terms'
 import AuthCallback from './pages/AuthCallback'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import BotGuide from './pages/BotGuide'
+import GuideFAQ from './pages/guide/GuideFAQ'
+import GuideAbout from './pages/guide/GuideAbout'
+import GuideEternalReturn from './pages/guide/GuideEternalReturn'
+import GuideTierSeason from './pages/guide/GuideTierSeason'
+import GuideCharacters from './pages/guide/GuideCharacters'
+import GuideTTS from './pages/guide/GuideTTS'
+import GuideMusic from './pages/guide/GuideMusic'
+import GuideWelcome from './pages/guide/GuideWelcome'
+import GuideCredits from './pages/guide/GuideCredits'
 import PortfolioKrafton from './pages/PortfolioKrafton'
 import PortfolioNimbleNeuron from './pages/PortfolioNimbleNeuron'
 import PortfolioNimbleNeuronPrint from './pages/PortfolioNimbleNeuronPrint'
@@ -95,8 +104,17 @@ function App() {
           <Route path="/commands" element={<Commands />} />
           <Route path="/docs" element={<Docs />} />
           <Route path="/bot-guide" element={<BotGuide />} />
-          <Route path="/payment/success" element={<PaymentSuccess />} />
-          <Route path="/payment/fail" element={<PaymentFail />} />
+          <Route path="/guide/faq" element={<GuideFAQ />} />
+          <Route path="/about" element={<GuideAbout />} />
+          <Route path="/guide/eternal-return" element={<GuideEternalReturn />} />
+          <Route path="/guide/tier-season" element={<GuideTierSeason />} />
+          <Route path="/guide/characters" element={<GuideCharacters />} />
+          <Route path="/guide/tts" element={<GuideTTS />} />
+          <Route path="/guide/music" element={<GuideMusic />} />
+          <Route path="/guide/welcome" element={<GuideWelcome />} />
+          <Route path="/guide/credits" element={<GuideCredits />} />
+          <Route path="/payment/topup/success" element={<TopupSuccess />} />
+          <Route path="/payment/topup/fail" element={<TopupFail />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/portfolio/krafton" element={<PortfolioKrafton />} />
           <Route path="/portfolio/nimble-neuron" element={<PortfolioNimbleNeuron />} />

@@ -7,7 +7,7 @@ import { api } from '../services/api'
 export interface LedgerEntry {
   user_id: string
   guild_id?: string
-  type: 'check_in' | 'debit' | 'credit' | 'donate' | 'gacha'
+  type: 'check_in' | 'debit' | 'credit' | 'donate' | 'gacha' | 'topup'
   amount: number
   reason: string
   ts: string

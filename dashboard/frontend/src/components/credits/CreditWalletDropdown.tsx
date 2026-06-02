@@ -6,6 +6,7 @@ import { creditsApi, MyCreditsResponse, GachaResponse } from '../../lib/credits'
 import { trackEvent } from '../../lib/analytics'
 import CreditIcon from './CreditIcon'
 import CreditDonateModal from './CreditDonateModal'
+import CreditTopupModal from './CreditTopupModal'
 
 /**
  * 크레딧 지갑 — 구름 톤 알약 + 풍선 드롭다운.
@@ -21,6 +22,7 @@ export default function CreditWalletDropdown() {
   const [data, setData] = useState<MyCreditsResponse | null>(null)
   const [open, setOpen] = useState(false)
   const [donateOpen, setDonateOpen] = useState(false)
+  const [topupOpen, setTopupOpen] = useState(false)
   const [busyCheckIn, setBusyCheckIn] = useState(false)
   const [busyBet, setBusyBet] = useState(false)
   const [lastBet, setLastBet] = useState<GachaResponse | null>(null)
@@ -212,6 +214,7 @@ export default function CreditWalletDropdown() {
                   onBet={handleBet}
                   onCheckIn={handleCheckIn}
                   onDonate={() => { setOpen(false); setDonateOpen(true) }}
+                  onTopup={() => { setOpen(false); setTopupOpen(true) }}
                 />
               )}
             </div>
@@ -224,6 +227,11 @@ export default function CreditWalletDropdown() {
         isOpen={donateOpen}
         onClose={() => setDonateOpen(false)}
         onDone={refresh}
+      />
+
+      <CreditTopupModal
+        isOpen={topupOpen}
+        onClose={() => { setTopupOpen(false); void refresh() }}
       />
     </>
   )
@@ -300,6 +308,7 @@ interface LoggedInProps {
   onBet: (bet: number) => void
   onCheckIn: () => void
   onDonate: () => void
+  onTopup: () => void
 }
 
 function formatLastBet(r: GachaResponse | null): string | null {
@@ -318,7 +327,7 @@ function formatLastBet(r: GachaResponse | null): string | null {
 function LoggedInPanel({
   balance, streak, checkedToday, busyCheckIn, flash,
   dailyBet, dailyCap, remainingCap, busyBet, lastBet,
-  onBet, onCheckIn, onDonate,
+  onBet, onCheckIn, onDonate, onTopup,
 }: LoggedInProps) {
   const presets = [5, 10, 50]
   const allInAmount = Math.min(balance, remainingCap)
@@ -413,6 +422,14 @@ function LoggedInPanel({
           </div>
         )}
       </div>
+
+      <button
+        onClick={onTopup}
+        className="w-full py-2.5 rounded-2xl text-sm font-bold mb-2 bg-[#326D1B] text-[#E5FC8A] hover:bg-[#244D11] transition-colors flex items-center justify-center gap-2"
+      >
+        <CreditIcon size={14} />
+        크레딧 충전
+      </button>
 
       <button
         onClick={onDonate}

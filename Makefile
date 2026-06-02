@@ -291,8 +291,10 @@ inject-dashboard-env:
 	if [ ! -f .env ]; then echo "ERROR: 루트 .env 없음 (DISCORD_CLIENT_ID 포함 필요)"; exit 1; fi; \
 	CLIENT_ID=$$(grep -E '^DISCORD_CLIENT_ID=' .env | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '[:space:]'); \
 	if [ -z "$$CLIENT_ID" ]; then echo "ERROR: DISCORD_CLIENT_ID 가 .env 에 비어있음"; exit 1; fi; \
-	{ echo "VITE_API_URL=/api"; echo "VITE_DISCORD_CLIENT_ID=$$CLIENT_ID"; } > dashboard/frontend/.env.production; \
-	echo "  -> VITE_DISCORD_CLIENT_ID=$$CLIENT_ID"
+	TOSS_CK=$$(grep -E '^TOSS_CLIENT_KEY=' .env | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '[:space:]'); \
+	{ echo "VITE_API_URL=/api"; echo "VITE_DISCORD_CLIENT_ID=$$CLIENT_ID"; echo "VITE_TOSS_CLIENT_KEY=$$TOSS_CK"; } > dashboard/frontend/.env.production; \
+	echo "  -> VITE_DISCORD_CLIENT_ID=$$CLIENT_ID"; \
+	echo "  -> VITE_TOSS_CLIENT_KEY=$${TOSS_CK:+[set]}$${TOSS_CK:-[EMPTY — 충전 비활성]}"
 
 # 대시보드 프론트엔드만 배포 (Docker 재빌드 없이 빠른 배포)
 deploy-dashboard-frontend: inject-dashboard-env

@@ -389,3 +389,242 @@ def get_recent_ledger(user_id, limit: int = 20) -> list[dict]:
     except Exception as e:
         print(f"[credits] ledger 조회 실패: {e}", flush=True)
         return []
+
+
+# ───────────────────── 충전 (현금→크레딧, Toss) ─────────────────────
+
+TOPUP_ORDERS_COLLECTION = 'topup_orders'
+
+# 충전 후 환불 가능 기간 (완료 시각 기준)
+TOPUP_REFUND_WINDOW_DAYS = 7
+
+
+def create_topup_order(user_id, order_id: str, pkg_id: str,
+                       krw: int, credits_amount: int) -> dict:
+    """충전 주문 생성 (status=pending). checkout 단계에서 호출.
+
+    금액·크레딧은 서버가 패키지 정의로 결정 — 클라이언트 입력은 신뢰하지 않는다.
+    confirm/webhook 은 이 문서의 krw/credits 만 사용한다.
+    """
+    fs = get_firestore_client()
+    if not fs:
+        return {'ok': False, 'reason': 'firestore_unavailable'}
+    ref = fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id)
+    ref.set({
+        'user_id': str(user_id),
+        'pkg_id': pkg_id,
+        'krw': int(krw),
+        'credits': int(credits_amount),
+        'status': 'pending',
+        'created_at': _now_iso(),
+    })
+    return {'ok': True, 'order_id': order_id}
+
+
+def get_topup_order(order_id: str) -> Optional[dict]:
+    fs = get_firestore_client()
+    if not fs:
+        return None
+    doc = fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id).get()
+    return doc.to_dict() if doc.exists else None
+
+
+def apply_topup(order_id: str, payment_key: Optional[str] = None) -> dict:
+    """충전 적립 (멱등). order pending→completed + 잔고 증가 + ledger 를
+    하나의 트랜잭션으로 원자 처리. 이미 completed 면 재적립 없이 already=True.
+
+    confirm 라우트와 webhook 양쪽에서 호출돼도 한 번만 적립된다.
+    """
+    fs = get_firestore_client()
+    if not fs:
+        return {'ok': False, 'reason': 'firestore_unavailable'}
+
+    order_ref = fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id)
+
+    @firestore.transactional
+    def _txn(transaction):
+        # 모든 read 를 write 보다 먼저 (firestore 트랜잭션 제약).
+        o_snap = order_ref.get(transaction=transaction)
+        if not o_snap.exists:
+            return {'ok': False, 'reason': 'order_not_found'}
+        order = o_snap.to_dict()
+        status = order.get('status')
+        if status == 'completed':
+            return {'ok': True, 'already': True,
+                    'credits': int(order.get('credits', 0)),
+                    'user_id': order.get('user_id')}
+        if status != 'pending':
+            return {'ok': False, 'reason': f'status_{status}'}
+
+        user_id = str(order['user_id'])
+        credits_amount = int(order['credits'])
+        user_ref = fs.collection(CREDITS_COLLECTION).document(user_id)
+        u_snap = user_ref.get(transaction=transaction)
+        u_data = u_snap.to_dict() if u_snap.exists else _empty_user_doc()
+        new_balance = int(u_data.get('balance', 0)) + credits_amount
+
+        if not u_snap.exists:
+            base = _empty_user_doc()
+            base['balance'] = new_balance
+            transaction.set(user_ref, base)
+        else:
+            transaction.update(user_ref, {'balance': new_balance})
+
+        order_update = {'status': 'completed', 'completed_at': _now_iso()}
+        if payment_key:
+            order_update['payment_key'] = payment_key
+        transaction.update(order_ref, order_update)
+
+        _add_ledger(transaction, user_id, 'topup', credits_amount,
+                    f'topup_{order_id}')
+        return {'ok': True, 'already': False, 'credits': credits_amount,
+                'balance': new_balance, 'user_id': user_id}
+
+    return _txn(fs.transaction())
+
+
+def mark_topup_canceled(order_id: str, status: str = 'canceled') -> dict:
+    """webhook CANCELED/PARTIAL_CANCELED 수신 시 주문 상태 표시 (트랜잭션).
+    이미 적립/환불이 끝난 주문(completed/refunded/refund_failed)은 덮어쓰지 않는다 —
+    apply_topup 과의 race 로 completed 가 canceled 로 뒤집혀 잔고-주문 불일치가
+    생기는 것을 방지."""
+    fs = get_firestore_client()
+    if not fs:
+        return {'ok': False, 'reason': 'firestore_unavailable'}
+    ref = fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id)
+
+    @firestore.transactional
+    def _txn(transaction):
+        snap = ref.get(transaction=transaction)
+        if not snap.exists:
+            return {'ok': False, 'reason': 'order_not_found'}
+        cur = (snap.to_dict() or {}).get('status')
+        if cur in ('completed', 'refunded', 'refund_failed'):
+            return {'ok': False, 'reason': f'already_{cur}'}
+        transaction.update(ref, {'status': status, 'canceled_at': _now_iso()})
+        return {'ok': True}
+
+    return _txn(fs.transaction())
+
+
+def _spend_since(user_id, since_iso: Optional[str]) -> int:
+    """since_iso(ISO 시각) 이후 해당 사용자의 사용(차감) 크레딧 총합 (양수 반환).
+    debit/donate/gacha 손실 등 amount<0 ledger 를 합산. 미사용분 환불 판정용 —
+    충전 완료 이후 한 푼이라도 썼으면 0 보다 크다. 조회 실패 시 0(잔고 가드에 위임)."""
+    if not since_iso:
+        return 0
+    fs = get_firestore_client()
+    if not fs:
+        return 0
+    try:
+        # user_id 단일 필드 쿼리만 사용 (composite index 불필요). ts/금액은 메모리 필터.
+        q = fs.collection(LEDGER_COLLECTION).where('user_id', '==', str(user_id)).limit(1000)
+        total = 0
+        for d in q.stream():
+            e = d.to_dict()
+            ts = e.get('ts')
+            if ts and ts > since_iso and int(e.get('amount', 0)) < 0:
+                total += -int(e['amount'])
+        return total
+    except Exception as e:
+        print(f"[credits] _spend_since 조회 실패: {e}", flush=True)
+        return 0
+
+
+def refund_topup(order_id: str) -> dict:
+    """미사용분 환불 — 크레딧 차감 + 주문 상태 전환만 트랜잭션 처리.
+    Toss 결제 취소 API 호출은 라우트 계층 담당.
+
+    '미사용분만' 정책: 충전 완료(completed_at) 이후 해당 사용자의 차감 내역이 전혀
+    없을 때만 전액 환불 (ledger 로 판정). 부분 사용분 환불은 미지원. 잔고 비교는 보조 가드.
+
+    Returns: { ok, reason?, refund_credits?, balance?, krw?, payment_key? }
+    """
+    fs = get_firestore_client()
+    if not fs:
+        return {'ok': False, 'reason': 'firestore_unavailable'}
+
+    order_ref = fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id)
+
+    # 트랜잭션 전 ledger 판정: 단일 fungible balance 비교(아래 가드)만으로는 다른 충전이
+    # 잔고를 올려 '이미 다 쓴 충전'을 환불 가능으로 오판한다. 해당 주문 완료 이후의 실제
+    # 차감을 확인해, 한 푼이라도 썼으면 거부한다.
+    order_pre = get_topup_order(order_id)
+    if order_pre and order_pre.get('status') == 'completed':
+        since = order_pre.get('completed_at') or order_pre.get('created_at')
+        if _spend_since(order_pre.get('user_id'), since) > 0:
+            return {'ok': False, 'reason': 'credits_already_used'}
+
+    @firestore.transactional
+    def _txn(transaction):
+        o_snap = order_ref.get(transaction=transaction)
+        if not o_snap.exists:
+            return {'ok': False, 'reason': 'order_not_found'}
+        order = o_snap.to_dict()
+        if order.get('status') != 'completed':
+            return {'ok': False, 'reason': 'not_refundable_status'}
+
+        # 환불 기간 체크 (완료 시각 기준 N일).
+        from datetime import timedelta as _td
+        created = order.get('completed_at') or order.get('created_at')
+        if created:
+            try:
+                created_dt = datetime.fromisoformat(created)
+                if created_dt.tzinfo is None:
+                    created_dt = created_dt.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) - created_dt > _td(days=TOPUP_REFUND_WINDOW_DAYS):
+                    return {'ok': False, 'reason': 'refund_window_expired'}
+            except ValueError:
+                pass
+
+        user_id = str(order['user_id'])
+        credits_amount = int(order['credits'])
+        user_ref = fs.collection(CREDITS_COLLECTION).document(user_id)
+        u_snap = user_ref.get(transaction=transaction)
+        balance = int((u_snap.to_dict() or {}).get('balance', 0)) if u_snap.exists else 0
+
+        # 미사용분만 환불: 충전 크레딧이 잔고에 그대로 남아있어야 환불 가능.
+        if balance < credits_amount:
+            return {'ok': False, 'reason': 'credits_already_used',
+                    'balance': balance, 'topup_credits': credits_amount}
+
+        new_balance = balance - credits_amount
+        transaction.update(user_ref, {'balance': new_balance})
+        transaction.update(order_ref, {'status': 'refunded', 'refunded_at': _now_iso()})
+        _add_ledger(transaction, user_id, 'topup', -credits_amount, f'refund_{order_id}')
+        return {'ok': True, 'refund_credits': credits_amount, 'balance': new_balance,
+                'krw': int(order.get('krw', 0)), 'payment_key': order.get('payment_key')}
+
+    return _txn(fs.transaction())
+
+
+def revert_refund(order_id: str, user_id, credits_amount: int) -> dict:
+    """refund_topup 후 Toss 취소 API 가 실패했을 때 크레딧 복구 (보상).
+    주문은 'refund_failed' (terminal) 로 표시한다 — refund_topup 은 completed 만
+    환불하므로 같은 주문의 재환불 무한루프가 차단된다. 재환불이 필요하면 관리자 수동 처리."""
+    res = credit(user_id, credits_amount, f'refund_revert_{order_id}')
+    fs = get_firestore_client()
+    if fs:
+        try:
+            fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id).update(
+                {'status': 'refund_failed', 'refund_failed_at': _now_iso()})
+        except Exception:
+            pass
+    return res
+
+
+def mark_topup_apply_failed(order_id: str, payment_key: Optional[str] = None) -> dict:
+    """confirm 에서 결제 성공(돈 수취) 후 apply_topup 이 실패했을 때 수동 복구 식별용 마킹.
+    status 는 pending 유지(webhook/수동 재적립이 apply_topup 멱등으로 처리). paid_unapplied
+    플래그로 '돈은 받았으나 미적립'된 주문을 골라낼 수 있다."""
+    fs = get_firestore_client()
+    if not fs:
+        return {'ok': False}
+    try:
+        upd = {'apply_failed_at': _now_iso(), 'paid_unapplied': True}
+        if payment_key:
+            upd['payment_key'] = payment_key
+        fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id).update(upd)
+        return {'ok': True}
+    except Exception:
+        return {'ok': False}

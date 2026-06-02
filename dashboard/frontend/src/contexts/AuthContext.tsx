@@ -7,11 +7,6 @@ interface User {
   username: string
   avatar: string
   email?: string
-  premium: {
-    isActive: boolean
-    plan: string | null
-    expiresAt: string | null
-  }
   adminServers: string[]
 }
 

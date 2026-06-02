@@ -129,19 +129,12 @@ def get_current_user():
     if not user:
         return jsonify({'user': None}), 200
 
-    premium_status = {
-        'isActive': False,
-        'plan': None,
-        'expiresAt': None,
-    }
-
     return jsonify({
         'user': {
             'id': user['id'],
             'username': user['username'],
             'avatar': user['avatar'],
             'email': user.get('email'),
-            'premium': premium_status,
             'adminServers': user.get('admin_servers', []),
         }
     })

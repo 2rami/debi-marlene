@@ -81,6 +81,18 @@ def _toss_get_payment(payment_key: str) -> dict | None:
     return None
 
 
+def _topup_live_ready() -> bool:
+    """프로덕션에서 테스트 키로 무료 크레딧을 무한 충전하는 악용을 차단.
+    라이브 키(live_)이거나 개발 환경(FLASK_ENV=development)일 때만 충전 허용한다.
+    테스트 키는 결제 금액이 0원이라, 프로덕션에 노출되면 누구나 테스트카드로 공짜 적립이 가능하다."""
+    secret = os.getenv('TOSS_SECRET_KEY', '') or ''
+    if secret.startswith('live_'):
+        return True
+    if os.getenv('FLASK_ENV') == 'development':
+        return True
+    return False
+
+
 @credits_topup_bp.route('/packages', methods=['GET'])
 def packages():
     """충전 패키지 목록 (비로그인도 조회 가능 — 가격 안내용)."""
@@ -97,6 +109,8 @@ def packages():
 @login_required
 def checkout():
     """주문 생성. orderId 발급 + Firestore pending 저장. 금액은 서버가 결정."""
+    if not _topup_live_ready():
+        return jsonify({'error': '크레딧 충전은 정식 오픈 준비 중입니다. 곧 만나요!'}), 503
     user = session['user']
     body = request.get_json(silent=True) or {}
     pkg_id = body.get('package_id')
@@ -126,6 +140,8 @@ def checkout():
 @login_required
 def confirm():
     """결제 승인. 클라가 보낸 amount 는 무시하고 서버가 orderId 로 금액을 결정."""
+    if not _topup_live_ready():
+        return jsonify({'error': '크레딧 충전은 정식 오픈 준비 중입니다.'}), 503
     user = session['user']
     body = request.get_json(silent=True) or {}
     payment_key = body.get('paymentKey')

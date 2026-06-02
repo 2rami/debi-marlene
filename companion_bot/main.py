@@ -179,6 +179,10 @@ class CompanionClient:
         self._db_set(user_id, sid)
         return sid
 
+    def has_session(self, user_id: int) -> bool:
+        """세션이 이미 있는지 (없으면 다음 send 가 콜드 스타트 — 히스토리 주입 시점)."""
+        return self._db_get(user_id) is not None
+
     def is_debug(self, user_id: int) -> bool:
         return user_id in self._debug_users
 
@@ -210,26 +214,34 @@ class CompanionClient:
             "```"
         )
 
-    async def send_and_collect(self, user_id: int, text: str, event_callback=None) -> str:
+    async def send_and_collect(self, user_id: int, text: str, event_callback=None,
+                               image_urls: Optional[list[str]] = None,
+                               prepend_blocks: Optional[list[dict]] = None) -> str:
         """user 메시지 보내고 agent 텍스트 응답 모아 반환. RESPONSE_TIMEOUT 초 timeout.
 
         event_callback: 선택. async callable(event) — Anthropic 세션 이벤트 받을 때마다 호출.
-        디버그 모드 ON 일 때 채팅에 이벤트 송출하는 용도.
+        image_urls: 첨부 이미지 URL — image 블록(url source)으로 추가. Claude vision 처리.
+        prepend_blocks: 메시지 앞에 붙일 content 블록 — 세션 시작 시 DM 히스토리/트렌딩 주입용.
         """
         session_id = await self.get_session_id(user_id)
         agent_text_parts: list[str] = []
         self._last_msg_at[user_id] = time.time()
         self._inflight.add(user_id)
 
+        content: list[dict] = list(prepend_blocks or [])
+        for url in (image_urls or []):
+            content.append({"type": "image", "source": {"type": "url", "url": url}})
+        if text:
+            content.append({"type": "text", "text": text})
+        if not content:
+            content = [{"type": "text", "text": "(빈 메시지)"}]
+
         async def _run():
             stream_ctx = await self.client.beta.sessions.events.stream(session_id=session_id)
             async with stream_ctx as stream:
                 await self.client.beta.sessions.events.send(
                     session_id=session_id,
-                    events=[{
-                        "type": "user.message",
-                        "content": [{"type": "text", "text": text}],
-                    }],
+                    events=[{"type": "user.message", "content": content}],
                     extra_headers={"anthropic-beta": BETA_HEADER},
                 )
                 async for event in stream:
@@ -269,6 +281,35 @@ class CompanionClient:
 
 
 # ─────────── Discord bot ───────────
+
+HISTORY_CHAR_CAP = 60000  # 세션 1회 주입 히스토리 텍스트 상한 (오래된 건 앞에서 잘림)
+
+
+def _walk_components(items, texts: list[str], images: list[str]) -> None:
+    """Components V2 트리 재귀 순회 — TextDisplay.content(텍스트) + media URL(이미지) 수집.
+
+    트렌딩 DM(Container/Section/MediaGallery)에서 본문과 썸네일을 끄집어낸다.
+    discord.py 객체 속성이 버전마다 다를 수 있어 getattr 방어로 순회.
+    """
+    for c in items or []:
+        content = getattr(c, "content", None)
+        if isinstance(content, str) and content.strip():
+            texts.append(content.strip())
+        media = getattr(c, "media", None)
+        murl = getattr(media, "url", None) if media is not None else None
+        if isinstance(murl, str):
+            images.append(murl)
+        for attr in ("children", "components", "items"):
+            sub = getattr(c, attr, None)
+            if sub and not isinstance(sub, str):
+                try:
+                    _walk_components(list(sub), texts, images)
+                except TypeError:
+                    pass
+        acc = getattr(c, "accessory", None)
+        if acc is not None:
+            _walk_components([acc], texts, images)
+
 
 def chunk_message(text: str, size: int = DM_CHUNK_SIZE) -> list[str]:
     """2000자 제한 회피 — 줄 단위 분할 우선, 안 되면 강제."""
@@ -472,6 +513,35 @@ class CompanionBot(discord.Client):
         # owner = await self.fetch_user(self.owner_id)
         # await owner.send("companion-bot 살아남")
 
+    async def _collect_dm_history(self, channel, msg_limit: int = 400, img_limit: int = 10):
+        """DM 채널 히스토리 → (트랜스크립트 텍스트, 최근 이미지 URL).
+
+        일반 텍스트 + 트렌딩(Components V2) + 이미지 첨부를 시간순 정리. 세션 시작 시 1회 주입용.
+        """
+        rows: list[str] = []
+        all_images: list[str] = []
+        async for m in channel.history(limit=msg_limit, oldest_first=True):
+            who = "나(거노)" if m.author.id == self.owner_id else "나쵸네코"
+            ts = m.created_at.astimezone().strftime("%m-%d %H:%M")
+            texts: list[str] = []
+            images: list[str] = []
+            if m.content and m.content.strip():
+                texts.append(m.content.strip())
+            _walk_components(m.components, texts, images)
+            for a in m.attachments:
+                if (a.content_type or "").startswith("image/"):
+                    images.append(a.url)
+            body = " / ".join(t for t in texts if t).strip()
+            if images:
+                body = (body + f" [이미지 {len(images)}장]").strip()
+                all_images.extend(images)
+            if body:
+                rows.append(f"[{ts}] {who}: {body}")
+        transcript = "\n".join(rows)
+        if len(transcript) > HISTORY_CHAR_CAP:
+            transcript = "…(오래된 기록 생략)…\n" + transcript[-HISTORY_CHAR_CAP:]
+        return transcript, all_images[-img_limit:]
+
     async def on_message(self, msg: discord.Message):
         if msg.author.bot:
             return
@@ -482,7 +552,10 @@ class CompanionBot(discord.Client):
             return
 
         text = msg.content.strip()
-        if not text:
+        # 현재 메시지에 붙은 이미지 첨부 (텍스트 없이 이미지만 보내도 처리)
+        cur_images = [a.url for a in msg.attachments
+                      if (a.content_type or "").startswith("image/")]
+        if not text and not cur_images:
             return
 
         # 명령어 처리
@@ -517,10 +590,26 @@ class CompanionBot(discord.Client):
                 if line and debug_relay is not None:
                     await debug_relay.push(line)
 
+        # 세션이 아직 없으면(콜드 스타트/리셋 후) DM 히스토리+트렌딩을 1회 주입
+        prepend = None
+        if not self.companion.has_session(self.owner_id):
+            try:
+                transcript, hist_imgs = await self._collect_dm_history(msg.channel)
+                if transcript:
+                    prepend = [{"type": "text", "text":
+                        "[지금까지의 디스코드 DM 기록 — 나(거노)와 나눈 대화 + 네(나쵸네코)가 "
+                        "보낸 일일 트렌딩 피드다. 이 맥락을 전부 알고 대답해]\n\n" + transcript}]
+                    for u in hist_imgs:
+                        prepend.append({"type": "image", "source": {"type": "url", "url": u}})
+                    logger.info(f"DM 히스토리 주입: {len(transcript)}자 + 이미지 {len(hist_imgs)}장")
+            except Exception:
+                logger.exception("DM 히스토리 수집 실패 (비치명)")
+
         typing_task = asyncio.create_task(_keep_typing())
         try:
             response = await self.companion.send_and_collect(
-                self.owner_id, text, event_callback=event_callback
+                self.owner_id, text, event_callback=event_callback,
+                image_urls=cur_images, prepend_blocks=prepend,
             )
         except Exception as e:
             logger.exception("agent 호출 실패")

@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# 로그인/개인 데이터 — 크롤 불필요
+Disallow: /dashboard
+Disallow: /servers/
+Disallow: /me/feed
+
+# 결제 콜백 — 색인 불필요
+Disallow: /payment/
+
+# 포트폴리오 — 채용 지원 전용 (광고 차단 + 검색 색인 제외)
+Disallow: /portfolio/
+
+Sitemap: https://debimarlene.com/sitemap.xml

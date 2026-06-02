@@ -696,7 +696,7 @@ export default function Landing() {
         <div className="my-16">
           <ParallaxStrip speed={-140}>
             <FlowingMenu
-              items={[{ text: 'Welcome  >  Dashboard  >  Settings  >  Premium  >' }]}
+              items={[{ text: 'Welcome  >  Dashboard  >  Settings  >  Credits  >' }]}
               speed={10} textColor={STRIP_CYAN.text} bgColor={STRIP_CYAN.bg} hoverBgColor={STRIP_CYAN.hover} hoverTextColor={STRIP_CYAN.hoverText} borderColor="transparent"
               fontSize="text-4xl md:text-6xl" padding="py-8 md:py-12" glassEffect
             />
@@ -907,6 +907,14 @@ export default function Landing() {
             <p className="text-xs text-white/60 mt-1 drop-shadow-md">
               Eternal Return and all related content are trademarks of Nimble Neuron.
             </p>
+            <nav className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-white/70 drop-shadow-md">
+              <a href="/about" className="hover:text-white transition-colors">소개</a>
+              <a href="/guide/faq" className="hover:text-white transition-colors">FAQ</a>
+              <a href="/guide/eternal-return" className="hover:text-white transition-colors">전적 가이드</a>
+              <a href="/guide/tier-season" className="hover:text-white transition-colors">티어·시즌</a>
+              <a href="/guide/credits" className="hover:text-white transition-colors">크레딧 가이드</a>
+              <a href="/terms" className="hover:text-white transition-colors">이용약관</a>
+            </nav>
           </div>
         </div>
       </footer>

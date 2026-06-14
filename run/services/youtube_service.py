@@ -14,6 +14,28 @@ def set_bot_instance(bot):
     global bot_instance
     bot_instance = bot
 
+def _fetch_non_live_videos_sync():
+    """업로드 플레이리스트에서 라이브 제외 최신 영상 목록을 동기로 가져옵니다.
+
+    googleapiclient 는 동기 블로킹이라 반드시 asyncio.to_thread 로 호출해야
+    이벤트 루프가 막히지 않습니다 (안 그러면 슬래시 명령 defer 가 3초 초과해 만료됨).
+    """
+    channel_response = youtube.channels().list(part='contentDetails', id=ETERNAL_RETURN_CHANNEL_ID).execute()
+    if not channel_response.get('items'):
+        return []
+    uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+    playlist_response = youtube.playlistItems().list(part='snippet', playlistId=uploads_playlist_id, maxResults=10).execute()
+    items = playlist_response.get('items', [])
+    if not items:
+        return []
+    non_live = []
+    for item in items:
+        vid = item['snippet']['resourceId']['videoId']
+        detail = youtube.videos().list(part='snippet,liveStreamingDetails', id=vid).execute().get('items', [{}])[0]
+        if 'liveStreamingDetails' not in detail:
+            non_live.append(item)
+    return non_live
+
 async def initialize_youtube():
     global youtube
     if YOUTUBE_API_KEY:
@@ -31,11 +53,10 @@ async def check_video_duration(video_id):
     if not youtube:
         return False
     try:
-        video_response = youtube.videos().list(
-            part='contentDetails',
-            id=video_id
-        ).execute()
-        
+        video_response = await asyncio.to_thread(
+            lambda: youtube.videos().list(part='contentDetails', id=video_id).execute()
+        )
+
         if video_response['items']:
             duration = video_response['items'][0]['contentDetails']['duration']
             import re
@@ -52,15 +73,23 @@ async def check_video_duration(video_id):
 async def get_last_sent_video_id_from_channel(channel):
     if not channel or not bot_instance:
         return None
+    import re
+    pattern = re.compile(r'(?:v=|youtu\.be/)([a-zA-Z0-9_-]{11})')
     try:
         async for message in channel.history(limit=50):
-            if message.author.id == bot_instance.user.id and message.embeds:
-                for embed in message.embeds:
-                    if embed.url and ('youtube.com/watch?v=' in embed.url or 'youtu.be/' in embed.url):
-                        import re
-                        match = re.search(r'(?:v=|/)([a-zA-Z0-9_-]{11})', embed.url)
-                        if match:
-                            return match.group(1)
+            if message.author.id != bot_instance.user.id:
+                continue
+            # _send_notification 은 영상 URL 을 메시지 content 로 보냄 (embed.url 은 미설정)
+            # → content 를 먼저 검사해야 중복 체크가 실제로 작동함
+            if message.content:
+                match = pattern.search(message.content)
+                if match:
+                    return match.group(1)
+            for embed in message.embeds:
+                if embed.url:
+                    match = pattern.search(embed.url)
+                    if match:
+                        return match.group(1)
     except discord.Forbidden:
         print(f"[오류] 채널 '{channel.name}'의 메시지를 읽을 권한이 없습니다.")
     except Exception as e:
@@ -87,6 +116,7 @@ async def _send_notification(channel_or_user, video_id, snippet):
 
         embed = discord.Embed(
             title=f"**{snippet['title']}**",
+            url=video_url,
             description=snippet.get('description', '')[:150] + '...' if snippet.get('description') else action_text,
             color=char_color
         )
@@ -106,7 +136,7 @@ async def _send_notification(channel_or_user, video_id, snippet):
                 channel_id = str(sent_message.channel.id)
 
                 # settings.json에 DM 채널 정보 저장
-                settings = config.load_settings()
+                settings = await asyncio.to_thread(config.load_settings)
                 if 'users' not in settings:
                     settings['users'] = {}
 
@@ -119,7 +149,7 @@ async def _send_notification(channel_or_user, video_id, snippet):
                 settings['users'][user_id]['last_dm'] = datetime.now().isoformat()
 
                 # GCS에 저장
-                config.save_settings(settings)
+                await asyncio.to_thread(config.save_settings, settings)
                 print(f"  -> [저장] DM 채널 정보 GCS에 저장: {user_name} ({channel_id})")
             except Exception as save_error:
                 print(f"  -> [경고] DM 채널 정보 저장 실패 (메시지는 전송됨): {save_error}")
@@ -146,18 +176,12 @@ async def check_new_videos():
 
     async with _notification_lock:
         try:
-            # 1. 최신 영상 정보 가져오기
-            channel_response = youtube.channels().list(part='contentDetails', id=ETERNAL_RETURN_CHANNEL_ID).execute()
-            if not channel_response.get('items'): return
-            uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
-            playlist_response = youtube.playlistItems().list(part='snippet', playlistId=uploads_playlist_id, maxResults=10).execute()
-            if not playlist_response.get('items'): return
-
-            non_live_videos = [item for item in playlist_response['items'] if 'liveStreamingDetails' not in youtube.videos().list(part='snippet,liveStreamingDetails', id=item['snippet']['resourceId']['videoId']).execute().get('items', [{}])[0]]
+            # 1. 최신 영상 정보 가져오기 (동기 API → to_thread 로 루프 블로킹 방지)
+            non_live_videos = await asyncio.to_thread(_fetch_non_live_videos_sync)
             if not non_live_videos: return
 
             # 2. 보낼 영상 결정 — last_checked 이후 신규 분만 (한 번에 여러 개 올라오면 모두 전송)
-            last_checked_id = config.get_global_setting("LAST_CHECKED_VIDEO_ID")
+            last_checked_id = await asyncio.to_thread(config.get_global_setting, "LAST_CHECKED_VIDEO_ID")
             latest_video_id = non_live_videos[0]['snippet']['resourceId']['videoId']
             if last_checked_id == latest_video_id:
                 return
@@ -179,7 +203,7 @@ async def check_new_videos():
             # 3. 서버별 알림 작업을 비동기로 생성 (각 채널별 중복 체크)
             async def send_to_guild(guild, video_id, snippet):
                 """개별 서버에 알림을 보내는 비동기 함수"""
-                guild_settings = config.get_guild_settings(guild.id)
+                guild_settings = await asyncio.to_thread(config.get_guild_settings, guild.id)
                 channel_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
                 if channel_id:
                     channel = bot_instance.get_channel(int(channel_id))
@@ -201,7 +225,7 @@ async def check_new_videos():
                     user = await bot_instance.fetch_user(user_id)
 
                     # DM 채널 ID 확인 (GCS에 저장된 정보)
-                    settings = config.load_settings()
+                    settings = await asyncio.to_thread(config.load_settings)
                     user_settings = settings.get('users', {}).get(str(user_id), {})
                     dm_channel_id = user_settings.get('dm_channel_id')
 
@@ -224,7 +248,7 @@ async def check_new_videos():
                     print(f"  -> [오류] 구독자 ID({user_id}) 처리 중 오류: {e}")
 
             # 4. 각 영상을 순차로 전송 (영상 안에선 길드/구독자 동시)
-            subscribers = config.get_youtube_subscribers()
+            subscribers = await asyncio.to_thread(config.get_youtube_subscribers)
             print(f"  총 {len(subscribers)}명의 개인 구독자, {len(bot_instance.guilds)}개 서버")
 
             for video in videos_to_send:
@@ -242,7 +266,7 @@ async def check_new_videos():
             final = videos_to_send[-1]
             final_id = final['snippet']['resourceId']['videoId']
             final_title = final['snippet'].get('title', '제목 없음')
-            config.save_last_video_info(final_id, final_title)
+            await asyncio.to_thread(config.save_last_video_info, final_id, final_title)
             print(f"[완료] 신규 영상 {len(videos_to_send)}개 전송. 최신 ID({final_id}) 저장.")
 
         except Exception as e:
@@ -258,18 +282,9 @@ async def manual_check_new_videos():
     
     print("[시작] 유튜브 새 영상 수동 체크 시작")
     try:
-        # 1. 최신 영상 정보 가져오기
-        channel_response = youtube.channels().list(part='contentDetails', id=ETERNAL_RETURN_CHANNEL_ID).execute()
-        if not channel_response.get('items'): 
-            raise Exception("채널 정보를 가져올 수 없습니다.")
-            
-        uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
-        playlist_response = youtube.playlistItems().list(part='snippet', playlistId=uploads_playlist_id, maxResults=10).execute()
-        if not playlist_response.get('items'): 
-            raise Exception("플레이리스트 정보를 가져올 수 없습니다.")
-
-        non_live_videos = [item for item in playlist_response['items'] if 'liveStreamingDetails' not in youtube.videos().list(part='snippet,liveStreamingDetails', id=item['snippet']['resourceId']['videoId']).execute().get('items', [{}])[0]]
-        if not non_live_videos: 
+        # 1. 최신 영상 정보 가져오기 (동기 API → to_thread)
+        non_live_videos = await asyncio.to_thread(_fetch_non_live_videos_sync)
+        if not non_live_videos:
             raise Exception("일반 영상을 찾을 수 없습니다. (라이브 제외)")
 
         latest_video = non_live_videos[0]
@@ -280,7 +295,7 @@ async def manual_check_new_videos():
         sent_channels = 0
         print("- 서버 채널 공지 시작")
         for guild in bot_instance.guilds:
-            guild_settings = config.get_guild_settings(guild.id)
+            guild_settings = await asyncio.to_thread(config.get_guild_settings, guild.id)
             channel_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
             if channel_id:
                 channel = bot_instance.get_channel(int(channel_id))
@@ -294,13 +309,13 @@ async def manual_check_new_videos():
         # 4. 개인 구독자에게 DM 전송
         sent_dms = 0
         print("- 개인 구독자 DM 전송 시작")
-        subscribers = config.get_youtube_subscribers()
+        subscribers = await asyncio.to_thread(config.get_youtube_subscribers)
         for user_id in subscribers:
             try:
                 user = await bot_instance.fetch_user(user_id)
 
                 # DM 채널 ID 확인 (GCS에 저장된 정보)
-                settings = config.load_settings()
+                settings = await asyncio.to_thread(config.load_settings)
                 user_settings = settings.get('users', {}).get(str(user_id), {})
                 dm_channel_id = user_settings.get('dm_channel_id')
 
@@ -323,7 +338,7 @@ async def manual_check_new_videos():
 
         # 5. 마지막으로 확인한 영상 ID와 제목 저장
         video_title = snippet.get('title', '제목 없음') if snippet else '제목 없음'
-        config.save_last_video_info(video_id, video_title)
+        await asyncio.to_thread(config.save_last_video_info, video_id, video_title)
         print(f"[완료] 새 영상 ID({video_id}), 제목({video_title})을 전역 설정에 저장했습니다.")
         
         return f"테스트 완료! 영상: {video_title}\n서버 {sent_channels}개, DM {sent_dms}개 전송"
@@ -343,18 +358,9 @@ async def manual_check_for_user(user):
     
     print(f"[시작] 사용자 '{user.name}'에 대한 유튜브 테스트 시작")
     try:
-        # 1. 최신 영상 정보 가져오기
-        channel_response = youtube.channels().list(part='contentDetails', id=ETERNAL_RETURN_CHANNEL_ID).execute()
-        if not channel_response.get('items'): 
-            raise Exception("채널 정보를 가져올 수 없습니다.")
-            
-        uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
-        playlist_response = youtube.playlistItems().list(part='snippet', playlistId=uploads_playlist_id, maxResults=10).execute()
-        if not playlist_response.get('items'): 
-            raise Exception("플레이리스트 정보를 가져올 수 없습니다.")
-
-        non_live_videos = [item for item in playlist_response['items'] if 'liveStreamingDetails' not in youtube.videos().list(part='snippet,liveStreamingDetails', id=item['snippet']['resourceId']['videoId']).execute().get('items', [{}])[0]]
-        if not non_live_videos: 
+        # 1. 최신 영상 정보 가져오기 (동기 API → to_thread)
+        non_live_videos = await asyncio.to_thread(_fetch_non_live_videos_sync)
+        if not non_live_videos:
             raise Exception("일반 영상을 찾을 수 없습니다. (라이브 제외)")
 
         latest_video = non_live_videos[0]
@@ -362,7 +368,7 @@ async def manual_check_for_user(user):
         snippet = latest_video['snippet']
 
         # 2. DM 채널에서 중복 확인
-        settings = config.load_settings()
+        settings = await asyncio.to_thread(config.load_settings)
         user_settings = settings.get('users', {}).get(str(user.id), {})
         dm_channel_id = user_settings.get('dm_channel_id')
 
@@ -397,18 +403,9 @@ async def manual_check_for_guild(guild):
     
     print(f"[시작] 서버 '{guild.name}'에 대한 유튜브 테스트 시작")
     try:
-        # 1. 최신 영상 정보 가져오기
-        channel_response = youtube.channels().list(part='contentDetails', id=ETERNAL_RETURN_CHANNEL_ID).execute()
-        if not channel_response.get('items'): 
-            raise Exception("채널 정보를 가져올 수 없습니다.")
-            
-        uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
-        playlist_response = youtube.playlistItems().list(part='snippet', playlistId=uploads_playlist_id, maxResults=10).execute()
-        if not playlist_response.get('items'): 
-            raise Exception("플레이리스트 정보를 가져올 수 없습니다.")
-
-        non_live_videos = [item for item in playlist_response['items'] if 'liveStreamingDetails' not in youtube.videos().list(part='snippet,liveStreamingDetails', id=item['snippet']['resourceId']['videoId']).execute().get('items', [{}])[0]]
-        if not non_live_videos: 
+        # 1. 최신 영상 정보 가져오기 (동기 API → to_thread)
+        non_live_videos = await asyncio.to_thread(_fetch_non_live_videos_sync)
+        if not non_live_videos:
             raise Exception("일반 영상을 찾을 수 없습니다. (라이브 제외)")
 
         latest_video = non_live_videos[0]
@@ -416,7 +413,7 @@ async def manual_check_for_guild(guild):
         snippet = latest_video['snippet']
 
         # 2. 해당 서버의 공지 채널 확인 및 전송
-        guild_settings = config.get_guild_settings(guild.id)
+        guild_settings = await asyncio.to_thread(config.get_guild_settings, guild.id)
         channel_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
         
         if not channel_id:

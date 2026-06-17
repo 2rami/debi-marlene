@@ -121,6 +121,7 @@ deploy-webpanel-backend-quick:
 		$$(ls -d run/__init__.py 2>/dev/null) \
 		$$(ls -d run/core/ 2>/dev/null) \
 		$$(ls -d run/services/__init__.py 2>/dev/null) \
+		$$(ls -d run/services/credits.py 2>/dev/null) \
 		$$(ls -d run/services/quiz/ 2>/dev/null)
 	@gcloud compute scp ./wb-quick.tar.gz $(VM_NAME):~/wb-quick.tar.gz --zone=$(ZONE)
 	@echo "[2/3] 컨테이너에 복사 중..."

@@ -391,6 +391,103 @@ def get_recent_ledger(user_id, limit: int = 20) -> list[dict]:
         return []
 
 
+def get_usage_summary(user_id, recent_limit: int = 20) -> dict:
+    """크레딧 요약 (웹패널/대시보드 표시용).
+
+    잔액 + 누적 지출/수입/충전 + 거래 횟수 + 최근 내역을 한 번에.
+    원장 전체를 1회 스캔해 합산하고 최근 항목까지 같은 스트림에서 뽑는다.
+    """
+    out = {
+        'balance': get_balance(user_id)['personal'],
+        'total_spent': 0,    # 음수 거래 절댓값 합 (실제 소비)
+        'total_earned': 0,   # 양수 거래 합 (출석·기부·충전 등 유입)
+        'total_topup': 0,    # 현금 충전으로 들어온 크레딧
+        'tx_count': 0,
+        'recent': [],
+    }
+    fs = get_firestore_client()
+    if not fs:
+        return out
+    try:
+        entries = [d.to_dict() for d in fs.collection(LEDGER_COLLECTION)
+                   .where('user_id', '==', str(user_id)).stream()]
+    except Exception as e:
+        print(f"[credits] usage summary 조회 실패: {e}", flush=True)
+        return out
+
+    for e in entries:
+        amt = int(e.get('amount', 0))
+        if amt < 0:
+            out['total_spent'] += -amt
+        else:
+            out['total_earned'] += amt
+        if e.get('type') == 'topup' and amt > 0:
+            out['total_topup'] += amt
+    out['tx_count'] = len(entries)
+    entries.sort(key=lambda x: x.get('ts', ''), reverse=True)
+    out['recent'] = entries[:recent_limit]
+    return out
+
+
+def list_credit_holders(min_balance: int = 1, limit: int = 500) -> list[dict]:
+    """크레딧 보유 유저 목록 (웹패널 크레딧 패널용). balance 내림차순."""
+    fs = get_firestore_client()
+    if not fs:
+        return []
+    try:
+        out = []
+        for d in fs.collection(CREDITS_COLLECTION).stream():
+            data = d.to_dict() or {}
+            bal = int(data.get('balance', 0))
+            if bal >= min_balance:
+                out.append({
+                    'user_id': d.id,
+                    'balance': bal,
+                    'last_check_in': data.get('last_check_in'),
+                    'streak_days': int(data.get('streak_days', 0)),
+                })
+        out.sort(key=lambda x: x['balance'], reverse=True)
+        return out[:limit]
+    except Exception as e:
+        print(f"[credits] holders 조회 실패: {e}", flush=True)
+        return []
+
+
+def list_guild_credit_holders(min_balance: int = 1, limit: int = 500) -> list[dict]:
+    """크레딧 보유 서버(공동 지갑) 목록. balance 내림차순."""
+    fs = get_firestore_client()
+    if not fs:
+        return []
+    try:
+        out = []
+        for d in fs.collection(GUILD_CREDITS_COLLECTION).stream():
+            bal = int((d.to_dict() or {}).get('balance', 0))
+            if bal >= min_balance:
+                out.append({'guild_id': d.id, 'balance': bal})
+        out.sort(key=lambda x: x['balance'], reverse=True)
+        return out[:limit]
+    except Exception as e:
+        print(f"[credits] guild holders 조회 실패: {e}", flush=True)
+        return []
+
+
+def get_balances_batch(user_ids) -> dict:
+    """여러 유저 잔액 일괄 조회 (멤버 목록 배지용). {user_id: balance}."""
+    ids = [str(u) for u in user_ids if u]
+    out = {uid: 0 for uid in ids}
+    fs = get_firestore_client()
+    if not fs or not ids:
+        return out
+    try:
+        col = fs.collection(CREDITS_COLLECTION)
+        for snap in fs.get_all([col.document(uid) for uid in ids]):
+            if snap.exists:
+                out[snap.id] = int((snap.to_dict() or {}).get('balance', 0))
+    except Exception as e:
+        print(f"[credits] 배치 잔액 조회 실패: {e}", flush=True)
+    return out
+
+
 # ───────────────────── 충전 (현금→크레딧, Toss) ─────────────────────
 
 TOPUP_ORDERS_COLLECTION = 'topup_orders'

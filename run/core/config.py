@@ -724,6 +724,55 @@ def save_last_video_info(video_id, video_title=None):
     return save_settings(settings)
 
 
+def claim_latest_video_id(latest_video_id, video_title=None):
+    """LAST_CHECKED_VIDEO_ID 를 latest 로 원자적 전진(claim)하고 이전 값을 반환.
+
+    Firestore 트랜잭션으로 compare-and-set:
+      - 현재 값이 이미 latest 면 (다른 프로세스/이전 실행이 처리 완료) -> (False, latest)
+      - 아니면 latest 로 갱신하고 -> (True, 이전값)
+
+    전송 *전에* 호출해야 의미가 있음. 멀티프로세스 동시 실행이나 전송 중
+    재시작(1006) 으로 인한 중복 알림 burst 를 근본 차단한다.
+    반환: (claimed: bool, previous_id: str|None)
+    """
+    global settings_cache
+    if not _listeners_active:
+        settings_cache = None
+
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        fs = get_firestore_client()
+        if fs:
+            try:
+                from google.cloud import firestore
+                ref = fs.collection('global').document('settings')
+
+                @firestore.transactional
+                def _claim(transaction):
+                    snapshot = ref.get(transaction=transaction)
+                    data = snapshot.to_dict() if snapshot.exists else {}
+                    prev = data.get('LAST_CHECKED_VIDEO_ID')
+                    if prev == latest_video_id:
+                        return (False, prev)
+                    fields = {"LAST_CHECKED_VIDEO_ID": latest_video_id}
+                    if video_title:
+                        fields["LAST_CHECKED_VIDEO_TITLE"] = video_title
+                    transaction.set(ref, fields, merge=True)
+                    return (True, prev)
+
+                return _claim(fs.transaction())
+            except Exception as e:
+                print(f"[Firestore 경고] claim_latest_video_id 트랜잭션 실패: {e}", flush=True)
+                # 트랜잭션 실패 시 아래 비원자 경로로 폴백
+
+    # gcs / 폴백: 단일 프로세스 가정의 read-then-write (원자성 보장 없음)
+    settings = load_settings(force_reload=True)
+    prev = settings.get("global", {}).get("LAST_CHECKED_VIDEO_ID")
+    if prev == latest_video_id:
+        return (False, prev)
+    save_last_video_info(latest_video_id, video_title)
+    return (True, prev)
+
+
 # ─────── 사용자 설정 / 유튜브 구독 ───────
 
 def get_youtube_subscribers():

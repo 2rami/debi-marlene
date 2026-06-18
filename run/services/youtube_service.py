@@ -184,10 +184,18 @@ async def check_new_videos():
             non_live_videos = await asyncio.to_thread(_fetch_non_live_videos_sync)
             if not non_live_videos: return
 
-            # 2. 보낼 영상 결정 — last_checked 이후 신규 분만 (한 번에 여러 개 올라오면 모두 전송)
-            last_checked_id = await asyncio.to_thread(config.get_global_setting, "LAST_CHECKED_VIDEO_ID")
-            latest_video_id = non_live_videos[0]['snippet']['resourceId']['videoId']
-            if last_checked_id == latest_video_id:
+            # 2. 최신 영상을 원자적으로 선점(claim) — 전송 *전에* LAST_CHECKED 를 전진시킨다.
+            #    이렇게 해야:
+            #      - 멀티프로세스(VM+로컬/배포 중 구컨테이너)가 동시에 돌아도 단 1개만 전송
+            #      - 전송 도중 게이트웨이 1006 으로 재시작돼도 재처리(중복 burst) 안 함
+            #    claimed=False 면 이미 다른 실행이 처리 중/완료 → 전송 스킵.
+            latest = non_live_videos[0]
+            latest_video_id = latest['snippet']['resourceId']['videoId']
+            latest_title = latest['snippet'].get('title', '제목 없음')
+            claimed, last_checked_id = await asyncio.to_thread(
+                config.claim_latest_video_id, latest_video_id, latest_title
+            )
+            if not claimed:
                 return
 
             found_idx = None
@@ -274,12 +282,9 @@ async def check_new_videos():
                 if all_tasks:
                     await asyncio.gather(*all_tasks, return_exceptions=True)
 
-            # 5. 마지막 영상으로 LAST_CHECKED 갱신
-            final = videos_to_send[-1]
-            final_id = final['snippet']['resourceId']['videoId']
-            final_title = final['snippet'].get('title', '제목 없음')
-            await asyncio.to_thread(config.save_last_video_info, final_id, final_title)
-            print(f"[완료] 신규 영상 {len(videos_to_send)}개 전송. 최신 ID({final_id}) 저장.")
+            # 5. LAST_CHECKED 는 전송 전 claim 단계에서 이미 latest 로 저장됨.
+            #    (전송 후 저장 구조였다면 전송 중 재시작 시 중복 burst 발생 → claim 으로 선반영)
+            print(f"[완료] 신규 영상 {len(videos_to_send)}개 전송. 최신 ID({latest_video_id}) 저장됨(claim).")
 
         except Exception as e:
             print(f"[오류] 유튜브 영상 확인 중 심각한 오류 발생: {e}")

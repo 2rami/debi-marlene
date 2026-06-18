@@ -20,7 +20,8 @@ on:
       - 'main.py'
       - 'Dockerfile'
       - 'requirements.txt'
-      - '.github/workflows/deploy-bot.yml'
+    # 주의: 자기참조('.github/workflows/deploy-bot.yml')는 일부러 뺐다 —
+    # 워크플로우 파일 수정만으로 프로덕션 봇이 stop->start 되는 사고 방지. 봇 코드 변경 시에만 자동 배포.
   workflow_dispatch:
 
 # 동시 배포 방지 — 이전 배포가 끝나기 전 새 배포가 끼어들어 컨테이너 충돌나는 것 차단.

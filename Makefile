@@ -98,10 +98,10 @@ deploy-quick: deploy-guard
 	@gcloud compute scp /tmp/bot-upload.tar.gz $(VM_NAME):~/bot-upload.tar.gz --zone=$(ZONE)
 	@echo "[2/3] 컨테이너에 복사 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p ~/bot-upload && tar -xzf ~/bot-upload.tar.gz -C ~/bot-upload && docker cp ~/bot-upload/run/. $(CONTAINER_NAME):/app/run/ && docker cp ~/bot-upload/main.py $(CONTAINER_NAME):/app/main.py && rm -rf ~/bot-upload ~/bot-upload.tar.gz"
+		--command="mkdir -p ~/bot-upload && tar -xzf ~/bot-upload.tar.gz -C ~/bot-upload && sudo -u 2rami docker cp ~/bot-upload/run/. $(CONTAINER_NAME):/app/run/ && sudo -u 2rami docker cp ~/bot-upload/main.py $(CONTAINER_NAME):/app/main.py && rm -rf ~/bot-upload ~/bot-upload.tar.gz"
 	@echo "[3/3] 컨테이너 재시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker restart $(CONTAINER_NAME)"
+		--command="sudo -u 2rami docker restart $(CONTAINER_NAME)"
 	@rm -f /tmp/bot-upload.tar.gz
 	@echo "봇 빠른 배포 완료!"
 
@@ -126,10 +126,10 @@ deploy-webpanel-backend-quick:
 	@gcloud compute scp ./wb-quick.tar.gz $(VM_NAME):~/wb-quick.tar.gz --zone=$(ZONE)
 	@echo "[2/3] 컨테이너에 복사 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p ~/wb-quick && tar -xzf ~/wb-quick.tar.gz -C ~/wb-quick && docker cp ~/wb-quick/webpanel/backend/. webpanel-backend:/app/backend/ && docker cp ~/wb-quick/run/. webpanel-backend:/app/run/ && rm -rf ~/wb-quick ~/wb-quick.tar.gz"
+		--command="mkdir -p ~/wb-quick && tar -xzf ~/wb-quick.tar.gz -C ~/wb-quick && sudo -u 2rami docker cp ~/wb-quick/webpanel/backend/. webpanel-backend:/app/backend/ && sudo -u 2rami docker cp ~/wb-quick/run/. webpanel-backend:/app/run/ && rm -rf ~/wb-quick ~/wb-quick.tar.gz"
 	@echo "[3/3] 컨테이너 재시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker restart webpanel-backend"
+		--command="sudo -u 2rami docker restart webpanel-backend"
 	@rm -f ./wb-quick.tar.gz
 	@echo "웹패널 백엔드 빠른 배포 완료!"
 
@@ -162,24 +162,24 @@ restart: stop start
 stop:
 	@echo "Stopping container..."
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker stop debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true && docker rm debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true"
+		--command="sudo -u 2rami docker stop debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true && sudo -u 2rami docker rm debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true"
 	@echo "Stop complete"
 
 # 새 컨테이너 시작 (SQLite 영속 볼륨 포함)
 start:
 	@echo "Pulling latest image on VM..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker pull $(IMAGE_TAG)"
+		--command="sudo -u 2rami docker pull $(IMAGE_TAG)"
 	@echo "Starting container..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+		--command="mkdir -p /home/2rami/debi-marlene-data && sudo -u 2rami docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
 	@echo "Start complete"
 
 # 컨테이너 로그 확인
 logs:
 	@echo "컨테이너 로그 (Ctrl+C로 종료):"
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker logs -f $(CONTAINER_NAME)"
+		--command="sudo -u 2rami docker logs -f $(CONTAINER_NAME)"
 
 # VM 및 컨테이너 상태 확인
 status:
@@ -188,27 +188,27 @@ status:
 	@echo ""
 	@echo "Docker 컨테이너 상태:"
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker ps -a | grep $(CONTAINER_NAME) || echo '컨테이너 없음'"
+		--command="sudo -u 2rami docker ps -a | grep $(CONTAINER_NAME) || echo '컨테이너 없음'"
 
 # 중지된 컨테이너 및 사용하지 않는 이미지 정리
 clean:
 	@echo "Docker 및 임시 파일 정리 중..."
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker system prune -f && rm -rf ~/tmp && rm -f ~/$(CONTAINER_NAME).tar"
+		--command="sudo -u 2rami docker system prune -f && rm -rf ~/tmp && rm -f ~/$(CONTAINER_NAME).tar"
 	@echo "정리 완료"
 
 # VM 봇만 중지 (로컬 테스트 전)
 stop-vm:
 	@echo "VM 봇 중지 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker stop $(CONTAINER_NAME) 2>/dev/null || true"
+		--command="sudo -u 2rami docker stop $(CONTAINER_NAME) 2>/dev/null || true"
 	@echo "VM 봇 중지 완료 (로컬 테스트 가능)"
 
 # VM 봇만 시작 (로컬 테스트 후)
 start-vm:
 	@echo "VM 봇 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker start $(CONTAINER_NAME) 2>/dev/null || echo '컨테이너가 없습니다. make deploy를 실행하세요.'"
+		--command="sudo -u 2rami docker start $(CONTAINER_NAME) 2>/dev/null || echo '컨테이너가 없습니다. make deploy를 실행하세요.'"
 	@echo "VM 봇 시작 완료"
 
 # 로컬에서 봇 테스트 (VM 봇 자동 중지)
@@ -255,24 +255,24 @@ restart-dashboard: stop-dashboard start-dashboard
 stop-dashboard:
 	@echo "대시보드 중지 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker stop $(DASHBOARD_CONTAINER) 2>/dev/null || true && docker rm $(DASHBOARD_CONTAINER) 2>/dev/null || true"
+		--command="sudo -u 2rami docker stop $(DASHBOARD_CONTAINER) 2>/dev/null || true && sudo -u 2rami docker rm $(DASHBOARD_CONTAINER) 2>/dev/null || true"
 	@echo "대시보드 중지 완료"
 
 # 대시보드 시작
 start-dashboard:
 	@echo "VM에서 대시보드 이미지 pull 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker pull $(DASHBOARD_IMAGE_TAG) && docker image prune -af"
+		--command="sudo -u 2rami docker pull $(DASHBOARD_IMAGE_TAG) && sudo -u 2rami docker image prune -af"
 	@echo "대시보드 컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker run -d --name $(DASHBOARD_CONTAINER) --network dashboard-net -p 3080:80 --env-file ~/dashboard.env --restart unless-stopped $(DASHBOARD_IMAGE_TAG)"
+		--command="sudo -u 2rami docker run -d --name $(DASHBOARD_CONTAINER) --network dashboard-net -p 3080:80 --env-file ~/dashboard.env --restart unless-stopped $(DASHBOARD_IMAGE_TAG)"
 	@echo "대시보드 시작 완료"
 
 # 대시보드 로그
 logs-dashboard:
 	@echo "대시보드 로그 (Ctrl+C로 종료):"
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker logs -f $(DASHBOARD_CONTAINER)"
+		--command="sudo -u 2rami docker logs -f $(DASHBOARD_CONTAINER)"
 
 # 루트 .env 의 DISCORD_CLIENT_ID 를 dashboard/frontend/.env.production 에 VITE_DISCORD_CLIENT_ID 로 주입.
 # Vite는 빌드 시 .env.production 이 .env 를 override하므로 단일 소스로 관리 가능.
@@ -299,7 +299,7 @@ deploy-dashboard-frontend: inject-dashboard-env
 	gcloud compute scp /tmp/dash-dist.tar.gz $(VM_NAME):/tmp/dash-dist.tar.gz --zone=$(ZONE); \
 	echo "[4/5] 컨테이너에 복사 + nginx 리로드..."; \
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p ~/dashboard-upload && tar -xzf /tmp/dash-dist.tar.gz -C ~/dashboard-upload && docker cp ~/dashboard-upload/. $(DASHBOARD_CONTAINER):/var/www/dashboard/ && docker exec $(DASHBOARD_CONTAINER) nginx -s reload && rm -rf ~/dashboard-upload /tmp/dash-dist.tar.gz"; \
+		--command="mkdir -p ~/dashboard-upload && tar -xzf /tmp/dash-dist.tar.gz -C ~/dashboard-upload && sudo -u 2rami docker cp ~/dashboard-upload/. $(DASHBOARD_CONTAINER):/var/www/dashboard/ && sudo -u 2rami docker exec $(DASHBOARD_CONTAINER) nginx -s reload && rm -rf ~/dashboard-upload /tmp/dash-dist.tar.gz"; \
 	rm -f /tmp/dash-dist.tar.gz; \
 	echo "[5/5] Cloudflare 캐시 퍼지 중..."; \
 	if [ -n "$(CF_API_TOKEN)" ]; then \
@@ -320,10 +320,10 @@ deploy-dashboard-backend:
 	@gcloud compute scp --recurse run $(VM_NAME):~/dashboard-run-upload --zone=$(ZONE)
 	@echo "[2/3] 컨테이너에 복사..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker cp ~/dashboard-backend-upload/. $(DASHBOARD_CONTAINER):/app/backend/ && docker cp ~/dashboard-run-upload/. $(DASHBOARD_CONTAINER):/app/run/ && rm -rf ~/dashboard-backend-upload ~/dashboard-run-upload"
+		--command="sudo -u 2rami docker cp ~/dashboard-backend-upload/. $(DASHBOARD_CONTAINER):/app/backend/ && sudo -u 2rami docker cp ~/dashboard-run-upload/. $(DASHBOARD_CONTAINER):/app/run/ && rm -rf ~/dashboard-backend-upload ~/dashboard-run-upload"
 	@echo "[3/3] gunicorn 재시작..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker exec $(DASHBOARD_CONTAINER) supervisorctl restart gunicorn"
+		--command="sudo -u 2rami docker exec $(DASHBOARD_CONTAINER) supervisorctl restart gunicorn"
 	@echo "대시보드 백엔드 배포 완료"
 
 # ============================================================
@@ -342,7 +342,7 @@ deploy-webpanel-frontend:
 	gcloud compute scp /tmp/webpanel-dist.tar.gz $(VM_NAME):webpanel-dist.tar.gz --zone=$(ZONE) || { echo "[ERROR] scp 실패. VM 의 dist 는 안 건드림 (안전)"; exit 1; }; \
 	echo "[3/4] VM에서 배포 중 (nginx 마운트 경로: /home/kasa)..."; \
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo rm -rf /home/kasa/debi-marlene/webpanel/dist/assets/* && sudo rm -f /home/kasa/debi-marlene/webpanel/dist/index.html && sudo tar -xzf ~/webpanel-dist.tar.gz -C /home/kasa/debi-marlene/webpanel/dist/ && sudo chown -R kasa:kasa /home/kasa/debi-marlene/webpanel/dist/ && rm ~/webpanel-dist.tar.gz && sudo docker exec nginx-proxy nginx -s reload"
+		--command="sudo rm -rf /home/kasa/debi-marlene/webpanel/dist/assets/* && sudo rm -f /home/kasa/debi-marlene/webpanel/dist/index.html && sudo tar -xzf ~/webpanel-dist.tar.gz -C /home/kasa/debi-marlene/webpanel/dist/ && sudo chown -R kasa:kasa /home/kasa/debi-marlene/webpanel/dist/ && rm ~/webpanel-dist.tar.gz && sudo -u 2rami docker exec nginx-proxy nginx -s reload"
 	@rm -f /tmp/webpanel-dist.tar.gz
 	@echo "[4/4] Cloudflare 캐시 퍼지 중..."
 	@curl -s -X POST "https://api.cloudflare.com/client/v4/zones/49337200d8d2ff73047081d747d42074/purge_cache" \
@@ -368,13 +368,13 @@ deploy-webpanel-backend:
 	@echo "[2/4] VM에 업로드 + Docker 이미지 빌드 중..."
 	@gcloud compute scp /tmp/claude/wb-build.tar.gz $(VM_NAME):~/wb-build.tar.gz --zone=$(ZONE)
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p ~/wb-build && tar -xzf ~/wb-build.tar.gz -C ~/wb-build && cd ~/wb-build && docker build -f Dockerfile.backend -t webpanel-backend:latest . && rm -rf ~/wb-build ~/wb-build.tar.gz"
+		--command="mkdir -p ~/wb-build && tar -xzf ~/wb-build.tar.gz -C ~/wb-build && cd ~/wb-build && sudo -u 2rami docker build -f Dockerfile.backend -t webpanel-backend:latest . && rm -rf ~/wb-build ~/wb-build.tar.gz"
 	@echo "[3/4] 컨테이너 교체 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker stop webpanel-backend 2>/dev/null || true && docker rm webpanel-backend 2>/dev/null || true && docker run -d --name webpanel-backend -p 8080:8080 --network dashboard-net -v /var/run/docker.sock:/var/run/docker.sock --env-file ~/debi-marlene/.env --restart unless-stopped webpanel-backend:latest"
+		--command="sudo -u 2rami docker stop webpanel-backend 2>/dev/null || true && sudo -u 2rami docker rm webpanel-backend 2>/dev/null || true && sudo -u 2rami docker run -d --name webpanel-backend -p 8080:8080 --network dashboard-net -v /var/run/docker.sock:/var/run/docker.sock --env-file ~/debi-marlene/.env --restart unless-stopped webpanel-backend:latest"
 	@echo "[4/4] 정리 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker image prune -af"
+		--command="sudo -u 2rami docker image prune -af"
 	@rm -rf /tmp/claude/wb-build /tmp/claude/wb-build.tar.gz
 	@echo "웹패널 백엔드 배포 완료"
 
@@ -382,7 +382,7 @@ deploy-webpanel-backend:
 logs-webpanel:
 	@echo "웹패널 백엔드 로그 (Ctrl+C로 종료):"
 	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker logs -f webpanel-backend"
+		--command="sudo -u 2rami docker logs -f webpanel-backend"
 
 # ============================================================
 # 솔로봇 배포 (debi-solo, marlene-solo)
@@ -410,32 +410,32 @@ restart-solo-marlene: stop-solo-marlene start-solo-marlene
 stop-solo-debi:
 	@echo "데비 솔로봇 중지 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker stop $(SOLO_DEBI_NAME) 2>/dev/null || true && docker rm $(SOLO_DEBI_NAME) 2>/dev/null || true"
+		--command="sudo -u 2rami docker stop $(SOLO_DEBI_NAME) 2>/dev/null || true && sudo -u 2rami docker rm $(SOLO_DEBI_NAME) 2>/dev/null || true"
 
 stop-solo-marlene:
 	@echo "마를렌 솔로봇 중지 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker stop $(SOLO_MARLENE_NAME) 2>/dev/null || true && docker rm $(SOLO_MARLENE_NAME) 2>/dev/null || true"
+		--command="sudo -u 2rami docker stop $(SOLO_MARLENE_NAME) 2>/dev/null || true && sudo -u 2rami docker rm $(SOLO_MARLENE_NAME) 2>/dev/null || true"
 
 start-solo-debi:
 	@echo "데비 솔로봇 시작 (image=$(IMAGE_TAG), identity=debi)..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name $(SOLO_DEBI_NAME) --env-file $(VM_PATH)/.env.solo-debi -e BOT_IDENTITY=debi -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+		--command="sudo -u 2rami docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && sudo -u 2rami docker run -d --name $(SOLO_DEBI_NAME) --env-file $(VM_PATH)/.env.solo-debi -e BOT_IDENTITY=debi -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
 
 start-solo-marlene:
 	@echo "마를렌 솔로봇 시작 (image=$(IMAGE_TAG), identity=marlene)..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name $(SOLO_MARLENE_NAME) --env-file $(VM_PATH)/.env.solo-marlene -e BOT_IDENTITY=marlene -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
+		--command="sudo -u 2rami docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && sudo -u 2rami docker run -d --name $(SOLO_MARLENE_NAME) --env-file $(VM_PATH)/.env.solo-marlene -e BOT_IDENTITY=marlene -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
 
 logs-solo-debi:
 	@echo "데비 솔로봇 로그 (Ctrl+C 종료):"
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker logs -f $(SOLO_DEBI_NAME)"
+		--command="sudo -u 2rami docker logs -f $(SOLO_DEBI_NAME)"
 
 logs-solo-marlene:
 	@echo "마를렌 솔로봇 로그 (Ctrl+C 종료):"
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="docker logs -f $(SOLO_MARLENE_NAME)"
+		--command="sudo -u 2rami docker logs -f $(SOLO_MARLENE_NAME)"
 
 # ============================================================
 # env sync-check — 로컬 .env × Secret Manager × VM 해시 비교

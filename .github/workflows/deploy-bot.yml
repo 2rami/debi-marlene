@@ -1,0 +1,77 @@
+name: Deploy Bot
+
+# 봇 코드(run/main.py 등)가 main 에 push 되면 자동 배포.
+# make deploy 미러링: build -> push(Artifact Registry) -> VM 컨테이너 재시작.
+# 수동 실행: Actions 탭 > Run workflow.
+#
+# 필요한 GitHub Secrets:
+#   GCP_DEPLOY_SA_KEY - 배포 전용 SA(deploy-actions) JSON 키 전체
+# 1회 셋업은 docs/deploy-github-actions.md 참고.
+#
+# 주의: 이 워크플로우는 프로덕션 봇을 stop -> start 한다 (start 실패 시 봇 다운).
+# SA username 은 docker 그룹이 아니라 모든 docker 명령에 sudo 필수.
+# /home/2rami 는 SA 홈이 아니므로 mkdir 도 sudo 필요.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'run/**'
+      - 'main.py'
+      - 'Dockerfile'
+      - 'requirements.txt'
+      - '.github/workflows/deploy-bot.yml'
+  workflow_dispatch:
+
+# 동시 배포 방지 — 이전 배포가 끝나기 전 새 배포가 끼어들어 컨테이너 충돌나는 것 차단.
+concurrency:
+  group: deploy-bot
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ironic-objectivist-465713-a6
+  VM_NAME: debi-marlene-bot
+  ZONE: asia-northeast3-a
+  REGION: asia-northeast3
+  VM_PATH: /home/2rami/debi-marlene
+  CONTAINER_NAME: debi-marlene
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_DEPLOY_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Compute image tag
+        run: echo "IMAGE_TAG=${REGION}-docker.pkg.dev/${PROJECT_ID}/debi-marlene/${CONTAINER_NAME}:latest" >> "$GITHUB_ENV"
+
+      - name: Configure Docker auth for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      # make build-local 미러링 (linux/amd64 고정 — VM 아키텍처 일치)
+      - name: Build image
+        run: docker build --platform linux/amd64 -t "$IMAGE_TAG" .
+
+      # make push-image 미러링
+      - name: Push image
+        run: docker push "$IMAGE_TAG"
+
+      # make restart(stop -> start) 미러링. 컨테이너는 VM 의 .env 사용 — CI 는 .env 를 만지지 않음.
+      - name: Restart container on VM
+        run: |
+          SSH="gcloud compute ssh ${VM_NAME} --zone=${ZONE} --quiet --command"
+          $SSH "sudo docker stop debi-marlene-bot ${CONTAINER_NAME} 2>/dev/null || true; sudo docker rm debi-marlene-bot ${CONTAINER_NAME} 2>/dev/null || true"
+          $SSH "sudo docker pull ${IMAGE_TAG}"
+          $SSH "sudo mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name ${CONTAINER_NAME} -p 5001:5001 --env-file ${VM_PATH}/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped ${IMAGE_TAG}"
+
+      - name: Done
+        run: echo "봇 배포 완료 - $IMAGE_TAG"

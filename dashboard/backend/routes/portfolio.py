@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, Response, jsonify, request
 
-from portfolio_data import search_portfolio
+from portfolio_data import search_portfolio, SIONIC_SYSTEM, sionic_fake_reply
 
 logger = logging.getLogger(__name__)
 portfolio_bp = Blueprint('portfolio', __name__)
@@ -511,4 +511,55 @@ def ask_stream():
             'X-Accel-Buffering': 'no',
             'Connection': 'keep-alive',
         },
+    )
+
+
+# ─────────── 사이오닉 포폴 챗봇 (얼음정령) — Claude haiku 직접 스트리밍 ───────────
+# 넥슨 Managed Agent 와 독립. 포폴 데이터를 system 에 통째로 넣고 haiku 가 답변.
+
+@portfolio_bp.route('/ask/sionic/stream', methods=['POST', 'OPTIONS'])
+def ask_sionic_stream():
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    ip = _client_ip()
+    if not _check_rate(ip):
+        return jsonify({'error': 'rate_limited', 'reason': '잠시 후 다시 시도해 주세요.'}), 429
+    data = request.get_json(silent=True) or {}
+    prompt = (data.get('prompt') or '').strip()[:PROMPT_MAX_LEN]
+    if not prompt:
+        return jsonify({'error': 'invalid_request', 'reason': 'prompt 필수.'}), 400
+
+    client = _get_anthropic()
+
+    def gen():
+        yield f"data: {json.dumps({'type': 'session', 'session_id': 'sionic'}, ensure_ascii=False)}\n\n"
+        if client is None:
+            yield f"data: {json.dumps({'type': 'chunk', 'text': sionic_fake_reply(prompt)}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+            return
+        full = ''
+        try:
+            with client.messages.stream(
+                model='claude-haiku-4-5',
+                max_tokens=600,
+                system=SIONIC_SYSTEM,
+                messages=[{'role': 'user', 'content': prompt}],
+            ) as stream:
+                for text in stream.text_stream:
+                    full += text
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': text}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'text': full[:RESPONSE_MAX_LEN]}, ensure_ascii=False)}\n\n"
+            try:
+                _log_to_firestore({'kind': 'sionic', 'ip': ip, 'prompt': prompt, 'response': full[:RESPONSE_MAX_LEN]})
+            except Exception:
+                pass
+        except Exception:
+            logger.exception('sionic chat error')
+            yield f"data: {json.dumps({'type': 'chunk', 'text': sionic_fake_reply(prompt)}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+
+    return Response(
+        gen(),
+        mimetype='text/event-stream',
+        headers={'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no', 'Connection': 'keep-alive'},
     )

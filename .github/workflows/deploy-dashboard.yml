@@ -1,0 +1,97 @@
+name: Deploy Dashboard
+
+# dashboard/ 변경이 main 에 push 되면 자동 배포.
+# make deploy-dashboard-quick 미러링:
+#   프론트(npm build -> VM docker cp -> nginx reload) + 백엔드(scp -> docker cp -> gunicorn restart) + CF 캐시 퍼지.
+# 수동 실행: Actions 탭 > Run workflow (또는 GitHub MCP workflow dispatch).
+#
+# 필요한 GitHub Secrets (Settings > Secrets and variables > Actions):
+#   GCP_DEPLOY_SA_KEY      - 배포 전용 SA(deploy-actions) JSON 키 전체
+#   VITE_DISCORD_CLIENT_ID - 프론트 빌드 주입 (디스코드 로그인)
+#   VITE_TOSS_CLIENT_KEY   - (선택) 토스 충전 키. 없으면 충전 비활성 빌드
+#   CF_API_TOKEN           - Cloudflare 캐시 퍼지
+# 1회 셋업은 docs/deploy-github-actions.md 참고.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dashboard/frontend/**'
+      - 'dashboard/backend/**'
+      - 'run/**'
+      - '.github/workflows/deploy-dashboard.yml'
+  workflow_dispatch:
+
+# 동시 배포 방지 — 이전 배포가 끝나기 전 새 배포가 끼어들어 nginx/gunicorn 충돌나는 것 차단.
+concurrency:
+  group: deploy-dashboard
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ironic-objectivist-465713-a6
+  VM_NAME: debi-marlene-bot
+  ZONE: asia-northeast3-a
+  DASHBOARD_CONTAINER: debi-marlene-dashboard
+  CF_ZONE_ID: 49337200d8d2ff73047081d747d42074
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: dashboard/frontend/package-lock.json
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_DEPLOY_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      # Makefile inject-dashboard-env 미러링 (.env 대신 GitHub Secrets).
+      # Vite는 빌드 시 .env.production 이 .env 를 override.
+      - name: Build frontend
+        working-directory: dashboard/frontend
+        run: |
+          {
+            echo "VITE_API_URL=/api"
+            echo "VITE_DISCORD_CLIENT_ID=${{ secrets.VITE_DISCORD_CLIENT_ID }}"
+            echo "VITE_TOSS_CLIENT_KEY=${{ secrets.VITE_TOSS_CLIENT_KEY }}"
+          } > .env.production
+          npm ci
+          npm run build
+          test -d dist || { echo "[ERROR] dist 없음 — 빌드 실패"; exit 1; }
+
+      # 외부IP SSH (default-allow-ssh 0.0.0.0/0 열림). SA username 은 docker 그룹이 아니라 docker 명령에 sudo 필수.
+      - name: Deploy frontend to VM
+        run: |
+          set -euo pipefail
+          tar -czf /tmp/dash-dist.tar.gz -C dashboard/frontend/dist .
+          gcloud compute scp /tmp/dash-dist.tar.gz "${VM_NAME}:/tmp/dash-dist.tar.gz" --zone="${ZONE}" --quiet
+          gcloud compute ssh "${VM_NAME}" --zone="${ZONE}" --quiet --command="mkdir -p ~/dashboard-upload && tar -xzf /tmp/dash-dist.tar.gz -C ~/dashboard-upload && sudo docker cp ~/dashboard-upload/. ${DASHBOARD_CONTAINER}:/var/www/dashboard/ && sudo docker exec ${DASHBOARD_CONTAINER} nginx -s reload && rm -rf ~/dashboard-upload /tmp/dash-dist.tar.gz"
+
+      # dashboard/backend 는 run/core/config.py 등을 import 하므로 run/ 도 같이 동기화.
+      - name: Deploy backend to VM
+        run: |
+          set -euo pipefail
+          gcloud compute scp --recurse dashboard/backend "${VM_NAME}:~/dashboard-backend-upload" --zone="${ZONE}" --quiet
+          gcloud compute scp --recurse run "${VM_NAME}:~/dashboard-run-upload" --zone="${ZONE}" --quiet
+          gcloud compute ssh "${VM_NAME}" --zone="${ZONE}" --quiet --command="sudo docker cp ~/dashboard-backend-upload/. ${DASHBOARD_CONTAINER}:/app/backend/ && sudo docker cp ~/dashboard-run-upload/. ${DASHBOARD_CONTAINER}:/app/run/ && rm -rf ~/dashboard-backend-upload ~/dashboard-run-upload && sudo docker exec ${DASHBOARD_CONTAINER} supervisorctl restart gunicorn"
+
+      - name: Purge Cloudflare cache
+        run: |
+          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}' > /dev/null && echo "캐시 퍼지 완료"
+
+      - name: Done
+        run: echo "대시보드 배포 완료"

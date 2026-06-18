@@ -8,17 +8,20 @@
  */
 
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { denyConsent, getConsentStatus, grantConsent } from '../../lib/analytics'
 
 export default function CookieConsent() {
   const [visible, setVisible] = useState(false)
+  const { pathname } = useLocation()
 
   useEffect(() => {
     if (!import.meta.env.PROD) return
     if (getConsentStatus() === 'unknown') setVisible(true)
   }, [])
 
-  if (!visible) return null
+  // 포트폴리오 경로(면접관 노출)에서는 쿠키 배너 숨김
+  if (!visible || pathname.startsWith('/portfolio/')) return null
 
   const accept = () => {
     grantConsent()

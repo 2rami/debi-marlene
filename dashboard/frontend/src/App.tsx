@@ -35,6 +35,8 @@ import PageLLM from './pages/PortfolioNexon2026/PageLLM'
 import PageService from './pages/PortfolioNexon2026/PageService'
 import PageQA from './pages/PortfolioNexon2026/PageQA'
 import PageMotionCatalog from './pages/PortfolioNexon2026/PageMotionCatalog'
+import PageSionic from './pages/PortfolioNexon2026/PageSionic'
+import PageKokone from './pages/PortfolioNexon2026/PageKokone'
 import Feed from './pages/Feed'
 import NotFound from './pages/NotFound'
 
@@ -126,6 +128,8 @@ function App() {
           <Route path="/portfolio/nexon/service" element={<PageService />} />
           <Route path="/portfolio/nexon/qa" element={<PageQA />} />
           <Route path="/portfolio/nexon/maple-motions" element={<PageMotionCatalog />} />
+          <Route path="/portfolio/sionic" element={<PageSionic />} />
+          <Route path="/portfolio/kokone" element={<PageKokone />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>

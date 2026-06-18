@@ -67,12 +67,14 @@ jobs:
         run: docker push "$IMAGE_TAG"
 
       # make restart(stop -> start) 미러링. 컨테이너는 VM 의 .env 사용 — CI 는 .env 를 만지지 않음.
+      # docker 명령은 'sudo -u 2rami' 로 실행 — 2rami 만 Artifact Registry 인증(~/.docker credHelper)이 있고 docker 그룹 멤버다.
+      # root(그냥 sudo)로 pull 하면 'Unauthenticated request' 로 막힌다.
       - name: Restart container on VM
         run: |
           SSH="gcloud compute ssh ${VM_NAME} --zone=${ZONE} --quiet --command"
-          $SSH "sudo docker stop debi-marlene-bot ${CONTAINER_NAME} 2>/dev/null || true; sudo docker rm debi-marlene-bot ${CONTAINER_NAME} 2>/dev/null || true"
-          $SSH "sudo docker pull ${IMAGE_TAG}"
-          $SSH "sudo mkdir -p /home/2rami/debi-marlene-data && sudo docker run -d --name ${CONTAINER_NAME} -p 5001:5001 --env-file ${VM_PATH}/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped ${IMAGE_TAG}"
+          $SSH "sudo -u 2rami docker stop debi-marlene-bot ${CONTAINER_NAME} 2>/dev/null || true; sudo -u 2rami docker rm debi-marlene-bot ${CONTAINER_NAME} 2>/dev/null || true"
+          $SSH "sudo -u 2rami docker pull ${IMAGE_TAG}"
+          $SSH "sudo -u 2rami mkdir -p /home/2rami/debi-marlene-data && sudo -u 2rami docker run -d --name ${CONTAINER_NAME} -p 5001:5001 --env-file ${VM_PATH}/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped ${IMAGE_TAG}"
 
       - name: Done
         run: echo "봇 배포 완료 - $IMAGE_TAG"

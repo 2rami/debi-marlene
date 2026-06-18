@@ -64,7 +64,7 @@ jobs:
             echo "VITE_DISCORD_CLIENT_ID=${{ secrets.VITE_DISCORD_CLIENT_ID }}"
             echo "VITE_TOSS_CLIENT_KEY=${{ secrets.VITE_TOSS_CLIENT_KEY }}"
           } > .env.production
-          npm ci
+          npm install
           npm run build
           test -d dist || { echo "[ERROR] dist 없음 — 빌드 실패"; exit 1; }
 

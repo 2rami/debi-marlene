@@ -71,10 +71,21 @@ jobs:
       # root(그냥 sudo)로 pull 하면 'Unauthenticated request' 로 막힌다.
       - name: Restart container on VM
         run: |
-          SSH="gcloud compute ssh ${VM_NAME} --zone=${ZONE} --quiet --command"
-          $SSH "sudo -u 2rami docker stop debi-marlene-bot ${CONTAINER_NAME} 2>/dev/null || true; sudo -u 2rami docker rm debi-marlene-bot ${CONTAINER_NAME} 2>/dev/null || true"
-          $SSH "sudo -u 2rami docker pull ${IMAGE_TAG}"
-          $SSH "sudo -u 2rami mkdir -p /home/2rami/debi-marlene-data && sudo -u 2rami docker run -d --name ${CONTAINER_NAME} -p 5001:5001 --env-file ${VM_PATH}/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped ${IMAGE_TAG}"
+          # gcloud compute ssh + SA + OS Login 은 임시 SSH 키 전파 race 로 첫 시도가
+          # 'Permission denied (publickey)' 로 튕길 수 있다(IAM 은 osAdminLogin 까지 완비됨).
+          # → 각 SSH 를 재시도로 흡수. 첫 시도가 키 등록을 트리거하고 곧 전파되면 성공.
+          ssh_retry() {
+            for i in 1 2 3 4 5; do
+              gcloud compute ssh "${VM_NAME}" --zone="${ZONE}" --quiet --command="$1" && return 0
+              echo "SSH 시도 $i 실패 — 10초 후 재시도..."; sleep 10
+            done
+            echo "SSH 5회 모두 실패"; return 1
+          }
+          ssh_retry "sudo -u 2rami docker stop ${CONTAINER_NAME} 2>/dev/null || true; sudo -u 2rami docker rm ${CONTAINER_NAME} 2>/dev/null || true"
+          # dangling(<none>) 이미지 정리 — 안 하면 빌드마다 누적돼 /var/lib/docker(16G) 가 차고 pull 이 'no space left on device' 로 실패한다.
+          ssh_retry "sudo -u 2rami docker image prune -f"
+          ssh_retry "sudo -u 2rami docker pull ${IMAGE_TAG}"
+          ssh_retry "sudo -u 2rami mkdir -p /home/2rami/debi-marlene-data && sudo -u 2rami docker run -d --name ${CONTAINER_NAME} -p 5001:5001 --env-file ${VM_PATH}/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped ${IMAGE_TAG}"
 
       - name: Done
         run: echo "봇 배포 완료 - $IMAGE_TAG"

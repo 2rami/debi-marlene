@@ -702,38 +702,22 @@ def save_global_setting(key, value):
     return save_settings(settings)
 
 
-def save_last_video_info(video_id, video_title=None):
-    """마지막 체크된 비디오 정보를 저장합니다 (atomic)."""
-    global settings_cache
-    if not _listeners_active:
-        settings_cache = None
-
-    fields = {"LAST_CHECKED_VIDEO_ID": video_id}
-    if video_title:
-        fields["LAST_CHECKED_VIDEO_TITLE"] = video_title
-
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        ok = _fs_update_global(fields)
-        if SETTINGS_BACKEND == 'firestore':
-            return ok
-
-    settings = load_settings(force_reload=True)
-    if "global" not in settings:
-        settings["global"] = {}
-    settings["global"].update(fields)
-    return save_settings(settings)
+# 전송한 video_id 집합 — 최근 N개만 유지. playlist 는 최신 10개만 보므로 충분하다.
+_SENT_IDS_KEY = "SENT_VIDEO_IDS"
+_SENT_IDS_MAX = 100
 
 
-def claim_latest_video_id(latest_video_id, video_title=None):
-    """LAST_CHECKED_VIDEO_ID 를 latest 로 원자적 전진(claim)하고 이전 값을 반환.
+def claim_video_id(video_id, video_title=None):
+    """video_id 를 '전송함' 집합(SENT_VIDEO_IDS)에 원자적으로 추가하고 신규 여부를 반환.
 
-    Firestore 트랜잭션으로 compare-and-set:
-      - 현재 값이 이미 latest 면 (다른 프로세스/이전 실행이 처리 완료) -> (False, latest)
-      - 아니면 latest 로 갱신하고 -> (True, 이전값)
+      - 이미 집합에 있으면 (이전 실행/다른 프로세스가 처리 완료) -> False
+      - 없으면 추가하고 -> True
 
-    전송 *전에* 호출해야 의미가 있음. 멀티프로세스 동시 실행이나 전송 중
-    재시작(1006) 으로 인한 중복 알림 burst 를 근본 차단한다.
-    반환: (claimed: bool, previous_id: str|None)
+    LAST_CHECKED_VIDEO_ID '경계' 방식과 달리 영상 ID 자체로 멱등 판정한다.
+    이터널 리턴 채널은 라이브 스트림이 playlist 순서/포함 여부를 시간에 따라
+    흔드는데, 경계 방식은 경계 영상이 목록에서 사라지면 추적이 깨져 같은 영상을
+    재전송했다(2026-06-22 DZ3shVz9-IA 4시간 뒤 재전송 확인). ID 집합은 흔들려도 안전.
+    반환: claimed(bool)
     """
     global settings_cache
     if not _listeners_active:
@@ -750,27 +734,52 @@ def claim_latest_video_id(latest_video_id, video_title=None):
                 def _claim(transaction):
                     snapshot = ref.get(transaction=transaction)
                     data = snapshot.to_dict() if snapshot.exists else {}
-                    prev = data.get('LAST_CHECKED_VIDEO_ID')
-                    if prev == latest_video_id:
-                        return (False, prev)
-                    fields = {"LAST_CHECKED_VIDEO_ID": latest_video_id}
+                    sent = data.get(_SENT_IDS_KEY) or []
+                    if video_id in sent:
+                        return False
+                    sent.append(video_id)
+                    fields = {
+                        _SENT_IDS_KEY: sent[-_SENT_IDS_MAX:],
+                        "LAST_CHECKED_VIDEO_ID": video_id,
+                    }
                     if video_title:
                         fields["LAST_CHECKED_VIDEO_TITLE"] = video_title
                     transaction.set(ref, fields, merge=True)
-                    return (True, prev)
+                    return True
 
                 return _claim(fs.transaction())
             except Exception as e:
-                print(f"[Firestore 경고] claim_latest_video_id 트랜잭션 실패: {e}", flush=True)
+                print(f"[Firestore 경고] claim_video_id 트랜잭션 실패: {e}", flush=True)
                 # 트랜잭션 실패 시 아래 비원자 경로로 폴백
 
     # gcs / 폴백: 단일 프로세스 가정의 read-then-write (원자성 보장 없음)
     settings = load_settings(force_reload=True)
-    prev = settings.get("global", {}).get("LAST_CHECKED_VIDEO_ID")
-    if prev == latest_video_id:
-        return (False, prev)
-    save_last_video_info(latest_video_id, video_title)
-    return (True, prev)
+    if "global" not in settings:
+        settings["global"] = {}
+    sent = settings["global"].get(_SENT_IDS_KEY) or []
+    if video_id in sent:
+        return False
+    sent.append(video_id)
+    settings["global"][_SENT_IDS_KEY] = sent[-_SENT_IDS_MAX:]
+    settings["global"]["LAST_CHECKED_VIDEO_ID"] = video_id
+    if video_title:
+        settings["global"]["LAST_CHECKED_VIDEO_TITLE"] = video_title
+    save_settings(settings)
+    return True
+
+
+def seed_sent_video_ids(video_ids):
+    """첫 실행 마이그레이션: 현재 playlist 영상들을 '전송함' 으로 등록만 한다(전송 X).
+
+    SENT_VIDEO_IDS 가 비어있는 첫 배포 때 playlist 전체(최대 10개)를 신규로 오인해
+    전 서버에 폭탄 전송하는 것을 막는다. 이미 집합이 있으면 아무것도 하지 않는다.
+    반환: seeded(bool) — 실제로 시드했으면 True (이번 사이클은 전송 스킵해야 함)
+    """
+    existing = get_global_setting(_SENT_IDS_KEY)
+    if existing:  # 이미 운영 중 — 시드 불필요
+        return False
+    save_global_setting(_SENT_IDS_KEY, list(video_ids)[-_SENT_IDS_MAX:])
+    return True
 
 
 # ─────── 사용자 설정 / 유튜브 구독 ───────

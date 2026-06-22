@@ -182,81 +182,67 @@ async def check_new_videos():
         try:
             # 1. 최신 영상 정보 가져오기 (동기 API → to_thread 로 루프 블로킹 방지)
             non_live_videos = await asyncio.to_thread(_fetch_non_live_videos_sync)
-            if not non_live_videos: return
-
-            # 2. 최신 영상을 원자적으로 선점(claim) — 전송 *전에* LAST_CHECKED 를 전진시킨다.
-            #    이렇게 해야:
-            #      - 멀티프로세스(VM+로컬/배포 중 구컨테이너)가 동시에 돌아도 단 1개만 전송
-            #      - 전송 도중 게이트웨이 1006 으로 재시작돼도 재처리(중복 burst) 안 함
-            #    claimed=False 면 이미 다른 실행이 처리 중/완료 → 전송 스킵.
-            latest = non_live_videos[0]
-            latest_video_id = latest['snippet']['resourceId']['videoId']
-            latest_title = latest['snippet'].get('title', '제목 없음')
-            claimed, last_checked_id = await asyncio.to_thread(
-                config.claim_latest_video_id, latest_video_id, latest_title
-            )
-            if not claimed:
+            if not non_live_videos:
                 return
 
-            found_idx = None
-            for idx, item in enumerate(non_live_videos):
-                if item['snippet']['resourceId']['videoId'] == last_checked_id:
-                    found_idx = idx
-                    break
+            # 2. 첫 실행 마이그레이션 — SENT_VIDEO_IDS 가 비어있으면 현재 playlist 를
+            #    전송 없이 등록만 한다. (안 그러면 playlist 최대 10개를 다 신규로 오인해
+            #    전 서버에 폭탄 전송) 시드한 사이클은 알림을 보내지 않고 종료.
+            all_ids = [v['snippet']['resourceId']['videoId'] for v in non_live_videos]
+            seeded = await asyncio.to_thread(config.seed_sent_video_ids, all_ids)
+            if seeded:
+                print(f"[유튜브] 첫 실행 — 현재 영상 {len(all_ids)}개를 전송 없이 등록(마이그레이션). 다음 신규부터 알림.")
+                return
 
-            # last_checked 가 playlist 10개 밖으로 밀려났거나 첫 실행이면 최신 1개만 (스팸 방지)
-            if found_idx is None:
-                videos_to_send = [non_live_videos[0]]
-            else:
-                videos_to_send = list(reversed(non_live_videos[:found_idx]))
+            # 3. 아직 안 보낸 영상만 선별 — video_id 자체로 멱등 claim.
+            #    playlist 는 최신순이므로 오래된 순(reversed)으로 등록해 전송 순서를 맞춘다.
+            #    claim_video_id 가 전역 원자적이라 멀티프로세스/재시작에도 같은 영상은
+            #    절대 2번 전송되지 않는다 (경계 추적이 라이브 스트림에 깨지던 문제 해결).
+            videos_to_send = []
+            for video in reversed(non_live_videos):
+                v_id = video['snippet']['resourceId']['videoId']
+                v_title = video['snippet'].get('title', '제목 없음')
+                claimed = await asyncio.to_thread(config.claim_video_id, v_id, v_title)
+                if claimed:
+                    videos_to_send.append(video)
+
+            if not videos_to_send:
+                return
 
             print(f"[유튜브] 신규 영상 {len(videos_to_send)}개 처리 시작")
 
-            # 3. 동시 전송 폭주 방지 — 무제한 gather 는 길드 수백 × (history 조회+전송) 이
-            #    Discord REST 429 폭발 + 게이트웨이 하트비트 누락(1006 끊김 → 봇 재시작)을 유발
+            # 4. 동시 전송 폭주 방지 — 무제한 gather 는 길드 수백 × 전송이
+            #    Discord REST 429 폭발 + 게이트웨이 하트비트 누락(1006 끊김)을 유발
             send_semaphore = asyncio.Semaphore(10)
 
             async def send_to_guild(guild, video_id, snippet, is_shorts):
-                """개별 서버에 알림을 보내는 비동기 함수"""
+                """개별 서버에 알림을 보내는 비동기 함수.
+
+                중복 방지는 상위 claim_video_id 가 전역으로 담당하므로 채널 history 를
+                다시 읽지 않는다. (전엔 길드마다 history(50) 조회가 전송 사이클을 9분까지
+                늘려 하트비트를 막던 주범이었고, 활발한 채널은 50개 밖으로 밀려나
+                중복도 못 막았다.)
+                """
                 async with send_semaphore:
                     guild_settings = await asyncio.to_thread(config.get_guild_settings, guild.id)
                     channel_id = guild_settings.get("ANNOUNCEMENT_CHANNEL_ID")
-                    if channel_id:
-                        channel = bot_instance.get_channel(int(channel_id))
-                        if channel:
-                            last_sent_id = await get_last_sent_video_id_from_channel(channel)
-                            if last_sent_id != video_id:
-                                print(f"  -> 서버 '{guild.name}' (ID: {guild.id})의 #{channel.name} (ID: {channel_id}) 채널에 새 영상 전송")
-                                await _send_notification(channel, video_id, snippet, is_shorts)
-                            else:
-                                print(f"  -> 서버 '{guild.name}' (ID: {guild.id}): 이미 전송된 영상")
-                        else:
-                            print(f"  -> 서버 '{guild.name}' (ID: {guild.id}): 채널 ID {channel_id}를 찾을 수 없음")
-                    else:
-                        print(f"  -> 서버 '{guild.name}' (ID: {guild.id}): 공지 채널 미설정")
+                    if not channel_id:
+                        return
+                    channel = bot_instance.get_channel(int(channel_id))
+                    if not channel:
+                        print(f"  -> 서버 '{guild.name}' (ID: {guild.id}): 채널 ID {channel_id}를 찾을 수 없음")
+                        return
+                    print(f"  -> 서버 '{guild.name}' (ID: {guild.id})의 #{channel.name} 채널에 새 영상 전송")
+                    await _send_notification(channel, video_id, snippet, is_shorts)
 
             async def send_to_user(user_id, video_id, snippet, is_shorts):
-                """개별 사용자에게 DM을 보내는 비동기 함수"""
+                """개별 사용자에게 DM을 보내는 비동기 함수.
+
+                중복 방지는 상위 claim_video_id 가 전역으로 담당 → DM history 재조회 불필요.
+                """
                 async with send_semaphore:
                     try:
                         user = await bot_instance.fetch_user(user_id)
-
-                        # DM 채널 ID 확인 (GCS에 저장된 정보)
-                        settings = await asyncio.to_thread(config.load_settings)
-                        user_settings = settings.get('users', {}).get(str(user_id), {})
-                        dm_channel_id = user_settings.get('dm_channel_id')
-
-                        # DM 채널이 있으면 중복 체크 (실패 시 fresh DM으로 fallback — _send_notification 끝에서 dm_channel_id 자동 갱신)
-                        if dm_channel_id:
-                            try:
-                                dm_channel = await bot_instance.fetch_channel(int(dm_channel_id))
-                                last_sent_id = await get_last_sent_video_id_from_channel(dm_channel)
-                                if last_sent_id == video_id:
-                                    print(f"  -> 구독자 '{user.name}#{user.discriminator}' (ID: {user_id}): 이미 전송된 영상")
-                                    return
-                            except Exception as channel_error:
-                                print(f"  -> [경고] DM 채널 {dm_channel_id} 확인 실패 (새로 전송 시도): {channel_error}")
-
                         print(f"  -> 구독자 '{user.name}#{user.discriminator}' (ID: {user_id})에게 DM 전송")
                         await _send_notification(user, video_id, snippet, is_shorts)
                     except discord.NotFound:
@@ -264,7 +250,7 @@ async def check_new_videos():
                     except Exception as e:
                         print(f"  -> [오류] 구독자 ID({user_id}) 처리 중 오류: {e}")
 
-            # 4. 각 영상을 순차로 전송 (길드/구독자는 세마포로 제한 동시)
+            # 5. 각 영상을 순차로 전송 (길드/구독자는 세마포로 제한 동시)
             subscribers = await asyncio.to_thread(config.get_youtube_subscribers)
             print(f"  총 {len(subscribers)}명의 개인 구독자, {len(bot_instance.guilds)}개 서버")
 
@@ -282,9 +268,8 @@ async def check_new_videos():
                 if all_tasks:
                     await asyncio.gather(*all_tasks, return_exceptions=True)
 
-            # 5. LAST_CHECKED 는 전송 전 claim 단계에서 이미 latest 로 저장됨.
-            #    (전송 후 저장 구조였다면 전송 중 재시작 시 중복 burst 발생 → claim 으로 선반영)
-            print(f"[완료] 신규 영상 {len(videos_to_send)}개 전송. 최신 ID({latest_video_id}) 저장됨(claim).")
+            # SENT_VIDEO_IDS 등록은 전송 *전* claim_video_id 단계에서 이미 완료됨.
+            print(f"[완료] 신규 영상 {len(videos_to_send)}개 전송 완료 (SENT_VIDEO_IDS 등록됨).")
 
         except Exception as e:
             print(f"[오류] 유튜브 영상 확인 중 심각한 오류 발생: {e}")
@@ -353,10 +338,10 @@ async def manual_check_new_videos():
             except Exception as e:
                 print(f"  -> [오류] 구독자 ID({user_id}) 처리 중 오류: {e}")
 
-        # 5. 마지막으로 확인한 영상 ID와 제목 저장
+        # 5. 전송한 영상을 SENT_VIDEO_IDS 에 등록 — 다음 자동 사이클이 같은 영상을 중복 전송하지 않도록.
         video_title = snippet.get('title', '제목 없음') if snippet else '제목 없음'
-        await asyncio.to_thread(config.save_last_video_info, video_id, video_title)
-        print(f"[완료] 새 영상 ID({video_id}), 제목({video_title})을 전역 설정에 저장했습니다.")
+        await asyncio.to_thread(config.claim_video_id, video_id, video_title)
+        print(f"[완료] 새 영상 ID({video_id}), 제목({video_title})을 SENT_VIDEO_IDS 에 등록했습니다.")
         
         return f"테스트 완료! 영상: {video_title}\n서버 {sent_channels}개, DM {sent_dms}개 전송"
 

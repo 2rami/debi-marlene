@@ -711,6 +711,48 @@ async def on_guild_remove(guild: discord.Guild):
         import traceback
         traceback.print_exc()
 
+    # 이탈 설문 DM — owner 에게 사유 묻고 재초대 유도 (메인 봇만, 솔로봇 스킵)
+    if config.BOT_IDENTITY not in ("debi", "marlene"):
+        try:
+            import os
+            from datetime import datetime, timezone
+            from run.views.churn_survey_view import ChurnSurveyView
+
+            owner = guild.owner
+            if owner is None and guild.owner_id:
+                try:
+                    owner = await bot.fetch_user(guild.owner_id)
+                except Exception:
+                    owner = None
+
+            if owner is not None:
+                installed_days = None
+                try:
+                    if guild.me and guild.me.joined_at:
+                        installed_days = (datetime.now(timezone.utc) - guild.me.joined_at).days
+                except Exception:
+                    pass
+
+                invite_url = os.getenv("BOT_INVITE_URL") or (
+                    f"https://discord.com/oauth2/authorize"
+                    f"?client_id={bot.user.id}&permissions=412317273088"
+                    f"&scope=bot+applications.commands"
+                )
+                view = ChurnSurveyView(
+                    guild_id=guild.id,
+                    guild_name=guild.name,
+                    owner_id=owner.id,
+                    member_count=guild.member_count,
+                    installed_days=installed_days,
+                    invite_url=invite_url,
+                )
+                await owner.send(view=view)
+                print(f"[완료] 이탈 설문 DM 전송: {owner} (서버: {guild.name})", flush=True)
+        except discord.Forbidden:
+            print(f"[경고] 이탈 설문 DM 차단/비허용: {guild.name}", flush=True)
+        except Exception as e:
+            print(f"[오류] 이탈 설문 DM 실패: {e}", flush=True)
+
     # 서버 탈퇴 시 GCS 실시간 업데이트
     try:
         await update_server_info_to_gcs()

@@ -92,13 +92,14 @@ deploy-env-guard:
 	@echo "[env-guard] OK"
 
 # 봇 빠른 배포
+# [OS Login 트랩] ~/(goenho0613 홈)를 2rami 가 못 읽어 docker cp 실패 → /tmp 경유 + chmod 755
 deploy-quick: deploy-guard
 	@echo "[1/3] 봇 코드를 VM에 업로드 중..."
 	@tar -czf /tmp/bot-upload.tar.gz --exclude='__pycache__' --exclude='*.pyc' run/ main.py
 	@gcloud compute scp /tmp/bot-upload.tar.gz $(VM_NAME):~/bot-upload.tar.gz --zone=$(ZONE)
 	@echo "[2/3] 컨테이너에 복사 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p ~/bot-upload && tar -xzf ~/bot-upload.tar.gz -C ~/bot-upload && sudo -u 2rami docker cp ~/bot-upload/run/. $(CONTAINER_NAME):/app/run/ && sudo -u 2rami docker cp ~/bot-upload/main.py $(CONTAINER_NAME):/app/main.py && rm -rf ~/bot-upload ~/bot-upload.tar.gz"
+		--command="rm -rf /tmp/bot-upload && mkdir -p /tmp/bot-upload && tar -xzf ~/bot-upload.tar.gz -C /tmp/bot-upload && chmod -R 755 /tmp/bot-upload && sudo -u 2rami docker cp /tmp/bot-upload/run/. $(CONTAINER_NAME):/app/run/ && sudo -u 2rami docker cp /tmp/bot-upload/main.py $(CONTAINER_NAME):/app/main.py && rm -rf /tmp/bot-upload ~/bot-upload.tar.gz"
 	@echo "[3/3] 컨테이너 재시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="sudo -u 2rami docker restart $(CONTAINER_NAME)"

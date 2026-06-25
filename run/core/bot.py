@@ -711,12 +711,16 @@ async def on_guild_remove(guild: discord.Guild):
         import traceback
         traceback.print_exc()
 
-    # 이탈 설문 DM — owner 에게 사유 묻고 재초대 유도 (메인 봇만, 솔로봇 스킵)
+    # 이탈 설문 — owner 에게 DM Poll(투표)로 사유 묻고 재초대 유도 (메인 봇만, 솔로봇 스킵).
+    # Poll 은 Discord 서버사이드 관리라 봇 재시작과 무관(상호작용 실패 없음). 결과는
+    # on_raw_poll_vote_add 가 수집. poll_message_id 로 pending 문서와 매칭한다.
     if config.BOT_IDENTITY not in ("debi", "marlene"):
         try:
-            import os
             from datetime import datetime, timezone
-            from run.views.churn_survey_view import ChurnSurveyView
+            from run.views.churn_survey_view import (
+                build_churn_poll, ChurnRejoinView, invite_url_for,
+            )
+            from run.services import churn as churn_service
 
             owner = guild.owner
             if owner is None and guild.owner_id:
@@ -733,25 +737,36 @@ async def on_guild_remove(guild: discord.Guild):
                 except Exception:
                     pass
 
-                invite_url = os.getenv("BOT_INVITE_URL") or (
-                    f"https://discord.com/oauth2/authorize"
-                    f"?client_id={bot.user.id}&permissions=412317273088"
-                    f"&scope=bot+applications.commands"
+                invite_url = invite_url_for(bot)
+                content = (
+                    "## 더 자세히 알려주시겠어요?\n"
+                    f"**{guild.name}** 서버에서 저를 내보내셨네요.\n"
+                    "잠깐 시간 내서 아래 투표로 이유를 알려주시면 봇 개선에 큰 도움이 돼요!\n"
+                    "-# 실수로 내보내신 거라면 아래 버튼으로 언제든 다시 추가할 수 있어요."
                 )
-                view = ChurnSurveyView(
+                poll = build_churn_poll()
+                view = ChurnRejoinView(invite_url=invite_url)
+                try:
+                    msg = await owner.send(content=content, poll=poll, view=view)
+                except discord.HTTPException:
+                    # Poll + 컴포넌트 동시 전송이 거부되면 → Poll 만, 재초대는 본문 링크로
+                    fallback = content + (f"\n\n[다시 추가하기]({invite_url})" if invite_url else "")
+                    msg = await owner.send(content=fallback, poll=poll)
+
+                await asyncio.to_thread(
+                    churn_service.save_churn_pending,
                     guild_id=guild.id,
                     guild_name=guild.name,
                     owner_id=owner.id,
                     member_count=guild.member_count,
                     installed_days=installed_days,
-                    invite_url=invite_url,
+                    poll_message_id=msg.id,
                 )
-                await owner.send(view=view)
-                print(f"[완료] 이탈 설문 DM 전송: {owner} (서버: {guild.name})", flush=True)
+                print(f"[완료] 이탈 설문 Poll DM 전송: {owner} (서버: {guild.name})", flush=True)
         except discord.Forbidden:
             print(f"[경고] 이탈 설문 DM 차단/비허용: {guild.name}", flush=True)
         except Exception as e:
-            print(f"[오류] 이탈 설문 DM 실패: {e}", flush=True)
+            print(f"[오류] 이탈 설문 Poll DM 실패: {e}", flush=True)
 
     # 서버 탈퇴 시 GCS 실시간 업데이트
     try:
@@ -760,6 +775,27 @@ async def on_guild_remove(guild: discord.Guild):
         print(f"[경고] 서버 탈퇴 GCS 업데이트 실패: {e}", flush=True)
 
     sys.stdout.flush()
+
+
+@bot.event
+async def on_raw_poll_vote_add(payload: discord.RawPollVoteActionEvent):
+    """이탈 설문 DM Poll 투표 수집 — answer_id 를 사유로 매핑해 Firestore 기록.
+
+    메인 봇만. 봇 자신/무관 메시지는 record_poll_vote 의 poll_message_id 매칭에서 무시된다.
+    """
+    if config.BOT_IDENTITY in ("debi", "marlene"):
+        return
+    if bot.user and payload.user_id == bot.user.id:
+        return
+    try:
+        from run.services import churn as churn_service
+        await asyncio.to_thread(
+            churn_service.record_poll_vote,
+            message_id=payload.message_id,
+            answer_id=payload.answer_id,
+        )
+    except Exception as e:
+        print(f"[경고] 이탈 투표 기록 실패: {e}", flush=True)
 
 
 @bot.event

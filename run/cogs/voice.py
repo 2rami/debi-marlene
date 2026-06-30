@@ -28,9 +28,12 @@ SFX_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "sfx")
 
 # 음성 이름 매핑
 VOICE_NAMES = {
-    "debi": "데비", "marlene": "마를렌", "alex": "알렉스",
+    "debi": "데비", "marlene": "마를렌",
     "edge_sunhi": "SunHi", "edge_injoon": "InJoon", "edge_hyunsu": "Hyunsu",
 }
+
+# 유효 보이스. edge_ 접두사는 무료(Edge TTS), 나머지는 크레딧 차감 대상.
+VALID_VOICES = ["debi", "marlene", "edge_sunhi", "edge_injoon", "edge_hyunsu"]
 
 # 전역 인스턴스
 audio_player: Optional[AudioPlayer] = None
@@ -58,7 +61,7 @@ async def get_tts_service(character: str = "default") -> TTSService:
         return tts_services[character]
 
     logger.info(f"CosyVoice3 TTS 사용 ({character})")
-    tts_service = TTSService(speaker=character)
+    tts_service = TTSService(speaker=character, engine="cosyvoice3")
     await tts_service.initialize()
     tts_services[character] = tts_service
 
@@ -326,7 +329,6 @@ class TTSControlView(discord.ui.View):
                 discord.SelectOption(label="Hyunsu", value="edge_hyunsu", description="Edge TTS (남성, 다국어)"),
                 discord.SelectOption(label="데비", value="debi", description="AI 음성 (서버 준비 필요)"),
                 discord.SelectOption(label="마를렌", value="marlene", description="AI 음성 (서버 준비 필요)"),
-                discord.SelectOption(label="알렉스", value="alex", description="AI 음성 (서버 준비 필요)"),
                 discord.SelectOption(label="서버 기본값", value="default"),
             ]
         )
@@ -393,7 +395,7 @@ class TTSControlView(discord.ui.View):
             save_settings(settings)
             voice_names = VOICE_NAMES
 
-            is_ai_voice = selected in ("debi", "marlene", "alex")
+            is_ai_voice = selected in ("debi", "marlene")
             if is_ai_voice:
                 await interaction.response.send_message(
                     f"{voice_names.get(selected, selected)} 목소리로 변경했어요! AI 서버 상태를 확인하고 있어요...",
@@ -537,7 +539,6 @@ class ServerVoiceSelectView(discord.ui.View):
             discord.SelectOption(label="Hyunsu", value="edge_hyunsu", description="Edge TTS (남성, 다국어)"),
             discord.SelectOption(label="데비", value="debi", description="AI 음성"),
             discord.SelectOption(label="마를렌", value="marlene", description="AI 음성"),
-            discord.SelectOption(label="알렉스", value="alex", description="AI 음성"),
         ]
     )
     async def voice_select(self, interaction: discord.Interaction, select: discord.ui.Select):
@@ -604,8 +605,7 @@ async def _generate_tts_audio(
         user_id = str(message.author.id)
         user_voices = guild_settings.get("user_voices", {})
         tts_voice = user_voices.get(user_id) or guild_settings.get("tts_voice", "edge_sunhi")
-        valid_voices = ["debi", "marlene", "alex", "edge_sunhi", "edge_injoon", "edge_hyunsu"]
-        if tts_voice not in valid_voices:
+        if tts_voice not in VALID_VOICES:
             tts_voice = "edge_sunhi"
 
         meta = {
@@ -735,28 +735,37 @@ async def handle_tts_message(message: discord.Message):
         logger.warning("tts blocklist 체크 실패: %s", e)
 
     # 크레딧 차감 (TTS 길이 기반, 10초당 -1).
-    # 거노 결정: 엔진 분기 보류 (유저별 보이스 설정 보존). 모든 TTS 메시지 동일 차감.
+    # Edge TTS(기본 음성)는 무료 — 캐릭터 보이스(debi/marlene)만 차감.
     # 한국어 ~3 chars/sec → len/3.0 ≈ 추정 초.
-    try:
-        from run.services import credits as credits_service
-        est_seconds = min(60.0, max(1.0, len(message.content) / 3.0))
-        charge = await asyncio.to_thread(
-            credits_service.debit_for_tts, message.author.id, est_seconds, 'tts',
-        )
-        if not charge.get('ok'):
-            try:
-                await message.channel.send(
-                    f"{message.author.mention} TTS 크레딧 부족 "
-                    f"(필요 {charge.get('needed', 0)} · 보유 {charge.get('balance', 0)}).\n"
-                    f"매일 출석체크 +10 (연속 3일 +30 · 7일 +100) → https://debimarlene.com",
-                    delete_after=12,
-                )
-            except Exception:
-                pass
-            return
-    except Exception as e:
-        # 크레딧 시스템 장애가 TTS 자체를 막지 않게 — 안전 fallback (무료 처리).
-        logger.warning(f"TTS 크레딧 차감 실패 (무료 진행): {e}")
+    user_id = str(message.author.id)
+    user_voices = guild_settings.get("user_voices", {})
+    tts_voice = user_voices.get(user_id) or guild_settings.get("tts_voice", "edge_sunhi")
+    if tts_voice not in VALID_VOICES:
+        tts_voice = "edge_sunhi"
+
+    if not tts_voice.startswith("edge_"):
+        try:
+            from run.services import credits as credits_service
+            est_seconds = min(60.0, max(1.0, len(message.content) / 3.0))
+            charge = await asyncio.to_thread(
+                credits_service.debit_for_tts, message.author.id, est_seconds, 'tts',
+            )
+            # 크레딧 부족(insufficient)만 차단. firestore 장애 등 시스템 문제는 무료 통과.
+            if not charge.get('ok') and charge.get('reason') == 'insufficient':
+                try:
+                    await message.channel.send(
+                        f"{message.author.mention} TTS 크레딧 부족 "
+                        f"(필요 {charge.get('needed', 0)} · 보유 {charge.get('balance', 0)}).\n"
+                        f"기본 음성(SunHi/InJoon/Hyunsu)은 무료예요. "
+                        f"매일 출석체크 +10 (연속 3일 +30 · 7일 +100) → https://debimarlene.com",
+                        delete_after=12,
+                    )
+                except Exception:
+                    pass
+                return
+        except Exception as e:
+            # 크레딧 시스템 장애가 TTS 자체를 막지 않게 — 안전 fallback (무료 처리).
+            logger.warning(f"TTS 크레딧 차감 실패 (무료 진행): {e}")
 
     print(f"[TTS] {message.author.name}: {message.content[:30]}", flush=True)
 

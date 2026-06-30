@@ -483,7 +483,7 @@ def get_server_members(guild_id):
 def update_member_voice(guild_id, user_id):
     """유저 목소리 설정 변경"""
     data = request.json
-    voice = data.get('voice')  # 'debi', 'marlene', 'alex', or None (server default)
+    voice = data.get('voice')  # 'debi', 'marlene', or None (server default)
 
     settings = load_gcs_settings()
     guild_id_str = str(guild_id)
@@ -495,7 +495,7 @@ def update_member_voice(guild_id, user_id):
     if 'user_voices' not in settings['guilds'][guild_id_str]:
         settings['guilds'][guild_id_str]['user_voices'] = {}
 
-    if voice and voice in ['debi', 'marlene', 'alex']:
+    if voice and voice in ['debi', 'marlene']:
         settings['guilds'][guild_id_str]['user_voices'][user_id] = voice
     else:
         settings['guilds'][guild_id_str]['user_voices'].pop(user_id, None)

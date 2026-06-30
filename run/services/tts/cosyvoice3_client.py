@@ -31,25 +31,10 @@ DEFAULT_HEALTH_URL = os.environ.get(
     "https://goenho0613--cosyvoice3-tts-server-cosyvoice3model-health.modal.run"
 )
 
-# Alex 전용 Modal 엔드포인트 (별도 체크포인트)
-ALEX_API_URL = os.environ.get(
-    "COSYVOICE3_ALEX_API_URL",
-    "https://goenho0613--cosyvoice3-alex-tts-server-cosyvoice3model-tts.modal.run"
-)
-ALEX_STREAM_URL = os.environ.get(
-    "COSYVOICE3_ALEX_STREAM_URL",
-    "https://goenho0613--cosyvoice3-alex-tts-server-cosyvoice3model-t-e222cf.modal.run"
-)
-ALEX_HEALTH_URL = os.environ.get(
-    "COSYVOICE3_ALEX_HEALTH_URL",
-    "https://goenho0613--cosyvoice3-alex-tts-server-cosyvoice3model-health.modal.run"
-)
-
 # 스피커별 엔드포인트 매핑
 SPEAKER_ENDPOINTS = {
     "debi": {"api": DEFAULT_API_URL, "stream": DEFAULT_STREAM_URL, "health": DEFAULT_HEALTH_URL},
     "marlene": {"api": DEFAULT_API_URL, "stream": DEFAULT_STREAM_URL, "health": DEFAULT_HEALTH_URL},
-    "alex": {"api": ALEX_API_URL, "stream": ALEX_STREAM_URL, "health": ALEX_HEALTH_URL},
 }
 
 
@@ -296,14 +281,13 @@ class CosyVoice3Client:
     @staticmethod
     async def warmup_all_servers() -> dict:
         """모든 Modal TTS 서버에 health check을 보내 컨테이너를 깨웁니다.
-        Returns: {"debi": "running"|"starting"|"error", "alex": ...}
+        Returns: {"debi": "running"|"starting"|"error"}
         """
         import aiohttp
 
-        # debi/marlene 공유 서버 + alex 별도 서버
+        # debi/marlene 공유 서버
         targets = {
             "debi": DEFAULT_HEALTH_URL,
-            "alex": ALEX_HEALTH_URL,
         }
         results = {}
         timeout = aiohttp.ClientTimeout(total=120, connect=30)

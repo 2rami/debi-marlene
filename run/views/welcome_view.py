@@ -53,7 +53,6 @@ class WelcomeLayoutView(discord.ui.LayoutView):
             discord.SelectOption(label="Hyunsu", value="edge_hyunsu", description="Edge TTS (남성, 다국어)", default=(current_voice == "edge_hyunsu")),
             discord.SelectOption(label="데비", value="debi", description="AI 음성 (서버 준비 필요)", default=(current_voice == "debi")),
             discord.SelectOption(label="마를렌", value="marlene", description="AI 음성 (서버 준비 필요)", default=(current_voice == "marlene")),
-            discord.SelectOption(label="알렉스", value="alex", description="AI 음성 (서버 준비 필요)", default=(current_voice == "alex")),
         ]
         voice_select = discord.ui.Select(
             placeholder="TTS 기본 목소리를 선택하세요",
@@ -93,7 +92,7 @@ class WelcomeLayoutView(discord.ui.LayoutView):
 
         voice_names = {
             "edge_sunhi": "SunHi", "edge_injoon": "InJoon", "edge_hyunsu": "Hyunsu",
-            "debi": "데비", "marlene": "마를렌", "alex": "알렉스",
+            "debi": "데비", "marlene": "마를렌",
         }
         await interaction.response.send_message(
             f"**{self.guild.name}** 서버의 TTS 기본 목소리를 **{voice_names.get(selected, selected)}**(으)로 설정했어요!",

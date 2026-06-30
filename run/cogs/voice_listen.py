@@ -656,7 +656,7 @@ class VoiceListenCog(commands.Cog, name="음성듣기"):
                 if not line:
                     continue
                 if speaker not in self.tts_services:
-                    svc = TTSService(speaker=speaker)
+                    svc = TTSService(speaker=speaker, engine="cosyvoice3")
                     await svc.initialize()
                     self.tts_services[speaker] = svc
                 audio_path = await self.tts_services[speaker].text_to_speech(text=line)

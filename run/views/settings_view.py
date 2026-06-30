@@ -59,7 +59,7 @@ class SettingsLayoutView(discord.ui.LayoutView):
         else:
             channel_text = "미설정"
 
-        voice_names = {"debi": "데비", "marlene": "마를렌", "alex": "알렉스"}
+        voice_names = {"debi": "데비", "marlene": "마를렌"}
         voice_text = voice_names.get(tts_voice, tts_voice)
 
         if tts_channel_id:
@@ -115,7 +115,6 @@ class SettingsLayoutView(discord.ui.LayoutView):
             options=[
                 discord.SelectOption(label="데비", value="debi", description="밝고 활기찬 목소리", default=(tts_voice == "debi")),
                 discord.SelectOption(label="마를렌", value="marlene", description="차분하고 낮은 목소리", default=(tts_voice == "marlene")),
-                discord.SelectOption(label="알렉스", value="alex", description="중성적인 목소리", default=(tts_voice == "alex")),
             ]
         )
         voice_select.callback = self._on_voice_select

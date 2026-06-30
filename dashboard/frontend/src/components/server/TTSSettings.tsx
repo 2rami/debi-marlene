@@ -40,7 +40,6 @@ const VOICES = [
   { id: 'edge_hyunsu', name: 'Hyunsu', description: 'Edge TTS (남성, 다국어)', borderActive: 'border-emerald-500', bgActive: 'bg-emerald-500/10' },
   { id: 'debi', name: '데비', description: 'AI 음성 (서버 준비 필요)', borderActive: 'border-debi-primary', bgActive: 'bg-debi-primary/10' },
   { id: 'marlene', name: '마를렌', description: 'AI 음성 (서버 준비 필요)', borderActive: 'border-marlene-primary', bgActive: 'bg-marlene-primary/10' },
-  { id: 'alex', name: '알렉스', description: 'AI 음성 (서버 준비 필요)', borderActive: 'border-blue-500', bgActive: 'bg-blue-500/10' },
 ]
 
 export default function TTSSettings({ features, channels, saving, guildId, onSave }: Props) {

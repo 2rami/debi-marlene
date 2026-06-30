@@ -752,7 +752,12 @@ def claim_video_id(video_id, video_title=None):
                 print(f"[Firestore 경고] claim_video_id 트랜잭션 실패: {e}", flush=True)
                 # 트랜잭션 실패 시 아래 비원자 경로로 폴백
 
-    # gcs / 폴백: 단일 프로세스 가정의 read-then-write (원자성 보장 없음)
+    # gcs / 폴백: 단일 프로세스 가정의 read-then-write (원자성 보장 없음).
+    # firestore/dual 백엔드인데 여기까지 왔다는 건 Firestore 원자 claim 이 불가능한
+    # degraded 상태(클라이언트 생성 실패 or 트랜잭션 실패)라는 뜻이므로 경고를 남긴다.
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        print(f"[유튜브 경고] claim_video_id 비원자 폴백 사용 — Firestore 원자 claim 불가, "
+              f"중복 위험 상태. video_id={video_id}", flush=True)
     settings = load_settings(force_reload=True)
     if "global" not in settings:
         settings["global"] = {}
@@ -764,7 +769,16 @@ def claim_video_id(video_id, video_title=None):
     settings["global"]["LAST_CHECKED_VIDEO_ID"] = video_id
     if video_title:
         settings["global"]["LAST_CHECKED_VIDEO_TITLE"] = video_title
-    save_settings(settings)
+    # 저장이 실제로 성공했을 때만 claim 을 인정한다. 저장 실패인데 True 를 돌려주면
+    # SENT_VIDEO_IDS 에 영상이 남지 않아 다음 10분 사이클이 같은 영상을 신규로 오인해
+    # 재전송한다 — '같은 영상 N개' 중복 알림의 핵심 원인. 저장 실패 시 False(=이번엔 스킵)
+    # 로 fail-closed 하고, 저장소가 복구되면 다음 사이클에 정상 claim + 전송된다.
+    # 누락 1회가 중복 N회보다 안전하다.
+    saved = save_settings(settings)
+    if not saved:
+        print(f"[유튜브 오류] SENT_VIDEO_IDS 저장 실패 → 전송 스킵(fail-closed)으로 재전송 폭주 차단. "
+              f"video_id={video_id}", flush=True)
+        return False
     return True
 
 

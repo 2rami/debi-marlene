@@ -5,6 +5,7 @@
 - SettingsView: 레거시 설정 UI (환영 메시지 등에서 사용)
 - ChannelSelectViewForSetting: 채널 선택 드롭다운
 """
+import asyncio
 import discord
 import sys
 from typing import Optional
@@ -212,20 +213,26 @@ class SettingsLayoutView(discord.ui.LayoutView):
     async def _rebuild(self, interaction: discord.Interaction):
         """설정 변경 후 뷰를 재빌드하여 최신 상태 반영"""
         new_view = build_settings_layout(self.guild, self.user_id, self.is_admin)
-        await interaction.response.edit_message(view=new_view)
+        # 콜백이 먼저 defer 했으면 원본 응답 수정, 아니면 즉시 edit
+        if interaction.response.is_done():
+            await interaction.edit_original_response(view=new_view)
+        else:
+            await interaction.response.edit_message(view=new_view)
 
     async def _on_channel_select(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         channel = interaction.data["values"][0]
         # ChannelSelect의 값은 ID 문자열
         channel_id = int(channel)
         ch = self.guild.get_channel(channel_id)
         channel_name = ch.name if ch else None
 
-        config.save_guild_settings(
+        await asyncio.to_thread(
+            config.save_guild_settings,
             self.guild.id,
             announcement_id=channel_id,
             guild_name=self.guild.name,
-            announcement_channel_name=channel_name
+            announcement_channel_name=channel_name,
         )
         await self._rebuild(interaction)
 
@@ -247,6 +254,7 @@ class SettingsLayoutView(discord.ui.LayoutView):
         await self._save_solo_channels(interaction, "marlene")
 
     async def _save_solo_channels(self, interaction: discord.Interaction, identity: str):
+        await interaction.response.defer()
         raw_values = interaction.data.get("values", []) or []
         channel_ids = []
         for v in raw_values:
@@ -255,43 +263,46 @@ class SettingsLayoutView(discord.ui.LayoutView):
             except (TypeError, ValueError):
                 continue
         try:
-            config.set_solo_chat_channels(self.guild.id, identity, channel_ids)
+            await asyncio.to_thread(config.set_solo_chat_channels, self.guild.id, identity, channel_ids)
         except Exception as e:
             print(f"[오류] solo 채널 저장 실패 ({identity}): {e}", flush=True)
         await self._rebuild(interaction)
 
     async def _on_voice_select(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         selected = interaction.data["values"][0]
         guild_id = str(self.guild.id)
 
-        settings = config.load_settings()
+        settings = await asyncio.to_thread(config.load_settings)
         if "guilds" not in settings:
             settings["guilds"] = {}
         if guild_id not in settings["guilds"]:
             settings["guilds"][guild_id] = {}
         settings["guilds"][guild_id]["tts_voice"] = selected
-        config.save_settings(settings)
+        await asyncio.to_thread(config.save_settings, settings)
 
         await self._rebuild(interaction)
 
     async def _on_auto_delete_select(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         selected = int(interaction.data["values"][0])
         guild_id = str(self.guild.id)
 
-        settings = config.load_settings()
+        settings = await asyncio.to_thread(config.load_settings)
         if "guilds" not in settings:
             settings["guilds"] = {}
         if guild_id not in settings["guilds"]:
             settings["guilds"][guild_id] = {}
         settings["guilds"][guild_id]["tts_auto_delete_seconds"] = selected
-        config.save_settings(settings)
+        await asyncio.to_thread(config.save_settings, settings)
 
         await self._rebuild(interaction)
 
     async def _on_chat_toggle(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         guild_id = str(self.guild.id)
 
-        settings = config.load_settings()
+        settings = await asyncio.to_thread(config.load_settings)
         if "guilds" not in settings:
             settings["guilds"] = {}
         if guild_id not in settings["guilds"]:
@@ -299,14 +310,15 @@ class SettingsLayoutView(discord.ui.LayoutView):
 
         current = settings["guilds"][guild_id].get("chat_enabled", True)
         settings["guilds"][guild_id]["chat_enabled"] = not current
-        config.save_settings(settings)
+        await asyncio.to_thread(config.save_settings, settings)
 
         await self._rebuild(interaction)
 
     async def _on_dm_toggle(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         user_name = interaction.user.display_name or interaction.user.global_name or interaction.user.name
-        is_subscribed = config.is_youtube_subscribed(self.user_id)
-        config.set_youtube_subscription(self.user_id, not is_subscribed, user_name)
+        is_subscribed = await asyncio.to_thread(config.is_youtube_subscribed, self.user_id)
+        await asyncio.to_thread(config.set_youtube_subscription, self.user_id, not is_subscribed, user_name)
         await self._rebuild(interaction)
 
     async def _on_test(self, interaction: discord.Interaction):

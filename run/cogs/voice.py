@@ -366,8 +366,9 @@ class TTSControlView(discord.ui.View):
 
     async def _on_voice_select(self, interaction: discord.Interaction):
         """내 목소리 변경"""
+        await interaction.response.defer(ephemeral=True)
         selected = interaction.data["values"][0]
-        settings = load_settings()
+        settings = await asyncio.to_thread(load_settings)
         guild_id = self.guild_id
         user_id = str(interaction.user.id)
 
@@ -381,10 +382,10 @@ class TTSControlView(discord.ui.View):
         if selected == "default":
             if "user_voices" in guild_settings and user_id in guild_settings["user_voices"]:
                 del guild_settings["user_voices"][user_id]
-            save_settings(settings)
+            await asyncio.to_thread(save_settings, settings)
             server_voice = guild_settings.get("tts_voice", "edge_sunhi")
             voice_names = VOICE_NAMES
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"서버 기본값({voice_names.get(server_voice, server_voice)})으로 변경했어요!",
                 ephemeral=True
             )
@@ -392,12 +393,12 @@ class TTSControlView(discord.ui.View):
             if "user_voices" not in guild_settings:
                 guild_settings["user_voices"] = {}
             guild_settings["user_voices"][user_id] = selected
-            save_settings(settings)
+            await asyncio.to_thread(save_settings, settings)
             voice_names = VOICE_NAMES
 
             is_ai_voice = selected in ("debi", "marlene")
             if is_ai_voice:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"{voice_names.get(selected, selected)} 목소리로 변경했어요! AI 서버 상태를 확인하고 있어요...",
                     ephemeral=True
                 )
@@ -477,7 +478,8 @@ class TTSChannelSelectView(discord.ui.View):
         max_values=1,
     )
     async def channel_select(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect):
-        settings = load_settings()
+        await interaction.response.defer(ephemeral=True)
+        settings = await asyncio.to_thread(load_settings)
         if "guilds" not in settings:
             settings["guilds"] = {}
         if self.guild_id not in settings["guilds"]:
@@ -486,17 +488,18 @@ class TTSChannelSelectView(discord.ui.View):
         if select.values:
             channel = select.values[0]
             settings["guilds"][self.guild_id]["tts_channel_id"] = str(channel.id)
-            save_settings(settings)
-            await interaction.response.send_message(f"{channel.mention} 채널의 메시지만 읽을게요!", ephemeral=True)
+            await asyncio.to_thread(save_settings, settings)
+            await interaction.followup.send(f"{channel.mention} 채널의 메시지만 읽을게요!", ephemeral=True)
         else:
-            await interaction.response.send_message("채널을 선택해주세요.", ephemeral=True)
+            await interaction.followup.send("채널을 선택해주세요.", ephemeral=True)
             return
 
         self.stop()
 
     @discord.ui.button(label="설정 해제", style=discord.ButtonStyle.danger, row=1)
     async def clear_channel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        settings = load_settings()
+        await interaction.response.defer(ephemeral=True)
+        settings = await asyncio.to_thread(load_settings)
         if "guilds" not in settings:
             settings["guilds"] = {}
         if self.guild_id not in settings["guilds"]:
@@ -504,8 +507,8 @@ class TTSChannelSelectView(discord.ui.View):
 
         if "tts_channel_id" in settings["guilds"][self.guild_id]:
             del settings["guilds"][self.guild_id]["tts_channel_id"]
-        save_settings(settings)
-        await interaction.response.send_message("채널 설정을 해제했어요. 채널을 설정하기 전까지 메시지를 읽지 않아요.", ephemeral=True)
+        await asyncio.to_thread(save_settings, settings)
+        await interaction.followup.send("채널 설정을 해제했어요. 채널을 설정하기 전까지 메시지를 읽지 않아요.", ephemeral=True)
         self.stop()
 
     async def on_timeout(self):
@@ -542,18 +545,19 @@ class ServerVoiceSelectView(discord.ui.View):
         ]
     )
     async def voice_select(self, interaction: discord.Interaction, select: discord.ui.Select):
+        await interaction.response.defer()
         selected = select.values[0]
-        settings = load_settings()
+        settings = await asyncio.to_thread(load_settings)
         if "guilds" not in settings:
             settings["guilds"] = {}
         if self.guild_id not in settings["guilds"]:
             settings["guilds"][self.guild_id] = {}
 
         settings["guilds"][self.guild_id]["tts_voice"] = selected
-        save_settings(settings)
+        await asyncio.to_thread(save_settings, settings)
 
         voice_names = VOICE_NAMES
-        await interaction.response.edit_message(
+        await interaction.edit_original_response(
             content=f"서버 기본 목소리를 {voice_names.get(selected, selected)}(으)로 설정했어요!",
             view=None
         )

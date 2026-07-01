@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import threading
 from dotenv import load_dotenv
 
@@ -706,6 +707,24 @@ def save_global_setting(key, value):
 _SENT_IDS_KEY = "SENT_VIDEO_IDS"
 _SENT_IDS_MAX = 100
 
+# 유튜브 claim 이상(트랜잭션 실패/비원자 폴백/저장 실패)을 디스코드 웹훅으로 승격한다.
+# print 는 컨테이너 재시작 시 소실돼 '같은 영상 N개' 중복의 원인 추적을 놓친다.
+# 웹훅은 채널에 남으므로 재전송 직전(폴백 발동) 상태를 실시간 포착한다.
+_last_yt_alert = {}
+
+
+def _yt_alert(key, title, desc):
+    """유튜브 claim 경고를 웹훅으로 전송. 같은 종류는 5분에 1회로 쓰로틀(10분 사이클 스팸 방지)."""
+    now = time.time()
+    if now - _last_yt_alert.get(key, 0) < 300:
+        return
+    _last_yt_alert[key] = now
+    try:
+        from run.services.webhook_logger import send_sync
+        send_sync(title, desc, color=0xE67E22)
+    except Exception:
+        pass
+
 
 def claim_video_id(video_id, video_title=None):
     """video_id 를 '전송함' 집합(SENT_VIDEO_IDS)에 원자적으로 추가하고 신규 여부를 반환.
@@ -750,6 +769,12 @@ def claim_video_id(video_id, video_title=None):
                 return _claim(fs.transaction())
             except Exception as e:
                 print(f"[Firestore 경고] claim_video_id 트랜잭션 실패: {e}", flush=True)
+                _yt_alert(
+                    "tx_fail",
+                    "[유튜브 경고] claim 트랜잭션 실패",
+                    f"Firestore 원자 claim 트랜잭션이 실패해 비원자 폴백으로 전환됩니다. **중복 위험.**\n"
+                    f"video_id=`{video_id}`\n에러: {type(e).__name__}: {e}",
+                )
                 # 트랜잭션 실패 시 아래 비원자 경로로 폴백
 
     # gcs / 폴백: 단일 프로세스 가정의 read-then-write (원자성 보장 없음).
@@ -758,6 +783,12 @@ def claim_video_id(video_id, video_title=None):
     if SETTINGS_BACKEND in ('firestore', 'dual'):
         print(f"[유튜브 경고] claim_video_id 비원자 폴백 사용 — Firestore 원자 claim 불가, "
               f"중복 위험 상태. video_id={video_id}", flush=True)
+        _yt_alert(
+            "nonatomic_fallback",
+            "[유튜브 경고] 비원자 폴백 claim",
+            f"Firestore 원자 claim 불가 → 비원자 read-then-write 폴백. **중복 위험 상태.**\n"
+            f"video_id=`{video_id}`",
+        )
     settings = load_settings(force_reload=True)
     if "global" not in settings:
         settings["global"] = {}
@@ -778,6 +809,12 @@ def claim_video_id(video_id, video_title=None):
     if not saved:
         print(f"[유튜브 오류] SENT_VIDEO_IDS 저장 실패 → 전송 스킵(fail-closed)으로 재전송 폭주 차단. "
               f"video_id={video_id}", flush=True)
+        _yt_alert(
+            "save_fail",
+            "[유튜브 오류] SENT_VIDEO_IDS 저장 실패",
+            f"저장 실패 → 이번 전송 스킵(fail-closed). 저장소 복구 시 다음 사이클에 정상 전송됩니다.\n"
+            f"video_id=`{video_id}`",
+        )
         return False
     return True
 

@@ -428,7 +428,9 @@ async def _background_init():
     # TTS 서비스 초기화 (unified만)
     if not _is_solo:
         try:
-            tts_engine = os.environ.get("TTS_ENGINE", "modal")
+            # 데비/마를렌은 get_tts_service 에서 CosyVoice3 로 고정 초기화된다.
+            # (env TTS_ENGINE 은 초기화 엔진과 무관 — 표시를 실제 엔진에 맞춘다.)
+            tts_engine = "cosyvoice3"
             print(f"[TTS] 초기화 시작 (엔진: {tts_engine})...", flush=True)
             from run.cogs.voice import get_tts_service
             await get_tts_service("debi")

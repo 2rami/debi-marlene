@@ -4,6 +4,7 @@
 Discord 봇의 모든 명령어 사용 내역을 GCS에 기록합니다.
 """
 
+import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any
 
@@ -48,7 +49,7 @@ async def log_command_usage(
             "args": args or {}
         }
 
-        config.save_command_log(log_entry)
+        await asyncio.to_thread(config.save_command_log, log_entry)
 
     except Exception as e:
         # 로깅 실패해도 명령어 실행에는 영향 없도록

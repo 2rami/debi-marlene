@@ -131,30 +131,16 @@ async def _send_notification(channel_or_user, video_id, snippet, is_shorts=None)
         sent_message = await channel_or_user.send(video_url)
         await channel_or_user.send(embed=embed)
 
-        # User에게 DM을 보낸 경우, 채널 정보를 GCS에 저장
+        # User에게 DM을 보낸 경우 채널 정보 저장 — users 단일 문서만 atomic 갱신.
+        # 전체 save_settings 는 global(SENT_VIDEO_IDS 등)을 stale 캐시로 덮어써
+        # 방금 claim 한 영상을 롤백시켜 다음 사이클 재전송을 유발했다.
         if isinstance(channel_or_user, (discord.User, discord.Member)) and sent_message:
             try:
-                from datetime import datetime
                 user_name = channel_or_user.display_name or channel_or_user.global_name or channel_or_user.name
-                user_id = str(channel_or_user.id)
-                channel_id = str(sent_message.channel.id)
-
-                # settings.json에 DM 채널 정보 저장
-                settings = await asyncio.to_thread(config.load_settings)
-                if 'users' not in settings:
-                    settings['users'] = {}
-
-                if user_id not in settings['users']:
-                    settings['users'][user_id] = {}
-
-                # DM 채널 정보 업데이트
-                settings['users'][user_id]['dm_channel_id'] = channel_id
-                settings['users'][user_id]['user_name'] = user_name
-                settings['users'][user_id]['last_dm'] = datetime.now().isoformat()
-
-                # GCS에 저장
-                await asyncio.to_thread(config.save_settings, settings)
-                print(f"  -> [저장] DM 채널 정보 GCS에 저장: {user_name} ({channel_id})")
+                await asyncio.to_thread(
+                    config.save_user_dm_interaction,
+                    str(channel_or_user.id), str(sent_message.channel.id), user_name,
+                )
             except Exception as save_error:
                 print(f"  -> [경고] DM 채널 정보 저장 실패 (메시지는 전송됨): {save_error}")
 

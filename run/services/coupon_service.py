@@ -214,11 +214,12 @@ class CouponService:
             is_first_run = self._last_hash is None
             self._last_hash = current_hash
 
-            # GCS에 쿠폰 데이터 저장
-            settings = await asyncio.to_thread(config.load_settings, True)
-            settings.setdefault("global", {})["coupons"] = coupons
-            settings["global"]["coupons_hash"] = current_hash
-            await asyncio.to_thread(config.save_settings, settings, True)
+            # 쿠폰 데이터 저장 — global 단일 필드 atomic. 전체 save_settings 는
+            # global 문서를 통째로 덮어써 SENT_VIDEO_IDS 등을 stale 값으로 롤백시킨다.
+            # coupons 를 먼저, hash 를 나중에 저장해 중간 실패 시 다음 사이클이
+            # hash 불일치로 재감지·재저장하게 한다(coupons 만 새것/hash 옛것 = 안전).
+            await asyncio.to_thread(config.save_global_setting, "coupons", coupons)
+            await asyncio.to_thread(config.save_global_setting, "coupons_hash", current_hash)
 
             # 첫 실행이어도 메시지가 없는 채널에는 전송
             if is_first_run:

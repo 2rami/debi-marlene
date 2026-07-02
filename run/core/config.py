@@ -133,7 +133,14 @@ def _fs_load_all_settings():
 
 
 def _fs_save_all_settings(settings):
-    """레거시 dict 를 3컬렉션으로 분산 저장. batch 로 부분 atomicity 보장."""
+    """레거시 dict 를 guilds/users 컬렉션으로 분산 저장. batch 로 부분 atomicity 보장.
+
+    global/settings 문서는 여기서 저장하지 않는다 — SENT_VIDEO_IDS·coupons·
+    last_patchnote_id 같은 누적 상태가 한 문서에 공존하는데, 전체저장(merge=False)이
+    stale 캐시로 통째 덮으면 방금 claim/저장한 값이 롤백된다(유튜브 같은 영상 재전송의
+    근본 원인). global 필드는 save_global_setting / claim_video_id 트랜잭션 등
+    단일 필드 merge 경로로만 저장한다.
+    """
     fs = get_firestore_client()
     if not fs:
         return False
@@ -141,7 +148,6 @@ def _fs_save_all_settings(settings):
     try:
         guilds = settings.get('guilds', {}) or {}
         users = settings.get('users', {}) or {}
-        global_settings = settings.get('global', {}) or {}
 
         # Firestore batch 한 번에 500 op 제한 → chunk 단위로 split
         all_ops = []
@@ -151,8 +157,6 @@ def _fs_save_all_settings(settings):
         for uid, udata in users.items():
             if isinstance(udata, dict):
                 all_ops.append(('users', str(uid), udata))
-        if global_settings:
-            all_ops.append(('global', 'settings', global_settings))
 
         # 500 op 단위 batch 분할 (set with merge)
         for i in range(0, len(all_ops), 450):
@@ -790,22 +794,27 @@ def claim_video_id(video_id, video_title=None):
             f"video_id=`{video_id}`",
         )
     settings = load_settings(force_reload=True)
-    if "global" not in settings:
-        settings["global"] = {}
-    sent = settings["global"].get(_SENT_IDS_KEY) or []
+    sent = (settings.get("global") or {}).get(_SENT_IDS_KEY) or []
     if video_id in sent:
         return False
     sent.append(video_id)
-    settings["global"][_SENT_IDS_KEY] = sent[-_SENT_IDS_MAX:]
-    settings["global"]["LAST_CHECKED_VIDEO_ID"] = video_id
+    fields = {
+        _SENT_IDS_KEY: sent[-_SENT_IDS_MAX:],
+        "LAST_CHECKED_VIDEO_ID": video_id,
+    }
     if video_title:
-        settings["global"]["LAST_CHECKED_VIDEO_TITLE"] = video_title
+        fields["LAST_CHECKED_VIDEO_TITLE"] = video_title
     # 저장이 실제로 성공했을 때만 claim 을 인정한다. 저장 실패인데 True 를 돌려주면
     # SENT_VIDEO_IDS 에 영상이 남지 않아 다음 10분 사이클이 같은 영상을 신규로 오인해
     # 재전송한다 — '같은 영상 N개' 중복 알림의 핵심 원인. 저장 실패 시 False(=이번엔 스킵)
     # 로 fail-closed 하고, 저장소가 복구되면 다음 사이클에 정상 claim + 전송된다.
     # 누락 1회가 중복 N회보다 안전하다.
-    saved = save_settings(settings)
+    # global 은 전체 save_settings 가 저장하지 않으므로 단일 필드 merge 로 명시 저장한다.
+    if SETTINGS_BACKEND in ('firestore', 'dual'):
+        saved = _fs_update_global(fields)
+    else:
+        settings.setdefault("global", {}).update(fields)
+        saved = save_settings(settings)
     if not saved:
         print(f"[유튜브 오류] SENT_VIDEO_IDS 저장 실패 → 전송 스킵(fail-closed)으로 재전송 폭주 차단. "
               f"video_id={video_id}", flush=True)

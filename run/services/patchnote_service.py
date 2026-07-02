@@ -95,13 +95,13 @@ class PatchNoteChecker:
             return None
 
     async def save_last_patchnote_id(self, patchnote_id):
-        """GCS에 마지막으로 확인한 패치노트 ID를 저장합니다."""
+        """마지막으로 확인한 패치노트 ID를 저장합니다 (global 단일 필드 atomic).
+
+        전체 save_settings 는 global 문서를 통째로 덮어써 SENT_VIDEO_IDS 등
+        다른 누적 상태를 stale 값으로 롤백시킨다. 단일 필드만 merge 한다.
+        """
         try:
-            settings = await asyncio.to_thread(config.load_settings)
-            if "global" not in settings:
-                settings["global"] = {}
-            settings["global"]["last_patchnote_id"] = patchnote_id
-            await asyncio.to_thread(config.save_settings, settings)
+            await asyncio.to_thread(config.save_global_setting, "last_patchnote_id", patchnote_id)
         except Exception as e:
             print(f"[패치노트] 마지막 ID 저장 실패: {e}", flush=True)
 

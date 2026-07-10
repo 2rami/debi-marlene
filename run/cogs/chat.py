@@ -380,6 +380,23 @@ class ChatCog(commands.Cog, name="대화"):
         # 3초 내 응답 필수 → defer로 "생각 중" 표시
         await interaction.response.defer()
 
+        # DM에서 /대화 사용 시 웹패널 DM 목록에 뜨도록 사용자 정보 저장.
+        # 슬래시는 interaction이라 on_message를 트리거하지 않아
+        # save_user_dm_interaction(bot.py on_message)이 호출되지 않는다.
+        # → 저장 안 하면 Firestore users에 등록이 안 돼 웹패널 DM 대화내역에 유저가 안 뜬다.
+        if guild_id is None and interaction.channel_id:
+            try:
+                import asyncio as _aio
+                from run.core import config as _cfg
+                await _aio.to_thread(
+                    _cfg.save_user_dm_interaction,
+                    interaction.user.id,
+                    interaction.channel_id,
+                    interaction.user.display_name,
+                )
+            except Exception as e:
+                logger.warning("DM 사용자 정보 저장 실패: %s", e)
+
         try:
             await log_command_usage(
                 "대화", interaction.user.id, interaction.user.display_name,

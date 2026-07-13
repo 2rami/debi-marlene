@@ -5,8 +5,10 @@ Flask API server for Discord bot dashboard
 
 import os
 import logging
+from datetime import timedelta
 from flask import Flask, jsonify
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 
 # Load environment variables BEFORE importing routes
@@ -33,10 +35,18 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'debi-marlene-dashboard-secret-key')
 
+# nginx/Cloudflare 뒤에서 실제 스킴/호스트(X-Forwarded-*)를 신뢰하도록.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
 # Session configuration
+# SameSite=Lax: SPA 와 /api 가 동일 출처(nginx 프록시)이고, OAuth 콜백은 top-level 리다이렉트라
+#               쿠키 세팅/재전송 모두 커버됨.
+# Secure: 프로덕션(HTTPS)에서만. 로컬 개발(http)에서 True 면 쿠키가 유실돼 무한로그인 발생.
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLASK_ENV') != 'development'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
+# session.permanent=True 일 때 쿠키 만료 기간. 이 값이 있어야 세션 전용 쿠키가 아닌 영속 쿠키가 됨.
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 # CORS configuration
 CORS(app,

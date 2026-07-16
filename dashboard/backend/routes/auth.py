@@ -40,12 +40,14 @@ def discord_callback():
     error = request.args.get('error')
 
     if error or not code:
-        return redirect(f'{FRONTEND_URL}/?error=oauth_failed')
+        return redirect('/?error=oauth_failed')
 
     success = _exchange_and_login(code)
     if success:
-        return redirect(f'{FRONTEND_URL}/dashboard')
-    return redirect(f'{FRONTEND_URL}/?error=oauth_failed')
+        # 상대 경로 리다이렉트 — 쿠키를 세팅한 바로 그 호스트에 그대로 머무름.
+        # FRONTEND_URL 이 www/apex 등 다른 호스트를 가리키면 쿠키가 유실돼 무한로그인 발생.
+        return redirect('/dashboard')
+    return redirect('/?error=oauth_failed')
 
 @auth_bp.route('/exchange', methods=['POST'])
 def exchange_code():
@@ -104,7 +106,8 @@ def _exchange_and_login(code):
             if (int(g.get('permissions', 0)) & 0x8) == 0x8
         ]
 
-        # Store in session
+        # Store in session — permanent 으로 만들어 브라우저 세션 종료/리다이렉트 체인에도 살아남게 함
+        session.permanent = True
         session['user'] = {
             'id': user_data['id'],
             'username': user_data['username'],

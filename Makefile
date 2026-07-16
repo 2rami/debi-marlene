@@ -127,7 +127,7 @@ deploy-webpanel-backend-quick:
 	@gcloud compute scp ./wb-quick.tar.gz $(VM_NAME):~/wb-quick.tar.gz --zone=$(ZONE)
 	@echo "[2/3] 컨테이너에 복사 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p ~/wb-quick && tar -xzf ~/wb-quick.tar.gz -C ~/wb-quick && sudo -u 2rami docker cp ~/wb-quick/webpanel/backend/. webpanel-backend:/app/backend/ && sudo -u 2rami docker cp ~/wb-quick/run/. webpanel-backend:/app/run/ && rm -rf ~/wb-quick ~/wb-quick.tar.gz"
+		--command="sudo rm -rf /tmp/wb-quick && mkdir -p /tmp/wb-quick && tar -xzf ~/wb-quick.tar.gz -C /tmp/wb-quick && chmod -R 755 /tmp/wb-quick && sudo -u 2rami docker cp /tmp/wb-quick/webpanel/backend/. webpanel-backend:/app/backend/ && sudo -u 2rami docker cp /tmp/wb-quick/run/. webpanel-backend:/app/run/ && sudo rm -rf /tmp/wb-quick ~/wb-quick.tar.gz"
 	@echo "[3/3] 컨테이너 재시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="sudo -u 2rami docker restart webpanel-backend"
@@ -266,7 +266,7 @@ start-dashboard:
 		--command="sudo -u 2rami docker pull $(DASHBOARD_IMAGE_TAG) && sudo -u 2rami docker image prune -af"
 	@echo "대시보드 컨테이너 시작 중..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker run -d --name $(DASHBOARD_CONTAINER) --network dashboard-net -p 3080:80 --env-file ~/dashboard.env --restart unless-stopped $(DASHBOARD_IMAGE_TAG)"
+		--command="sudo -u 2rami docker run -d --name $(DASHBOARD_CONTAINER) --network dashboard-net -p 3080:80 --env-file /home/2rami/dashboard.env --restart unless-stopped $(DASHBOARD_IMAGE_TAG)"
 	@echo "대시보드 시작 완료"
 
 # 대시보드 로그
@@ -321,7 +321,7 @@ deploy-dashboard-backend:
 	@gcloud compute scp --recurse run $(VM_NAME):~/dashboard-run-upload --zone=$(ZONE)
 	@echo "[2/3] 컨테이너에 복사..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker cp ~/dashboard-backend-upload/. $(DASHBOARD_CONTAINER):/app/backend/ && sudo -u 2rami docker cp ~/dashboard-run-upload/. $(DASHBOARD_CONTAINER):/app/run/ && rm -rf ~/dashboard-backend-upload ~/dashboard-run-upload"
+		--command="sudo rm -rf /tmp/dash-backend-upload /tmp/dash-run-upload && sudo mv ~/dashboard-backend-upload /tmp/dash-backend-upload && sudo mv ~/dashboard-run-upload /tmp/dash-run-upload && sudo chmod -R 755 /tmp/dash-backend-upload /tmp/dash-run-upload && sudo -u 2rami docker cp /tmp/dash-backend-upload/. $(DASHBOARD_CONTAINER):/app/backend/ && sudo -u 2rami docker cp /tmp/dash-run-upload/. $(DASHBOARD_CONTAINER):/app/run/ && sudo rm -rf /tmp/dash-backend-upload /tmp/dash-run-upload"
 	@echo "[3/3] gunicorn 재시작..."
 	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
 		--command="sudo -u 2rami docker exec $(DASHBOARD_CONTAINER) supervisorctl restart gunicorn"

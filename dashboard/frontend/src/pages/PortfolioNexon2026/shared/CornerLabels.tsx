@@ -8,9 +8,11 @@ import useIsMobile from './useIsMobile'
  * 모바일에선 정체성 라벨만 작게, CTA(GO TO BOT)는 본문 우선이라 숨김.
  */
 export default function CornerLabels({
+  label = 'NEXON · LLM EVAL',
   ctaLabel = 'GO TO PROJECT',
   ctaHref = 'https://github.com/2rami/debi-marlene',
 }: {
+  label?: string
   ctaLabel?: string
   ctaHref?: string
 }) {
@@ -41,7 +43,7 @@ export default function CornerLabels({
             textTransform: 'uppercase',
           }}
         >
-          NEXON · LLM EVAL
+          {label}
         </span>
       </div>
 

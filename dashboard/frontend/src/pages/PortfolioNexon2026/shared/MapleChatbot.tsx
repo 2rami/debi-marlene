@@ -121,8 +121,12 @@ function fakeReply(prompt: string): string {
 
 export default function MapleChatbot({
   hash = DEFAULT_HASH,
+  intro = '안녕하세요! 저는 디지털 클론 양건호입니다. 저에 대해 궁금한 점이 있으신가요?',
+  roam = true,
 }: {
   hash?: string
+  intro?: string
+  roam?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -130,7 +134,7 @@ export default function MapleChatbot({
     {
       id: 'init',
       role: 'agent',
-      text: '안녕하세요! 저는 디지털 클론 양건호입니다. 저에 대해 궁금한 점이 있으신가요?',
+      text: intro,
     },
   ])
   const [input, setInput] = useState('')
@@ -255,9 +259,21 @@ export default function MapleChatbot({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  // 테두리 걷기 로직 (bottom edge) — 도킹 중엔 정지
+  // 슬라이드덱 등 고정 뷰용 — roam=false 면 배회 없이 우하단 코너에 고정.
+  // 배회 useEffect 가 early-return 되어 초기 배치를 안 하므로 여기서 직접 세팅.
   useEffect(() => {
-    if (open || isDragging || reduced || dockEl) return;
+    if (roam || open || isDragging || dockEl) return
+    const x = viewport.w - MARGIN - CHAR_SIZE
+    const y = viewport.h - MARGIN - CHAR_SIZE
+    controls.set({ x, y, scale: 1, opacity: 1 })
+    currentXRef.current = x
+    lastDragPosRef.current = { x, y }
+    firstRunRef.current = false
+  }, [roam, open, isDragging, dockEl, viewport.w, viewport.h, controls])
+
+  // 테두리 걷기 로직 (bottom edge) — 도킹 중엔 정지. roam=false 면 배회 안 함.
+  useEffect(() => {
+    if (open || isDragging || reduced || dockEl || !roam) return;
 
     let cancelled = false;
     
@@ -752,6 +768,30 @@ export default function MapleChatbot({
     },
     [loading]
   )
+
+  // 섹션↔캐릭터 브릿지 — 슬라이드덱은 window 스크롤이 없어 말풍선 자동 전환이 죽는다.
+  // 외부(PageFrontendDeck)가 현재 섹션 대사/질문을 이벤트로 주입한다.
+  useEffect(() => {
+    const onSay = (e: Event) => {
+      const text = (e as CustomEvent).detail?.text
+      if (!text) return
+      keyboardHintRef.current = false
+      if (dockEl) return // 도킹 중엔 dock 전용 버블 유지
+      setBubbleText(text)
+    }
+    const onAsk = (e: Event) => {
+      const prompt = (e as CustomEvent).detail?.prompt
+      if (!prompt) return
+      setOpen(true)
+      send(prompt)
+    }
+    window.addEventListener('nexon:char-say', onSay)
+    window.addEventListener('nexon:char-ask', onAsk)
+    return () => {
+      window.removeEventListener('nexon:char-say', onSay)
+      window.removeEventListener('nexon:char-ask', onAsk)
+    }
+  }, [send, dockEl])
 
   function onKey(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {

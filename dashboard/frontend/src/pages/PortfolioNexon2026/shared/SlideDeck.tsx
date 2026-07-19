@@ -18,7 +18,7 @@ export interface Slide {
   substeps?: number
 }
 
-export default function SlideDeck({ slides, accent = ACCENT }: { slides: Slide[]; accent?: string }) {
+export default function SlideDeck({ slides, accent = ACCENT, onIndexChange }: { slides: Slide[]; accent?: string; onIndexChange?: (i: number) => void }) {
   const [index, setIndex] = useState(0)
   const [subProgress, setSubProgress] = useState(0)
   const lock = useRef(false)
@@ -26,6 +26,9 @@ export default function SlideDeck({ slides, accent = ACCENT }: { slides: Slide[]
   const scrollerRef = useRef<HTMLDivElement>(null)
   const lastDir = useRef(1)
   const total = slides.length
+
+  // 슬라이드 전환을 외부에 알림 — 캐릭터 말풍선 등 섹션 연동용
+  useEffect(() => { onIndexChange?.(index) }, [index, onIndexChange])
 
   useEffect(() => {
     const el = scrollerRef.current

@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
@@ -32,6 +32,8 @@ import PortfolioNimbleNeuronPrint from './pages/PortfolioNimbleNeuronPrint'
 import PortfolioSmilegate from './pages/PortfolioSmilegate'
 import PortfolioSmilegateCompare from './pages/PortfolioSmilegateCompare'
 import PageLLM from './pages/PortfolioNexon2026/PageLLM'
+import PageFrontend from './pages/PortfolioNexon2026/PageFrontend'
+import PageFrontendDeck from './pages/PortfolioNexon2026/PageFrontendDeck'
 import PageService from './pages/PortfolioNexon2026/PageService'
 import PageQA from './pages/PortfolioNexon2026/PageQA'
 import PageMotionCatalog from './pages/PortfolioNexon2026/PageMotionCatalog'
@@ -123,7 +125,9 @@ function App() {
           <Route path="/portfolio/nimble-neuron/print" element={<PortfolioNimbleNeuronPrint />} />
           <Route path="/portfolio/smilegate" element={<PortfolioSmilegate />} />
           <Route path="/portfolio/smilegate-compare" element={<PortfolioSmilegateCompare />} />
-          <Route path="/portfolio/nexon" element={<PageLLM />} />
+          <Route path="/portfolio/nexon" element={<Navigate to="/portfolio/nexon/frontend" replace />} />
+          <Route path="/portfolio/nexon/frontend" element={<PageFrontendDeck />} />
+          <Route path="/portfolio/nexon/frontend-scroll" element={<PageFrontend />} />
           <Route path="/portfolio/nexon/llm" element={<PageLLM />} />
           <Route path="/portfolio/nexon/service" element={<PageService />} />
           <Route path="/portfolio/nexon/qa" element={<PageQA />} />

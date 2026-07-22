@@ -40,6 +40,7 @@ import PageMotionCatalog from './pages/PortfolioNexon2026/PageMotionCatalog'
 import PageSionic from './pages/PortfolioNexon2026/PageSionic'
 import PageKokone from './pages/PortfolioNexon2026/PageKokone'
 import Feed from './pages/Feed'
+import WhoAmI from './pages/WhoAmI'
 import NotFound from './pages/NotFound'
 
 function ScrollToTop() {
@@ -120,6 +121,7 @@ function App() {
           <Route path="/payment/topup/success" element={<TopupSuccess />} />
           <Route path="/payment/topup/fail" element={<TopupFail />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/whoami" element={<WhoAmI />} />
           <Route path="/portfolio/krafton" element={<PortfolioKrafton />} />
           <Route path="/portfolio/nimble-neuron" element={<PortfolioNimbleNeuron />} />
           <Route path="/portfolio/nimble-neuron/print" element={<PortfolioNimbleNeuronPrint />} />

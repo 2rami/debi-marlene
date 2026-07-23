@@ -123,10 +123,12 @@ export default function MapleChatbot({
   hash = DEFAULT_HASH,
   intro = '안녕하세요! 저는 디지털 클론 양건호입니다. 저에 대해 궁금한 점이 있으신가요?',
   roam = true,
+  chips = PROMPT_CHIPS,
 }: {
   hash?: string
   intro?: string
   roam?: boolean
+  chips?: readonly string[]
 }) {
   const [open, setOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -1030,7 +1032,7 @@ export default function MapleChatbot({
                   initial={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0, padding: 0 }}
                 >
-                  {PROMPT_CHIPS.map((p) => (
+                  {chips.map((p) => (
                     <button
                       key={p}
                       onClick={() => send(p)}

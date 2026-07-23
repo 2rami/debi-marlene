@@ -8,11 +8,13 @@ import scUrl from '../assets/games/starcraft-box.jpg'
 import wowUrl from '../assets/games/wow.png'
 import loaUrl from '../assets/games/lostark-poster.jpg'
 import zutoBannerUrl from '../assets/whoami/subculture-zutomayo-banner.jpg'
-import zutoLiveUrl from '../assets/whoami/subculture-zutomayo-live.jpg'
 import snowboardUrl from '../assets/whoami/snowboard.jpg'
 import shotDebiUrl from '../assets/whoami/proj-debimarlene.png'
 import shotKasaUrl from '../assets/whoami/proj-kasaterm.png'
 import shotAiUrl from '../assets/whoami/proj-aipipeline.png'
+import nowSionicUrl from '../assets/whoami/now-sionic.png'
+import stackKasaLiveUrl from '../assets/whoami/stack-kasaterm.png'
+import MapleChatbot from './PortfolioNexon2026/shared/MapleChatbot'
 
 /**
  * Goenho 자기소개 — 공개 라우트 /whoami. 사이트 전역 스타일/테마와 격리된
@@ -22,15 +24,6 @@ import shotAiUrl from '../assets/whoami/proj-aipipeline.png'
 const REDUCE =
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-/* ---------- nexon maple character (same one that powers the nexon portfolio chatbot) ---------- */
-const NEXON_LOOK_BASE = 'https://open.api.nexon.com/static/maplestory/character/look'
-const MAPLE_HASH =
-  'MDJEJPMDEMDJHNEBBNNMJECMFOIONCHJIBOCJJPBFCKNKIGKBBENDHPPFHLIDKILPPFEBOKAIFAAKEJLHEFKOHJLCMDDILIMKIMBGIMEHGCPBKLEPJLPEDJJNJJCAGDEJHMAAOGLLFGLBMMHDNCPPFLPPCPACKODADBBKKEGDIGMKDHJALDIDBOBMGMPMKNJMJNENGMFMPONCFMLNIDJMFAHPNKMBCPEILEMDIDFDFBHNAPPHMPEKIMKNCJAOOIB'
-const mapleWalkUrl = (frame: number) =>
-  `${NEXON_LOOK_BASE}/${MAPLE_HASH}?wmotion=W01&emotion=E00&action=A02.${frame}`
-const mapleIdleUrl = () =>
-  `${NEXON_LOOK_BASE}/${MAPLE_HASH}?wmotion=W00&emotion=E00&action=A00`
 
 /* ---------- icons ---------- */
 type IcoProps = SVGProps<SVGSVGElement> & { children: ReactNode; fill?: string }
@@ -66,9 +59,9 @@ type Project = { idx: string; name: string; status: string; live: boolean; href:
 type Contact = { label: string; href: string; icon: ReactNode; text: string; external: boolean }
 
 const PHRASES = [
-  '디자인하는 개발자',
-  '혼자 제품을 끝까지 만드는 사람',
-  'AI로 아이디어를 물건으로',
+  'AI Native Engineer',
+  'Sionic AI · 리서치팀',
+  '재밌는 걸 만드는 사람',
   'design × development × AI',
 ]
 
@@ -123,6 +116,7 @@ const GAMES = [
 ]
 
 const CONTACTS: Contact[] = [
+  { label: 'work', href: 'mailto:2rami@sioni.ai', icon: <IconMail />, text: '2rami@sioni.ai', external: false },
   { label: 'email', href: 'mailto:goenho0613@gmail.com', icon: <IconMail />, text: 'goenho0613@gmail.com', external: false },
   { label: 'github', href: 'https://github.com/2rami', icon: <IconGithub />, text: 'github.com/2rami', external: true },
   { label: 'web', href: 'https://debimarlene.com', icon: <IconGlobe />, text: 'debimarlene.com', external: true },
@@ -150,26 +144,6 @@ function useTyping(phrases: string[]): string {
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
-
-/* roaming maple character — cycles the nexon look walk frames while CSS drifts it across the floor */
-function RoamingMapleChar() {
-  const [frame, setFrame] = useState(0)
-  useEffect(() => {
-    for (let f = 0; f < 4; f++) { const im = new Image(); im.src = mapleWalkUrl(f) }
-    if (REDUCE) return
-    const id = window.setInterval(() => setFrame((f) => (f + 1) % 4), 150)
-    return () => window.clearInterval(id)
-  }, [])
-  return (
-    <img
-      className="roam-char"
-      src={REDUCE ? mapleIdleUrl() : mapleWalkUrl(frame)}
-      alt="메이플 프로즌샤 — 넥슨 포트폴리오 챗봇의 그 캐릭터"
-      draggable={false}
-      onError={(e) => { const t = e.currentTarget; if (!t.src.includes('W00')) t.src = mapleIdleUrl() }}
-    />
-  )
-}
 
 /* ---------- page ---------- */
 export default function WhoAmI() {
@@ -199,7 +173,12 @@ export default function WhoAmI() {
   useEffect(() => {
     const NEXT = [' ', 'ArrowRight', 'ArrowDown', 'PageDown']
     const PREV = ['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace']
+    // games 슬라이드(4)에선 ←→·Space 를 캐릭터 조작(MapleChatbot)에 양보 — 슬라이드 이동은 ↑↓·PageUp/Down
+    const CHAR_KEYS = ['ArrowLeft', 'ArrowRight', ' ']
     const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      if (i === 4 && CHAR_KEYS.includes(e.key)) return
       if (NEXT.includes(e.key)) { e.preventDefault(); next() }
       else if (PREV.includes(e.key)) { e.preventDefault(); prev() }
       else if (e.key === 'Home') { e.preventDefault(); go(0) }
@@ -208,7 +187,7 @@ export default function WhoAmI() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [next, prev, go])
+  }, [next, prev, go, i])
 
   // click empty deck area to advance; links/buttons keep their own behavior
   const onDeckClick = (e: MouseEvent<HTMLDivElement>) => {
@@ -246,9 +225,9 @@ export default function WhoAmI() {
               <h1 className="hero-name reveal" data-d="1">Goenho<span className="surname">.</span></h1>
               <div className="typed-wrap reveal" data-d="2"><span className="typed">{typed}</span><span className="caret" /></div>
               <div className="hero-meta reveal" data-d="3">
-                <span><IconPin />Seoul</span>
-                <span><IconCal />2026.07 — Sionic AI</span>
-                <span><IconBranch />design × dev × AI</span>
+                <span><IconPin />Seoul · Sionic AI</span>
+                <span><IconCal />2026.07 — 리서치팀</span>
+                <span><IconBranch />AI Native Engineer Fellowship</span>
               </div>
             </div>
           </div>
@@ -257,36 +236,36 @@ export default function WhoAmI() {
           <div className={cls(1)} id="about">
             <div className="wrap">
               <div className="eyebrow reveal">01 — about</div>
-              <h2 className="reveal" data-d="1">경계에서 혼자<br />끝까지 만드는 사람.</h2>
+              <h2 className="reveal" data-d="1">재밌는 걸 만드는 게<br />제일 좋아요.</h2>
               <div className="about-body">
                 <p className="reveal" data-d="2">
-                  디자인과 개발 사이 어딘가에서 일해요. 화면을 그리고, 그걸 직접 코드로 옮기고,
-                  서버에 올려서 <strong>실제 사용자에게 닿는 데까지</strong> 혼자 끌고 가는 걸 좋아합니다.
+                  안녕하세요. Sionic AI <strong>리서치팀</strong>에 <strong>AI Native Engineer Fellowship</strong>으로
+                  합류한 <strong>양건호</strong>입니다. 디자인과 개발 사이 어딘가에서, 아이디어를 붙잡으면
+                  어떻게든 돌아가는 물건으로 만들어내는 걸 좋아해요.
                 </p>
                 <p className="reveal" data-d="2">
-                  요즘은 AI를 그림 도구가 아니라 <strong>제품을 완성시키는 파이프라인</strong>으로 씁니다.
+                  AI는 그림 도구가 아니라 <strong>제품을 완성시키는 파이프라인</strong>으로 씁니다.
                   디스코드 봇부터 터미널 UI, 크리에이티브 워크플로우까지 —
-                  아이디어를 붙잡으면 어떻게든 돌아가는 물건으로 만들어내는 게 재미예요.
-                  특히 <strong>여러 개의 에이전트가 한 화면에서 동시에 돌아가는 걸 구경할 때</strong>가 제일 짜릿하고요.
+                  <strong>여러 에이전트가 한 화면에서 동시에 돌아가는 걸 구경할 때</strong>가 제일 짜릿하고요.
                 </p>
                 <p className="reveal" data-d="3">
-                  그리고 오늘, 그 방식을 제대로 해보려고 <strong>Sionic AI</strong>에 합류했습니다.
+                  지금은 <strong>세민님(정세민)</strong>이랑 슬랙에서 붙어서, 계속 재밌는 걸 만들고 있어요.
                 </p>
               </div>
               <div className="facts reveal" data-d="3">
-                <span className="fact"><b>2rami</b> on github</span>
+                <span className="fact"><b>Research</b> · Sionic AI</span>
                 <span className="fact">first job · <b>AI-Native</b></span>
-                <span className="fact">solo builder</span>
-                <span className="fact">ship &gt; perfect</span>
+                <span className="fact"><b>2rami</b> on github</span>
+                <span className="fact">fun &gt; perfect</span>
               </div>
               <div className="about-gallery reveal" data-d="4">
+                <figure className="about-photo about-photo-wide">
+                  <img src={nowSionicUrl} alt="Sionic AI 픽셀 오피스 — 지금 만들고 있는 것" loading="lazy" draggable={false} />
+                  <figcaption>지금 · 세민님과 빌드 중</figcaption>
+                </figure>
                 <figure className="about-photo">
                   <img src={zutoBannerUrl} alt="ZUTOMAYO 서울 공연 현장" loading="lazy" draggable={false} />
                   <figcaption>ZUTOMAYO · 서울</figcaption>
-                </figure>
-                <figure className="about-photo">
-                  <img src={zutoLiveUrl} alt="ZUTOMAYO 공연 관람" loading="lazy" draggable={false} />
-                  <figcaption>라이브 · 응원봉</figcaption>
                 </figure>
                 <figure className="about-photo">
                   <img src={snowboardUrl} alt="스노보드 타는 Goenho" loading="lazy" draggable={false} />
@@ -328,6 +307,14 @@ export default function WhoAmI() {
             <div className="wrap">
               <div className="eyebrow reveal">03 — toolbox</div>
               <h2 className="reveal" data-d="1">이걸로 만들어요.</h2>
+              <p className="interest-lead reveal" data-d="2">
+                직접 만든 터미널 <strong>kasaterm</strong> 위에서 <strong>Claude Code</strong>를 주력으로 씁니다.
+                사실 개발 시작한 지 얼마 안 됐어요 — 아직 모르는 게 많으니, <strong>많이 가르쳐 주시면 감사하겠습니다.</strong>
+              </p>
+              <figure className="stack-shot reveal" data-d="2">
+                <img src={stackKasaLiveUrl} alt="직접 만든 터미널 kasaterm에서 여러 Claude Code 세션을 동시에 돌리는 화면" draggable={false} />
+                <figcaption>kasaterm · 여러 Claude Code 세션을 한 화면에서</figcaption>
+              </figure>
               <div className="stack-grid">
                 {STACK.map((c, idx) => (
                   <div className="stack-col reveal" data-d={Math.min(idx + 1, 4)} key={c.key}>
@@ -339,7 +326,7 @@ export default function WhoAmI() {
             </div>
           </div>
 
-          {/* GAMES — 관심사 선언 + 정적 게임 그리드 + 배회하는 넥슨 챗봇 캐릭터 */}
+          {/* GAMES — 관심사 선언 + 정적 게임 그리드 (넥슨 챗봇 캐릭터는 페이지 레벨에서 배회) */}
           <div className={cls(4)} id="games">
             <div className="wrap">
               <div className="eyebrow reveal">04 — off the clock</div>
@@ -357,9 +344,10 @@ export default function WhoAmI() {
                   </li>
                 ))}
               </ul>
-            </div>
-            <div className="roam-stage" aria-hidden="true">
-              <RoamingMapleChar />
+              <p className="char-hint reveal" data-d="4">
+                화면을 돌아다니는 <strong>메이플 캐릭터</strong>를 클릭하면 대화할 수 있어요.
+                <span className="char-keys">← → 이동 · ALT 점프 · CTRL 공격</span>
+              </p>
             </div>
           </div>
 
@@ -404,6 +392,15 @@ export default function WhoAmI() {
         <span className="counter">{pad(i + 1)} / {pad(N)}</span>
         <button onClick={next} disabled={i === N - 1} aria-label="다음 슬라이드">→</button>
       </div>
+
+      {/* games 슬라이드에서만 — 넥슨 포트폴리오의 그 메이플 캐릭터+챗봇을 그대로 재사용 */}
+      {i === 4 && (
+        <MapleChatbot
+          roam
+          intro="안녕하세요, 양건호의 디지털 클론이에요. 메이플이든 kasaterm이든, 저에 대해 뭐든 물어보세요!"
+          chips={['양건호는 어떤 사람?', 'kasaterm이 뭐야?', 'Sionic에서 뭐 해?', '메이플 어디까지 했어?', '요즘 뭐 만들어?']}
+        />
+      )}
     </div>
   )
 }

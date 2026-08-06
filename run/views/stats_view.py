@@ -117,10 +117,11 @@ class StatsLayoutView(discord.ui.LayoutView):
         if self.player_data.get('most_characters') and self.player_data['most_characters'][0].get('image_url'):
             char_image_url = self.player_data['most_characters'][0]['image_url']
 
+        # Section 은 accessory 가 필수다 — 이미지가 없으면 Section 없이 텍스트만 넣는다.
         if char_image_url:
             section = discord.ui.Section(text_display, accessory=discord.ui.Thumbnail(media=char_image_url))
         else:
-            section = discord.ui.Section(text_display)
+            section = text_display
 
         # 시즌 푸터
         season_name = game_data.get_season_name(self.player_data['season_id'])

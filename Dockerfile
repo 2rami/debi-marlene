@@ -21,7 +21,12 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         ffmpeg libsndfile1 tini libsodium23 libffi7 \
         gcc g++ git libffi-dev libnacl-dev curl unzip ca-certificates; \
-    curl -fsSL https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip -o /tmp/deno.zip; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) DENO_ARCH=x86_64 ;; \
+        arm64) DENO_ARCH=aarch64 ;; \
+        *) echo "지원하지 않는 아키텍처: $(dpkg --print-architecture)" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://github.com/denoland/deno/releases/latest/download/deno-${DENO_ARCH}-unknown-linux-gnu.zip" -o /tmp/deno.zip; \
     unzip /tmp/deno.zip -d /usr/local/bin/; \
     rm /tmp/deno.zip; \
     chmod +x /usr/local/bin/deno; \

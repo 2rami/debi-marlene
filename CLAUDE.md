@@ -31,7 +31,10 @@
 - **LayoutView ≠ Embed** — Container가 Embed 대체. 세부 규칙은 `feedback_discord_v2_layout` 메모리.
 
 ## 디스코드 읽기 (MCP)
-- `.mcp.json` 의 `discord-v2` — 봇 토큰으로 서버·채널·메시지를 읽는다. `mcp_servers/discord_v2.py`.
+- `discord-v2` — 봇 토큰으로 서버·채널·메시지를 읽고 보낸다. 본체는 `mcp_servers/discord_v2.py`.
+- **전역(`~/.claude.json`)에 등록돼 있다** — 어느 프로젝트에서든 쓴다. 새 기기에서는 한 번 등록:
+  `claude mcp add discord-v2 --scope user -- uv run --quiet --with mcp==2.0.0 python <이 레포>/mcp_servers/discord_v2.py`
+  ⚠️프로젝트 `.mcp.json` 에 또 넣지 말 것 - 같은 이름이 두 스코프에 있으면 충돌한다(그래서 gitignore 했다).
 - **Components V2 화면을 텍스트로 풀어준다.** 공개 디스코드 MCP 들은 `content` 만 읽어서
   우리 봇 화면이 빈 메시지로 보이는데, 이건 `MessageArea.tsx` 의 렌더러를 옮겨와
   Container/Section/Thumbnail/Separator 까지 보여준다. 봇이 보낸 화면을 확인할 때 쓴다.

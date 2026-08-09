@@ -237,7 +237,22 @@ def discord_send_message(channel_id: str, content: str) -> str:
     if not content.strip():
         return "빈 내용은 보낼 수 없어요."
     msg = _api(f"/channels/{channel_id}/messages", method="POST", body={"content": content})
-    return f"보냈어요. id={msg.get('id')}"
+    return f"보냈어요. id={msg.get('id')} channel={channel_id}"
+
+
+@server.tool()
+def discord_send_dm(user_id: str, content: str) -> str:
+    """봇이 그 사람에게 DM 을 보낸다. 실제로 전송되니 사람 확인을 받고 쓴다.
+
+    DM 은 채널 ID 가 따로 없어서 먼저 상대와의 DM 채널을 연 다음 보낸다. 이미 열려
+    있으면 디스코드가 같은 채널을 돌려주므로 채널이 새로 늘지는 않는다.
+    """
+    if not content.strip():
+        return "빈 내용은 보낼 수 없어요."
+    channel = _api("/users/@me/channels", method="POST", body={"recipient_id": user_id})
+    channel_id = channel.get("id")
+    msg = _api(f"/channels/{channel_id}/messages", method="POST", body={"content": content})
+    return f"DM 보냈어요. id={msg.get('id')} dm_channel={channel_id}"
 
 
 if __name__ == "__main__":

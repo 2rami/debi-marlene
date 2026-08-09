@@ -205,3 +205,6 @@ finetune/__pycache__/
 # SQLite runtime (WAL/SHM) — 런타임 상태, 커밋 금지
 data/memory.db-shm
 data/memory.db-wal
+
+# MCP 는 전역(~/.claude.json)에 등록해 뒀다. 프로젝트에도 두면 중복 정의로 충돌한다.
+.mcp.json

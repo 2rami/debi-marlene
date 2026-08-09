@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "discord-v2": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--quiet",
+        "--with",
+        "mcp==2.0.0",
+        "python",
+        "mcp_servers/discord_v2.py"
+      ]
+    }
+  }
+}

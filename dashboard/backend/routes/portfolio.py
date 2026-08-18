@@ -563,3 +563,127 @@ def ask_sionic_stream():
         mimetype='text/event-stream',
         headers={'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no', 'Connection': 'keep-alive'},
     )
+
+
+# ─────────── 메이플 캐릭터 조회 (닉네임 → look hash) ───────────
+# 캐릭터 이미지 자체(static/character/look)는 키 없이 열리지만, 닉네임을 그 hash 로
+# 바꾸는 경로만 NEXON Open API 키를 요구한다. 키를 프론트에 두면 번들에 노출되므로
+# 여기서 프록시한다. 키가 없으면 503 — 프론트는 기본 캐릭터로 폴백한다.
+
+NEXON_API_BASE = 'https://open.api.nexon.com'
+NEXON_LOOK_PREFIX = f'{NEXON_API_BASE}/static/maplestory/character/look/'
+MAPLE_CACHE_TTL = 3600          # 넥슨 원본이 하루 1회 갱신이라 1시간이면 충분
+MAPLE_RATE_PER_MIN = 20         # 챗봇(5회)보다 관대 — 오타 재입력이 잦다
+
+_maple_cache: dict[str, tuple[float, dict]] = {}
+_maple_cache_lock = threading.Lock()
+_maple_rate_buckets: dict[str, deque[float]] = defaultdict(deque)
+
+
+def _check_maple_rate(ip: str) -> bool:
+    now = time.time()
+    cutoff = now - RATE_LIMIT_WINDOW
+    with _rate_lock:
+        bucket = _maple_rate_buckets[ip]
+        while bucket and bucket[0] < cutoff:
+            bucket.popleft()
+        if len(bucket) >= MAPLE_RATE_PER_MIN:
+            return False
+        bucket.append(now)
+        return True
+
+
+def _nexon_get(path: str, params: dict, api_key: str) -> tuple[int, dict]:
+    import requests
+    res = requests.get(
+        f'{NEXON_API_BASE}{path}',
+        params=params,
+        headers={'x-nxopen-api-key': api_key},
+        timeout=8,
+    )
+    try:
+        return res.status_code, res.json()
+    except ValueError:
+        return res.status_code, {}
+
+
+def _extract_look_hash(image_url: str) -> str | None:
+    """character_image URL 에서 look hash 만 뽑는다.
+
+    넥슨이 붙여 보내는 쿼리(?x=&y=)는 정면 정지 포즈용이라 버린다 —
+    프론트가 wmotion/emotion/action 을 직접 조립해 걷기 모션을 만든다.
+    """
+    if not image_url or not image_url.startswith(NEXON_LOOK_PREFIX):
+        return None
+    tail = image_url[len(NEXON_LOOK_PREFIX):]
+    return tail.split('?', 1)[0].strip() or None
+
+
+@portfolio_bp.route('/maple/character', methods=['GET', 'OPTIONS'])
+def maple_character():
+    if request.method == 'OPTIONS':
+        return ('', 204)
+
+    ip = _client_ip()
+    if not _check_maple_rate(ip):
+        return jsonify({'error': 'rate_limited', 'reason': '잠시 후 다시 시도해 주세요.'}), 429
+
+    name = (request.args.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'invalid_request', 'reason': '닉네임을 입력해 주세요.'}), 400
+    if len(name) > 12:
+        return jsonify({'error': 'invalid_request', 'reason': '메이플 닉네임은 12자를 넘지 않습니다.'}), 400
+
+    cache_key = name.lower()
+    with _maple_cache_lock:
+        hit = _maple_cache.get(cache_key)
+        if hit and time.time() - hit[0] < MAPLE_CACHE_TTL:
+            return jsonify(hit[1])
+
+    api_key = os.getenv('NEXON_API_KEY')
+    if not api_key:
+        return jsonify({
+            'error': 'no_api_key',
+            'reason': '캐릭터 검색이 아직 준비되지 않았습니다.',
+        }), 503
+
+    try:
+        status, body = _nexon_get('/maplestory/v1/id', {'character_name': name}, api_key)
+    except Exception:
+        logger.exception('[maple] ocid 조회 실패')
+        return jsonify({'error': 'upstream_error', 'reason': '넥슨 서버 응답이 없습니다.'}), 502
+
+    ocid = body.get('ocid')
+    if status != 200 or not ocid:
+        # 넥슨은 없는 닉네임도 400/OPENAPI00004 로 돌려준다 — 사용자에겐 없는 캐릭터로 안내
+        if status in (400, 404):
+            return jsonify({'error': 'not_found', 'reason': f'"{name}" 캐릭터를 찾지 못했습니다.'}), 404
+        logger.warning('[maple] ocid status=%s body=%s', status, body)
+        return jsonify({'error': 'upstream_error', 'reason': '넥슨 서버 응답이 없습니다.'}), 502
+
+    try:
+        status, basic = _nexon_get('/maplestory/v1/character/basic', {'ocid': ocid}, api_key)
+    except Exception:
+        logger.exception('[maple] basic 조회 실패')
+        return jsonify({'error': 'upstream_error', 'reason': '넥슨 서버 응답이 없습니다.'}), 502
+
+    if status != 200:
+        logger.warning('[maple] basic status=%s body=%s', status, basic)
+        return jsonify({'error': 'upstream_error', 'reason': '캐릭터 정보를 가져오지 못했습니다.'}), 502
+
+    look_hash = _extract_look_hash(basic.get('character_image') or '')
+    if not look_hash:
+        # 캐릭터는 있는데 외형 URL 형식이 바뀐 경우 — 폴백 없이 원인을 남긴다
+        logger.warning('[maple] look hash 추출 실패 image=%s', basic.get('character_image'))
+        return jsonify({'error': 'no_look', 'reason': '이 캐릭터의 외형을 불러오지 못했습니다.'}), 502
+
+    payload = {
+        'name': basic.get('character_name') or name,
+        'hash': look_hash,
+        'world': basic.get('world_name'),
+        'job': basic.get('character_class'),
+        'level': basic.get('character_level'),
+    }
+    with _maple_cache_lock:
+        _maple_cache[cache_key] = (time.time(), payload)
+    return jsonify(payload)

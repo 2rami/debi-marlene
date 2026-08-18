@@ -24,6 +24,8 @@
 - Secret 3종: `debi-marlene-env` / `debi-marlene-env-solo-debi` / `debi-marlene-env-solo-marlene`
 - 새 기기 셋업: `gcloud auth login` → `gcloud config set project ironic-objectivist-465713-a6` → `./scripts/sync_env.sh pull`
 - secret 업데이트: 로컬 `.env` 수정 → `./scripts/sync_env.sh push` → 팀 컨테이너 재시작
+- `NEXON_API_KEY` (선택) — `/chat` 의 메이플 닉네임 검색용. https://openapi.nexon.com/my-application/ 에서 무료 발급.
+  미설정 시 검색만 503 으로 막히고 페이지는 기본 캐릭터로 정상 동작한다. 캐릭터 이미지(static look) 자체는 키가 필요 없다.
 
 ## 코딩 규칙
 - **이모지 금지** — 코드/임베드/메시지/로그 모두. 대체: SVG 또는 텍스트 기호 (#1, [TOP], *, -)

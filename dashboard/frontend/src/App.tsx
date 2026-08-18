@@ -26,6 +26,7 @@ import GuideTTS from './pages/guide/GuideTTS'
 import GuideMusic from './pages/guide/GuideMusic'
 import GuideWelcome from './pages/guide/GuideWelcome'
 import GuideCredits from './pages/guide/GuideCredits'
+import MapleChat from './pages/MapleChat'
 import PortfolioKrafton from './pages/PortfolioKrafton'
 import PortfolioNimbleNeuron from './pages/PortfolioNimbleNeuron'
 import PortfolioNimbleNeuronPrint from './pages/PortfolioNimbleNeuronPrint'
@@ -67,8 +68,8 @@ function GAPageTracker() {
 function AdsRouteGate() {
   const { pathname } = useLocation()
   useEffect(() => {
-    const isPortfolio = pathname.startsWith('/portfolio/')
-    if (!isPortfolio) {
+    const isAdFree = pathname.startsWith('/portfolio/') || pathname === '/chat'
+    if (!isAdFree) {
       resumeAds()
       return
     }
@@ -122,6 +123,7 @@ function App() {
           <Route path="/payment/topup/fail" element={<TopupFail />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/whoami" element={<WhoAmI />} />
+          <Route path="/chat" element={<MapleChat />} />
           <Route path="/portfolio/krafton" element={<PortfolioKrafton />} />
           <Route path="/portfolio/nimble-neuron" element={<PortfolioNimbleNeuron />} />
           <Route path="/portfolio/nimble-neuron/print" element={<PortfolioNimbleNeuronPrint />} />

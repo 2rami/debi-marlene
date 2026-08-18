@@ -93,7 +93,7 @@ const PROMPT_CHIPS = [
   'JD 매칭은?',
 ] as const
 
-const API_BASE =
+export const API_BASE =
   (import.meta as any).env?.VITE_API_BASE ??
   ((import.meta as any).env?.DEV ? 'http://localhost:8081' : '')
 

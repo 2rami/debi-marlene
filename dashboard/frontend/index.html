@@ -13,10 +13,11 @@
     <link rel="preload" href="/fonts/YPairingFont-Bold.woff2" as="font" type="font/woff2" crossorigin>
     <title>Debi Marlene Dashboard</title>
     <script>
-      // /portfolio/* 라우트는 AdSense Auto Ads 차단 — 면접관이 보는 페이지에 광고 노출 금지.
+      // /portfolio/* 와 /chat 은 AdSense Auto Ads 차단 — 면접관·공유 링크가 보는 페이지에 광고 노출 금지.
       // adsbygoogle 스크립트가 로드되기 전에 pauseAdRequests=1 을 박아둬야 첫 광고 요청 자체를 막음.
       (function () {
-        if (window.location.pathname.indexOf('/portfolio/') === 0) {
+        var p = window.location.pathname;
+        if (p.indexOf('/portfolio/') === 0 || p === '/chat') {
           window.adsbygoogle = window.adsbygoogle || [];
           window.adsbygoogle.pauseAdRequests = 1;
         }

@@ -655,7 +655,8 @@ def maple_character():
 
     ocid = body.get('ocid')
     if status != 200 or not ocid:
-        # 넥슨은 없는 닉네임도 400/OPENAPI00004 로 돌려준다 — 사용자에겐 없는 캐릭터로 안내
+        # 여기서 400 이 나는 건 형식이 잘못된 입력일 때다. 존재하지 않는 닉네임은
+        # 이 단계를 200 으로 통과한다(아래 basic 에서 갈린다).
         if status in (400, 404):
             return jsonify({'error': 'not_found', 'reason': f'"{name}" 캐릭터를 찾지 못했습니다.'}), 404
         logger.warning('[maple] ocid status=%s body=%s', status, body)
@@ -667,6 +668,10 @@ def maple_character():
         logger.exception('[maple] basic 조회 실패')
         return jsonify({'error': 'upstream_error', 'reason': '넥슨 서버 응답이 없습니다.'}), 502
 
+    # 넥슨은 없는 닉네임에도 ocid 를 200 으로 발급한다(실측). 실제 존재 여부는
+    # 여기서 400 OPENAPI00003 으로 갈리므로, ocid 를 받았다고 캐릭터가 있는 게 아니다.
+    if status in (400, 404):
+        return jsonify({'error': 'not_found', 'reason': f'"{name}" 캐릭터를 찾지 못했습니다.'}), 404
     if status != 200:
         logger.warning('[maple] basic status=%s body=%s', status, basic)
         return jsonify({'error': 'upstream_error', 'reason': '캐릭터 정보를 가져오지 못했습니다.'}), 502

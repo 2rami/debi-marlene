@@ -48,7 +48,16 @@ class WelcomeImageGenerator:
 
     def _load_default_font(self):
         """기본 폰트 로드"""
-        font_paths = [
+        # 컨테이너 밖(맥 등)에는 나눔이 시스템에 없다. 다른 글꼴로 대체되면
+        # 대시보드 CSS 미리보기와 실제 이미지가 어긋나므로, 배포처가 폰트를
+        # 직접 들고 다닐 수 있도록 이 경로를 시스템 경로보다 먼저 본다.
+        font_dir = os.environ.get('WELCOME_FONT_DIR')
+        bundled = (
+            [os.path.join(font_dir, n) for n in ('NanumGothicBold.ttf', 'NanumGothic.ttf')]
+            if font_dir else []
+        )
+
+        font_paths = bundled + [
             '/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf',
             '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
             '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
@@ -57,9 +66,10 @@ class WelcomeImageGenerator:
             'C:\\Windows\\Fonts\\malgun.ttf',
             '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
         ]
-        bold_paths = [
+        bold_paths = bundled[:1] + [
             '/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf',
             'C:\\Windows\\Fonts\\malgunbd.ttf',
+            '/System/Library/Fonts/AppleSDGothicNeo.ttc',
         ]
 
         for path in bold_paths:

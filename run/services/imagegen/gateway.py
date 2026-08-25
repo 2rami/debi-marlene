@@ -115,22 +115,36 @@ async def generate_image(
 async def verify_key(api_key: str) -> tuple[bool, str]:
     """등록할 때 키가 살아 있는지 본다.
 
-    그림을 한 장 뽑아 보면 확실하지만 3분이 걸리고 돈이 나간다. 모델 목록 조회는
-    공짜이고 인증만 확인하면 되므로 그걸로 가른다.
+    ⚠️`/v1/models` 로는 못 가른다 — **공개 엔드포인트라 키가 없어도 200** 이다
+    (2026-08-25 실측: 키 없음·가짜 키·진짜 키가 전부 200). 그걸로 검증하면 오타를
+    넣어도 "연결됐어요" 가 뜨고 3분 뒤 그림에서야 실패한다.
+
+    대신 **없는 모델로 채팅을 부른다.** 모델이 없으니 추론이 돌지 않아 요금이 들지
+    않으면서, 인증만 정확히 갈린다 — 키가 없거나 틀리면 401, 유효하면 400(모델 없음).
     """
+    body = {
+        'model': '__verify_only_do_not_exist__',
+        'messages': [{'role': 'user', 'content': 'x'}],
+        'max_tokens': 1,
+    }
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f'{OG_HOST}/v1/models',
-                headers={'Authorization': f'Bearer {api_key}'},
+            async with session.post(
+                f'{OG_HOST}/v1/chat/completions',
+                headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+                json=body,
                 timeout=aiohttp.ClientTimeout(total=20),
             ) as r:
-                if r.status == 200:
-                    return True, ''
                 if r.status == 401:
-                    return False, '키가 올바르지 않아요.'
+                    return False, '키가 올바르지 않아요. 다시 복사해 주세요.'
                 if r.status in (402, 403):
                     return False, '키는 맞지만 잔액이 없거나 정지 상태예요. 충전 후 다시 시도해 주세요.'
+                if r.status == 400:
+                    # 없는 모델이라는 답 = 인증은 통과했다는 뜻
+                    return True, ''
+                if r.status == 200:
+                    # 어떤 이유로 모델이 실제로 있었다 — 인증은 통과다
+                    return True, ''
                 return False, f'확인하지 못했어요 (HTTP {r.status}).'
     except Exception as e:
         return False, f'확인 중 오류가 났어요: {e}'

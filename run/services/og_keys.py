@@ -50,7 +50,14 @@ def _fernet():
 
 
 def _doc(user_id):
-    return get_firestore_client().collection(COLLECTION).document(str(user_id))
+    db = get_firestore_client()
+    if db is None:
+        # 인증이 안 되면 클라이언트가 None 으로 온다. 그대로 두면 한참 뒤에
+        # AttributeError 로 터져서 원인이 안 보인다.
+        raise KeyVaultError(
+            'Firestore 에 연결하지 못했습니다. GOOGLE_APPLICATION_CREDENTIALS 를 확인하세요.'
+        )
+    return db.collection(COLLECTION).document(str(user_id))
 
 
 def save_key(user_id, api_key: str) -> dict:

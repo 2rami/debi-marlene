@@ -127,19 +127,27 @@ def notify_bot_stopping_sync():
         )
 
 
-async def notify_error(error: Exception, context: str = ""):
-    """런타임 에러 알림."""
+async def notify_error(error: Exception, context: str = "", links: list | None = None):
+    """런타임 에러 알림.
+
+    links 는 "[라벨](url)" 형태의 마크다운 링크 목록 — 오류가 난 서버로 바로
+    건너뛰거나 당사자에게 연락하기 위한 것이다. build_guild_links() 로 만든다.
+    """
     tb = traceback.format_exception(type(error), error, error.__traceback__)
     tb_text = "".join(tb)
 
-    # Discord embed description 최대 4096자
-    if len(tb_text) > 3500:
-        tb_text = tb_text[:1750] + "\n...(중략)...\n" + tb_text[-1750:]
+    # 링크와 헤더가 차지하는 만큼 traceback 예산을 줄인다 (embed description 4096자)
+    budget = 3500 - (len(" · ".join(links)) if links else 0)
+    if len(tb_text) > budget:
+        half = max(400, budget // 2)
+        tb_text = tb_text[:half] + "\n...(중략)...\n" + tb_text[-half:]
 
     desc = ""
     if context:
         desc += f"**위치:** {context}\n"
     desc += f"**에러:** {type(error).__name__}: {error}\n"
+    if links:
+        desc += f"**바로가기:** {' · '.join(links)}\n"
     desc += f"```\n{tb_text}\n```"
 
     await send_async(

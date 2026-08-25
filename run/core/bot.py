@@ -349,7 +349,24 @@ async def on_app_command_error(interaction: discord.Interaction, error: discord.
 
     # 그 외 실제 에러 → Webhook 전송
     from run.services.webhook_logger import notify_error
-    await notify_error(error, context=f"명령어: /{cmd_name} (서버: {guild_name})")
+    from run.services.error_context import build_guild_links
+
+    # 서버 이름만으로는 거기 갈 수가 없다 — 점프·서버주·초대 링크를 함께 보낸다.
+    try:
+        links = await build_guild_links(
+            interaction.guild,
+            user=interaction.user,
+            channel=interaction.channel,
+            guild_id=interaction.guild_id,
+        )
+    except Exception:
+        links = None  # 링크를 못 만든다고 오류 알림 자체를 놓치면 안 된다
+
+    await notify_error(
+        error,
+        context=f"명령어: /{cmd_name} (서버: {guild_name})",
+        links=links,
+    )
     print(f"[에러] /{cmd_name}: {error}", flush=True)
 
 
@@ -1022,3 +1039,13 @@ async def periodic_guild_logging():
 # periodic_settings_cache_refresh 제거됨 (2026-05-04)
 # Firestore snapshot listener 가 변경을 push 받아 cache 자동 갱신 → polling 불필요
 # config.init_settings_listeners() 가 on_ready 에서 등록
+
+
+# ========== 백그라운드 루프 감시 ==========
+# tasks.loop 은 예외를 만나면 콘솔에 한 줄 남기고 영영 멈춘다 — 명령어는 계속 되니
+# 겉으로는 봇이 멀쩡해 보인다. 죽는 순간 훅으로 알리고 되살린다.
+from run.utils.task_guard import attach as _guard_task  # noqa: E402
+
+_guard_task(update_presence, "동접수 상태 갱신")
+_guard_task(update_server_info_periodic, "서버 정보 GCS 업로드")
+_guard_task(periodic_guild_logging, "서버 수 로깅")

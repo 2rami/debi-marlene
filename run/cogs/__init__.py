@@ -38,6 +38,7 @@ async def setup_all_cogs(bot):
     from run.cogs.utility import UtilityCog
     from run.cogs.welcome import WelcomeCog
     from run.cogs.stats import StatsCog
+    from run.cogs.imagegen import ImageGenCog
     from run.cogs.quiz import QuizCog
     from run.cogs.voice_listen import VoiceListenCog
     from run.cogs.credits import CreditsCog
@@ -54,6 +55,7 @@ async def setup_all_cogs(bot):
     await bot.add_cog(ChimeInCog(bot))
     await bot.add_cog(VoiceListenCog(bot))
     await bot.add_cog(CreditsCog(bot))
+    await bot.add_cog(ImageGenCog(bot))
 
     print("[완료] 모든 Cog 등록 완료")
 

@@ -7,6 +7,7 @@ V2 제약: Container 는 top-level 만, children 에 중첩 금지.
 구조:
   Container1 (accent=라임) — 헤더 + 잔고
    ├ Section(헤더 TextDisplay, accessory=Thumbnail("attachment://credit.png"))
+     └ 썸네일 자산이 없는 배포처에서는 Section 없이 TextDisplay 만 (400 방지)
    ├ Separator (LARGE)
    └ TextDisplay 잔고/연속/공동
   Container2 (accent=다크그린) — 안내 + 액션
@@ -21,12 +22,15 @@ V2 제약: Container 는 top-level 만, children 에 중첩 금지.
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from typing import Optional
 
 import discord
 
 from run.services import credits as credits_service
-from run.services.credits_emoji import format_emoji  # noqa: F401  (호환용 export)
+from run.services.credits_emoji import (  # format_emoji 는 호환용 re-export
+    format_emoji, pick_thumbnail_path, ASSET_FILENAME,  # noqa: F401
+)
 
 
 # 색상
@@ -57,6 +61,8 @@ class CreditsLayoutView(discord.ui.LayoutView):
             "checked_in_today": False, "daily_bet": 0,
         }
         self._guild_balance = 0
+        self._thumb_path: Optional[Path] = None
+        self._thumb_decided = False
 
     # ───────── 상태 fetch ─────────
 
@@ -100,13 +106,25 @@ class CreditsLayoutView(discord.ui.LayoutView):
         checked_today = bal["checked_in_today"]
         emoji = self.emoji_str
 
-        # ── 헤더 (Section + Thumbnail: 우측에 큰 크레딧 이미지) ──
-        header = discord.ui.Section(
-            discord.ui.TextDisplay(
-                f"## {emoji} {self.user_name}님의 크레딧 지갑"
-            ),
-            accessory=discord.ui.Thumbnail(media="attachment://credit.png"),
+        # ── 헤더 ──
+        # 썸네일 유무를 여기서 한 번만 정하고 cog 는 thumbnail_file() 로 그 결정을 따른다.
+        # 첨부 없이 Thumbnail 만 남으면 Discord 가 400(50035) 로 메시지를 통째로 거절한다.
+        # 첨부는 최초 전송 때 확정되고 edit 으로 갈리지 않으므로 재빌드에서도 유지한다.
+        if not self._thumb_decided:
+            candidate = pick_thumbnail_path(personal)
+            self._thumb_path = candidate if candidate.is_file() else None
+            self._thumb_decided = True
+
+        header_text = discord.ui.TextDisplay(
+            f"## {emoji} {self.user_name}님의 크레딧 지갑"
         )
+        if self._thumb_path is not None:
+            header = discord.ui.Section(
+                header_text,
+                accessory=discord.ui.Thumbnail(media=f"attachment://{ASSET_FILENAME}"),
+            )
+        else:
+            header = header_text
 
         # ── 개인 잔고 본문 ──
         personal_lines = [
@@ -160,6 +178,14 @@ class CreditsLayoutView(discord.ui.LayoutView):
         )
         self.add_item(wallet_container)
         self.add_item(notice_container)
+
+    # ───────── 첨부 ─────────
+
+    def thumbnail_file(self) -> Optional[discord.File]:
+        """헤더 썸네일 첨부. 자산이 없으면 None — 그 경우 view 도 Thumbnail 을 안 넣는다."""
+        if self._thumb_path is None:
+            return None
+        return discord.File(str(self._thumb_path), filename=ASSET_FILENAME)
 
     # ───────── 권한 가드 ─────────
 

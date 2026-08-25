@@ -10,10 +10,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from run.views.credits_view import CreditsLayoutView
-from run.services.credits_emoji import (
-    get_credit_emoji, format_emoji, pick_thumbnail_path, ASSET_FILENAME,
-)
-from run.services import credits as credits_service
+from run.services.credits_emoji import get_credit_emoji, format_emoji
 from run.utils.command_logger import log_command_usage
 
 
@@ -40,15 +37,12 @@ class CreditsCog(commands.Cog, name="크레딧"):
             emoji_str=emoji_str,
         )
 
-        # 잔고 단계별 헤더 썸네일 PNG 분기. filename 은 항상 'credit.png' (view URI 매칭).
-        # blocking Firestore 호출 → off-thread.
-        import asyncio as _aio
-        bal = await _aio.to_thread(credits_service.get_balance, interaction.user.id)
-        thumb_path = pick_thumbnail_path(int(bal.get('personal', 0)))
-
+        # 썸네일 분기·첨부 여부는 view 가 자기 잔고로 이미 정했다 — 여기서 다시 고르면
+        # 렌더(Thumbnail)와 첨부가 갈려 400(50035) 이 난다.
         send_kwargs: dict = {"view": view}
-        if thumb_path.is_file():
-            send_kwargs["file"] = discord.File(str(thumb_path), filename=ASSET_FILENAME)
+        thumb = view.thumbnail_file()
+        if thumb is not None:
+            send_kwargs["file"] = thumb
 
         await interaction.followup.send(**send_kwargs)
 

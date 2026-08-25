@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import discord
 
-from run.services.og_keys import CREDITS_PER_IMAGE
+from run.services.og_keys import KRW_PER_IMAGE
 
 ACCENT_WAIT = 0x5B6EE1     # 대기 — 차분한 파랑
 ACCENT_DONE = 0x4CAF7D     # 완료 — 초록
@@ -30,8 +30,7 @@ class NotConnectedView(discord.ui.LayoutView):
             '봇이 대신 받지 않고, 쓴 만큼만 본인 카드에서 나가요.\n\n'
             '**1.** OpenGateway 에 가입하고 키를 받아요 (약 3분)\n'
             '**2.** 대시보드에 키를 붙여넣으면 끝이에요\n\n'
-            f'-# 한 장에 **{CREDITS_PER_IMAGE}크레딧 상당**이에요. 5달러 넣으면 100장쯤 그려요.\n'
-            '-# 봇 크레딧은 줄지 않아요 — 대화·TTS 와 같은 자로 값을 말한 것뿐이에요.'
+            f'-# 한 장에 약 {KRW_PER_IMAGE}원이에요. 5달러 넣으면 100장쯤 그려요.'
         ))
         box.add_item(discord.ui.Separator())
         row = discord.ui.ActionRow()
@@ -45,14 +44,14 @@ class GeneratingView(discord.ui.LayoutView):
     """그리는 중. 3분이 걸리므로 얼마나 걸리는지를 반드시 밝힌다 —
     말 안 하면 먹통으로 읽고 다시 친다(그만큼 돈이 또 나간다)."""
 
-    def __init__(self, character: str, request: str, cost_credits: int = CREDITS_PER_IMAGE):
+    def __init__(self, character: str, request: str, cost_krw: int = KRW_PER_IMAGE):
         super().__init__(timeout=None)
         box = discord.ui.Container(accent_colour=ACCENT_WAIT)
         box.add_item(discord.ui.TextDisplay(
             f'## {character} 를 그리는 중이에요\n'
             f'> {request[:180]}\n\n'
             f'**약 3분** 걸려요. 다 되면 이 메시지가 그림으로 바뀌어요.\n'
-            f'-# 약 {cost_credits}크레딧 상당 · 본인 OG 계정에서 결제돼요'
+            f'-# 약 {cost_krw}원 · 본인 OG 계정에서 결제돼요'
         ))
         self.add_item(box)
 
@@ -61,7 +60,7 @@ class ResultView(discord.ui.LayoutView):
     """완성. 이미지는 첨부로 올라가고 여기서는 가리키기만 한다."""
 
     def __init__(self, character: str, request: str, filename: str,
-                 calls: int, est_usd: float, est_credits: int = 0):
+                 calls: int, est_usd: float, est_krw: int = 0):
         super().__init__(timeout=None)
         box = discord.ui.Container(accent_colour=ACCENT_DONE)
         box.add_item(discord.ui.TextDisplay(f'## {character}\n> {request[:180]}'))
@@ -69,7 +68,7 @@ class ResultView(discord.ui.LayoutView):
             discord.MediaGalleryItem(f'attachment://{filename}')
         ))
         box.add_item(discord.ui.TextDisplay(
-            f'-# 지금까지 {calls}장 · 약 {est_credits}크레딧 상당 (${est_usd:.2f}, 본인 OG 계정)'
+            f'-# 지금까지 {calls}장 · 약 {est_krw:,}원 (${est_usd:.2f}, 본인 OG 계정)'
         ))
         self.add_item(box)
 

@@ -9,18 +9,16 @@ interface OGKeyStatus {
   last_used?: string | null
   calls?: number
   est_usd?: number
-  est_credits?: number
+  est_krw?: number
 }
 
 // 게이트웨이 요금은 달러로 청구된다. 원화는 "얼마쯤 드나" 를 가늠하게 하는 안내용이라
 // 환율을 실시간으로 끌어오지 않고 어림수로 둔다.
 const USD_TO_KRW = 1400
 const COST_PER_IMAGE_USD = 0.05
-// 봇에는 이미 크레딧이라는 자가 있다(대화·TTS). 이미지만 달러로 말하면 사용자가 두
-// 화폐를 환산해야 하므로 **보이는 단위만** 크레딧으로 맞춘다.
-// ⚠️실제로 줄어드는 것은 봇 크레딧이 아니라 본인 OG 잔액이다 — 화면에 "상당"을 붙인다.
-const KRW_PER_CREDIT = 10  // 기본 충전가(1,000원 = 100크레딧)
-const creditsPerImage = Math.max(1, Math.round((COST_PER_IMAGE_USD * USD_TO_KRW) / KRW_PER_CREDIT))
+// ⚠️값은 원화로만 말한다. 봇에 이미 "크레딧" 재화가 있어서(대화·TTS) 이미지 값을
+// 크레딧으로 환산해 보여줬더니 같은 이름의 다른 것 두 개가 되어 헷갈렸다(2026-08-25).
+// 이미지는 봇 크레딧을 쓰지 않는다 — 사용자 본인 OG 잔액에서 나간다.
 
 export default function OGKeySettings() {
   const [status, setStatus] = useState<OGKeyStatus | null>(null)
@@ -130,8 +128,8 @@ export default function OGKeySettings() {
               지금까지 <span className="text-white font-medium tabular-nums">{status.calls ?? 0}</span>장
               {' · '}
               약 <span className="text-white font-medium tabular-nums">
-                {status.est_credits ?? Math.round((status.calls ?? 0) * creditsPerImage)}
-              </span>크레딧 상당
+                {(status.est_krw ?? Math.round((status.calls ?? 0) * perImageKrw)).toLocaleString()}
+              </span>원
               <span className="text-discord-muted/70">
                 {' '}(${(status.est_usd ?? 0).toFixed(2)} · 본인 OG 계정에서 청구)
               </span>
@@ -141,7 +139,7 @@ export default function OGKeySettings() {
       ) : (
         <div className="p-4 bg-discord-dark rounded-lg space-y-5">
           <p className="text-sm text-discord-muted">
-            요금은 본인 계정에서 나갑니다 — 한 장에 약 {creditsPerImage}크레딧 상당({perImageKrw}원), 5달러면 100장쯤입니다. 봇 크레딧은 줄지 않습니다.
+            요금은 본인 계정에서 나갑니다 — 한 장에 약 {perImageKrw}원, 5달러면 100장쯤입니다.
           </p>
 
           <div>

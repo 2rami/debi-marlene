@@ -80,7 +80,7 @@ class ImageGenCog(commands.Cog, name="그림"):
                 view=ResultView(
                     character['name'], 요청, filename,
                     calls=status.get('calls', 0), est_usd=status.get('est_usd', 0.0),
-                    est_credits=status.get('est_credits', 0),
+                    est_krw=status.get('est_krw', 0),
                 ),
                 attachments=[discord.File(io.BytesIO(png), filename=filename)],
             )

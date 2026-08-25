@@ -256,3 +256,7 @@ def start_coupon_service(bot):
     if not check_coupons_task.is_running():
         check_coupons_task.start()
     print("[완료] 쿠폰 서비스 시작 (30분 간격)", flush=True)
+
+# 루프가 예외로 멈추면 조용히 죽는다 — 훅으로 알리고 되살린다.
+from run.utils.task_guard import attach as _guard_task  # noqa: E402
+_guard_task(check_coupons_task, "쿠폰 확인")

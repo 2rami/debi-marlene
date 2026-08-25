@@ -1126,3 +1126,6 @@ class EmojiAutoUpdater:
             logger.error(f"이미지 처리 오류 ({emoji_name}): {e}")
             return False
 
+# cog 인스턴스가 만들어지기 전에 걸어야 복제본까지 핸들러가 따라간다.
+from run.utils.task_guard import attach as _guard_task  # noqa: E402
+_guard_task(EmojiAutoUpdater.weekly_update, "이모지 주간 갱신")

@@ -434,3 +434,7 @@ async def manual_check_for_guild(guild):
 @check_new_videos.before_loop
 async def before_check():
     await bot_instance.wait_until_ready()
+
+# 루프가 예외로 멈추면 조용히 죽는다 — 훅으로 알리고 되살린다.
+from run.utils.task_guard import attach as _guard_task  # noqa: E402
+_guard_task(check_new_videos, "유튜브 새 영상 확인")

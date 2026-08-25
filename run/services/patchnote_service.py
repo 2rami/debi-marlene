@@ -266,3 +266,7 @@ def start_patchnote_checker(bot):
     if not check_patchnotes.is_running():
         check_patchnotes.start()
     print("[완료] 패치노트 체커 시작 (10분 간격)", flush=True)
+
+# 루프가 예외로 멈추면 조용히 죽는다 — 훅으로 알리고 되살린다.
+from run.utils.task_guard import attach as _guard_task  # noqa: E402
+_guard_task(check_patchnotes, "패치노트 확인")

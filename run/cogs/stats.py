@@ -227,3 +227,7 @@ class StatsCog(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(StatsCog(bot))
+
+# cog 인스턴스가 만들어지기 전에 걸어야 복제본까지 핸들러가 따라간다.
+from run.utils.task_guard import attach as _guard_task  # noqa: E402
+_guard_task(StatsCog.save_stats_task, "통계 저장")

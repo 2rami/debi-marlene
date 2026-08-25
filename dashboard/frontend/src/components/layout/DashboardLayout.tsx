@@ -149,6 +149,13 @@ export default function DashboardLayout({ children }: Props) {
               >
                 문서
               </Link>
+              <Link
+                to="/settings"
+                className={`text-sm font-medium transition-colors ${location.pathname === '/settings' ? 'text-white' : 'text-discord-muted hover:text-white'
+                  }`}
+              >
+                설정
+              </Link>
               {/* Credit Wallet (replaces dashboard link inside dashboard) */}
               <CreditWalletDropdown />
 

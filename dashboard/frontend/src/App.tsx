@@ -41,6 +41,7 @@ import PageMotionCatalog from './pages/PortfolioNexon2026/PageMotionCatalog'
 import PageSionic from './pages/PortfolioNexon2026/PageSionic'
 import PageKokone from './pages/PortfolioNexon2026/PageKokone'
 import Feed from './pages/Feed'
+import Settings from './pages/Settings'
 import WhoAmI from './pages/WhoAmI'
 import NotFound from './pages/NotFound'
 
@@ -143,6 +144,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/servers/:guildId" element={<ServerManagement />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
 
           {/* Owner-only hidden route — backend owner_required gate */}

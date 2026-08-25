@@ -23,6 +23,7 @@ from routes.portfolio import portfolio_bp
 from routes.credits import credits_bp
 from routes.credits_topup import credits_topup_bp
 from routes.blocked_users import blocked_bp
+from routes.og_key import og_key_bp
 
 # Configure logging
 logging.basicConfig(
@@ -69,6 +70,7 @@ app.register_blueprint(portfolio_bp, url_prefix='/api/portfolio')
 app.register_blueprint(credits_bp, url_prefix='/api/credits')
 app.register_blueprint(credits_topup_bp, url_prefix='/api/credits/topup')
 app.register_blueprint(blocked_bp, url_prefix='/api')
+app.register_blueprint(og_key_bp, url_prefix='/api/og-key')
 
 # Health check endpoint
 @app.route('/api/health')

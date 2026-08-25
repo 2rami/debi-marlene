@@ -8,6 +8,7 @@ google-cloud-storage>=2.14.0
 google-cloud-firestore>=2.20.0
 Pillow>=10.0.0
 aiohttp>=3.9.0
+cryptography>=42.0.0
 anthropic>=0.40.0
 # 2.35.0 이 Firestore database id `(default)` 를 이중 URL 인코딩해
 # 모든 호출이 400 Invalid database id %28default%29 로 죽는다.

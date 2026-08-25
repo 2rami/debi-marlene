@@ -698,7 +698,15 @@ def ask_sionic_stream():
     return Response(
         gen(),
         mimetype='text/event-stream',
-        headers={'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no', 'Connection': 'keep-alive'},
+        # Connection: keep-alive 는 보내지 않는다. gunicorn sync 워커가 keep-alive 를
+        # 지원하지 않아 지킬 수 없는 약속이다.
+        #
+        # ⚠️ 이걸 뺐다고 「요청마다 워커가 SIGKILL 당하는」 증상이 낫지는 않았다
+        # (2026-08-25 실측). 그 원인은 아직 못 찾았다 — Firestore 적재를 스레드로
+        # 옮기고 이 헤더를 빼도 요청 뒤 워커 하나가 계속 교체된다. 응답 자체는 done
+        # 까지 정상이라 사용자에겐 안 보이고, 분당 제한은 sqlite 로 옮겨서 워커가
+        # 죽어도 유지된다 — 그래서 급한 불은 껐지만 원인은 남아 있다.
+        headers={'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no'},
     )
 
 

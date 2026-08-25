@@ -8,6 +8,7 @@ import sys
 import os
 import asyncio
 import io
+import signal
 
 # Windows 콘솔 UTF-8 설정
 if sys.platform == 'win32':
@@ -30,8 +31,20 @@ def run_bot():
     bot.run(DISCORD_TOKEN)
 
 
+def _handle_sigterm(signum, frame):
+    """launchd·systemd·docker stop·kill 은 SIGTERM 을 보낸다.
+
+    파이썬 기본 동작은 즉사라서 bot.close() 가 돌지 않는다 — 종료 알림도,
+    TTS 채널 정리도 없이 사라진다. Ctrl+C 와 같은 경로로 흘려보내 정상 종료시킨다.
+    """
+    print("[종료] SIGTERM 수신 — 정리 후 종료합니다", flush=True)
+    raise KeyboardInterrupt
+
+
 def main():
     """메인 실행 함수"""
+    signal.signal(signal.SIGTERM, _handle_sigterm)
+
     _identity = config.BOT_IDENTITY
     _label = {"debi": "Debi 솔로봇", "marlene": "Marlene 솔로봇"}.get(_identity, "데비&마를렌 봇")
     print(f"[시작] {_label}을(를) 시작합니다... (identity={_identity})", flush=True)

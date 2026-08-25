@@ -208,3 +208,6 @@ data/memory.db-wal
 
 # MCP 는 전역(~/.claude.json)에 등록해 뒀다. 프로젝트에도 두면 중복 정의로 충돌한다.
 .mcp.json
+
+# 포폴 챗봇 rate limit 카운터 (프로세스 사이 공유용, 배포 산출물)
+dashboard/backend/portfolio_rate.sqlite

@@ -11,7 +11,9 @@ Anthropic Managed Agents (geno-portfolio) 로 prompt 를 forwarding 하고
     - 모든 요청/응답을 Firestore portfolio_logs 에 적재 (비용/품질 추적)
 
 env:
-    ANTHROPIC_API_KEY            # 기존 debi-marlene 봇과 공유
+    OPENGATEWAY_API_KEY          # 없으면 ~/.config/opengateway.key. 사이오닉 챗봇이 쓴다
+    PORTFOLIO_DAILY_CAP          # 하루 총 답변 수 상한(기본 300)
+    ANTHROPIC_API_KEY            # Managed Agent 창구 전용. 지금은 닫혀 있다
     PORTFOLIO_AGENT_ID           # geno-portfolio Managed Agent id (agent-builder 가 발급)
     PORTFOLIO_ENV_ID             # (선택) environment_id — agent 가 bash 도구 필요할 때만
     GCP_PROJECT_ID               # Firestore 로깅용. 미설정 시 ironic-objectivist-465713-a6
@@ -22,6 +24,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sqlite3
 import threading
 import time
 from collections import defaultdict, deque
@@ -34,20 +37,19 @@ from portfolio_data import search_portfolio, SIONIC_SYSTEM, sionic_fake_reply
 logger = logging.getLogger(__name__)
 portfolio_bp = Blueprint('portfolio', __name__)
 
-# 공개 챗봇 창구는 기본으로 닫아 둔다(2026-08-25 지시 「그냥 꺼줘」).
+# Managed Agent 창구 두 개(`/ask`, `/ask/stream`)는 닫아 둔다(2026-08-25).
 #
-# 이 자리는 인증이 없고, 유일한 방어인 분당 제한이 X-Forwarded-For **첫 홉**으로 호출자를
-# 가른다. 그 값은 호출자가 정하는 것이라(Cloudflare 는 클라이언트가 보낸 XFF 를 지우지 않고
-# 뒤에 실제 IP 를 덧붙인다) 헤더만 바꿔 보내면 제한 버킷이 매번 새로 생긴다. 그리고 호출은
-# 소유자 Anthropic 키로 나간다 — 인터넷 아무나가 소유자 요금으로 무한정 부를 수 있었다.
+# 인증 없는 자리인데 그 둘은 소유자 Anthropic 키로 나간다. Managed Agents 는 게이트웨이가
+# 대신 해 줄 수 없는 Anthropic 전용 기능이라 아래 사이오닉 창구처럼 OpenGateway 로 옮길
+# 수가 없어서, 옮기는 대신 닫는 쪽을 골랐다. 지금은 PORTFOLIO_AGENT_ID 가 없어 어차피
+# 503 이지만, 나중에 그 값을 넣는 순간 조용히 다시 열리므로 명시적인 문을 하나 세워 둔다.
 #
-# 다시 열려면 제한을 cf-connecting-ip 기준으로 고친 뒤 PORTFOLIO_CHATBOT=1 을 준다.
-# 스위치를 코드 삭제 대신 둔 것은, 지운 창구는 다음 사람이 왜 없는지 모르고 되살리기 때문이다.
-_PUBLIC_ASK_PATHS = ('/ask', '/ask/stream', '/ask/sionic/stream')
+# 여는 조건: 요금이 나갈 자리이므로 제한이 진짜로 도는지부터 확인하고 PORTFOLIO_CHATBOT=1.
+_PUBLIC_ASK_PATHS = ('/ask', '/ask/stream')
 
 
 @portfolio_bp.before_request
-def _gate_public_chatbot():
+def _gate_managed_agent_routes():
     if request.path.rstrip('/').endswith(_PUBLIC_ASK_PATHS) and os.getenv('PORTFOLIO_CHATBOT') != '1':
         return jsonify({'error': 'chatbot_disabled',
                         'message': '지금은 답변 창구를 닫아 두었습니다.'}), 503
@@ -65,33 +67,148 @@ RESPONSE_TIMEOUT = 60   # 포폴 챗봇은 짧게 — 60초 안에 못 끝내면
 GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'ironic-objectivist-465713-a6')
 LOG_COLLECTION = 'portfolio_logs'
 
-# ─────────── Rate limiter (in-memory) ───────────
-# 단일 컨테이너 가정. 멀티 인스턴스 되면 Redis 로 교체.
+# ─────────── Rate limiter (파일) ───────────
+# 프로세스 메모리에 두지 않는다. gunicorn 워커는 자주 새로 뜨는데(이 배포에서는 요청마다
+# 죽는 문제까지 있었다) in-memory 버킷은 그때마다 통째로 비워져서, 겉으로는 「제한이 아예
+# 안 걸린다」로 나타난다 — 2026-08-25 실측: 동시 14건이 전부 통과했고 요청마다 워커 pid 가
+# 달랐다. 인증 없는 창구의 유일한 방어선이 워커 수명에 얹혀 있으면 안 된다.
+#
+# sqlite 를 쓰는 것은 표준 라이브러리만으로 **프로세스 사이**를 잠글 수 있어서다.
+# 트래픽이 분당 몇 건이라 잠금 경합은 문제가 안 된다.
 
-_rate_lock = threading.Lock()
-_rate_buckets: dict[str, deque[float]] = defaultdict(deque)
+RATE_DB = os.getenv('PORTFOLIO_RATE_DB',
+                    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                 'portfolio_rate.sqlite'))
+_rate_lock = threading.Lock()   # 같은 워커 안의 스레드끼리. 프로세스 사이는 sqlite 가 맡는다
+
+
+def _rate_conn():
+    conn = sqlite3.connect(RATE_DB, timeout=5)
+    conn.execute('CREATE TABLE IF NOT EXISTS hits (ts REAL NOT NULL, ip TEXT NOT NULL)')
+    conn.execute('CREATE INDEX IF NOT EXISTS hits_ts ON hits (ts)')
+    return conn
 
 
 def _check_rate(ip: str) -> bool:
-    """True 면 통과, False 면 거부."""
+    """True 면 통과. 1인당 분당 제한과 **전체 하루 총량**을 한 자리에서 본다.
+
+    사람 단위 제한만으로는 「한 사람이 얼마나」밖에 못 막는다 — 인증이 없으니 봇이 여럿
+    오면 1인당 제한을 전부 지키면서도 요금은 끝없이 는다. 게다가 이 창구는 회사 게이트웨이
+    열쇠로 나가고 그 열쇠는 나쵸도 함께 쓰므로, 여기서 태워 막히면 그쪽까지 같이 죽는다.
+    """
     now = time.time()
-    cutoff = now - RATE_LIMIT_WINDOW
-    with _rate_lock:
-        bucket = _rate_buckets[ip]
-        while bucket and bucket[0] < cutoff:
-            bucket.popleft()
-        if len(bucket) >= RATE_LIMIT_PER_MIN:
-            return False
-        bucket.append(now)
+    try:
+        with _rate_lock, _rate_conn() as conn:
+            conn.execute('DELETE FROM hits WHERE ts < ?', (now - 86400,))
+            per_ip = conn.execute(
+                'SELECT COUNT(*) FROM hits WHERE ip = ? AND ts > ?',
+                (ip, now - RATE_LIMIT_WINDOW)).fetchone()[0]
+            if per_ip >= RATE_LIMIT_PER_MIN:
+                return False
+            today = conn.execute(
+                'SELECT COUNT(*) FROM hits WHERE ts > ?', (now - 86400,)).fetchone()[0]
+            if today >= DAILY_CAP:
+                return False
+            conn.execute('INSERT INTO hits (ts, ip) VALUES (?, ?)', (now, ip))
         return True
+    except Exception:
+        # 세는 곳이 고장 났으면 **막는다**. 열어 두면 고장이 곧 무제한이 된다.
+        logger.exception('rate limit 확인 실패')
+        return False
 
 
 def _client_ip() -> str:
-    # Cloudflare/proxy 뒤일 때 — X-Forwarded-For 첫번째 hop
+    """제한 버킷을 가를 값. **호출자가 못 정하는 것**이어야 한다.
+
+    전에는 X-Forwarded-For 의 첫 홉을 썼는데 그건 호출자가 정하는 값이다 — Cloudflare 는
+    클라이언트가 보낸 XFF 를 지우지 않고 뒤에 실제 IP 를 덧붙이므로, 헤더만 바꿔 가며
+    보내면 버킷이 매번 새로 생겨 분당 제한이 사실상 없었다(2026-08-25 감사).
+
+    CF-Connecting-IP 는 Cloudflare 가 자기 손으로 덮어쓰는 값이라 위조가 안 된다.
+    그게 없는 경로(로컬 개발·터널 우회)에서는 XFF 의 **마지막** 홉을 쓴다 — 우리 프록시가
+    맨 뒤에 붙인 값이라 앞쪽에 뭘 끼워 넣어도 안 밀린다.
+    """
+    cf = request.headers.get('CF-Connecting-IP', '').strip()
+    if cf:
+        return cf
     xff = request.headers.get('X-Forwarded-For', '')
     if xff:
-        return xff.split(',')[0].strip()
+        return xff.rsplit(',', 1)[-1].strip()
     return request.remote_addr or 'unknown'
+
+
+# ─────────── 하루 총량 ───────────
+# 1인당 분당 제한과 별개로 **전체 합산** 상한을 둔다. 인증이 없는 창구라 사람 단위 제한은
+# 「한 사람이 얼마나」만 막고 「몇 사람이 오는가」는 못 막는다 — 봇 여럿이 오면 1인당 제한을
+# 전부 지키면서도 요금은 끝없이 는다. 게다가 이 창구는 회사 게이트웨이 열쇠로 나가고
+# 그 열쇠는 나쵸도 함께 쓰므로, 여기서 태워 막히면 그쪽까지 같이 죽는다.
+DAILY_CAP = int(os.getenv('PORTFOLIO_DAILY_CAP', '300'))
+
+
+# ─────────── OpenGateway ───────────
+# 공개 챗봇은 사내 게이트웨이로 나간다(2026-08-25 지시). 개인 Anthropic 키를 쓰던 자리다.
+# 열쇠 파일 경로가 나쵸(llm.py)와 같은 것은 우연이 아니라 같은 열쇠라서다 — 그래서 위
+# DAILY_CAP 이 이 파일에서 제일 중요한 줄이다.
+OG_URL = os.getenv('OPENGATEWAY_BASE_URL', 'https://apis.opengateway.ai/v1/chat/completions')
+OG_MODEL = os.getenv('PORTFOLIO_OG_MODEL', 'z-ai/glm-5.2-ultrafast')
+OG_KEY_PATH = os.path.expanduser('~/.config/opengateway.key')
+
+
+def _og_key() -> str:
+    v = os.getenv('OPENGATEWAY_API_KEY') or os.getenv('LLM_API_KEY')
+    if v:
+        return v.strip()
+    try:
+        with open(OG_KEY_PATH, encoding='utf-8') as fh:
+            return fh.read().strip()
+    except Exception:
+        return ''
+
+
+def _og_stream(prompt: str, system: str):
+    """게이트웨이 스트리밍. 조각 텍스트를 하나씩 내놓는다.
+
+    OpenAI 호환 SSE 라 Anthropic SDK 의 text_stream 과 모양이 다르다 — 호출부가 같은
+    for 문을 쓰도록 여기서 델타만 뽑아 준다.
+    """
+    import requests
+    key = _og_key()
+    if not key:
+        raise RuntimeError('opengateway key missing')
+    # macOS 에서 fork 된 gunicorn 워커는 requests 가 **시스템 프록시 설정을 조회하는 순간**
+    # 데드락한다(SystemConfiguration 이 fork 안전하지 않다). 응답도 예외도 없이 그냥 멈추고
+    # 30초 뒤 arbiter 가 워커를 SIGKILL 한다 — 2026-08-25 에 이 증상으로 챗봇이 「세션만
+    # 열고 답이 없는」 상태였다. 같은 코드를 셸에서 직접 돌리면 멀쩡해서 원인이 안 보인다.
+    # trust_env 를 끄면 그 조회를 건너뛴다. 프록시를 쓰지 않는 환경이라 잃는 것이 없다.
+    sess = requests.Session()
+    sess.trust_env = False
+    res = sess.post(
+        OG_URL, timeout=RESPONSE_TIMEOUT, stream=True,
+        headers={'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'},
+        json={'model': OG_MODEL, 'max_tokens': 600, 'stream': True,
+              'messages': [{'role': 'system', 'content': system},
+                           {'role': 'user', 'content': prompt}]},
+    )
+    res.raise_for_status()
+    # decode_unicode 를 쓰지 않는다 — 게이트웨이가 Content-Type 에 charset 을 안 붙여서
+    # requests 가 ISO-8859-1 로 디코드해 버리고, 한글이 글자마다 깨져 나간다(실측).
+    for raw in res.iter_lines():
+        if not raw:
+            continue
+        line = raw.decode('utf-8', 'replace')
+        if not line.startswith('data:'):
+            continue
+        payload = line[5:].strip()
+        if payload == '[DONE]':
+            break
+        try:
+            obj = json.loads(payload)
+        except Exception:
+            continue
+        for ch in obj.get('choices') or []:
+            text = (ch.get('delta') or {}).get('content')
+            if text:
+                yield text
 
 
 # ─────────── Anthropic client (lazy) ───────────
@@ -141,7 +258,20 @@ def _get_firestore():
 
 
 def _log_to_firestore(payload: dict) -> None:
-    """비동기 처리 어렵고 양 적으니 inline. 실패해도 사용자 응답에 영향 없게 try/except."""
+    """로그 적재. **반드시 스레드로 던진다 — 여기서 기다리면 워커가 죽는다.**
+
+    fork 된 gunicorn 워커에서는 GCP 클라이언트의 첫 네트워크 호출이 데드락한다
+    (_og_stream 의 trust_env 주석과 같은 macOS fork 문제). 하필 이 호출이 응답을 다
+    내보낸 **뒤**라, 사용자 화면은 멀쩡한데 워커만 30초 뒤 SIGKILL 당한다.
+
+    그래서 증상이 로그 적재처럼 안 보였다 — 요청마다 워커가 새로 뜨니 in-memory 인
+    분당 제한 버킷이 매번 비워져서, 겉으로는 「rate limit 이 안 걸린다」로 나타났다
+    (2026-08-25 실측: 동시 12건이 전부 통과, 요청마다 워커 pid 가 달랐다).
+    """
+    threading.Thread(target=_log_to_firestore_blocking, args=(payload,), daemon=True).start()
+
+
+def _log_to_firestore_blocking(payload: dict) -> None:
     db = _get_firestore()
     if db is None:
         return
@@ -548,25 +678,13 @@ def ask_sionic_stream():
     if not prompt:
         return jsonify({'error': 'invalid_request', 'reason': 'prompt 필수.'}), 400
 
-    client = _get_anthropic()
-
     def gen():
         yield f"data: {json.dumps({'type': 'session', 'session_id': 'sionic'}, ensure_ascii=False)}\n\n"
-        if client is None:
-            yield f"data: {json.dumps({'type': 'chunk', 'text': sionic_fake_reply(prompt)}, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
-            return
         full = ''
         try:
-            with client.messages.stream(
-                model='claude-haiku-4-5',
-                max_tokens=600,
-                system=SIONIC_SYSTEM,
-                messages=[{'role': 'user', 'content': prompt}],
-            ) as stream:
-                for text in stream.text_stream:
-                    full += text
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': text}, ensure_ascii=False)}\n\n"
+            for text in _og_stream(prompt, SIONIC_SYSTEM):
+                full += text
+                yield f"data: {json.dumps({'type': 'chunk', 'text': text}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'text': full[:RESPONSE_MAX_LEN]}, ensure_ascii=False)}\n\n"
             try:
                 _log_to_firestore({'kind': 'sionic', 'ip': ip, 'prompt': prompt, 'response': full[:RESPONSE_MAX_LEN]})

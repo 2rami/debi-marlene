@@ -34,6 +34,25 @@ from portfolio_data import search_portfolio, SIONIC_SYSTEM, sionic_fake_reply
 logger = logging.getLogger(__name__)
 portfolio_bp = Blueprint('portfolio', __name__)
 
+# 공개 챗봇 창구는 기본으로 닫아 둔다(2026-08-25 지시 「그냥 꺼줘」).
+#
+# 이 자리는 인증이 없고, 유일한 방어인 분당 제한이 X-Forwarded-For **첫 홉**으로 호출자를
+# 가른다. 그 값은 호출자가 정하는 것이라(Cloudflare 는 클라이언트가 보낸 XFF 를 지우지 않고
+# 뒤에 실제 IP 를 덧붙인다) 헤더만 바꿔 보내면 제한 버킷이 매번 새로 생긴다. 그리고 호출은
+# 소유자 Anthropic 키로 나간다 — 인터넷 아무나가 소유자 요금으로 무한정 부를 수 있었다.
+#
+# 다시 열려면 제한을 cf-connecting-ip 기준으로 고친 뒤 PORTFOLIO_CHATBOT=1 을 준다.
+# 스위치를 코드 삭제 대신 둔 것은, 지운 창구는 다음 사람이 왜 없는지 모르고 되살리기 때문이다.
+_PUBLIC_ASK_PATHS = ('/ask', '/ask/stream', '/ask/sionic/stream')
+
+
+@portfolio_bp.before_request
+def _gate_public_chatbot():
+    if request.path.rstrip('/').endswith(_PUBLIC_ASK_PATHS) and os.getenv('PORTFOLIO_CHATBOT') != '1':
+        return jsonify({'error': 'chatbot_disabled',
+                        'message': '지금은 답변 창구를 닫아 두었습니다.'}), 503
+
+
 # ─────────── 상수 ───────────
 
 BETA_HEADER = "managed-agents-2026-04-01"

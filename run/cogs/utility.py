@@ -115,7 +115,7 @@ class UtilityCog(commands.Cog, name="기타"):
                 guild_id=interaction.guild.id if interaction.guild else None,
                 guild_name=interaction.guild.name if interaction.guild else None,
                 channel_id=interaction.channel_id,
-                channel_name=interaction.channel.name if interaction.channel else None,
+                channel_name=getattr(interaction.channel, "name", None),
             )
         except Exception:
             pass
@@ -140,7 +140,7 @@ class UtilityCog(commands.Cog, name="기타"):
             guild_id=interaction.guild.id if interaction.guild else None,
             guild_name=interaction.guild.name if interaction.guild else None,
             channel_id=interaction.channel_id,
-            channel_name=interaction.channel.name if interaction.channel else None,
+            channel_name=getattr(interaction.channel, "name", None),
             args={"내용": 내용[:50] + "..." if len(내용) > 50 else 내용}
         )
 

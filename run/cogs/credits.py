@@ -53,7 +53,7 @@ class CreditsCog(commands.Cog, name="크레딧"):
             guild_id=guild.id if guild else None,
             guild_name=guild.name if guild else None,
             channel_id=interaction.channel_id,
-            channel_name=interaction.channel.name if interaction.channel else None,
+            channel_name=getattr(interaction.channel, "name", None),
             args={},
         )
 

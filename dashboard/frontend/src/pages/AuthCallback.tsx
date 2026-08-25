@@ -4,6 +4,22 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 import Loading from '../components/common/Loading'
 
+// 저장된 복귀 경로는 URL 이 될 수 있는 값이라 그대로 쓰면 외부로도 튕길 수 있다
+// (`//evil.com` 은 브라우저가 바깥 주소로 읽는다). 우리 사이트 안쪽만 통과시킨다.
+function safeReturnPath(): string | null {
+  let raw: string | null = null
+  try {
+    raw = sessionStorage.getItem('post_login_path')
+    sessionStorage.removeItem('post_login_path')
+  } catch {
+    return null
+  }
+  if (!raw) return null
+  if (!raw.startsWith('/') || raw.startsWith('//')) return null
+  if (raw.startsWith('/auth/')) return null  // 콜백으로 되돌아가면 고리가 된다
+  return raw
+}
+
 export default function AuthCallback() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -28,7 +44,7 @@ export default function AuthCallback() {
       try {
         await api.post('/auth/exchange', { code })
         await refreshUser()
-        navigate('/dashboard', { replace: true })
+        navigate(safeReturnPath() || '/dashboard', { replace: true })
       } catch {
         setError('로그인에 실패했습니다. 다시 시도해주세요.')
         setTimeout(() => navigate('/', { replace: true }), 2000)

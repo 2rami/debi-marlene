@@ -28,6 +28,24 @@ COLLECTION = 'og_keys'
 # 정확한 청구는 게이트웨이가 하므로 이 값은 안내용 추정치다.
 COST_PER_IMAGE_USD = 0.05
 
+# ── 크레딧 "상당" 환산 ────────────────────────────────────────────────
+# 봇에는 이미 크레딧이라는 자가 있는데(대화·TTS) 이미지만 달러로 말하면 사용자가
+# 두 화폐를 머릿속에서 환산해야 한다. 그래서 **보이는 단위만** 크레딧으로 맞춘다.
+#
+# ⚠️실제로 차감되는 것은 봇 크레딧이 아니라 **사용자 본인 OG 잔액**이다.
+# 화면에는 반드시 "상당" 을 붙여 오해를 막는다 — 안 그러면 "왜 크레딧이 안 줄지?" 가 된다.
+USD_TO_KRW = 1400          # 안내용 근사치. 정밀 환산이 목적이 아니다
+KRW_PER_CREDIT = 10        # 기본 충전가 기준(1,000원 = 100크레딧)
+
+
+def credits_equivalent(images: int = 1) -> int:
+    """이미지 N장이 봇 크레딧으로 치면 몇 개어치인지. 표시 전용."""
+    krw = COST_PER_IMAGE_USD * USD_TO_KRW * max(images, 0)
+    return max(1, round(krw / KRW_PER_CREDIT)) if images else 0
+
+
+CREDITS_PER_IMAGE = credits_equivalent(1)
+
 
 class KeyVaultError(RuntimeError):
     """암호가 준비 안 됐을 때. 키를 평문으로 저장하느니 거절한다."""
@@ -116,6 +134,7 @@ def get_status(user_id) -> dict:
         'last_used': d.get('last_used'),
         'calls': calls,
         'est_usd': round(calls * COST_PER_IMAGE_USD, 2),
+        'est_credits': credits_equivalent(calls),
     }
 
 

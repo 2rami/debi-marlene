@@ -28,7 +28,14 @@ if not discord.opus.is_loaded():
         'Darwin': ['/opt/homebrew/lib/libopus.dylib', '/usr/local/lib/libopus.dylib'],
         'Linux': ['libopus.so.0', 'libopus.so', '/usr/lib/x86_64-linux-gnu/libopus.so.0'],
     }
-    for path in _opus_paths.get(platform.system(), ['opus']):
+    # 컨테이너·패키지 관리자 밖에 두는 배포처에는 시스템 경로에 opus 가 없다.
+    # 없으면 음성이 통째로 죽으므로, 배포처가 직접 들고 다닐 수 있게 먼저 본다.
+    _bundled = os.environ.get('OPUS_LIB_PATH')
+    _candidates = _opus_paths.get(platform.system(), ['opus'])
+    if _bundled:
+        _candidates = [_bundled] + _candidates
+
+    for path in _candidates:
         try:
             discord.opus.load_opus(path)
             print(f"[완료] Opus 로드: {path}", flush=True)

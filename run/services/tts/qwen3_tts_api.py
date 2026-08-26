@@ -81,9 +81,11 @@ def init_device():
     if torch.cuda.is_available():
         device, dtype = "cuda:0", torch.bfloat16
     elif torch.backends.mps.is_available():
-        # float16 은 샘플링 단계에서 확률 텐서가 inf/nan 으로 넘친다(M4 실측:
-        # "probability tensor contains inf, nan or element < 0"). float32 라야 통과한다.
-        device, dtype = "mps", torch.float32
+        # float16 은 샘플링에서 확률 텐서가 inf/nan 으로 넘쳐 죽는다(M4 실측).
+        # bfloat16 은 지수 범위가 float32 와 같아 그 문제가 없고, 대역폭이 절반이라
+        # float32 보다 빠르다(데비 RTF 2.44 -> 1.97). 메모리도 절반이라 마를렌(1.92B)이
+        # 16GB 에 들어가는 것도 이 갈래 덕이다.
+        device, dtype = "mps", torch.bfloat16
     else:
         device, dtype = "cpu", torch.float32
 

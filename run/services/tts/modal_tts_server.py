@@ -31,7 +31,10 @@ volume = modal.Volume.from_name("tts-model-cache", create_if_missing=True)
 
 # HuggingFace 모델 ID
 HUGGINGFACE_MODELS = {
-    "debi": os.environ.get("MODAL_DEBI_MODEL", "2R4mi/qwen3-tts-debi-light"),
+    # 경량판(debi-light, 0.91B)은 화자가 살아나지 않는다 — 데비 목소리가 아닌 소리가
+    # 난다(2026-08-26 청취 판정). 같은 문장을 2~3초 짧게 뭉개고 지나가는 것도 같은 뿌리다.
+    # 마를렌과 같은 체급인 원본(1.92B)을 쓴다.
+    "debi": os.environ.get("MODAL_DEBI_MODEL", "2R4mi/qwen3-tts-debi"),
     "marlene": os.environ.get("MODAL_MARLENE_MODEL", "2R4mi/qwen3-tts-marlene"),
 }
 

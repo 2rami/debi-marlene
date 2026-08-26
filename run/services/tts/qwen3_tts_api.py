@@ -35,9 +35,11 @@ BASE_PATH = os.environ.get("QWEN3_TTS_MODEL_DIR") or os.path.abspath(
 
 # 로컬 경로가 없으면 허깅페이스 repo id 로 그대로 넘긴다 — 파인튜닝 산출물의 정본이
 # 드라이브가 아니라 허깅페이스에 있다(드라이브 사본은 가중치가 비어 있었다).
+# 기본값은 허깅페이스 원본이다. 두 화자 모두 1.92B — 경량판 debi-light 는 화자가
+# 살아나지 않아 쓰지 않는다. env 로 로컬 체크포인트를 지정하면 그쪽이 우선한다.
 SPEAKER_MODELS = {
-    "debi": os.environ.get("QWEN3_TTS_DEBI") or os.path.join(BASE_PATH, "checkpoint-epoch-9"),
-    "marlene": os.environ.get("QWEN3_TTS_MARLENE") or os.path.join(BASE_PATH, "checkpoint-epoch-27"),
+    "debi": os.environ.get("QWEN3_TTS_DEBI") or "2R4mi/qwen3-tts-debi",
+    "marlene": os.environ.get("QWEN3_TTS_MARLENE") or "2R4mi/qwen3-tts-marlene",
 }
 
 TEMP_DIR = os.environ.get("TTS_TEMP_DIR", "/tmp/tts_output")

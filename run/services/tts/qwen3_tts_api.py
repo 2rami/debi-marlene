@@ -81,8 +81,9 @@ def init_device():
     if torch.cuda.is_available():
         device, dtype = "cuda:0", torch.bfloat16
     elif torch.backends.mps.is_available():
-        # MPS 는 bfloat16 커버리지가 얇다. float16 이라야 커널이 다 붙는다.
-        device, dtype = "mps", torch.float16
+        # float16 은 샘플링 단계에서 확률 텐서가 inf/nan 으로 넘친다(M4 실측:
+        # "probability tensor contains inf, nan or element < 0"). float32 라야 통과한다.
+        device, dtype = "mps", torch.float32
     else:
         device, dtype = "cpu", torch.float32
 

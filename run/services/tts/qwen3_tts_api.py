@@ -29,12 +29,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 설정 - 화자별 모델 경로
-BASE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "..", "tests", "qwen3_tts_test")
-BASE_PATH = os.path.abspath(BASE_PATH)
+BASE_PATH = os.environ.get("QWEN3_TTS_MODEL_DIR") or os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "tests", "qwen3_tts_test")
+)
 
+# 로컬 경로가 없으면 허깅페이스 repo id 로 그대로 넘긴다 — 파인튜닝 산출물의 정본이
+# 드라이브가 아니라 허깅페이스에 있다(드라이브 사본은 가중치가 비어 있었다).
 SPEAKER_MODELS = {
-    "debi": os.path.join(BASE_PATH, "checkpoint-epoch-9"),
-    "marlene": os.path.join(BASE_PATH, "checkpoint-epoch-27"),
+    "debi": os.environ.get("QWEN3_TTS_DEBI") or os.path.join(BASE_PATH, "checkpoint-epoch-9"),
+    "marlene": os.environ.get("QWEN3_TTS_MARLENE") or os.path.join(BASE_PATH, "checkpoint-epoch-27"),
 }
 
 TEMP_DIR = os.environ.get("TTS_TEMP_DIR", "/tmp/tts_output")
@@ -75,14 +78,22 @@ def init_device():
     """디바이스 초기화"""
     global device, dtype, attn_impl
 
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+    if torch.cuda.is_available():
+        device, dtype = "cuda:0", torch.bfloat16
+    elif torch.backends.mps.is_available():
+        # MPS 는 bfloat16 커버리지가 얇다. float16 이라야 커널이 다 붙는다.
+        device, dtype = "mps", torch.float16
+    else:
+        device, dtype = "cpu", torch.float32
 
-    try:
-        import flash_attn
-        attn_impl = "flash_attention_2"
-    except ImportError:
-        attn_impl = "eager"
+    # flash-attn 은 CUDA 전용 빌드다. 다른 디바이스에서는 쳐다보지도 않는다.
+    attn_impl = "eager"
+    if device.startswith("cuda"):
+        try:
+            import flash_attn  # noqa: F401
+            attn_impl = "flash_attention_2"
+        except ImportError:
+            pass
 
     logger.info(f"Device: {device}, Dtype: {dtype}, Attention: {attn_impl}")
 
@@ -99,7 +110,9 @@ def load_model_for_speaker(speaker: str):
 
     model_path = SPEAKER_MODELS[speaker]
 
-    if not os.path.exists(model_path):
+    # 슬래시 하나짜리 이름은 허깅페이스 repo id 로 본다. 그 외에는 실제 경로여야 한다.
+    is_repo_id = not os.path.isabs(model_path) and model_path.count("/") == 1
+    if not is_repo_id and not os.path.exists(model_path):
         raise FileNotFoundError(f"모델 경로가 없습니다: {model_path}")
 
     from qwen_tts import Qwen3TTSModel
@@ -122,6 +135,11 @@ def load_model_for_speaker(speaker: str):
 def load_all_models():
     """모든 화자 모델 로드"""
     init_device()
+
+    # 메모리가 빠듯한 기계(16GB 맥미니)에서는 첫 요청 때 화자별로 올린다.
+    if os.environ.get("QWEN3_TTS_LAZY", "").lower() in ("1", "true", "yes"):
+        logger.info("지연 로드 모드 — 첫 요청 때 화자별로 올립니다")
+        return
 
     for speaker in SPEAKER_MODELS.keys():
         try:

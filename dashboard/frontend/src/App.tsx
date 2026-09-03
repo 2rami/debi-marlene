@@ -32,6 +32,7 @@ import PortfolioNimbleNeuron from './pages/PortfolioNimbleNeuron'
 import PortfolioNimbleNeuronPrint from './pages/PortfolioNimbleNeuronPrint'
 import PortfolioSmilegate from './pages/PortfolioSmilegate'
 import PortfolioSmilegateCompare from './pages/PortfolioSmilegateCompare'
+import PortfolioChrono from './pages/_archive/PortfolioChrono'
 import PageLLM from './pages/PortfolioNexon2026/PageLLM'
 import PageFrontend from './pages/PortfolioNexon2026/PageFrontend'
 import PageFrontendDeck from './pages/PortfolioNexon2026/PageFrontendDeck'
@@ -130,6 +131,7 @@ function App() {
           <Route path="/portfolio/nimble-neuron/print" element={<PortfolioNimbleNeuronPrint />} />
           <Route path="/portfolio/smilegate" element={<PortfolioSmilegate />} />
           <Route path="/portfolio/smilegate-compare" element={<PortfolioSmilegateCompare />} />
+          <Route path="/portfolio/chronostudio" element={<PortfolioChrono />} />
           <Route path="/portfolio/nexon" element={<Navigate to="/portfolio/nexon/frontend" replace />} />
           <Route path="/portfolio/nexon/frontend" element={<PageFrontendDeck />} />
           <Route path="/portfolio/nexon/frontend-scroll" element={<PageFrontend />} />

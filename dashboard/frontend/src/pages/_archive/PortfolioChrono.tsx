@@ -1,11 +1,11 @@
 import { useRef, useEffect, useState } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import Lenis from 'lenis'
-import ScrollFloat from '../components/common/ScrollFloat'
-import Galaxy from '../components/common/Galaxy'
+import ScrollFloat from '../../components/common/ScrollFloat'
+import Galaxy from '../../components/common/Galaxy'
 
-import CHRONO_LOGO from '../assets/images/event/chrono_studio_logo.jpeg'
-import STATUSLINE_PREVIEW from '../assets/images/event/statusline_preview.png'
+import CHRONO_LOGO from '../../assets/images/event/chrono_studio_logo.jpeg'
+import STATUSLINE_PREVIEW from '../../assets/images/event/statusline_preview.png'
 
 /* ── Colors ── */
 const GOLD = '#C4A265'

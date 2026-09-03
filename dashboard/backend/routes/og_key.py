@@ -35,7 +35,10 @@ og_key_bp = Blueprint('og_key', __name__)
 
 # 게이트웨이가 발급하는 키 접두사. 오타나 엉뚱한 값(예: 대시보드 URL)을 붙여넣었을 때
 # 20초짜리 네트워크 확인을 돌리기 전에 즉시 돌려보낸다.
-KEY_PREFIX = 'sk-'
+#
+# 지금 발급되는 것은 `apik_` 이고 `sk-` 는 옛 형식이다. 옛 키가 아직 살아 있으므로 둘 다 받는다
+# (2026-09-03 제보: apik_ 키를 정상 발급받은 사용자가 이 검사에 막혀 등록 자체를 못 했다).
+KEY_PREFIXES = ('apik_', 'sk-')
 KEY_MIN_LEN = 20
 
 
@@ -85,8 +88,8 @@ def put_og_key():
 
     if not key:
         return jsonify({'ok': False, 'error': '키를 입력해 주세요.'}), 400
-    if not key.startswith(KEY_PREFIX) or len(key) < KEY_MIN_LEN:
-        return jsonify({'ok': False, 'error': 'OpenGateway 키 형식이 아니에요. sk- 로 시작하는 값을 붙여넣어 주세요.'}), 400
+    if not key.startswith(KEY_PREFIXES) or len(key) < KEY_MIN_LEN:
+        return jsonify({'ok': False, 'error': 'OpenGateway 키 형식이 아니에요. apik_ 로 시작하는 값을 붙여넣어 주세요.'}), 400
 
     # 저장 전에 확인한다. 틀린 키를 받아두면 사용자는 그림을 칠 때가 되어서야
     # 실패를 보고, 그때는 원인이 키라는 걸 알 수가 없다.

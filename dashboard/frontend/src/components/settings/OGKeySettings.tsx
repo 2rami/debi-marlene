@@ -93,7 +93,7 @@ export default function OGKeySettings() {
                 <span className="text-sm font-medium text-emerald-400">연결됨</span>
               </div>
               <p className="font-mono text-sm text-white/70 truncate">
-                sk-{'‥‥'}{status.key_tail}
+                {'‥‥'}{status.key_tail}
               </p>
             </div>
             {confirmingDelete ? (
@@ -170,7 +170,7 @@ export default function OGKeySettings() {
                 value={keyInput}
                 onChange={(e) => { setKeyInput(e.target.value); setError(null) }}
                 onKeyDown={(e) => { if (e.key === 'Enter') connect() }}
-                placeholder="sk-..."
+                placeholder="apik_..."
                 autoComplete="off"
                 spellCheck={false}
                 disabled={submitting}

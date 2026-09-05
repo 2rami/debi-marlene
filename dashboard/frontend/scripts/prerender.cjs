@@ -17,6 +17,16 @@ const ROUTES = [
   '/guide/tts', '/guide/music', '/guide/welcome', '/guide/credits',
 ]
 
+// 광고 도메인. 프리렌더 시점에 자동광고가 돌면 그 결과(빈 슬롯 + aswift iframe)가
+// page.content() 에 그대로 굳어 정적 HTML 에 박힌다. 굳은 슬롯은 data-adsbygoogle-status="done"
+// 이라 실사용자 브라우저의 adsbygoogle.js 가 처리 대상에서 건너뛰고, 광고가 영영 안 채워진다.
+// 게다가 그 슬롯의 광고 요청 url 파라미터에 빌드 머신 주소(localhost:4178)가 박혀 나간다.
+const AD_HOSTS = /googlesyndication\.com|doubleclick\.net|googletagservices\.com/
+
+const AD_LEFTOVERS =
+  'ins.adsbygoogle, iframe[id^="aswift_"], iframe[id^="google_ads_iframe"], ' +
+  'div[id^="google_ads_iframe"], .google-auto-placed, [data-google-query-id]'
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 ;(async () => {
@@ -45,11 +55,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
     for (const route of ROUTES) {
       const page = await browser.newPage()
       try {
+        // 테마는 localStorage 없으면 prefers-color-scheme 을 따른다. 고정하지 않으면
+        // 빌드한 사람의 맥 설정이 정적 HTML 의 <html class="dark"> 로 굳어 전 사용자 첫 화면에 샌다.
+        await page.emulateMediaFeatures([
+          { name: 'prefers-color-scheme', value: 'light' },
+        ])
+        await page.setRequestInterception(true)
+        page.on('request', (req) => {
+          if (AD_HOSTS.test(req.url())) req.abort().catch(() => {})
+          else req.continue().catch(() => {})
+        })
         await page.goto(`http://localhost:${PORT}${route}`, {
           waitUntil: 'networkidle0',
           timeout: 30000,
         })
         await sleep(400) // 애니메이션/레이지 콘텐츠 안정화
+        await page.evaluate((sel) => {
+          document.querySelectorAll(sel).forEach((el) => el.remove())
+        }, AD_LEFTOVERS)
         const html = await page.content()
         const outPath =
           route === '/'

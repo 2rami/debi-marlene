@@ -15,6 +15,7 @@ const ROUTES = [
   '/', '/landing', '/commands', '/docs', '/bot-guide', '/terms', '/about',
   '/guide/faq', '/guide/eternal-return', '/guide/tier-season', '/guide/characters',
   '/guide/tts', '/guide/music', '/guide/welcome', '/guide/credits',
+  '/guide/record', '/guide/stats', '/guide/quiz', '/guide/server-setup',
 ]
 
 // 광고 도메인. 프리렌더 시점에 자동광고가 돌면 그 결과(빈 슬롯 + aswift iframe)가
@@ -22,6 +23,18 @@ const ROUTES = [
 // 이라 실사용자 브라우저의 adsbygoogle.js 가 처리 대상에서 건너뛰고, 광고가 영영 안 채워진다.
 // 게다가 그 슬롯의 광고 요청 url 파라미터에 빌드 머신 주소(localhost:4178)가 박혀 나간다.
 const AD_HOSTS = /googlesyndication\.com|doubleclick\.net|googletagservices\.com/
+
+const ORIGIN = 'https://debimarlene.com'
+
+// 같은 문서가 /guide/tts 와 /guide/tts/ 두 주소로 열린다(서버가 308 로 이어 준다).
+// canonical 이 없으면 구글이 어느 쪽을 정본으로 삼을지 스스로 고르고, 그 판단이
+// 갈리면 색인 가치가 두 주소로 쪼개진다. 정규형(끝 슬래시)을 못박는다.
+//
+// '/' 는 캐릭터 선택 인트로다 — 2.2초 카운트업 뒤 /landing 으로 넘어가는 관문이라
+// 본문이 142자뿐이다. 그래서 정본을 /landing/ 으로 넘긴다. 크롤러에게 다른 화면을
+// 보여주는 것이 아니라, 실제 목적지를 알려 주는 것이다.
+const canonicalFor = (route) =>
+  route === '/' ? `${ORIGIN}/landing/` : `${ORIGIN}${route}/`
 
 const AD_LEFTOVERS =
   'ins.adsbygoogle, iframe[id^="aswift_"], iframe[id^="google_ads_iframe"], ' +
@@ -73,6 +86,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
         await page.evaluate((sel) => {
           document.querySelectorAll(sel).forEach((el) => el.remove())
         }, AD_LEFTOVERS)
+        await page.evaluate((href) => {
+          document.querySelectorAll('link[rel="canonical"]').forEach((el) => el.remove())
+          const link = document.createElement('link')
+          link.rel = 'canonical'
+          link.href = href
+          document.head.appendChild(link)
+        }, canonicalFor(route))
         const html = await page.content()
         const outPath =
           route === '/'

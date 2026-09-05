@@ -56,6 +56,18 @@ const categories = [
   { id: '기타', label: 'Other', icon: <MoreHorizontal className="w-4 h-4" /> },
 ]
 
+/** 명령어 목록에서 상세 가이드로 잇는 내부 링크. 목록만으로는 알 수 없는 사용법·해석을 담당한다. */
+const GUIDE_LINKS = [
+  { href: '/guide/record/', title: '전적 검색 가이드', desc: '/전적 결과의 티어·MMR·평균 순위·승률·평균 킬을 각각 어떻게 읽는지, 랭크와 일반게임 기록을 어떻게 나눠 보는지 설명합니다.' },
+  { href: '/guide/stats/', title: '캐릭터 통계 가이드', desc: '/통계 표가 어느 구간의 표본인지, 승률과 픽률을 왜 함께 봐야 하는지, 픽을 고를 때 빠지기 쉬운 함정을 정리했습니다.' },
+  { href: '/guide/tts/', title: 'TTS 음성 가이드', desc: '봇을 음성 채널로 부르는 법, 목소리와 읽을 채널 설정, 크레딧 소모, 소리가 안 들릴 때의 점검 순서를 다룹니다.' },
+  { href: '/guide/music/', title: '음악 재생 가이드', desc: '/음악 으로 곡을 트는 법과 대기열·스킵·반복을 버튼으로 다루는 방법을 안내합니다.' },
+  { href: '/guide/quiz/', title: '퀴즈 가이드', desc: '노래 맞추기·이터널 리턴 퀴즈·직접 출제 세 방식의 차이와, 제목과 가수가 따로 채점되는 규칙을 설명합니다.' },
+  { href: '/guide/server-setup/', title: '서버 설정 가이드', desc: '관리자용. 봇 권한, 명령어 채널과 공지 채널 지정, 환영 메시지와 유튜브 알림 설정을 순서대로 정리했습니다.' },
+  { href: '/guide/credits/', title: '크레딧 가이드', desc: '출석체크로 크레딧을 모으는 법과 어떤 기능에서 얼마나 소모되는지 확인하는 방법입니다.' },
+  { href: '/guide/faq/', title: '자주 묻는 질문', desc: '봇이 반응하지 않을 때, 명령어가 보이지 않을 때 등 자주 들어오는 질문을 모았습니다.' },
+]
+
 export default function Commands() {
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('전체')
@@ -215,6 +227,27 @@ export default function Commands() {
             </p>
           </motion.div>
         )}
+
+        <section className="mt-20 pt-12 border-t border-white/10">
+          <h2 className="text-2xl font-bold text-white mb-3">명령어별 자세한 사용법</h2>
+          <p className="text-white/50 text-sm leading-relaxed mb-8 max-w-3xl">
+            위 목록은 명령어와 입력 형식을 빠르게 확인하는 용도입니다.
+            각 기능을 실제로 어떻게 쓰는지, 결과 화면의 숫자가 무엇을 뜻하는지, 뜻대로 동작하지 않을 때 무엇을 확인하면 되는지는
+            아래 가이드에 자세히 정리해 두었습니다. 처음 봇을 들인 서버라면 서버 설정 가이드부터 보는 것을 권합니다.
+          </p>
+          <div className="grid md:grid-cols-2 gap-4">
+            {GUIDE_LINKS.map(({ href, title, desc }) => (
+              <a
+                key={href}
+                href={href}
+                className="block p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 transition-colors"
+              >
+                <div className="text-white font-bold mb-1.5">{title}</div>
+                <div className="text-white/45 text-sm leading-relaxed">{desc}</div>
+              </a>
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   )

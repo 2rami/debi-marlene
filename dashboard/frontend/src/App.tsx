@@ -26,6 +26,10 @@ import GuideTTS from './pages/guide/GuideTTS'
 import GuideMusic from './pages/guide/GuideMusic'
 import GuideWelcome from './pages/guide/GuideWelcome'
 import GuideCredits from './pages/guide/GuideCredits'
+import GuideRecord from './pages/guide/GuideRecord'
+import GuideStats from './pages/guide/GuideStats'
+import GuideQuiz from './pages/guide/GuideQuiz'
+import GuideServerSetup from './pages/guide/GuideServerSetup'
 import MapleChat from './pages/MapleChat'
 import PortfolioKrafton from './pages/PortfolioKrafton'
 import PortfolioNimbleNeuron from './pages/PortfolioNimbleNeuron'
@@ -121,6 +125,10 @@ function App() {
           <Route path="/guide/music" element={<GuideMusic />} />
           <Route path="/guide/welcome" element={<GuideWelcome />} />
           <Route path="/guide/credits" element={<GuideCredits />} />
+          <Route path="/guide/record" element={<GuideRecord />} />
+          <Route path="/guide/stats" element={<GuideStats />} />
+          <Route path="/guide/quiz" element={<GuideQuiz />} />
+          <Route path="/guide/server-setup" element={<GuideServerSetup />} />
           <Route path="/payment/topup/success" element={<TopupSuccess />} />
           <Route path="/payment/topup/fail" element={<TopupFail />} />
           <Route path="/terms" element={<Terms />} />

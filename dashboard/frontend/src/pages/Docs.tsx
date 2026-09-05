@@ -24,6 +24,18 @@ interface DocSection {
   content: React.ReactNode
 }
 
+/** 탭 밖에 상시 노출하는 기능별 문서 링크. 탭 하나에 갇힌 내용을 밖으로 잇는다. */
+const DOC_GUIDES = [
+  { href: '/guide/server-setup/', title: '서버 설정', desc: '봇 권한 확인, 명령어 채널과 공지 채널 지정, 환영 메시지와 유튜브 알림까지 관리자가 처음 잡아야 할 순서를 정리했습니다.' },
+  { href: '/guide/record/', title: '전적 검색', desc: '/전적 결과에 나오는 티어·MMR·평균 순위·승률·평균 킬이 각각 무엇을 뜻하고, 그 숫자로 무엇을 판단할 수 있는지 설명합니다.' },
+  { href: '/guide/stats/', title: '캐릭터 통계', desc: '/통계 표의 표본 구간과 집계 기간, 승률과 픽률을 함께 읽어야 하는 이유를 다룹니다.' },
+  { href: '/guide/tts/', title: 'TTS 음성', desc: '음성 채널로 봇을 부르는 법, 목소리와 읽을 채널 설정, 소리가 안 들릴 때의 점검 순서입니다.' },
+  { href: '/guide/music/', title: '음악 재생', desc: 'YouTube 검색과 URL 재생, 대기열·스킵·반복 조작 방법입니다.' },
+  { href: '/guide/quiz/', title: '퀴즈', desc: '노래 맞추기와 이터널 리턴 퀴즈, 직접 출제 방식의 차이와 채점 규칙입니다.' },
+  { href: '/guide/eternal-return/', title: '이터널 리턴 기초', desc: '게임 자체가 처음인 분을 위한 개요와, 봇의 게임 기능이 무엇을 보여주는지 설명합니다.' },
+  { href: '/guide/faq/', title: '자주 묻는 질문', desc: '봇이 반응하지 않거나 명령어가 보이지 않을 때 가장 먼저 확인할 것들을 모았습니다.' },
+]
+
 export default function Docs() {
   const [activeSection, setActiveSection] = useState('getting-started')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -355,6 +367,29 @@ export default function Docs() {
                 )
               })}
             </AnimatePresence>
+
+            {/* 탭 밖 상시 노출 영역 — 탭은 한 번에 하나만 보이므로, 어느 탭에 있든
+                기능별 상세 문서로 갈 수 있는 길을 여기 둔다. */}
+            <section className="mt-16 pt-10 border-t border-white/5">
+              <h2 className="text-2xl font-bold text-white mb-3">기능별 상세 가이드</h2>
+              <p className="text-discord-muted text-sm leading-relaxed mb-8 max-w-3xl">
+                이 문서는 봇을 처음 들일 때 필요한 최소한의 절차를 담고 있습니다.
+                각 기능을 실제로 다루는 방법, 결과 화면을 읽는 법, 문제가 생겼을 때의 점검 순서는
+                아래 문서에 기능별로 나누어 정리했습니다.
+              </p>
+              <div className="grid md:grid-cols-2 gap-4">
+                {DOC_GUIDES.map(({ href, title, desc }) => (
+                  <a
+                    key={href}
+                    href={href}
+                    className="block p-5 rounded-2xl bg-discord-dark/50 border border-discord-light/10 hover:border-debi-primary/40 transition-colors"
+                  >
+                    <div className="text-white font-bold mb-1.5">{title}</div>
+                    <div className="text-discord-muted text-sm leading-relaxed">{desc}</div>
+                  </a>
+                ))}
+              </div>
+            </section>
 
             {/* Footer Navigation (Next/Prev) */}
             <div className="mt-12 flex justify-between border-t border-white/5 pt-8">

@@ -63,7 +63,7 @@ AI 음성 선택 시 Modal 서버 상태를 자동 표시. 서버 오류 시 Edg
 | TTS (AI) | Modal Serverless + CosyVoice3 파인튜닝 모델 (A10G GPU) |
 | TTS (기본) | Edge TTS (Microsoft Neural TTS, 서버 불필요) |
 | 대시보드 | Flask + React 19 + TypeScript + Vite + Tailwind 4 |
-| 인프라 | GCP Compute Engine VM, Google Cloud Storage, Artifact Registry |
+| 인프라 | 사내 맥미니 (launchd + Caddy + Cloudflare Tunnel), Firestore, Google Cloud Storage |
 | 게임 데이터 | DAK.GG API |
 
 ## 프로젝트 구조
@@ -82,19 +82,22 @@ run/                        # Discord 봇
   utils/                    # 유틸리티
 dashboard/
   backend/                  # Flask API (port 8081, Discord OAuth2)
-  frontend/                 # React + Vite + Tailwind (port 3002)
+  frontend/                 # React + Vite + Tailwind (dev 3002)
+webpanel/                   # 비공개 운영 도구 (panel.debimarlene.com)
+  backend/                  # Flask API (port 8080)
 ```
 
 ## 로컬 개발
 
 ```bash
-# 봇 실행 (VM 봇 자동 중지 후 로컬 실행)
-make test-local
+# 봇 — 같은 토큰으로 두 세션이 붙으면 Discord 가 재연결을 반복한다.
+make stop-bot      # 서버 봇 정지 (sudo 비번 입력)
+make test-local    # 로컬 실행
+make start-bot     # 끝나면 서버 봇 재개
 
 # 대시보드
 cd dashboard/backend && python3 app.py          # backend (8081)
 cd dashboard/frontend && npm run dev            # frontend (3002)
-
 ```
 
 ### 필요한 환경 변수
@@ -107,18 +110,23 @@ OWNER_ID            # 봇 소유자 Discord ID
 
 ## 배포
 
-GCP Compute Engine VM에 Docker 컨테이너로 배포됩니다.
+사내 맥미니 한 대에서 봇·대시보드·웹패널이 모두 venv 프로세스로 돕니다. Docker 를 쓰지
+않으므로 배포는 rsync 로 파일을 밀고 프로세스를 재시작하는 것이 전부입니다. 재시작하면
+launchd 가 되살립니다.
 
 ```bash
-make deploy            # 봇: 빌드 + Artifact Registry Push + VM 재시작
-make deploy-dashboard  # 대시보드: 빌드 + Push + VM 재시작
-make stop-vm           # VM 봇 중지
-make start-vm          # VM 봇 시작
-make logs              # 컨테이너 로그
-make status            # VM/컨테이너 상태
+make deploy-bot                  # 봇 코드 배포 + 재시작
+make deploy-dashboard            # 대시보드 프론트 + 백엔드
+make deploy-dashboard-frontend   # 프론트만 (빌드 포함, Cloudflare 캐시 퍼지까지)
+make deploy-webpanel             # 웹패널 프론트 + 백엔드
+
+make status                      # 서비스 프로세스 + 라이브 응답
+make logs-bot                    # 봇 로그 (logs-dashboard / logs-webpanel / logs-caddy)
+make sync-check                  # 로컬 .env 와 서버 시크릿 키 목록 대조
 ```
 
-자세한 배포/인프라 정보는 [CLAUDE.md](CLAUDE.md) 참고.
+`make` 만 입력하면 전체 명령 목록이 나옵니다. 자세한 배포/인프라 정보는
+[CLAUDE.md](CLAUDE.md) 참고.
 
 ---
 

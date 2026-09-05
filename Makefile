@@ -1,4 +1,11 @@
-# Debi Marlene Bot - Makefile
+# Debi Marlene - Makefile
+#
+# 배포 대상은 사내 맥미니 한 대다. GCP Compute Engine VM 은 2026-08-25 에 삭제됐고
+# Docker·Artifact Registry 경로도 함께 끊겼다 — 미니엔 docker 가 없고 봇·대시보드·웹패널이
+# 전부 venv 로 돈다. 그래서 배포는 rsync 로 파일을 밀고 프로세스를 죽이는 것이 전부다.
+#
+# 죽이면 launchd(KeepAlive)가 30초 스로틀로 되살린다. 이게 유일한 재시작 수단이다 —
+# launchctl 직접 조작은 LaunchDaemon 이라 root 가 필요하고 원격 sudo 는 비번을 묻는다.
 SHELL := /bin/bash
 .ONESHELL:
 export LANG := C.UTF-8
@@ -6,443 +13,244 @@ export LC_ALL := C.UTF-8
 export PYTHONIOENCODING := utf-8
 export PYTHONUTF8 := 1
 
-# GCP 설정
-PROJECT_ID = ironic-objectivist-465713-a6
-VM_NAME = debi-marlene-bot
-ZONE = asia-northeast3-a
-REGION = asia-northeast3
-VM_PATH = /home/2rami/debi-marlene
-CONTAINER_NAME = debi-marlene
-REGISTRY = $(REGION)-docker.pkg.dev/$(PROJECT_ID)/debi-marlene
-IMAGE_TAG = $(REGISTRY)/$(CONTAINER_NAME):latest
+# 배포 대상 (~/.ssh/config 의 Host 별칭)
+MINI = nachoneko
+REMOTE = /Users/nachoneko/debimarlene
 
-# Dashboard 설정
-DASHBOARD_CONTAINER = debi-marlene-dashboard
-DASHBOARD_IMAGE_TAG = $(REGISTRY)/$(DASHBOARD_CONTAINER):latest
+DASH_STATIC = $(REMOTE)/dashboard/static
+PANEL_STATIC = $(REMOTE)/webpanel/static
 
 # Cloudflare 캐시 퍼지용 토큰 (.env 에서 자동 로드)
+CF_ZONE = 49337200d8d2ff73047081d747d42074
 CF_API_TOKEN ?= $(shell grep -E '^CF_API_TOKEN=' .env 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '[:space:]')
 
-.PHONY: help deploy build-local push-image restart stop start logs status clean test-local stop-vm start-vm
-.PHONY: deploy-dashboard build-dashboard push-dashboard start-dashboard stop-dashboard restart-dashboard logs-dashboard
-.PHONY: deploy-dashboard-frontend deploy-dashboard-backend deploy-dashboard-quick inject-dashboard-env
-.PHONY: deploy-webpanel-frontend deploy-webpanel-backend deploy-webpanel-quick logs-webpanel
-.PHONY: deploy-quick
-.PHONY: deploy-solo-debi deploy-solo-marlene start-solo-debi start-solo-marlene stop-solo-debi stop-solo-marlene logs-solo-debi logs-solo-marlene restart-solo-debi restart-solo-marlene
-.PHONY: sync-check preflight deploy-guard deploy-env-guard
+RSYNC = rsync -az --exclude='__pycache__' --exclude='*.pyc' --exclude='.DS_Store'
 
-# 솔로봇 컨테이너 이름 (기존 이미지 $(IMAGE_TAG) 재사용 — 별도 빌드 불필요)
-SOLO_DEBI_NAME = debi-solo
-SOLO_MARLENE_NAME = marlene-solo
+.PHONY: help guard status
+.PHONY: deploy-bot deploy-dashboard deploy-dashboard-frontend deploy-dashboard-backend
+.PHONY: deploy-webpanel deploy-webpanel-frontend deploy-webpanel-backend
+.PHONY: restart-bot restart-dashboard restart-webpanel restart-caddy
+.PHONY: logs logs-bot logs-dashboard logs-webpanel logs-caddy
+.PHONY: stop-bot start-bot test-local
+.PHONY: inject-dashboard-env purge-cache sync-check
 
-# 기본 명령어 (make 입력 시 도움말 표시)
 help:
-	@echo "Debi Marlene Bot - 사용 가능한 명령어:"
+	@echo "Debi Marlene — 배포 대상: 맥미니($(MINI):$(REMOTE))"
 	@echo ""
-	@echo "-- 빠른 배포 (코드만 교체, Docker 리빌드 없음) --"
-	@echo "  make deploy-quick              - 봇 코드만 빠른 배포"
-	@echo "  make deploy-dashboard-quick    - 대시보드 프론트+백엔드 빠른 배포"
-	@echo "  make deploy-webpanel-quick     - 웹패널 프론트+백엔드 빠른 배포"
+	@echo "-- 배포 --"
+	@echo "  make deploy-bot                - 봇 코드(run/, main.py) 배포 + 재시작"
+	@echo "  make deploy-dashboard          - 대시보드 프론트+백엔드"
+	@echo "  make deploy-dashboard-frontend - 대시보드 프론트만 (빌드 포함)"
+	@echo "  make deploy-dashboard-backend  - 대시보드 백엔드만"
+	@echo "  make deploy-webpanel           - 웹패널 프론트+백엔드"
 	@echo ""
-	@echo "-- 전체 배포 (Docker 이미지 리빌드, 의존성 변경 시) --"
-	@echo "  make deploy                    - 봇 전체 배포"
-	@echo "  make deploy-dashboard          - 대시보드 전체 배포"
-	@echo "  make deploy-webpanel-backend   - 웹패널 백엔드 전체 배포"
+	@echo "-- 제어 --"
+	@echo "  make restart-bot / restart-dashboard / restart-webpanel / restart-caddy"
+	@echo "  make status                    - 서비스 프로세스 + 라이브 응답 확인"
+	@echo "  make logs / logs-bot / logs-dashboard / logs-webpanel / logs-caddy"
 	@echo ""
-	@echo "-- VM 제어 --"
-	@echo "  make stop-vm       - VM 봇 중지 (로컬 테스트 전)"
-	@echo "  make start-vm      - VM 봇 시작 (로컬 테스트 후)"
-	@echo "  make logs          - 봇 로그"
-	@echo "  make logs-dashboard - 대시보드 로그"
-	@echo "  make logs-webpanel  - 웹패널 로그"
-	@echo "  make status        - VM 및 컨테이너 상태 확인"
-	@echo ""
-	@echo "-- 솔로봇 (데비/마를렌 분리) --"
-	@echo "  make deploy-solo-debi      - 데비 솔로봇 배포 (기존 이미지 재사용)"
-	@echo "  make deploy-solo-marlene   - 마를렌 솔로봇 배포"
-	@echo "  make logs-solo-debi        - 데비 솔로봇 로그"
-	@echo "  make logs-solo-marlene     - 마를렌 솔로봇 로그"
-	@echo "  make stop-solo-debi / stop-solo-marlene"
-	@echo ""
+	@echo "-- 로컬 테스트 --"
+	@echo "  make stop-bot                  - 미니 봇 정지 (sudo 비번 입력 필요)"
+	@echo "  make start-bot                 - 미니 봇 재개 (sudo 비번 입력 필요)"
+	@echo "  make test-local                - 로컬 봇 실행 (stop-bot 을 먼저 할 것)"
 	@echo ""
 	@echo "-- 기타 --"
-	@echo "  make test-local    - 로컬에서 봇 실행 (VM 봇 자동 중지)"
-	@echo "  make clean         - 중지된 컨테이너 및 이미지 정리"
-	@echo ""
+	@echo "  make sync-check                - 로컬 .env 와 미니 시크릿 대조"
+	@echo "  make purge-cache               - Cloudflare 캐시 퍼지"
+
+# ssh 가 안 붙는 상태에서 rsync 가 절반만 올라가는 것을 막는다.
+guard:
+	@ssh -o ConnectTimeout=8 -o BatchMode=yes $(MINI) 'test -d $(REMOTE)' 2>/dev/null || { \
+		echo "[ERROR] $(MINI) 에 접속할 수 없거나 $(REMOTE) 가 없다."; \
+		echo "        사내 VPN 연결과 ~/.ssh/config 의 Host $(MINI) 항목을 확인할 것."; exit 1; }
 
 # ============================================================
-# 빠른 배포 (코드만 교체, Docker 리빌드 없음)
+# 봇
 # ============================================================
 
-# 배포 사전 체크 — Docker Desktop wrapper가 거짓 exit 0 내거나 gcloud 미인증 상태에서 deploy가 침묵 실패하던 함정 차단
-deploy-guard:
-	@echo "[guard] checking docker daemon..."
-	@docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { echo "[ERROR] docker daemon not responding. Start Docker Desktop + enable WSL integration"; exit 1; }
-	@echo "[guard] checking gcloud auth..."
-	@gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | grep -q . || { echo "[ERROR] gcloud not authenticated. Run: gcloud auth login"; exit 1; }
-	@echo "[guard] checking gcloud project..."
-	@test "$$(gcloud config get-value project 2>/dev/null)" = "$(PROJECT_ID)" || { echo "[ERROR] gcloud project is not $(PROJECT_ID). Run: gcloud config set project $(PROJECT_ID)"; exit 1; }
-	@echo "[guard] OK"
+deploy-bot: guard
+	@echo "[1/2] 봇 코드 업로드..."
+	@$(RSYNC) --delete run/ $(MINI):$(REMOTE)/run/
+	@$(RSYNC) main.py $(MINI):$(REMOTE)/main.py
+	@$(MAKE) --no-print-directory restart-bot
+	@echo "봇 배포 완료"
 
-# env drift 가드 — deploy(전체, env-file 영향) 전용. deploy-quick(docker cp, env 무관)은 미적용.
-# project_env_drift_guard 사고 재발 방지: SM/VM/로컬 .env 어긋난 상태로 deploy 시 OAuth/서버목록 깨짐.
-deploy-env-guard:
-	@echo "[env-guard] env 3-way sync-check (local x Secret Manager x VM)..."
-	@bash scripts/sync_check.sh >/dev/null 2>&1 || { echo "[ERROR] env drift detected. Run 'make sync-check' for details, then 'scripts/sync_env.sh pull' or 'push' to align. Deploying while drifted breaks OAuth/server list (project_env_drift_guard)"; exit 1; }
-	@echo "[env-guard] OK"
+# KeepAlive 가 되살리므로 kill 이 곧 재시작이다. plist 의 ThrottleInterval 이 30 이라
+# 죽인 직후 최대 30초는 봇이 없다 — 로그로 복귀를 확인한다.
+restart-bot: guard
+	@echo "봇 재시작 (launchd 가 되살릴 때까지 최대 30초)..."
+	@ssh $(MINI) 'pkill -f "venv-bot/bin/python -u main.py" || true'
+	@for i in $$(seq 1 20); do \
+		sleep 3; \
+		if ssh $(MINI) 'pgrep -f "venv-bot/bin/python -u main.py" >/dev/null'; then \
+			echo "봇 기동 확인"; exit 0; fi; \
+	done; \
+	echo "[ERROR] 60초 안에 안 올라왔다. 'make logs-bot' 으로 확인할 것"; exit 1
 
-# 봇 빠른 배포
-# [OS Login 트랩] ~/(goenho0613 홈)를 2rami 가 못 읽어 docker cp 실패 → /tmp 경유 + chmod 755
-deploy-quick: deploy-guard
-	@echo "[1/3] 봇 코드를 VM에 업로드 중..."
-	@tar -czf /tmp/bot-upload.tar.gz --exclude='__pycache__' --exclude='*.pyc' run/ main.py
-	@gcloud compute scp /tmp/bot-upload.tar.gz $(VM_NAME):~/bot-upload.tar.gz --zone=$(ZONE)
-	@echo "[2/3] 컨테이너에 복사 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="rm -rf /tmp/bot-upload && mkdir -p /tmp/bot-upload && tar -xzf ~/bot-upload.tar.gz -C /tmp/bot-upload && chmod -R 755 /tmp/bot-upload && sudo -u 2rami docker cp /tmp/bot-upload/run/. $(CONTAINER_NAME):/app/run/ && sudo -u 2rami docker cp /tmp/bot-upload/main.py $(CONTAINER_NAME):/app/main.py && rm -rf /tmp/bot-upload ~/bot-upload.tar.gz"
-	@echo "[3/3] 컨테이너 재시작 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker restart $(CONTAINER_NAME)"
-	@rm -f /tmp/bot-upload.tar.gz
-	@echo "봇 빠른 배포 완료!"
+# LaunchDaemon 이라 root 권한이 필요하다 — ssh -t 로 비번 프롬프트를 띄운다.
+stop-bot:
+	@echo "미니 봇 정지 (sudo 비번 입력 필요)..."
+	@ssh -t $(MINI) 'sudo launchctl bootout system/com.geono.debimarlene-bot'
+	@echo "정지 완료 — 로컬 테스트 가능. 끝나면 'make start-bot'"
 
-# 대시보드 빠른 배포 (프론트+백엔드)
-deploy-dashboard-quick: deploy-dashboard-frontend deploy-dashboard-backend
-	@echo "대시보드 빠른 배포 완료!"
+start-bot:
+	@echo "미니 봇 재개 (sudo 비번 입력 필요)..."
+	@ssh -t $(MINI) 'sudo launchctl bootstrap system /Library/LaunchDaemons/com.geono.debimarlene-bot.plist'
+	@echo "재개 완료"
 
-# 웹패널 빠른 배포 (프론트+백엔드)
-deploy-webpanel-quick: deploy-webpanel-frontend deploy-webpanel-backend-quick
-	@echo "웹패널 빠른 배포 완료!"
-
-# 웹패널 백엔드 빠른 배포 (Docker 리빌드 없이 코드만 교체)
-deploy-webpanel-backend-quick:
-	@echo "[1/3] 웹패널 백엔드 코드를 VM에 업로드 중..."
-	@tar -czf ./wb-quick.tar.gz --exclude='__pycache__' --exclude='*.pyc' \
-		$$(ls -d webpanel/backend/ 2>/dev/null) \
-		$$(ls -d run/__init__.py 2>/dev/null) \
-		$$(ls -d run/core/ 2>/dev/null) \
-		$$(ls -d run/services/__init__.py 2>/dev/null) \
-		$$(ls -d run/services/credits.py 2>/dev/null) \
-		$$(ls -d run/services/quiz/ 2>/dev/null)
-	@gcloud compute scp ./wb-quick.tar.gz $(VM_NAME):~/wb-quick.tar.gz --zone=$(ZONE)
-	@echo "[2/3] 컨테이너에 복사 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo rm -rf /tmp/wb-quick && mkdir -p /tmp/wb-quick && tar -xzf ~/wb-quick.tar.gz -C /tmp/wb-quick && chmod -R 755 /tmp/wb-quick && sudo -u 2rami docker cp /tmp/wb-quick/webpanel/backend/. webpanel-backend:/app/backend/ && sudo -u 2rami docker cp /tmp/wb-quick/run/. webpanel-backend:/app/run/ && sudo rm -rf /tmp/wb-quick ~/wb-quick.tar.gz"
-	@echo "[3/3] 컨테이너 재시작 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker restart webpanel-backend"
-	@rm -f ./wb-quick.tar.gz
-	@echo "웹패널 백엔드 빠른 배포 완료!"
-
-# ============================================================
-# 전체 배포 (Docker 이미지 리빌드, 의존성 변경 시)
-# ============================================================
-
-# 전체 배포 프로세스
-deploy: deploy-guard deploy-env-guard build-local push-image restart
-	@echo "Deploy complete!"
-
-# 로컬에서 Docker 이미지 빌드 — wrapper가 거짓 exit 0 내는 케이스를 위해 명시적 실패 체크
-build-local:
-	@echo "Building Docker image locally (linux/amd64)..."
-	@docker build --platform linux/amd64 -t $(CONTAINER_NAME) -t $(IMAGE_TAG) . || { echo "[ERROR] docker build failed"; exit 1; }
-	@docker image inspect $(IMAGE_TAG) >/dev/null 2>&1 || { echo "[ERROR] built image ($(IMAGE_TAG)) not found. wrapper reported false success"; exit 1; }
-	@echo "Build complete"
-
-# Docker 이미지를 Artifact Registry에 푸시
-push-image:
-	@echo "Pushing Docker image to Artifact Registry..."
-	@docker push $(IMAGE_TAG) || { echo "[ERROR] docker push failed. Run: gcloud auth configure-docker $(REGION)-docker.pkg.dev"; exit 1; }
-	@echo "Push complete"
-
-# 컨테이너 재시작
-restart: stop start
-	@echo "Restart complete"
-
-# 컨테이너 중지 및 제거
-stop:
-	@echo "Stopping container..."
-	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker stop debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true && sudo -u 2rami docker rm debi-marlene-bot $(CONTAINER_NAME) 2>/dev/null || true"
-	@echo "Stop complete"
-
-# 새 컨테이너 시작 (SQLite 영속 볼륨 포함)
-start:
-	@echo "Pulling latest image on VM..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker pull $(IMAGE_TAG)"
-	@echo "Starting container..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p /home/2rami/debi-marlene-data && sudo -u 2rami docker run -d --name $(CONTAINER_NAME) -p 5001:5001 --env-file $(VM_PATH)/.env -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
-	@echo "Start complete"
-
-# 컨테이너 로그 확인
-logs:
-	@echo "컨테이너 로그 (Ctrl+C로 종료):"
-	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker logs -f $(CONTAINER_NAME)"
-
-# VM 및 컨테이너 상태 확인
-status:
-	@echo "VM 상태:"
-	gcloud compute instances list --filter="name=$(VM_NAME)"
-	@echo ""
-	@echo "Docker 컨테이너 상태:"
-	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker ps -a | grep $(CONTAINER_NAME) || echo '컨테이너 없음'"
-
-# 중지된 컨테이너 및 사용하지 않는 이미지 정리
-clean:
-	@echo "Docker 및 임시 파일 정리 중..."
-	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker system prune -f && rm -rf ~/tmp && rm -f ~/$(CONTAINER_NAME).tar"
-	@echo "정리 완료"
-
-# VM 봇만 중지 (로컬 테스트 전)
-stop-vm:
-	@echo "VM 봇 중지 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker stop $(CONTAINER_NAME) 2>/dev/null || true"
-	@echo "VM 봇 중지 완료 (로컬 테스트 가능)"
-
-# VM 봇만 시작 (로컬 테스트 후)
-start-vm:
-	@echo "VM 봇 시작 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker start $(CONTAINER_NAME) 2>/dev/null || echo '컨테이너가 없습니다. make deploy를 실행하세요.'"
-	@echo "VM 봇 시작 완료"
-
-# 로컬에서 봇 테스트 (VM 봇 자동 중지)
-test-local: stop-vm
-	@echo "로컬 봇 시작 중..."
-	@echo "테스트 종료 후 'make start-vm'을 실행하세요!"
+# 같은 토큰으로 두 세션이 붙으면 Discord 가 재연결을 반복한다 — 먼저 stop-bot 할 것.
+test-local:
+	@echo "로컬 봇 시작 (미니 봇이 떠 있으면 세션이 충돌한다 — 'make stop-bot' 먼저)"
 	@PYTHONUNBUFFERED=1 BOT_ENV=local python3 -u main.py
 
 # ============================================================
-# Dashboard 배포
+# 대시보드 (debimarlene.com)
 # ============================================================
 
-# 대시보드 전체 배포
-deploy-dashboard: build-dashboard push-dashboard restart-dashboard
-	@echo "대시보드 배포 완료!"
+deploy-dashboard: deploy-dashboard-frontend deploy-dashboard-backend
+	@echo "대시보드 배포 완료"
 
-# 대시보드 Docker 이미지 빌드
-build-dashboard:
-	@echo "봇 모듈 복사 (환영 이미지 생성용)..."
-	@rm -rf dashboard/run
-	@mkdir -p dashboard/run/core dashboard/run/services/welcome dashboard/run/services/quiz
-	@cp run/__init__.py dashboard/run/__init__.py
-	@cp run/core/__init__.py dashboard/run/core/__init__.py
-	@cp run/core/config.py dashboard/run/core/config.py
-	@cp run/services/__init__.py dashboard/run/services/__init__.py
-	@cp -r run/services/welcome/* dashboard/run/services/welcome/
-	@cp -r run/services/quiz/* dashboard/run/services/quiz/
-	@echo "대시보드 Docker 이미지 빌드 중 (linux/amd64)..."
-	@docker build --platform linux/amd64 -t $(DASHBOARD_CONTAINER) -t $(DASHBOARD_IMAGE_TAG) ./dashboard
-	@rm -rf dashboard/run
-	@echo "빌드 완료"
-
-# 대시보드 이미지 푸시
-push-dashboard:
-	@echo "대시보드 이미지를 Artifact Registry에 푸시 중..."
-	@docker push $(DASHBOARD_IMAGE_TAG)
-	@echo "푸시 완료"
-
-# 대시보드 재시작
-restart-dashboard: stop-dashboard start-dashboard
-	@echo "대시보드 재시작 완료"
-
-# 대시보드 중지 및 제거
-stop-dashboard:
-	@echo "대시보드 중지 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker stop $(DASHBOARD_CONTAINER) 2>/dev/null || true && sudo -u 2rami docker rm $(DASHBOARD_CONTAINER) 2>/dev/null || true"
-	@echo "대시보드 중지 완료"
-
-# 대시보드 시작
-start-dashboard:
-	@echo "VM에서 대시보드 이미지 pull 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker pull $(DASHBOARD_IMAGE_TAG) && sudo -u 2rami docker image prune -af"
-	@echo "대시보드 컨테이너 시작 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker run -d --name $(DASHBOARD_CONTAINER) --network dashboard-net -p 3080:80 --env-file /home/2rami/dashboard.env --restart unless-stopped $(DASHBOARD_IMAGE_TAG)"
-	@echo "대시보드 시작 완료"
-
-# 대시보드 로그
-logs-dashboard:
-	@echo "대시보드 로그 (Ctrl+C로 종료):"
-	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker logs -f $(DASHBOARD_CONTAINER)"
-
-# 루트 .env 의 DISCORD_CLIENT_ID 를 dashboard/frontend/.env.production 에 VITE_DISCORD_CLIENT_ID 로 주입.
-# Vite는 빌드 시 .env.production 이 .env 를 override하므로 단일 소스로 관리 가능.
+# Vite 는 빌드 시 .env.production 이 .env 를 override 하므로 루트 .env 를 단일 소스로 쓴다.
 inject-dashboard-env:
-	@echo "[env] 루트 .env -> dashboard/frontend/.env.production 주입 중..."
+	@echo "[env] 루트 .env -> dashboard/frontend/.env.production 주입..."
 	@set -e; \
-	if [ ! -f .env ]; then echo "ERROR: 루트 .env 없음 (DISCORD_CLIENT_ID 포함 필요)"; exit 1; fi; \
+	if [ ! -f .env ]; then echo "[ERROR] 루트 .env 없음 (DISCORD_CLIENT_ID 필요)"; exit 1; fi; \
 	CLIENT_ID=$$(grep -E '^DISCORD_CLIENT_ID=' .env | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '[:space:]'); \
-	if [ -z "$$CLIENT_ID" ]; then echo "ERROR: DISCORD_CLIENT_ID 가 .env 에 비어있음"; exit 1; fi; \
+	if [ -z "$$CLIENT_ID" ]; then echo "[ERROR] DISCORD_CLIENT_ID 가 .env 에 비어있음"; exit 1; fi; \
 	TOSS_CK=$$(grep -E '^TOSS_CLIENT_KEY=' .env | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '[:space:]'); \
 	{ echo "VITE_API_URL=/api"; echo "VITE_DISCORD_CLIENT_ID=$$CLIENT_ID"; echo "VITE_TOSS_CLIENT_KEY=$$TOSS_CK"; } > dashboard/frontend/.env.production; \
 	echo "  -> VITE_DISCORD_CLIENT_ID=$$CLIENT_ID"; \
 	echo "  -> VITE_TOSS_CLIENT_KEY=$${TOSS_CK:+[set]}$${TOSS_CK:-[EMPTY — 충전 비활성]}"
 
-# 대시보드 프론트엔드만 배포 (Docker 재빌드 없이 빠른 배포)
-deploy-dashboard-frontend: inject-dashboard-env
+# Caddy 가 static 을 직접 읽으므로 파일만 바꾸면 즉시 반영된다(리로드 불필요).
+# --delete 를 쓰지만 sitemap.xml·ads.txt·소유권 확인 파일은 frontend/public/ 에 있어
+# 빌드 산출물에 포함된다 — 지워지지 않는다.
+deploy-dashboard-frontend: guard inject-dashboard-env
 	@set -euo pipefail; \
-	echo "[1/5] 프론트엔드 빌드 중..."; \
+	echo "[1/3] 프론트엔드 빌드..."; \
 	(cd dashboard/frontend && npm run build); \
-	test -d dashboard/frontend/dist || { echo "[ERROR] dist 디렉토리 없음 — 빌드 실패"; exit 1; }; \
-	echo "[2/5] dist를 tar로 압축..."; \
-	tar -czf /tmp/dash-dist.tar.gz -C dashboard/frontend/dist .; \
-	echo "[3/5] VM에 업로드 중..."; \
-	gcloud compute scp /tmp/dash-dist.tar.gz $(VM_NAME):/tmp/dash-dist.tar.gz --zone=$(ZONE); \
-	echo "[4/5] 컨테이너에 복사 + nginx 리로드..."; \
-	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p ~/dashboard-upload && tar -xzf /tmp/dash-dist.tar.gz -C ~/dashboard-upload && sudo -u 2rami docker cp ~/dashboard-upload/. $(DASHBOARD_CONTAINER):/var/www/dashboard/ && sudo -u 2rami docker exec $(DASHBOARD_CONTAINER) nginx -s reload && rm -rf ~/dashboard-upload /tmp/dash-dist.tar.gz"; \
-	rm -f /tmp/dash-dist.tar.gz; \
-	echo "[5/5] Cloudflare 캐시 퍼지 중..."; \
-	if [ -n "$(CF_API_TOKEN)" ]; then \
-		curl -s -X POST "https://api.cloudflare.com/client/v4/zones/49337200d8d2ff73047081d747d42074/purge_cache" \
-			-H "Authorization: Bearer $(CF_API_TOKEN)" \
-			-H "Content-Type: application/json" \
-			--data '{"purge_everything":true}' > /dev/null && echo "캐시 퍼지 완료"; \
-	else \
-		echo "[WARN] CF_API_TOKEN 미설정 — 캐시 퍼지 스킵 (강제 새로고침 필요)"; \
-	fi; \
+	test -f dashboard/frontend/dist/index.html || { echo "[ERROR] dist/index.html 없음 — 빌드 실패"; exit 1; }; \
+	test -f dashboard/frontend/dist/google046aee18f88daa1e.html || { \
+		echo "[ERROR] Search Console 소유권 확인 파일이 빌드에 없다. 올리면 소유권이 풀린다"; exit 1; }; \
+	echo "[2/3] 미니로 동기화..."; \
+	$(RSYNC) --delete --exclude='*.map' dashboard/frontend/dist/ $(MINI):$(DASH_STATIC)/; \
+	echo "[3/3] Cloudflare 캐시 퍼지..."; \
+	$(MAKE) --no-print-directory purge-cache; \
 	echo "대시보드 프론트엔드 배포 완료"
 
-# 대시보드 백엔드만 배포 (Docker 재빌드 없이 빠른 배포)
-# dashboard/backend 는 run/core/config.py 등을 import 하므로 run/ 도 같이 동기화한다.
-deploy-dashboard-backend:
-	@echo "[1/3] 백엔드 + run/ 파일을 VM에 업로드 중..."
-	@gcloud compute scp --recurse dashboard/backend $(VM_NAME):~/dashboard-backend-upload --zone=$(ZONE)
-	@gcloud compute scp --recurse run $(VM_NAME):~/dashboard-run-upload --zone=$(ZONE)
-	@echo "[2/3] 컨테이너에 복사..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo rm -rf /tmp/dash-backend-upload /tmp/dash-run-upload && sudo mv ~/dashboard-backend-upload /tmp/dash-backend-upload && sudo mv ~/dashboard-run-upload /tmp/dash-run-upload && sudo chmod -R 755 /tmp/dash-backend-upload /tmp/dash-run-upload && sudo -u 2rami docker cp /tmp/dash-backend-upload/. $(DASHBOARD_CONTAINER):/app/backend/ && sudo -u 2rami docker cp /tmp/dash-run-upload/. $(DASHBOARD_CONTAINER):/app/run/ && sudo rm -rf /tmp/dash-backend-upload /tmp/dash-run-upload"
-	@echo "[3/3] gunicorn 재시작..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker exec $(DASHBOARD_CONTAINER) supervisorctl restart gunicorn"
+# backend 는 run/core/config.py 등을 import 하므로 run/ 도 같이 올린다.
+deploy-dashboard-backend: guard
+	@echo "[1/2] 백엔드 + run/ 업로드..."
+	@$(RSYNC) dashboard/backend/ $(MINI):$(REMOTE)/dashboard/backend/
+	@$(RSYNC) run/ $(MINI):$(REMOTE)/run/
+	@$(MAKE) --no-print-directory restart-dashboard
 	@echo "대시보드 백엔드 배포 완료"
 
+restart-dashboard: guard
+	@echo "대시보드(gunicorn) 재시작..."
+	@ssh $(MINI) 'pkill -f "gunicorn app:app" || true'
+	@for i in $$(seq 1 10); do \
+		sleep 2; \
+		if ssh $(MINI) 'pgrep -f "gunicorn app:app" >/dev/null'; then \
+			echo "gunicorn 기동 확인"; exit 0; fi; \
+	done; \
+	echo "[ERROR] 안 올라왔다. 'make logs-dashboard' 로 확인할 것"; exit 1
+
 # ============================================================
-# Webpanel 배포
+# 웹패널 (panel.debimarlene.com)
 # ============================================================
 
-# 웹패널 프론트엔드 빌드 + VM 배포
-# .ONESHELL 환경에서 cd 가 다음 명령에 누수되던 버그 + tar 실패해도 VM의 sudo rm 이 실행돼 옛 dist 날아가던 침묵 실패 차단
-deploy-webpanel-frontend:
-	@set -e; \
-	echo "[1/4] 프론트엔드 빌드 중..."; \
-	(cd webpanel && npm run build) || { echo "[ERROR] webpanel build 실패"; exit 1; }; \
-	echo "[2/4] dist를 VM에 업로드 중..."; \
-	test -f webpanel/dist/index.html || { echo "[ERROR] webpanel/dist/index.html 없음. 빌드 결과 확인"; exit 1; }; \
-	tar -czf /tmp/webpanel-dist.tar.gz -C webpanel/dist . || { echo "[ERROR] tar 실패"; exit 1; }; \
-	gcloud compute scp /tmp/webpanel-dist.tar.gz $(VM_NAME):webpanel-dist.tar.gz --zone=$(ZONE) || { echo "[ERROR] scp 실패. VM 의 dist 는 안 건드림 (안전)"; exit 1; }; \
-	echo "[3/4] VM에서 배포 중 (nginx 마운트 경로: /home/kasa)..."; \
-	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo rm -rf /home/kasa/debi-marlene/webpanel/dist/assets/* && sudo rm -f /home/kasa/debi-marlene/webpanel/dist/index.html && sudo tar -xzf ~/webpanel-dist.tar.gz -C /home/kasa/debi-marlene/webpanel/dist/ && sudo chown -R kasa:kasa /home/kasa/debi-marlene/webpanel/dist/ && rm ~/webpanel-dist.tar.gz && sudo -u 2rami docker exec nginx-proxy nginx -s reload"
-	@rm -f /tmp/webpanel-dist.tar.gz
-	@echo "[4/4] Cloudflare 캐시 퍼지 중..."
-	@curl -s -X POST "https://api.cloudflare.com/client/v4/zones/49337200d8d2ff73047081d747d42074/purge_cache" \
-		-H "Authorization: Bearer $(CF_API_TOKEN)" \
-		-H "Content-Type: application/json" \
-		--data '{"purge_everything":true}' > /dev/null
-	@echo "웹패널 프론트엔드 배포 완료"
+deploy-webpanel: deploy-webpanel-frontend deploy-webpanel-backend
+	@echo "웹패널 배포 완료"
 
-# 웹패널 백엔드 VM 배포 (Docker 이미지 리빌드 방식)
-deploy-webpanel-backend:
-	@echo "[1/4] 빌드 파일 패키징 중..."
-	@rm -rf /tmp/claude/wb-build && mkdir -p /tmp/claude/wb-build/run
-	@cp webpanel/Dockerfile.backend /tmp/claude/wb-build/
-	@cp webpanel/requirements.txt /tmp/claude/wb-build/
-	@cp webpanel/gcs-credentials.json /tmp/claude/wb-build/
-	@cp -r webpanel/backend /tmp/claude/wb-build/backend
-	@cp run/__init__.py /tmp/claude/wb-build/run/
-	@cp -r run/core /tmp/claude/wb-build/run/core
-	@mkdir -p /tmp/claude/wb-build/run/services
-	@cp run/services/__init__.py /tmp/claude/wb-build/run/services/
-	@cp -r run/services/quiz /tmp/claude/wb-build/run/services/quiz
-	@tar -czf /tmp/claude/wb-build.tar.gz -C /tmp/claude/wb-build .
-	@echo "[2/4] VM에 업로드 + Docker 이미지 빌드 중..."
-	@gcloud compute scp /tmp/claude/wb-build.tar.gz $(VM_NAME):~/wb-build.tar.gz --zone=$(ZONE)
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="mkdir -p ~/wb-build && tar -xzf ~/wb-build.tar.gz -C ~/wb-build && cd ~/wb-build && sudo -u 2rami docker build -f Dockerfile.backend -t webpanel-backend:latest . && rm -rf ~/wb-build ~/wb-build.tar.gz"
-	@echo "[3/4] 컨테이너 교체 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker stop webpanel-backend 2>/dev/null || true && sudo -u 2rami docker rm webpanel-backend 2>/dev/null || true && sudo -u 2rami docker run -d --name webpanel-backend -p 8080:8080 --network dashboard-net -v /var/run/docker.sock:/var/run/docker.sock --env-file ~/debi-marlene/.env --restart unless-stopped webpanel-backend:latest"
-	@echo "[4/4] 정리 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker image prune -af"
-	@rm -rf /tmp/claude/wb-build /tmp/claude/wb-build.tar.gz
+# --delete 를 쓰지 않는다. 미니 static 에 옛 PWA 빌드의 잔해(sw.js·manifest·workbox)가
+# 남아 있는데 지금 vite 설정엔 PWA 플러그인이 없어 빌드 산출물에 그 파일들이 없다 —
+# 지우면 이미 서비스워커를 등록해 둔 브라우저가 갱신 경로를 잃는다.
+deploy-webpanel-frontend: guard
+	@set -euo pipefail; \
+	echo "[1/2] 웹패널 프론트 빌드..."; \
+	(cd webpanel && npm run build); \
+	test -f webpanel/dist/index.html || { echo "[ERROR] webpanel/dist/index.html 없음 — 빌드 실패"; exit 1; }; \
+	echo "[2/2] 미니로 동기화..."; \
+	$(RSYNC) --exclude='*.map' webpanel/dist/ $(MINI):$(PANEL_STATIC)/; \
+	echo "웹패널 프론트엔드 배포 완료"
+
+deploy-webpanel-backend: guard
+	@echo "[1/2] 웹패널 백엔드 + run/ 업로드..."
+	@$(RSYNC) webpanel/backend/ $(MINI):$(REMOTE)/webpanel/backend/
+	@$(RSYNC) run/ $(MINI):$(REMOTE)/run/
+	@$(MAKE) --no-print-directory restart-webpanel
 	@echo "웹패널 백엔드 배포 완료"
 
-# 웹패널 백엔드 로그
-logs-webpanel:
-	@echo "웹패널 백엔드 로그 (Ctrl+C로 종료):"
-	gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker logs -f webpanel-backend"
+# 이 백엔드도 Discord Gateway 에 붙는다 — 같은 토큰의 다른 세션과 겹치면 경합이 난다.
+restart-webpanel: guard
+	@echo "웹패널 재시작..."
+	@ssh $(MINI) 'pkill -f "venv-webpanel/bin/python backend/app.py" || true'
+	@for i in $$(seq 1 10); do \
+		sleep 2; \
+		if ssh $(MINI) 'pgrep -f "venv-webpanel/bin/python backend/app.py" >/dev/null'; then \
+			echo "웹패널 기동 확인"; exit 0; fi; \
+	done; \
+	echo "[ERROR] 안 올라왔다. 'make logs-webpanel' 로 확인할 것"; exit 1
+
+restart-caddy: guard
+	@echo "Caddy 재시작 (라우팅·Caddyfile 변경 시에만 필요)..."
+	@ssh $(MINI) 'pkill -f "caddy run" || true'
+	@sleep 3
+	@ssh $(MINI) 'pgrep -f "caddy run" >/dev/null' && echo "Caddy 기동 확인" || { echo "[ERROR] Caddy 가 안 올라왔다"; exit 1; }
 
 # ============================================================
-# 솔로봇 배포 (debi-solo, marlene-solo)
+# 상태·로그
 # ============================================================
-# 기존 데비&마를렌 봇($(CONTAINER_NAME))과 **같은 이미지** 재사용.
-# BOT_IDENTITY env만 다르게 주입 → 코드가 내부 분기로 페르소나 설정.
-# 볼륨도 같은 /home/2rami/debi-marlene-data 공유 (scope prefix로 행 격리).
-# 필요 전제:
-#   - VM에 $(VM_PATH)/.env.solo-debi, $(VM_PATH)/.env.solo-marlene 파일이 있어야 함
-#   - 각 파일엔 해당 봇의 DISCORD_TOKEN이 들어감 (CLAUDE_API_KEY 등 공통 키는 기존 .env와 동일)
-#   - 이미지는 `make deploy`가 이미 push 했다는 전제 (푸시만 다시 하려면 make push-image)
 
-deploy-solo-debi: stop-solo-debi start-solo-debi
-	@echo "데비 솔로봇 배포 완료"
+status: guard
+	@echo "== 미니 프로세스 =="
+	@ssh $(MINI) 'for p in "venv-bot/bin/python -u main.py:봇" "gunicorn app:app:대시보드" "venv-webpanel/bin/python backend/app.py:웹패널" "caddy run:Caddy" "cloudflared --no-autoupdate:터널"; do \
+		pat=$${p%:*}; name=$${p##*:}; \
+		if pgrep -f "$$pat" >/dev/null; then echo "  [실행중] $$name"; else echo "  [정지]   $$name"; fi; done'
+	@echo ""
+	@echo "== 라이브 응답 =="
+	@for u in https://debimarlene.com/ https://debimarlene.com/api/auth/me https://panel.debimarlene.com/; do \
+		printf "  %-42s %s\n" "$$u" "$$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 $$u)"; done
 
-deploy-solo-marlene: stop-solo-marlene start-solo-marlene
-	@echo "마를렌 솔로봇 배포 완료"
+logs: logs-bot
 
-restart-solo-debi: stop-solo-debi start-solo-debi
-	@echo "데비 솔로봇 재시작 완료"
+logs-bot: guard
+	@ssh $(MINI) 'tail -f $(REMOTE)/logs/bot.log $(REMOTE)/logs/bot.err'
 
-restart-solo-marlene: stop-solo-marlene start-solo-marlene
-	@echo "마를렌 솔로봇 재시작 완료"
+logs-dashboard: guard
+	@ssh $(MINI) 'tail -f $(REMOTE)/logs/dash-error.log $(REMOTE)/logs/dashboard.err'
 
-stop-solo-debi:
-	@echo "데비 솔로봇 중지 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker stop $(SOLO_DEBI_NAME) 2>/dev/null || true && sudo -u 2rami docker rm $(SOLO_DEBI_NAME) 2>/dev/null || true"
+logs-webpanel: guard
+	@ssh $(MINI) 'tail -f $(REMOTE)/logs/webpanel.err'
 
-stop-solo-marlene:
-	@echo "마를렌 솔로봇 중지 중..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker stop $(SOLO_MARLENE_NAME) 2>/dev/null || true && sudo -u 2rami docker rm $(SOLO_MARLENE_NAME) 2>/dev/null || true"
-
-start-solo-debi:
-	@echo "데비 솔로봇 시작 (image=$(IMAGE_TAG), identity=debi)..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && sudo -u 2rami docker run -d --name $(SOLO_DEBI_NAME) --env-file $(VM_PATH)/.env.solo-debi -e BOT_IDENTITY=debi -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
-
-start-solo-marlene:
-	@echo "마를렌 솔로봇 시작 (image=$(IMAGE_TAG), identity=marlene)..."
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker pull $(IMAGE_TAG) >/dev/null && mkdir -p /home/2rami/debi-marlene-data && sudo -u 2rami docker run -d --name $(SOLO_MARLENE_NAME) --env-file $(VM_PATH)/.env.solo-marlene -e BOT_IDENTITY=marlene -e BOT_DATA_DIR=/data -v /home/2rami/debi-marlene-data:/data --restart unless-stopped $(IMAGE_TAG)"
-
-logs-solo-debi:
-	@echo "데비 솔로봇 로그 (Ctrl+C 종료):"
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker logs -f $(SOLO_DEBI_NAME)"
-
-logs-solo-marlene:
-	@echo "마를렌 솔로봇 로그 (Ctrl+C 종료):"
-	@gcloud compute ssh $(VM_NAME) --zone=$(ZONE) \
-		--command="sudo -u 2rami docker logs -f $(SOLO_MARLENE_NAME)"
+logs-caddy: guard
+	@ssh $(MINI) 'tail -f $(REMOTE)/logs/caddy.log $(REMOTE)/logs/caddy.err'
 
 # ============================================================
-# env sync-check — 로컬 .env × Secret Manager × VM 해시 비교
+# env·캐시
 # ============================================================
-sync-check:
-	@bash scripts/sync_check.sh
 
-preflight: sync-check
-	@echo "preflight OK — env 일치"
+# 미니는 secrets/{bot,dashboard,webpanel}.env 를 읽는다. 로컬 .env 와 갈리면
+# OAuth·서버 목록이 조용히 깨지므로 배포 전 대조한다.
+# 시크릿 본문은 출력하지 않는다 — 키 이름과 개수만 비교한다.
+sync-check: guard
+	@echo "== 로컬 .env vs 미니 secrets/bot.env =="
+	@local_keys=$$(grep -oE '^[A-Z_][A-Z0-9_]*=' .env 2>/dev/null | sort -u); \
+	mini_keys=$$(ssh $(MINI) 'grep -oE "^[A-Z_][A-Z0-9_]*=" $(REMOTE)/secrets/bot.env 2>/dev/null' | sort -u); \
+	echo "  로컬 $$(echo "$$local_keys" | grep -c .)개 / 미니 $$(echo "$$mini_keys" | grep -c .)개"; \
+	only_local=$$(comm -23 <(echo "$$local_keys") <(echo "$$mini_keys")); \
+	only_mini=$$(comm -13 <(echo "$$local_keys") <(echo "$$mini_keys")); \
+	if [ -n "$$only_local" ]; then echo "  로컬에만: $$(echo $$only_local | tr '\n' ' ')"; fi; \
+	if [ -n "$$only_mini" ]; then echo "  미니에만: $$(echo $$only_mini | tr '\n' ' ')"; fi; \
+	if [ -z "$$only_local" ] && [ -z "$$only_mini" ]; then echo "  키 목록 일치"; fi
+
+purge-cache:
+	@if [ -n "$(CF_API_TOKEN)" ]; then \
+		curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$(CF_ZONE)/purge_cache" \
+			-H "Authorization: Bearer $(CF_API_TOKEN)" \
+			-H "Content-Type: application/json" \
+			--data '{"purge_everything":true}' > /dev/null && echo "  캐시 퍼지 완료"; \
+	else \
+		echo "  [WARN] CF_API_TOKEN 미설정 — 퍼지 스킵 (브라우저 강제 새로고침 필요)"; \
+	fi

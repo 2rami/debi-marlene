@@ -19,6 +19,8 @@ import {
 interface CommandItem {
   name: string
   description: string
+  /** 언제 쓰는 명령인지와 알아 두면 좋은 제약. 한 줄 설명만으로는 알 수 없는 것을 담는다. */
+  detail: string
   usage: string
   category: string
   adminOnly?: boolean
@@ -26,25 +28,61 @@ interface CommandItem {
 
 const commands: CommandItem[] = [
   // 이터널리턴
-  { name: '/전적', description: '플레이어 전적을 검색합니다', usage: '/전적 닉네임:<플레이어명>', category: '이터널리턴' },
-  { name: '/통계', description: '캐릭터별 통계를 보여줍니다 (다이아+)', usage: '/통계', category: '이터널리턴' },
-  { name: '/시즌', description: '현재 시즌 정보를 확인합니다', usage: '/시즌', category: '이터널리턴' },
-  { name: '/동접', description: '현재 동접자 수를 확인합니다', usage: '/동접', category: '이터널리턴' },
+  {
+    name: '/전적', description: '플레이어 전적을 검색합니다',
+    detail: '티어와 MMR, 평균 순위, 승률, 평균 킬, 많이 플레이한 실험체를 한 화면에 보여줍니다. 랭크게임과 일반게임 기록은 버튼으로 전환합니다. 디스코드 이름이 아니라 인게임 닉네임을 넣어야 하며, 대소문자와 띄어쓰기를 구분합니다.',
+    usage: '/전적 닉네임:<플레이어명>', category: '이터널리턴',
+  },
+  {
+    name: '/통계', description: '캐릭터별 통계를 보여줍니다 (다이아+)',
+    detail: '다이아몬드 이상 구간의 최근 경기를 모아 실험체별 승률과 픽률을 보여줍니다. 집계 기간을 3일과 7일로 바꾸고, 티어순·승률순·픽률순으로 정렬할 수 있습니다. 패치 번호와 표본 게임 수가 함께 표시됩니다.',
+    usage: '/통계', category: '이터널리턴',
+  },
+  {
+    name: '/시즌', description: '현재 시즌 정보를 확인합니다',
+    detail: '진행 중인 시즌이 몇 번째인지와 시작일로부터 며칠이 지났는지 알려줍니다. 시즌 종료가 가까우면 티어 배치나 보상 일정을 가늠하는 기준으로 쓸 수 있습니다.',
+    usage: '/시즌', category: '이터널리턴',
+  },
+  {
+    name: '/동접', description: '현재 동접자 수를 확인합니다',
+    detail: '지금 이터널 리턴을 플레이 중인 인원을 보여줍니다. 매칭이 잘 잡히는 시간대인지 판단하거나, 서버 사람들과 접속 시간을 맞출 때 참고합니다.',
+    usage: '/동접', category: '이터널리턴',
+  },
 
   // 음악
-  { name: '/음악', description: 'YouTube 음악을 재생합니다', usage: '/음악 검색어:<URL 또는 검색어>', category: '음악' },
+  {
+    name: '/음악', description: 'YouTube 음악을 재생합니다',
+    detail: '검색어를 넣으면 후보를 찾아 재생하고, YouTube 주소를 그대로 넣어도 됩니다. 재생 중에는 버튼으로 대기열 확인·건너뛰기·반복을 조작합니다. 봇이 소리를 내려면 먼저 음성 채널에 들어가 있어야 합니다.',
+    usage: '/음악 검색어:<URL 또는 검색어>', category: '음악',
+  },
 
   // 음성 (TTS)
-  { name: '/tts', description: '봇이 음성 채널에 입장하여 채팅을 읽어줍니다', usage: '/tts', category: '음성' },
+  {
+    name: '/tts', description: '봇이 음성 채널에 입장하여 채팅을 읽어줍니다',
+    detail: '본인이 들어가 있는 음성 채널로 봇이 따라 들어옵니다. 이후 서버에 지정된 TTS 채널에 글을 쓰면 그 문장을 소리 내어 읽습니다. 아무 채널에나 쓴 글은 읽지 않으며, 송출 시간에 따라 크레딧이 차감됩니다.',
+    usage: '/tts', category: '음성',
+  },
 
   // 퀴즈
-  { name: '/퀴즈', description: '음악 퀴즈 게임을 시작합니다', usage: '/퀴즈', category: '기타' },
+  {
+    name: '/퀴즈', description: '노래 맞추기와 이터널 리턴 퀴즈를 시작합니다',
+    detail: '노래를 듣고 맞히기, 이터널 리턴 지식 겨루기, 직접 곡을 등록해 출제하기 중에서 고릅니다. 문제 수도 함께 정합니다. 노래 맞추기는 제목과 가수 점수가 따로 집계되어 아는 쪽만 맞혀도 점수를 얻습니다.',
+    usage: '/퀴즈', category: '기타',
+  },
 
   // 설정
-  { name: '/설정', description: '서버 설정을 관리합니다 (공지 채널, TTS, 알림, 대시보드)', usage: '/설정', category: '설정', adminOnly: true },
+  {
+    name: '/설정', description: '서버 설정을 관리합니다 (공지 채널, TTS, 알림, 대시보드)',
+    detail: '공지 채널과 명령어 채널, TTS가 읽을 채널과 목소리, 환영 메시지, 유튜브 알림을 지정합니다. 관리자 권한이 필요하며, 같은 항목을 대시보드에서 화면으로도 관리할 수 있습니다.',
+    usage: '/설정', category: '설정', adminOnly: true,
+  },
 
   // 기타
-  { name: '/피드백', description: '봇 개발자에게 피드백을 보냅니다', usage: '/피드백 내용:<피드백 내용>', category: '기타' },
+  {
+    name: '/피드백', description: '봇 개발자에게 피드백을 보냅니다',
+    detail: '버그 제보나 기능 제안을 개발자에게 바로 전달합니다. 오작동을 알릴 때는 어느 서버의 어떤 명령에서 무엇이 일어났는지 함께 적어 주시면 확인이 빠릅니다.',
+    usage: '/피드백 내용:<피드백 내용>', category: '기타',
+  },
 ]
 
 const categories = [
@@ -189,8 +227,11 @@ export default function Commands() {
                     <h3 className="text-xl font-bold text-white mb-2 group-hover:text-debi-primary transition-colors flex items-center gap-2">
                       {cmd.name}
                     </h3>
-                    <p className="text-white/60 text-sm leading-relaxed">
+                    <p className="text-white/60 text-sm leading-relaxed mb-3">
                       {cmd.description}
+                    </p>
+                    <p className="text-white/40 text-[13px] leading-relaxed">
+                      {cmd.detail}
                     </p>
                   </div>
 

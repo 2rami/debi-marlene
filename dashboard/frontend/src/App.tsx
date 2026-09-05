@@ -14,6 +14,7 @@ import TopupFail from './pages/TopupFail'
 import Commands from './pages/Commands'
 import Docs from './pages/Docs'
 import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 import AuthCallback from './pages/AuthCallback'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import BotGuide from './pages/BotGuide'
@@ -132,6 +133,7 @@ function App() {
           <Route path="/payment/topup/success" element={<TopupSuccess />} />
           <Route path="/payment/topup/fail" element={<TopupFail />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/whoami" element={<WhoAmI />} />
           <Route path="/chat" element={<MapleChat />} />
           <Route path="/portfolio/krafton" element={<PortfolioKrafton />} />

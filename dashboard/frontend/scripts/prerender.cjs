@@ -12,7 +12,7 @@ const DIST = path.resolve(__dirname, '..', 'dist')
 const PORT = 4178
 // portfolio/* (채용 전용·광고 차단), 로그인·결제·동적 데이터 경로는 제외.
 const ROUTES = [
-  '/', '/landing', '/commands', '/docs', '/bot-guide', '/terms', '/about',
+  '/', '/landing', '/commands', '/docs', '/bot-guide', '/terms', '/privacy', '/about',
   '/guide/faq', '/guide/eternal-return', '/guide/tier-season', '/guide/characters',
   '/guide/tts', '/guide/music', '/guide/welcome', '/guide/credits',
   '/guide/record', '/guide/stats', '/guide/quiz', '/guide/server-setup',

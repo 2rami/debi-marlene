@@ -908,12 +908,16 @@ export default function Landing() {
               Eternal Return and all related content are trademarks of Nimble Neuron.
             </p>
             <nav className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-white/70 drop-shadow-md">
-              <a href="/about" className="hover:text-white transition-colors">소개</a>
-              <a href="/guide/faq" className="hover:text-white transition-colors">FAQ</a>
-              <a href="/guide/eternal-return" className="hover:text-white transition-colors">전적 가이드</a>
-              <a href="/guide/tier-season" className="hover:text-white transition-colors">티어·시즌</a>
-              <a href="/guide/credits" className="hover:text-white transition-colors">크레딧 가이드</a>
-              <a href="/terms" className="hover:text-white transition-colors">이용약관</a>
+              <a href="/about/" className="hover:text-white transition-colors">소개</a>
+              <a href="/commands/" className="hover:text-white transition-colors">명령어</a>
+              <a href="/guide/faq/" className="hover:text-white transition-colors">FAQ</a>
+              <a href="/guide/record/" className="hover:text-white transition-colors">전적 검색</a>
+              <a href="/guide/stats/" className="hover:text-white transition-colors">캐릭터 통계</a>
+              <a href="/guide/tier-season/" className="hover:text-white transition-colors">티어·시즌</a>
+              <a href="/guide/credits/" className="hover:text-white transition-colors">크레딧</a>
+              <a href="/guide/server-setup/" className="hover:text-white transition-colors">서버 설정</a>
+              <a href="/terms/" className="hover:text-white transition-colors">이용약관</a>
+              <a href="/privacy/" className="hover:text-white transition-colors">개인정보처리방침</a>
             </nav>
           </div>
         </div>

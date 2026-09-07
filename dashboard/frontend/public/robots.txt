@@ -12,4 +12,7 @@ Disallow: /payment/
 # 포트폴리오 — 채용 지원 전용 (광고 차단 + 검색 색인 제외)
 Disallow: /portfolio/
 
+# Cloudflare 가 mailto 를 난독화하며 만드는 링크 — 실체가 없어 404 로 잡힌다
+Disallow: /cdn-cgi/
+
 Sitemap: https://debimarlene.com/sitemap.xml

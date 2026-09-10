@@ -7,12 +7,23 @@
 from __future__ import annotations
 
 import base64
+import json
+import time
 from typing import Optional
 
 import aiohttp
 
 OG_HOST = 'https://apis.opengateway.ai'
-MODEL = 'openai/gpt-image-2'
+
+# 앞엣것부터 쓴다. 2.5 는 편집 정밀도가 올라가고 단가는 gpt-image-2 와 같아서
+# 게이트웨이에 올라오는 대로 저절로 갈아타게 둔다(2026-09-10 현재 dev 에만 있다).
+# 정밀 편집이 더 필요하면 sunburst 로 바꾼다 — 값은 같고 대신 더 오래 걸린다.
+MODEL_PREFERENCE = ('openai/gpt-image-2.5-flare', 'openai/gpt-image-2')
+
+# 고른 모델은 프로세스 안에 잠시 담아 둔다. TTL 을 두는 이유는 새 모델이 게이트웨이에
+# 올라왔을 때 봇을 재시작하지 않고도 넘어가기 위해서다.
+_MODEL_TTL_SEC = 3600
+_model_cache: dict[str, float | str | None] = {'id': None, 'at': 0.0}
 
 # 실측 163초. 게이트웨이가 느린 게 아니라 모델이 그만큼 걸린다.
 TIMEOUT_SEC = 300
@@ -35,6 +46,37 @@ class ImageGenError(Exception):
         self.message = message
         self.hint = hint
         self.retryable = retryable
+
+
+async def resolve_model() -> str:
+    """게이트웨이가 실제로 서빙하는 모델 중 가장 앞선 것을 고른다.
+
+    없는 모델을 보내면 게이트웨이가 상류에 가기도 전에 400 `model_not_found` 를 주는데,
+    그 문구가 "권한이 없다" 로 읽혀 원인을 엉뚱한 데서 찾게 된다. 그래서 부르기 전에
+    목록으로 확인한다 — `/v1/models` 는 인증을 안 봐서 키 없이도 200 이라 공짜다.
+    """
+    now = time.monotonic()
+    cached = _model_cache['id']
+    if cached and now - float(_model_cache['at']) < _MODEL_TTL_SEC:
+        return str(cached)
+
+    served: set[str] = set()
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f'{OG_HOST}/v1/models', timeout=aiohttp.ClientTimeout(total=10)
+            ) as r:
+                if r.status == 200:
+                    payload = json.loads(await r.text())
+                    served = {m.get('id') for m in payload.get('data', [])}
+    except (aiohttp.ClientError, TimeoutError, ValueError, KeyError):
+        # 목록을 못 봤다고 그림까지 막을 이유는 없다. 늘 있던 모델로 간다.
+        served = set()
+
+    chosen = next((m for m in MODEL_PREFERENCE if m in served), MODEL_PREFERENCE[-1])
+    _model_cache['id'] = chosen
+    _model_cache['at'] = now
+    return chosen
 
 
 def build_prompt(request: str) -> str:
@@ -78,15 +120,17 @@ async def generate_image(
     quality: str = 'high',
 ) -> bytes:
     """PNG 바이트를 돌려준다. 실패는 ImageGenError 로 올린다."""
+    model = await resolve_model()
+
     form = aiohttp.FormData()
     # filename·MIME 이 없으면 게이트웨이가 400 을 준다(파트 형식 검증)
     form.add_field('image', reference_jpeg, filename='ref.jpg', content_type='image/jpeg')
-    form.add_field('model', MODEL)
+    form.add_field('model', model)
     form.add_field('prompt', build_prompt(request))
     form.add_field('size', size)
     form.add_field('n', '1')
     form.add_field('quality', quality)
-    # input_fidelity 는 보내지 않는다 — gpt-image-2 는 항상 고충실도라 값을 받지 않는다
+    # input_fidelity 는 보내지 않는다 — gpt-image-2 계열은 항상 고충실도라 값을 받지 않는다
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -99,7 +143,6 @@ async def generate_image(
                 body = await r.text()
                 if r.status != 200:
                     raise _explain(r.status, body)
-                import json
                 payload = json.loads(body)
     except aiohttp.ClientError as e:
         raise ImageGenError('생성 서버에 닿지 못했어요.', hint='잠시 뒤 다시 시도해 주세요.', retryable=True) from e

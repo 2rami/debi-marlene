@@ -1,3 +1,7 @@
+import matplotlib
+# 봇은 화면이 없다. macOS 에서 기본 백엔드(MacOSX)로 figure 를 만들면 NSApplication 이
+# 생겨 파이썬이 Dock 에 별도 아이콘으로 올라온다(2026-09-17 실측) — 렌더러는 어차피 Agg 다.
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime, timedelta

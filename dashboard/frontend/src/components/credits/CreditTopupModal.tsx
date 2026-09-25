@@ -36,11 +36,7 @@ export default function CreditTopupModal({ isOpen, onClose }: Props) {
   }, [isOpen])
 
   const handlePay = async () => {
-    if (!selected || busy || !user) return
-    if (!CLIENT_KEY) {
-      setError('결제 설정이 누락되었습니다. (VITE_TOSS_CLIENT_KEY)')
-      return
-    }
+    if (!selected || busy || !user || !CLIENT_KEY) return
     setBusy(true)
     setError(null)
     try {
@@ -109,6 +105,12 @@ export default function CreditTopupModal({ isOpen, onClose }: Props) {
           })}
         </div>
 
+        {!CLIENT_KEY && (
+          <div className="mb-3 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-sm">
+            크레딧 충전은 정식 오픈 준비 중이에요. 지금은 결제할 수 없어요.
+          </div>
+        )}
+
         {error && (
           <div className="mb-3 px-3 py-2 rounded-xl bg-red-500/15 border border-red-400/30 text-red-300 text-sm">
             {error}
@@ -117,10 +119,10 @@ export default function CreditTopupModal({ isOpen, onClose }: Props) {
 
         <button
           onClick={handlePay}
-          disabled={busy || !selected}
+          disabled={busy || !selected || !CLIENT_KEY}
           className="w-full py-3 rounded-xl bg-[#326D1B] text-[#E5FC8A] font-bold disabled:bg-white/5 disabled:text-white/30"
         >
-          {busy ? '결제창 여는 중…' : selected ? `${selected.krw.toLocaleString()}원 결제` : '패키지를 선택하세요'}
+          {!CLIENT_KEY ? '오픈 준비 중' : busy ? '결제창 여는 중…' : selected ? `${selected.krw.toLocaleString()}원 결제` : '패키지를 선택하세요'}
         </button>
 
         <p className="mt-3 text-[11px] text-gray-500 text-center leading-relaxed">

@@ -1,43 +1,42 @@
-#!/usr/bin/env -S uv run --quiet --with mcp==2.0.0 --script
-"""디스코드 MCP 서버 - Components V2 를 읽을 수 있는 텍스트로 풀어준다.
+#!/usr/bin/env python3
+"""디스코드 CLI(dsc) - Components V2 를 읽을 수 있는 텍스트로 풀어준다.
 
-공개된 디스코드 MCP 들은 메시지의 `content` 만 읽는다. 그런데 우리 봇 화면은 전부
+공개된 디스코드 도구들은 메시지의 `content` 만 읽는다. 그런데 우리 봇 화면은 전부
 Components V2 라 `content` 가 비어 있고 내용이 `components` 안에 들어간다. 그래서 남의
-MCP 로 우리 봇 화면을 보면 빈 메시지로 보인다.
+도구로 우리 봇 화면을 보면 빈 메시지로 보인다.
 
 여기서는 webpanel/src/components/chat/MessageArea.tsx 의 렌더러를 텍스트로 옮겨서,
 Container/Section/Thumbnail/Separator 까지 구조 그대로 보여준다.
+
+MCP 로 물려 두면 도구 설명이 모든 세션의 매 요청에 실리는데, 쓰는 날은 드물다. 그래서
+부를 때만 비용이 드는 CLI 로 둔다.
 
 봇 토큰으로만 동작한다. 유저 토큰(셀프봇)은 디스코드 ToS 위반이라 쓰지 않는다 - 봇이
 초대된 서버만 보이는 게 이 방식의 한계이자 안전장치다.
 """
 
+import argparse
 import json
 import os
 import pathlib
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 
-from mcp.server.mcpserver import MCPServer
-
 API = "https://discord.com/api/v10"
-UA = "debi-marlene-mcp (local, 1.0)"
+UA = "debi-marlene-cli (local, 1.0)"
 
 # 메시지가 Components V2 인지 알려주는 플래그. MessageArea.tsx 와 같은 값이다.
 IS_COMPONENTS_V2 = 1 << 15
 
 BUTTON_STYLE = {1: "Primary", 2: "Secondary", 3: "Success", 4: "Danger", 5: "Link"}
 
-# SDK 버전은 shebang 에서 고정해 뒀다. mcp 2.0 에서 FastMCP 가 MCPServer 로 바뀌었는데,
-# 고정을 안 해두면 다음에 또 이름이 바뀌었을 때 손도 안 댄 서버가 갑자기 안 뜬다.
-server = MCPServer("discord-v2")
-
 
 def _token() -> str:
     """토큰은 설정 파일이 아니라 레포의 .env 에서 읽는다.
 
-    MCP 설정에 토큰을 적어 두면 그 파일이 실수로 커밋될 수 있다.
+    래퍼나 설정 파일에 토큰을 적어 두면 그 파일이 실수로 커밋될 수 있다.
     """
     if env := os.environ.get("DISCORD_TOKEN"):
         return env
@@ -174,7 +173,6 @@ def _render_message(msg: dict) -> str:
 
 # === 도구 ===
 
-@server.tool()
 def discord_list_guilds(query: str = "", limit: int = 30) -> str:
     """봇이 들어가 있는 서버 목록. query 를 주면 이름으로 걸러낸다.
 
@@ -189,7 +187,6 @@ def discord_list_guilds(query: str = "", limit: int = 30) -> str:
     return head + "\n" + "\n".join(rows) if rows else head + "\n(없음)"
 
 
-@server.tool()
 def discord_list_channels(guild_id: str) -> str:
     """서버의 텍스트 채널 목록. 카테고리별로 묶어서 보여준다."""
     channels = _api(f"/guilds/{guild_id}/channels") or []
@@ -209,12 +206,11 @@ def discord_list_channels(guild_id: str) -> str:
     return "\n".join(out)
 
 
-@server.tool()
 def discord_read_messages(channel_id: str, limit: int = 25, before: str = "", bots_only: bool = False) -> str:
     """채널 메시지를 읽는다. Components V2 화면은 구조를 풀어서 보여준다.
 
     before 에 메시지 ID 를 주면 그보다 이전 것을 가져온다(과거로 넘기기).
-    bots_only 를 켜면 봇이 보낸 것만 남긴다 - 내 봇 화면을 확인할 때 쓴다.
+    --bots 를 주면 봇이 보낸 것만 남긴다 - 내 봇 화면을 확인할 때 쓴다.
     """
     limit = max(1, min(limit, 100))
     path = f"/channels/{channel_id}/messages?limit={limit}"
@@ -231,16 +227,14 @@ def discord_read_messages(channel_id: str, limit: int = 25, before: str = "", bo
     return "\n\n".join(_render_message(m) for m in msgs)
 
 
-@server.tool()
 def discord_send_message(channel_id: str, content: str) -> str:
     """봇 이름으로 메시지를 보낸다. 실제로 전송되니 사람 확인을 받고 쓴다."""
     if not content.strip():
-        return "빈 내용은 보낼 수 없어요."
+        raise RuntimeError("빈 내용은 보낼 수 없어요.")
     msg = _api(f"/channels/{channel_id}/messages", method="POST", body={"content": content})
     return f"보냈어요. id={msg.get('id')} channel={channel_id}"
 
 
-@server.tool()
 def discord_send_dm(user_id: str, content: str) -> str:
     """봇이 그 사람에게 DM 을 보낸다. 실제로 전송되니 사람 확인을 받고 쓴다.
 
@@ -248,12 +242,61 @@ def discord_send_dm(user_id: str, content: str) -> str:
     있으면 디스코드가 같은 채널을 돌려주므로 채널이 새로 늘지는 않는다.
     """
     if not content.strip():
-        return "빈 내용은 보낼 수 없어요."
+        raise RuntimeError("빈 내용은 보낼 수 없어요.")
     channel = _api("/users/@me/channels", method="POST", body={"recipient_id": user_id})
     channel_id = channel.get("id")
     msg = _api(f"/channels/{channel_id}/messages", method="POST", body={"content": content})
     return f"DM 보냈어요. id={msg.get('id')} dm_channel={channel_id}"
 
 
+def _content(value: str) -> str:
+    # 여러 줄 본문은 셸 따옴표를 거치며 깨지기 쉬워서 `-` 면 표준입력으로 받는다.
+    return sys.stdin.read() if value == "-" else value
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        prog="dsc",
+        description="봇 토큰으로 디스코드를 읽고 보낸다. send·dm 은 실제로 전송된다.",
+    )
+    sub = parser.add_subparsers(dest="cmd", required=True, metavar="<명령>")
+
+    def add(name, fn, summary):
+        return sub.add_parser(name, help=summary, description=fn.__doc__,
+                              formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    p = add("guilds", discord_list_guilds, "봇이 들어간 서버 목록")
+    p.add_argument("query", nargs="?", default="", help="이름 검색어")
+    p.add_argument("--limit", type=int, default=30)
+    p.set_defaults(run=lambda a: discord_list_guilds(a.query, a.limit))
+
+    p = add("channels", discord_list_channels, "서버의 텍스트 채널 목록")
+    p.add_argument("guild_id")
+    p.set_defaults(run=lambda a: discord_list_channels(a.guild_id))
+
+    p = add("read", discord_read_messages, "채널 메시지 읽기(Components V2 풀어서)")
+    p.add_argument("channel_id")
+    p.add_argument("--limit", type=int, default=25)
+    p.add_argument("--before", default="", help="이 메시지 ID 보다 이전 것")
+    p.add_argument("--bots", action="store_true", help="봇 메시지만")
+    p.set_defaults(run=lambda a: discord_read_messages(a.channel_id, a.limit, a.before, a.bots))
+
+    p = add("send", discord_send_message, "채널에 메시지 보내기(실제 전송)")
+    p.add_argument("channel_id")
+    p.add_argument("content", help="본문. - 면 표준입력")
+    p.set_defaults(run=lambda a: discord_send_message(a.channel_id, _content(a.content)))
+
+    p = add("dm", discord_send_dm, "DM 보내기(실제 전송)")
+    p.add_argument("user_id")
+    p.add_argument("content", help="본문. - 면 표준입력")
+    p.set_defaults(run=lambda a: discord_send_dm(a.user_id, _content(a.content)))
+
+    args = parser.parse_args()
+    try:
+        print(args.run(args))
+    except RuntimeError as exc:
+        sys.exit(str(exc))
+
+
 if __name__ == "__main__":
-    server.run()
+    main()

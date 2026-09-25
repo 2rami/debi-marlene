@@ -55,15 +55,16 @@ GCP Compute Engine VM 은 2026-08-25 에 삭제됐다. Docker·Artifact Registry
 - **계층 분리**: `run/services/` (데이터/API) ↔ `run/views/` (Discord 포맷팅)
 - **LayoutView ≠ Embed** — Container가 Embed 대체. 세부 규칙은 `feedback_discord_v2_layout` 메모리.
 
-## 디스코드 읽기 (MCP)
-- `discord-v2` — 봇 토큰으로 서버·채널·메시지를 읽고 보낸다. 본체는 `mcp_servers/discord_v2.py`.
-- **전역(`~/.claude.json`)에 등록돼 있다** — 어느 프로젝트에서든 쓴다. 새 기기에서는 한 번 등록:
-  `claude mcp add discord-v2 --scope user -- uv run --quiet --with mcp==2.0.0 python <이 레포>/mcp_servers/discord_v2.py`
-  ⚠️프로젝트 `.mcp.json` 에 또 넣지 말 것 - 같은 이름이 두 스코프에 있으면 충돌한다(그래서 gitignore 했다).
-- **Components V2 화면을 텍스트로 풀어준다.** 공개 디스코드 MCP 들은 `content` 만 읽어서
+## 디스코드 읽기 (`dsc` CLI)
+- `dsc` — 봇 토큰으로 서버·채널·메시지를 읽고 보낸다. 본체는 `scripts/discord_cli.py`.
+  `dsc guilds [검색어]` · `dsc channels <서버ID>` · `dsc read <채널ID> [--limit N --before ID --bots]`
+  · `dsc send <채널ID> <본문|->` · `dsc dm <유저ID> <본문|->`. send·dm 은 실제로 전송된다.
+- MCP 였다가 CLI 로 바꿨다 — MCP 는 쓰지 않는 세션에도 도구 설명이 매 요청 실린다.
+  새 기기에서는 한 번 연결: `ln -s <이 레포>/scripts/discord_cli.py ~/.local/bin/dsc`
+- **Components V2 화면을 텍스트로 풀어준다.** 공개 디스코드 도구들은 `content` 만 읽어서
   우리 봇 화면이 빈 메시지로 보이는데, 이건 `MessageArea.tsx` 의 렌더러를 옮겨와
   Container/Section/Thumbnail/Separator 까지 보여준다. 봇이 보낸 화면을 확인할 때 쓴다.
-- 토큰은 `.env` 에서 읽는다 — `.mcp.json` 에 적지 말 것(그 파일은 커밋된다).
+- 토큰은 `.env` 에서 읽는다 — 래퍼나 설정 파일에 적지 말 것.
 - 봇이 초대된 서버만 보인다. 유저 토큰(셀프봇)은 디스코드 ToS 위반이라 쓰지 않는다.
 
 ## 진입점

@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -666,33 +667,22 @@ def ask_stream():
 # ─────────── 사이오닉 포폴 챗봇 (얼음정령) — Claude haiku 직접 스트리밍 ───────────
 # 넥슨 Managed Agent 와 독립. 포폴 데이터를 system 에 통째로 넣고 haiku 가 답변.
 
-@portfolio_bp.route('/ask/sionic/stream', methods=['POST', 'OPTIONS'])
-def ask_sionic_stream():
-    if request.method == 'OPTIONS':
-        return ('', 204)
-    ip = _client_ip()
-    if not _check_rate(ip):
-        return jsonify({'error': 'rate_limited', 'reason': '잠시 후 다시 시도해 주세요.'}), 429
-    data = request.get_json(silent=True) or {}
-    prompt = (data.get('prompt') or '').strip()[:PROMPT_MAX_LEN]
-    if not prompt:
-        return jsonify({'error': 'invalid_request', 'reason': 'prompt 필수.'}), 400
-
+def _og_sse(prompt: str, system: str, ip: str, kind: str, fallback: str) -> Response:
     def gen():
-        yield f"data: {json.dumps({'type': 'session', 'session_id': 'sionic'}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'type': 'session', 'session_id': kind}, ensure_ascii=False)}\n\n"
         full = ''
         try:
-            for text in _og_stream(prompt, SIONIC_SYSTEM):
+            for text in _og_stream(prompt, system):
                 full += text
                 yield f"data: {json.dumps({'type': 'chunk', 'text': text}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'text': full[:RESPONSE_MAX_LEN]}, ensure_ascii=False)}\n\n"
             try:
-                _log_to_firestore({'kind': 'sionic', 'ip': ip, 'prompt': prompt, 'response': full[:RESPONSE_MAX_LEN]})
+                _log_to_firestore({'kind': kind, 'ip': ip, 'prompt': prompt, 'response': full[:RESPONSE_MAX_LEN]})
             except Exception:
                 pass
         except Exception:
-            logger.exception('sionic chat error')
-            yield f"data: {json.dumps({'type': 'chunk', 'text': sionic_fake_reply(prompt)}, ensure_ascii=False)}\n\n"
+            logger.exception('%s chat error', kind)
+            yield f"data: {json.dumps({'type': 'chunk', 'text': fallback}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
 
     return Response(
@@ -708,6 +698,59 @@ def ask_sionic_stream():
         # 죽어도 유지된다 — 그래서 급한 불은 껐지만 원인은 남아 있다.
         headers={'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no'},
     )
+
+
+def _read_prompt_arg():
+    data = request.get_json(silent=True) or {}
+    return (data.get('prompt') or '').strip()[:PROMPT_MAX_LEN]
+
+
+@portfolio_bp.route('/ask/sionic/stream', methods=['POST', 'OPTIONS'])
+def ask_sionic_stream():
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    ip = _client_ip()
+    if not _check_rate(ip):
+        return jsonify({'error': 'rate_limited', 'reason': '잠시 후 다시 시도해 주세요.'}), 429
+    prompt = _read_prompt_arg()
+    if not prompt:
+        return jsonify({'error': 'invalid_request', 'reason': 'prompt 필수.'}), 400
+    return _og_sse(prompt, SIONIC_SYSTEM, ip, 'sionic', sionic_fake_reply(prompt))
+
+
+# ─────────── 지원처별 포폴 챗봇 ───────────
+# 흐름은 위 창구와 같고 사실 목록만 지원처마다 다르다. 사실 목록은 공개 레포에 올리지
+# 않을 지원 서류라 코드 밖 portfolio_prompts/<slug>.md 에 둔다 — 파일이 없으면 404.
+
+PROMPT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'portfolio_prompts')
+_SLUG_RE = re.compile(r'^[a-z0-9-]{1,32}$')
+SLUG_FALLBACK = '지금은 답을 만들지 못했어요. 궁금한 점은 goenho0613@gmail.com 으로 보내 주세요.'
+
+
+def _load_prompt(slug: str) -> str | None:
+    if not _SLUG_RE.match(slug):
+        return None
+    try:
+        with open(os.path.join(PROMPT_DIR, f'{slug}.md'), encoding='utf-8') as fh:
+            return fh.read()
+    except OSError:
+        return None
+
+
+@portfolio_bp.route('/ask/<slug>/stream', methods=['POST', 'OPTIONS'])
+def ask_slug_stream(slug: str):
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    system = _load_prompt(slug)
+    if system is None:
+        return jsonify({'error': 'not_found'}), 404
+    ip = _client_ip()
+    if not _check_rate(ip):
+        return jsonify({'error': 'rate_limited', 'reason': '잠시 후 다시 시도해 주세요.'}), 429
+    prompt = _read_prompt_arg()
+    if not prompt:
+        return jsonify({'error': 'invalid_request', 'reason': 'prompt 필수.'}), 400
+    return _og_sse(prompt, system, ip, slug, SLUG_FALLBACK)
 
 
 # ─────────── 메이플 캐릭터 조회 (닉네임 → look hash) ───────────

@@ -166,7 +166,7 @@ def _og_key() -> str:
         return ''
 
 
-def _og_stream(prompt: str, system: str):
+def _og_stream(prompt: str, system: str, model: str | None = None):
     """게이트웨이 스트리밍. 조각 텍스트를 하나씩 내놓는다.
 
     OpenAI 호환 SSE 라 Anthropic SDK 의 text_stream 과 모양이 다르다 — 호출부가 같은
@@ -186,7 +186,7 @@ def _og_stream(prompt: str, system: str):
     res = sess.post(
         OG_URL, timeout=RESPONSE_TIMEOUT, stream=True,
         headers={'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'},
-        json={'model': OG_MODEL, 'max_tokens': 600, 'stream': True,
+        json={'model': model or OG_MODEL, 'max_tokens': 600, 'stream': True,
               'messages': [{'role': 'system', 'content': system},
                            {'role': 'user', 'content': prompt}]},
     )
@@ -667,12 +667,12 @@ def ask_stream():
 # ─────────── 사이오닉 포폴 챗봇 (얼음정령) — Claude haiku 직접 스트리밍 ───────────
 # 넥슨 Managed Agent 와 독립. 포폴 데이터를 system 에 통째로 넣고 haiku 가 답변.
 
-def _og_sse(prompt: str, system: str, ip: str, kind: str, fallback: str) -> Response:
+def _og_sse(prompt: str, system: str, ip: str, kind: str, fallback: str, model: str | None = None) -> Response:
     def gen():
         yield f"data: {json.dumps({'type': 'session', 'session_id': kind}, ensure_ascii=False)}\n\n"
         full = ''
         try:
-            for text in _og_stream(prompt, system):
+            for text in _og_stream(prompt, system, model):
                 full += text
                 yield f"data: {json.dumps({'type': 'chunk', 'text': text}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'text': full[:RESPONSE_MAX_LEN]}, ensure_ascii=False)}\n\n"
@@ -721,36 +721,49 @@ def ask_sionic_stream():
 # ─────────── 지원처별 포폴 챗봇 ───────────
 # 흐름은 위 창구와 같고 사실 목록만 지원처마다 다르다. 사실 목록은 공개 레포에 올리지
 # 않을 지원 서류라 코드 밖 portfolio_prompts/<slug>.md 에 둔다 — 파일이 없으면 404.
+# 모델도 지원처마다 옆의 <slug>.model 로 따로 고른다. 기본 OG_MODEL(ultrafast)은 가끔
+# 한글과 영어 토큰을 섞다 글자를 깨뜨리는데(「데스크탑」이 대체 문자+op 로, 2026-09-28 실측) 지원서 화면에선
+# 그 한 글자가 치명적이다. 매핑을 코드에 두면 공개 레포에 지원처 이름이 새서 파일로 뺐다.
 
 PROMPT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'portfolio_prompts')
 _SLUG_RE = re.compile(r'^[a-z0-9-]{1,32}$')
+_MODEL_RE = re.compile(r'^[a-z0-9][a-z0-9._/-]{0,79}$')
 SLUG_FALLBACK = '지금은 답을 만들지 못했어요. 궁금한 점은 goenho0613@gmail.com 으로 보내 주세요.'
 
 
-def _load_prompt(slug: str) -> str | None:
-    if not _SLUG_RE.match(slug):
-        return None
+def _read_slug_file(slug: str, ext: str) -> str | None:
     try:
-        with open(os.path.join(PROMPT_DIR, f'{slug}.md'), encoding='utf-8') as fh:
+        with open(os.path.join(PROMPT_DIR, f'{slug}.{ext}'), encoding='utf-8') as fh:
             return fh.read()
     except OSError:
         return None
+
+
+def _load_prompt(slug: str) -> tuple[str, str | None] | None:
+    if not _SLUG_RE.match(slug):
+        return None
+    system = _read_slug_file(slug, 'md')
+    if system is None:
+        return None
+    model = (_read_slug_file(slug, 'model') or '').strip()
+    return system, model if _MODEL_RE.match(model) else None
 
 
 @portfolio_bp.route('/ask/<slug>/stream', methods=['POST', 'OPTIONS'])
 def ask_slug_stream(slug: str):
     if request.method == 'OPTIONS':
         return ('', 204)
-    system = _load_prompt(slug)
-    if system is None:
+    loaded = _load_prompt(slug)
+    if loaded is None:
         return jsonify({'error': 'not_found'}), 404
+    system, model = loaded
     ip = _client_ip()
     if not _check_rate(ip):
         return jsonify({'error': 'rate_limited', 'reason': '잠시 후 다시 시도해 주세요.'}), 429
     prompt = _read_prompt_arg()
     if not prompt:
         return jsonify({'error': 'invalid_request', 'reason': 'prompt 필수.'}), 400
-    return _og_sse(prompt, system, ip, slug, SLUG_FALLBACK)
+    return _og_sse(prompt, system, ip, slug, SLUG_FALLBACK, model)
 
 
 # ─────────── 메이플 캐릭터 조회 (닉네임 → look hash) ───────────

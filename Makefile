@@ -215,8 +215,9 @@ status: guard
 
 logs: logs-bot
 
+# 2026-09-10 LaunchAgent 전환 뒤로 logs/bot.log 는 멈춰 있다 — 봇 출력은 여기로만 간다.
 logs-bot: guard
-	@ssh $(MINI) 'tail -f $(REMOTE)/logs/bot.log $(REMOTE)/logs/bot.err'
+	@ssh $(MINI) 'tail -f ~/Library/Logs/debimarlene-bot.log'
 
 logs-dashboard: guard
 	@ssh $(MINI) 'tail -f $(REMOTE)/logs/dash-error.log $(REMOTE)/logs/dashboard.err'

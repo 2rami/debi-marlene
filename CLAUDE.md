@@ -42,12 +42,13 @@ GCP Compute Engine VM 은 2026-08-25 에 삭제됐다. Docker·Artifact Registry
 | 좀비 python 정리 | `./scripts/kill_solo_bots.sh all` |
 
 ## env 관리 (중요)
-- **단일 진실: Google Cloud Secret Manager**. 노션 평문 저장 폐기 권장.
-- Secret 3종: `debi-marlene-env` / `debi-marlene-env-solo-debi` / `debi-marlene-env-solo-marlene`
-- 새 기기 셋업: `gcloud auth login` → `gcloud config set project ironic-objectivist-465713-a6` → `./scripts/sync_env.sh pull`
-- secret 업데이트: 로컬 `.env` 수정 → `./scripts/sync_env.sh push` → 서버 `secrets/*.env` 반영 후 재시작.
+- **단일 진실: 미니 금고 `nachoneko:~/.secrets/gcp-sm/`** (파일 하나 = 옛 Secret Manager 시크릿 하나, 이름 그대로).
+  Secret Manager 는 2026-10-02 에 걷었다(월 ~₩1.8천). 노션 평문 저장 폐기 권장.
+- 개발용 env 3종: `debi-marlene-env` / `debi-marlene-env-solo-debi` / `debi-marlene-env-solo-marlene`
+- 새 기기 셋업: 사내 VPN + `~/.ssh/config` 의 `Host nachoneko` → `./scripts/sync_env.sh pull`
+- env 업데이트: 로컬 `.env` 수정 → `./scripts/sync_env.sh push`(직전 값은 금고에 `.prev`) → 서버 `secrets/*.env` 반영 후 재시작.
   ⚠️서버가 실제로 읽는 것은 `~/debimarlene/secrets/{bot,dashboard,webpanel}.env` 다 —
-  Secret Manager 에 push 한다고 서버에 반영되지 않는다. `make sync-check` 로 어긋남을 먼저 본다.
+  금고에 push 한다고 서버에 반영되지 않는다. `make sync-check` 로 어긋남을 먼저 본다.
 - `NEXON_API_KEY` (선택) — `/chat` 의 메이플 닉네임 검색용. https://openapi.nexon.com/my-application/ 에서 무료 발급.
   미설정 시 검색만 503 으로 막히고 페이지는 기본 캐릭터로 정상 동작한다. 캐릭터 이미지(static look) 자체는 키가 필요 없다.
 

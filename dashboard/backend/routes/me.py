@@ -3,14 +3,13 @@
 - /api/me/feed       : daily_feeds 컬렉션(run/core/store.py) 최신 N일 조회
 - /api/me/whoami     : owner 여부만 빠르게 확인 (프론트 가드용)
 
-owner_id 외 접근 시 403. OWNER_ID 환경변수 또는 Secret Manager 에서.
+owner_id 외 접근 시 403. OWNER_ID 환경변수에서.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-import subprocess
 import sys
 from functools import wraps
 
@@ -25,29 +24,11 @@ from run.core import store  # noqa: E402
 logger = logging.getLogger(__name__)
 me_bp = Blueprint('me', __name__)
 
-GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'ironic-objectivist-465713-a6')
 DAILY_COLLECTION = 'daily_feeds'
-
-_owner_id_cache: str | None = None
 
 
 def _get_owner_id() -> str | None:
-    global _owner_id_cache
-    if _owner_id_cache is not None:
-        return _owner_id_cache
-    val = os.getenv('OWNER_ID')
-    if not val:
-        try:
-            val = subprocess.run(
-                ['gcloud', 'secrets', 'versions', 'access', 'latest',
-                 '--secret=owner-id', f'--project={GCP_PROJECT_ID}'],
-                capture_output=True, text=True, check=True, timeout=5,
-            ).stdout.strip()
-        except Exception as e:
-            logger.error(f'owner-id Secret Manager fetch 실패: {e}')
-            val = None
-    _owner_id_cache = val
-    return val
+    return os.getenv('OWNER_ID') or None
 
 
 def owner_required(f):

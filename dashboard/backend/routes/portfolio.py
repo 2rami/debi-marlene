@@ -8,7 +8,7 @@ Anthropic Managed Agents (geno-portfolio) 로 prompt 를 forwarding 하고
     - 인증 없음 (공개 사이트). Rate limit (IP/min) 으로 abuse 방지
     - prompt 500자, response 800자 truncate
     - session_id 받으면 재사용, 없으면 새로 만들고 응답에 포함 → 클라이언트가 다음 호출에 동봉
-    - 모든 요청/응답을 Firestore portfolio_logs 에 적재 (비용/품질 추적)
+    - 모든 요청/응답을 portfolio_logs 컬렉션(run/core/store.py)에 적재 (비용/품질 추적)
 
 env:
     OPENGATEWAY_API_KEY          # 없으면 ~/.config/opengateway.key. 사이오닉 챗봇이 쓴다
@@ -16,7 +16,6 @@ env:
     ANTHROPIC_API_KEY            # Managed Agent 창구 전용. 지금은 닫혀 있다
     PORTFOLIO_AGENT_ID           # geno-portfolio Managed Agent id (agent-builder 가 발급)
     PORTFOLIO_ENV_ID             # (선택) environment_id — agent 가 bash 도구 필요할 때만
-    GCP_PROJECT_ID               # Firestore 로깅용. 미설정 시 ironic-objectivist-465713-a6
 """
 
 from __future__ import annotations
@@ -27,6 +26,7 @@ import os
 import re
 import sqlite3
 import threading
+import sys
 import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
@@ -34,6 +34,12 @@ from datetime import datetime, timezone
 from flask import Blueprint, Response, jsonify, request
 
 from portfolio_data import search_portfolio, SIONIC_SYSTEM, sionic_fake_reply
+
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+from run.core import store  # noqa: E402
 
 logger = logging.getLogger(__name__)
 portfolio_bp = Blueprint('portfolio', __name__)
@@ -65,7 +71,6 @@ RATE_LIMIT_PER_MIN = 5
 RATE_LIMIT_WINDOW = 60
 RESPONSE_TIMEOUT = 60   # 포폴 챗봇은 짧게 — 60초 안에 못 끝내면 fail
 
-GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'ironic-objectivist-465713-a6')
 LOG_COLLECTION = 'portfolio_logs'
 
 # ─────────── Rate limiter (파일) ───────────
@@ -240,44 +245,21 @@ def _get_anthropic():
         return None
 
 
-# ─────────── Firestore (lazy) ───────────
+# ─────────── 로그 적재 ───────────
 
-_firestore_client = None
+def _store_log(payload: dict) -> None:
+    """로그 적재. 스레드로 던져 응답을 늦추지 않는다.
 
-
-def _get_firestore():
-    global _firestore_client
-    if _firestore_client is not None:
-        return _firestore_client if _firestore_client is not False else None
-    try:
-        from google.cloud import firestore
-        _firestore_client = firestore.Client(project=GCP_PROJECT_ID)
-    except Exception as e:
-        logger.warning(f'Firestore 클라이언트 실패 (로그 비활성): {e}')
-        _firestore_client = False
-    return _firestore_client if _firestore_client is not False else None
-
-
-def _log_to_firestore(payload: dict) -> None:
-    """로그 적재. **반드시 스레드로 던진다 — 여기서 기다리면 워커가 죽는다.**
-
-    fork 된 gunicorn 워커에서는 GCP 클라이언트의 첫 네트워크 호출이 데드락한다
-    (_og_stream 의 trust_env 주석과 같은 macOS fork 문제). 하필 이 호출이 응답을 다
-    내보낸 **뒤**라, 사용자 화면은 멀쩡한데 워커만 30초 뒤 SIGKILL 당한다.
-
-    그래서 증상이 로그 적재처럼 안 보였다 — 요청마다 워커가 새로 뜨니 in-memory 인
-    분당 제한 버킷이 매번 비워져서, 겉으로는 「rate limit 이 안 걸린다」로 나타났다
-    (2026-08-25 실측: 동시 12건이 전부 통과, 요청마다 워커 pid 가 달랐다).
+    Firestore 시절엔 fork 된 gunicorn 워커에서 GCP 클라이언트의 첫 네트워크 호출이
+    데드락해 응답 뒤 워커가 30초 만에 SIGKILL 당했다(2026-08-25). 로컬 SQLite 로 옮긴
+    지금은 그 이유가 사라졌지만 응답 경로에서 쓰기를 빼 두는 편이 여전히 낫다.
     """
-    threading.Thread(target=_log_to_firestore_blocking, args=(payload,), daemon=True).start()
+    threading.Thread(target=_store_log_blocking, args=(payload,), daemon=True).start()
 
 
-def _log_to_firestore_blocking(payload: dict) -> None:
-    db = _get_firestore()
-    if db is None:
-        return
+def _store_log_blocking(payload: dict) -> None:
     try:
-        db.collection(LOG_COLLECTION).add(payload)
+        store.client().collection(LOG_COLLECTION).add(payload)
     except Exception as e:
         logger.warning(f'portfolio_logs 적재 실패: {e}')
 
@@ -466,7 +448,7 @@ def ask():
 
     # 로깅 — 실패해도 응답엔 영향 없음
     elapsed = round(time.time() - started_at, 2)
-    _log_to_firestore({
+    _store_log({
         'timestamp': datetime.now(timezone.utc),
         'ip': ip,
         'prompt': prompt,
@@ -619,7 +601,7 @@ def _stream_agent_sse(prompt: str, session_id: str | None, ip: str):
         if len(text_final) > RESPONSE_MAX_LEN:
             text_final = text_final[:RESPONSE_MAX_LEN].rstrip() + '…'
         try:
-            _log_to_firestore({
+            _store_log({
                 'timestamp': datetime.now(timezone.utc),
                 'ip': ip,
                 'prompt': prompt,
@@ -677,7 +659,7 @@ def _og_sse(prompt: str, system: str, ip: str, kind: str, fallback: str, model: 
                 yield f"data: {json.dumps({'type': 'chunk', 'text': text}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'text': full[:RESPONSE_MAX_LEN]}, ensure_ascii=False)}\n\n"
             try:
-                _log_to_firestore({'kind': kind, 'ip': ip, 'prompt': prompt, 'response': full[:RESPONSE_MAX_LEN]})
+                _store_log({'kind': kind, 'ip': ip, 'prompt': prompt, 'response': full[:RESPONSE_MAX_LEN]})
             except Exception:
                 pass
         except Exception:

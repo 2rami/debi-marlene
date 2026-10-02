@@ -83,7 +83,7 @@ class CreditsLayoutView(discord.ui.LayoutView):
         guild_name: Optional[str],
         emoji_str: str = "[C]",
     ) -> "CreditsLayoutView":
-        """비동기 생성자 — Firestore fetch 만 off-thread."""
+        """비동기 생성자 — 저장소 읽기만 off-thread."""
         instance = cls(
             user_id=user_id, user_name=user_name,
             guild_id=guild_id, guild_name=guild_name, emoji_str=emoji_str,

@@ -56,7 +56,7 @@ MAX_HISTORY = 5
 
 # ========== 사용자별 일일 무료 + 크레딧 차감 ==========
 # 거노 결정: 하루 무료 5회까지, 그 이후엔 크레딧 -2/회. 봇 재시작 시 무료 카운터 리셋.
-# 크레딧 잔고는 Firestore 영속 → run.services.credits.debit 위임.
+# 크레딧 잔고는 저장소(run/core/store.py) 영속 → run.services.credits.debit 위임.
 from datetime import datetime, timezone, timedelta
 _KST = timezone(timedelta(hours=9))
 DAILY_FREE_CHAT = 5            # 하루 무료 대화 수 (사용자당)
@@ -383,7 +383,7 @@ class ChatCog(commands.Cog, name="대화"):
         # DM에서 /대화 사용 시 웹패널 DM 목록에 뜨도록 사용자 정보 저장.
         # 슬래시는 interaction이라 on_message를 트리거하지 않아
         # save_user_dm_interaction(bot.py on_message)이 호출되지 않는다.
-        # → 저장 안 하면 Firestore users에 등록이 안 돼 웹패널 DM 대화내역에 유저가 안 뜬다.
+        # → 저장 안 하면 users 컬렉션에 등록이 안 돼 웹패널 DM 대화내역에 유저가 안 뜬다.
         if guild_id is None and interaction.channel_id:
             try:
                 import asyncio as _aio

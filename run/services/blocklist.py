@@ -1,6 +1,6 @@
 """기능 차단 (블랙리스트) 서비스.
 
-데이터 모델 — Firestore `guilds/{guild_id}` 문서에 `blocked_users` 맵:
+데이터 모델 — 저장소(run/core/store.py) `guilds/{guild_id}` 문서에 `blocked_users` 맵:
 
     blocked_users = {
         "<user_id_str>": {
@@ -17,7 +17,7 @@
 - "tts"        : voice.handle_tts_message
 - "credits"    : 크레딧/도박 (잔고 봉인 — 향후 확장)
 
-가드: 모든 함수는 Firestore blocking — caller 가 to_thread 로 감쌈.
+가드: 모든 함수는 저장소 blocking IO — caller 가 to_thread 로 감쌈.
 """
 
 from __future__ import annotations
@@ -51,9 +51,7 @@ def is_blocked(guild_id, user_id, feature: str) -> bool:
     """단일 (guild, user, feature) 차단 여부."""
     if guild_id is None or user_id is None:
         return False
-    fs = bot_config.get_firestore_client()
-    if fs is None:
-        return False
+    fs = bot_config.get_db()
     try:
         doc = fs.collection("guilds").document(str(guild_id)).get()
         if not doc.exists:
@@ -72,9 +70,7 @@ def list_blocked(guild_id) -> dict:
     """guild 의 전체 blocked_users 맵 반환. 없으면 {}."""
     if guild_id is None:
         return {}
-    fs = bot_config.get_firestore_client()
-    if fs is None:
-        return {}
+    fs = bot_config.get_db()
     try:
         doc = fs.collection("guilds").document(str(guild_id)).get()
         if not doc.exists:
@@ -92,9 +88,7 @@ def set_blocked(guild_id, user_id, features: Iterable[str], blocked_by) -> dict:
     """
     if guild_id is None or user_id is None:
         return {}
-    fs = bot_config.get_firestore_client()
-    if fs is None:
-        return {}
+    fs = bot_config.get_db()
 
     norm = _normalize_features(features)
     if not norm:
@@ -122,9 +116,7 @@ def unblock(guild_id, user_id) -> dict:
     """user_id entry 제거. 없는 경우 {}."""
     if guild_id is None or user_id is None:
         return {}
-    fs = bot_config.get_firestore_client()
-    if fs is None:
-        return {}
+    fs = bot_config.get_db()
     try:
         guild_ref = fs.collection("guilds").document(str(guild_id))
         snap = guild_ref.get()
@@ -135,7 +127,8 @@ def unblock(guild_id, user_id) -> dict:
         if str(user_id) not in blocked_map:
             return {}
         blocked_map.pop(str(user_id), None)
-        guild_ref.set({"blocked_users": blocked_map}, merge=True)
+        # set(merge=True) 는 중첩 맵을 깊게 합쳐서 뺀 키가 그대로 남는다 — 필드째 바꾼다
+        guild_ref.update({"blocked_users": blocked_map})
         return {}
     except Exception as e:
         logger.warning("blocklist 해제 실패: %s", e)

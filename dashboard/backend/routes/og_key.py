@@ -61,7 +61,7 @@ def _iso(v):
 
 def _status_payload(user_id: str) -> dict:
     s = og_keys.get_status(user_id)
-    # Firestore 타임스탬프는 그대로 jsonify 하면 HTTP date 문자열이 된다 — 프론트가
+    # datetime 을 그대로 jsonify 하면 HTTP date 문자열이 된다 — 프론트가
     # 파싱하기 쉽게 ISO 로 맞춘다.
     s['created_at'] = _iso(s.get('created_at'))
     s['last_used'] = _iso(s.get('last_used'))

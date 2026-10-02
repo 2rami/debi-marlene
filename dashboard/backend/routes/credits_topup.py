@@ -108,7 +108,7 @@ def packages():
 @credits_topup_bp.route('/checkout', methods=['POST'])
 @login_required
 def checkout():
-    """주문 생성. orderId 발급 + Firestore pending 저장. 금액은 서버가 결정."""
+    """주문 생성. orderId 발급 + 저장소 pending 저장. 금액은 서버가 결정."""
     if not _topup_live_ready():
         return jsonify({'error': '크레딧 충전은 정식 오픈 준비 중입니다. 곧 만나요!'}), 503
     user = session['user']
@@ -189,7 +189,7 @@ def confirm():
     res = credits_service.apply_topup(order_id, payment_key=payment_key)
     if not res.get('ok'):
         # 결제는 성공했으나 적립 실패. webhook 이 백업 경로지만 best-effort 이고
-        # Firestore 상관 장애면 함께 실패할 수 있어 자동 복구가 보장되지 않는다.
+        # 저장소 상관 장애면 함께 실패할 수 있어 자동 복구가 보장되지 않는다.
         # 수동 복구를 위해 결제 정보를 로깅하고 주문에 적립실패(paid_unapplied)를 마킹한다.
         logger.error('CRITICAL apply_topup failed after PAID: order=%s paymentKey=%s res=%s '
                      '-- manual credit needed', order_id, payment_key, res)

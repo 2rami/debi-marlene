@@ -24,6 +24,9 @@ from routes.credits import credits_bp
 from routes.credits_topup import credits_topup_bp
 from routes.blocked_users import blocked_bp
 from routes.og_key import og_key_bp
+from run.core import store  # routes 가 프로젝트 루트를 sys.path 에 올린 뒤라 여기서 보인다
+
+store.wait_ready()
 
 # Configure logging
 logging.basicConfig(

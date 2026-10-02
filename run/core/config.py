@@ -1,9 +1,10 @@
 import os
 import json
-import hashlib
 import time
 import threading
 from dotenv import load_dotenv
+
+from run.core import store
 
 # BOT_ENV_FILE이 지정되면 해당 파일을 로드 (솔로봇 로컬 테스트용 .env.solo-debi 등).
 # 미지정 시 기본 .env. override=False로 이미 설정된 env(예: GOOGLE_APPLICATION_CREDENTIALS)는 유지.
@@ -29,40 +30,28 @@ DAKGG_API_BASE = "https://er.dakgg.io/api/v1"
 # YouTube 설정
 ETERNAL_RETURN_CHANNEL_ID = 'UCEOaB76vS9RfiAwEzxB8QGw'
 
-# GCP 설정
+# GCP 설정 — GCS(환영 이미지·settings.json 레거시) 전용. 문서 저장은 로컬 SQLite 로 옮겼다.
 # 명시적 default — gcloud config 의존 없이 안정적으로 동작
 GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'ironic-objectivist-465713-a6')
 GCS_BUCKET = os.getenv('GCS_BUCKET_NAME', 'debi-marlene-settings')
 GCS_KEY = 'settings.json'  # 레거시 fallback 전용
 
-# 저장소 모드 (점진 전환용)
-# - 'firestore': Firestore 단독 (이번 작업 기본값)
-# - 'dual': Firestore + GCS 둘 다 쓰기 (안전 모드, 1주 dual-write 후 firestore 전환)
+# 저장소 모드
+# - 'local': 맥미니 SQLite 단독 (기본, run/core/store.py)
+# - 'dual': SQLite + GCS 둘 다 쓰기
 # - 'gcs': 레거시 (롤백용)
-SETTINGS_BACKEND = os.getenv('SETTINGS_BACKEND', 'firestore').lower()
+SETTINGS_BACKEND = os.getenv('SETTINGS_BACKEND', 'local').lower()
 
 # 클라이언트 싱글톤
 gcs_client = None
-firestore_client = None
 _gcs_client_lock = threading.Lock()
-_firestore_client_lock = threading.Lock()
 
-# 설정 캐시
-# - listener 활성 시: snapshot callback 이 자동 동기화 → load_settings 는 read 0회
-# - listener 비활성 시 (init 실패/dashboard 단발 호출): 기존처럼 lazy load
+# 레거시(GCS·로컬 백업) 경로로 읽었을 때만 쓰는 캐시. 로컬 저장소는 Mirror 가 맡는다.
 settings_cache = None
-_cache_lock = threading.Lock()
-_listeners_active = False
-_listener_watches = []  # unsubscribe 용 핸들 보관
-_first_snapshot_event = threading.Event()  # 첫 동기화 완료 대기
-# 리스너가 받은 서버 문서의 지문. load_settings() 가 얕은 복사라 캐시 dict 는 호출부가
-# 제자리에서 고치므로 캐시와 비교하면 늘 같다고 나온다 — 받은 순간의 지문을 따로 든다.
-_fs_doc_fingerprints = {}
 
-
-def _doc_fingerprint(data):
-    raw = json.dumps(data, sort_keys=True, default=str, ensure_ascii=False)
-    return hashlib.sha1(raw.encode('utf-8')).hexdigest()
+# 봇은 메시지마다 서버 설정을 읽는다 — 다른 프로세스(대시보드·웹패널)가 바꾼 문서만 골라
+# 다시 읽는 캐시라 매번 불러도 싸고, 바뀐 설정도 바로 보인다.
+_settings_mirror = store.Mirror(('guilds', 'users', 'global'))
 
 
 # ───────────────────── 클라이언트 초기화 ─────────────────────
@@ -89,328 +78,77 @@ def get_gcs_client():
     return gcs_client if gcs_client != False else None
 
 
-def get_firestore_client():
-    """Firestore 클라이언트를 가져옵니다 (싱글톤, 스레드 안전). settings 의 단일 진실 소스."""
-    global firestore_client
-    if firestore_client is not None:
-        return firestore_client if firestore_client is not False else None
-
-    with _firestore_client_lock:
-        if firestore_client is not None:
-            return firestore_client if firestore_client is not False else None
-
-        try:
-            from google.cloud import firestore
-            firestore_client = firestore.Client(project=GCP_PROJECT_ID)
-            print(f"[Firestore] Client 생성 성공 (project={GCP_PROJECT_ID})", flush=True)
-        except Exception as e:
-            import traceback
-            print(f"[Firestore 오류] 클라이언트 생성 실패: {e}", flush=True)
-            print(f"[Firestore 오류] 상세: {traceback.format_exc()}", flush=True)
-            firestore_client = False
-    return firestore_client if firestore_client != False else None
+def get_db():
+    """문서 저장소 (Firestore 와 같은 모양의 로컬 SQLite). 실패하면 None 대신 예외가 난다."""
+    return store.client()
 
 
-# ───────────────────── 저장소: Firestore ─────────────────────
+# ───────────────────── 저장소: 로컬 SQLite ─────────────────────
 
-def _fs_load_all_settings():
-    """Firestore 의 guilds / users / global 3컬렉션을 읽어 레거시 dict 형태로 조립."""
-    fs = get_firestore_client()
-    if not fs:
-        return None
-
-    try:
-        guilds = {}
-        for doc in fs.collection('guilds').stream():
-            guilds[doc.id] = doc.to_dict() or {}
-
-        users = {}
-        for doc in fs.collection('users').stream():
-            users[doc.id] = doc.to_dict() or {}
-
-        global_doc = fs.collection('global').document('settings').get()
-        global_settings = global_doc.to_dict() if global_doc.exists else {}
-
+def _local_load_settings():
+    """guilds / users / global 3컬렉션을 레거시 dict 형태로 조립."""
+    with _settings_mirror.lock:
+        _settings_mirror.sync()
+        docs = _settings_mirror.docs
         return {
-            'guilds': guilds,
-            'users': users,
-            'global': global_settings,
+            'guilds': dict(docs['guilds']),
+            'users': dict(docs['users']),
+            'global': dict(docs['global'].get('settings') or {}),
         }
-    except Exception as e:
-        print(f"[Firestore 경고] 전체 로드 실패: {e}", flush=True)
-        return None
 
 
-def _fs_save_all_settings(settings):
-    """레거시 dict 를 guilds/users 컬렉션으로 분산 저장. batch 로 부분 atomicity 보장.
+def _local_save_settings(settings):
+    """레거시 dict 를 guilds/users 문서로 나눠 한 트랜잭션에 저장. 내용이 그대로인 문서는
+    put_raw 가 건너뛴다 — 5분 통계 저장이 수백 문서를 통째로 다시 쓰지 않게.
 
     global/settings 문서는 여기서 저장하지 않는다 — SENT_VIDEO_IDS·coupons·
-    last_patchnote_id 같은 누적 상태가 한 문서에 공존하는데, 전체저장(merge=False)이
+    last_patchnote_id 같은 누적 상태가 한 문서에 공존하는데, 전체저장이
     stale 캐시로 통째 덮으면 방금 claim/저장한 값이 롤백된다(유튜브 같은 영상 재전송의
     근본 원인). global 필드는 save_global_setting / claim_video_id 트랜잭션 등
     단일 필드 merge 경로로만 저장한다.
     """
-    fs = get_firestore_client()
-    if not fs:
-        return False
-
     try:
-        guilds = settings.get('guilds', {}) or {}
-        users = settings.get('users', {}) or {}
-
-        # Firestore batch 한 번에 500 op 제한 → chunk 단위로 split
-        all_ops = []
-        for gid, gdata in guilds.items():
-            if isinstance(gdata, dict):
-                all_ops.append(('guilds', str(gid), gdata))
-        for uid, udata in users.items():
-            if isinstance(udata, dict):
-                all_ops.append(('users', str(uid), udata))
-
-        # 통째로 다시 쓰면 5분 통계 저장마다 문서 ~460개가 나가 2026-09 에 쓰기 593만 건,
-        # 리스너 재전송 43GiB 가 청구됐다. 서버 상태를 리스너로 받고 있을 때만 바뀐 문서를
-        # 가려낼 수 있다 — 리스너가 없는 프로세스(대시보드·웹패널)는 예전처럼 전부 쓴다.
-        if _listeners_active:
-            with _cache_lock:
-                known = dict(_fs_doc_fingerprints)
-            all_ops = [
-                op for op in all_ops
-                if known.get((op[0], op[1])) != _doc_fingerprint(op[2])
-            ]
-
-        # 500 op 단위 batch 분할 (set with merge)
-        for i in range(0, len(all_ops), 450):
-            batch = fs.batch()
-            for collection, doc_id, data in all_ops[i:i+450]:
-                ref = fs.collection(collection).document(doc_id)
-                batch.set(ref, data, merge=False)  # 전체 dict 저장 = 레거시 호환
-            batch.commit()
-
+        rows = []
+        for col in ('guilds', 'users'):
+            for doc_id, data in (settings.get(col, {}) or {}).items():
+                if isinstance(data, dict):
+                    rows.append((col, str(doc_id), store.encode(data)))
+        with store.write_txn() as c:
+            for col, doc_id, raw in rows:
+                store.put_raw(c, col, doc_id, raw)
         return True
     except Exception as e:
-        print(f"[Firestore 경고] 전체 저장 실패: {e}", flush=True)
+        print(f"[저장소 경고] 전체 저장 실패: {e}", flush=True)
         return False
 
 
-def _fs_get_guild(guild_id):
-    """Firestore 에서 단일 길드 문서 읽기."""
-    fs = get_firestore_client()
-    if not fs:
-        return None
+def _doc(col, doc_id):
+    return store.client().collection(col).document(str(doc_id))
+
+
+def _get_doc(col, doc_id):
+    """단일 문서 읽기. 없으면 None, 실패해도 None."""
     try:
-        doc = fs.collection('guilds').document(str(guild_id)).get()
-        return doc.to_dict() if doc.exists else None
+        snap = _doc(col, doc_id).get()
+        return snap.to_dict() if snap.exists else None
     except Exception as e:
-        print(f"[Firestore 경고] guild {guild_id} 로드 실패: {e}", flush=True)
+        print(f"[저장소 경고] {col}/{doc_id} 로드 실패: {e}", flush=True)
         return None
 
 
-def _fs_set_guild(guild_id, data, merge=True):
-    """Firestore 에 단일 길드 문서 atomic 쓰기."""
-    fs = get_firestore_client()
-    if not fs:
-        return False
+def _merge_doc(col, doc_id, fields):
+    """단일 문서 필드 merge (atomic). 중첩 맵은 깊게 합친다."""
     try:
-        fs.collection('guilds').document(str(guild_id)).set(data, merge=merge)
+        _doc(col, doc_id).set(fields, merge=True)
         return True
     except Exception as e:
-        print(f"[Firestore 경고] guild {guild_id} 저장 실패: {e}", flush=True)
+        print(f"[저장소 경고] {col}/{doc_id} 업데이트 실패: {e}", flush=True)
         return False
 
 
-def _fs_update_guild(guild_id, fields):
-    """Firestore 단일 길드 문서 필드 업데이트 (atomic)."""
-    fs = get_firestore_client()
-    if not fs:
-        return False
-    try:
-        fs.collection('guilds').document(str(guild_id)).set(fields, merge=True)
-        return True
-    except Exception as e:
-        print(f"[Firestore 경고] guild {guild_id} 업데이트 실패: {e}", flush=True)
-        return False
-
-
-def _fs_delete_guild(guild_id):
-    """Firestore 단일 길드 문서 삭제."""
-    fs = get_firestore_client()
-    if not fs:
-        return False
-    try:
-        fs.collection('guilds').document(str(guild_id)).delete()
-        return True
-    except Exception as e:
-        print(f"[Firestore 경고] guild {guild_id} 삭제 실패: {e}", flush=True)
-        return False
-
-
-def _fs_get_user(user_id):
-    """Firestore 에서 단일 사용자 문서 읽기."""
-    fs = get_firestore_client()
-    if not fs:
-        return None
-    try:
-        doc = fs.collection('users').document(str(user_id)).get()
-        return doc.to_dict() if doc.exists else None
-    except Exception as e:
-        print(f"[Firestore 경고] user {user_id} 로드 실패: {e}", flush=True)
-        return None
-
-
-def _fs_update_user(user_id, fields):
-    """Firestore 단일 사용자 문서 필드 업데이트 (atomic)."""
-    fs = get_firestore_client()
-    if not fs:
-        return False
-    try:
-        fs.collection('users').document(str(user_id)).set(fields, merge=True)
-        return True
-    except Exception as e:
-        print(f"[Firestore 경고] user {user_id} 업데이트 실패: {e}", flush=True)
-        return False
-
-
-def _fs_get_global():
-    """Firestore global/settings 문서 읽기."""
-    fs = get_firestore_client()
-    if not fs:
-        return None
-    try:
-        doc = fs.collection('global').document('settings').get()
-        return doc.to_dict() if doc.exists else {}
-    except Exception as e:
-        print(f"[Firestore 경고] global 로드 실패: {e}", flush=True)
-        return None
-
-
-def _fs_update_global(fields):
-    """Firestore global/settings 문서 필드 업데이트 (atomic)."""
-    fs = get_firestore_client()
-    if not fs:
-        return False
-    try:
-        fs.collection('global').document('settings').set(fields, merge=True)
-        return True
-    except Exception as e:
-        print(f"[Firestore 경고] global 업데이트 실패: {e}", flush=True)
-        return False
-
-
-# ───────────────────── Snapshot Listener (실시간 캐시 동기화) ─────────────────────
-# 봇 시작 시 1회 init → 3 collection on_snapshot 등록 → 변경 시 자동 cache 갱신
-# load_settings() 는 cache 만 반환, Firestore read 0회
-# 변경 비용: 변경된 doc 만 청구 (전체 172 docs 매번 X)
-
-def _on_guilds_snapshot(col_snapshot, changes, read_time):
-    global settings_cache
-    with _cache_lock:
-        if settings_cache is None:
-            settings_cache = {'guilds': {}, 'users': {}, 'global': {}}
-        guilds = settings_cache.setdefault('guilds', {})
-        for change in changes:
-            doc_id = change.document.id
-            if change.type.name == 'REMOVED':
-                guilds.pop(doc_id, None)
-                _fs_doc_fingerprints.pop(('guilds', doc_id), None)
-            else:  # ADDED, MODIFIED
-                data = change.document.to_dict() or {}
-                guilds[doc_id] = data
-                _fs_doc_fingerprints[('guilds', doc_id)] = _doc_fingerprint(data)
-    _first_snapshot_event.set()
-
-
-def _on_users_snapshot(col_snapshot, changes, read_time):
-    global settings_cache
-    with _cache_lock:
-        if settings_cache is None:
-            settings_cache = {'guilds': {}, 'users': {}, 'global': {}}
-        users = settings_cache.setdefault('users', {})
-        for change in changes:
-            doc_id = change.document.id
-            if change.type.name == 'REMOVED':
-                users.pop(doc_id, None)
-                _fs_doc_fingerprints.pop(('users', doc_id), None)
-            else:
-                data = change.document.to_dict() or {}
-                users[doc_id] = data
-                _fs_doc_fingerprints[('users', doc_id)] = _doc_fingerprint(data)
-
-
-def _on_global_snapshot(doc_snapshot, changes, read_time):
-    global settings_cache
-    with _cache_lock:
-        if settings_cache is None:
-            settings_cache = {'guilds': {}, 'users': {}, 'global': {}}
-        # global 은 단일 doc → snapshot list 에 1개만 옴
-        for snap in doc_snapshot:
-            if snap.exists:
-                settings_cache['global'] = snap.to_dict() or {}
-            else:
-                settings_cache['global'] = {}
-
-
-def init_settings_listeners(wait_first_snapshot_seconds=5):
-    """3 collection 에 on_snapshot listener 등록.
-
-    봇 startup 시 1회 호출. 호출 후 load_settings() 는 cache 만 참조 (Firestore read 0).
-    변경은 Firestore SDK 가 push 로 받아서 callback 에서 cache 갱신.
-
-    Returns:
-        True = listener 등록 성공, False = 실패 (기존 lazy-load 동작 유지)
-    """
-    global _listeners_active, _listener_watches
-
-    if _listeners_active:
-        return True
-
-    fs = get_firestore_client()
-    if not fs:
-        print("[Firestore listener] 클라이언트 없음 → 기존 lazy-load 모드 유지", flush=True)
-        return False
-
-    try:
-        # 첫 snapshot 이 받기 전엔 cache 가 비어있음 → 명시적 초기화
-        global settings_cache
-        with _cache_lock:
-            if settings_cache is None:
-                settings_cache = {'guilds': {}, 'users': {}, 'global': {}}
-
-        watches = [
-            fs.collection('guilds').on_snapshot(_on_guilds_snapshot),
-            fs.collection('users').on_snapshot(_on_users_snapshot),
-            fs.collection('global').on_snapshot(_on_global_snapshot),
-        ]
-        _listener_watches = watches
-        _listeners_active = True
-
-        # 첫 snapshot 받을 때까지 짧게 대기 (ADDED 폭발로 cache 채워짐)
-        if _first_snapshot_event.wait(timeout=wait_first_snapshot_seconds):
-            with _cache_lock:
-                gc = len(settings_cache.get('guilds', {}))
-                uc = len(settings_cache.get('users', {}))
-            print(f"[Firestore listener] 등록 완료, 첫 snapshot OK (guilds={gc}, users={uc})", flush=True)
-        else:
-            print(f"[Firestore listener] 등록됐지만 첫 snapshot 대기 timeout ({wait_first_snapshot_seconds}s)", flush=True)
-
-        return True
-    except Exception as e:
-        import traceback
-        print(f"[Firestore listener] 등록 실패: {e}", flush=True)
-        print(f"[Firestore listener] 상세: {traceback.format_exc()}", flush=True)
-        _listeners_active = False
-        return False
-
-
-def shutdown_settings_listeners():
-    """봇 종료 시 listener unsubscribe (선택사항, 프로세스 종료로도 정리됨)."""
-    global _listeners_active, _listener_watches
-    for watch in _listener_watches:
-        try:
-            watch.unsubscribe()
-        except Exception:
-            pass
-    _listener_watches = []
-    _listeners_active = False
+def update_guild_fields(guild_id, fields):
+    """길드 문서 필드 merge. 웹패널 좀비 길드 정리처럼 필드 몇 개만 바꿀 때."""
+    return _merge_doc('guilds', guild_id, fields)
 
 
 # ───────────────────── 저장소: GCS (레거시 fallback) ─────────────────────
@@ -453,33 +191,24 @@ def load_settings(force_reload=False):
     """설정을 로드합니다.
 
     저장소 우선순위:
-    1. Firestore (단일 진실 소스, 2026-04-27 이관)
-    2. GCS settings.json (fallback, Firestore 실패 시)
+    1. 로컬 SQLite (단일 진실 소스, 2026-10 Firestore 에서 이관)
+    2. GCS settings.json (레거시 fallback, 1 실패 시)
     3. 로컬 backups/settings_backup.json (최후 fallback)
 
-    listener 활성 시 force_reload 는 무시됨 (snapshot 으로 자동 동기화).
+    1은 다른 프로세스가 바꾼 문서만 골라 다시 읽는 캐시라 늘 최신이다 — force_reload 는
+    레거시 경로에만 의미가 있다.
     """
     global settings_cache
 
-    # listener 활성: cache 가 항상 최신 (snapshot 으로 push) → force_reload 무의미
-    if _listeners_active:
-        with _cache_lock:
-            if settings_cache is not None:
-                return settings_cache.copy()
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        try:
+            return _local_load_settings()
+        except Exception as e:
+            print(f"[저장소 경고] 설정 로드 실패: {e}", flush=True)
 
-    # 캐시 (단일 프로세스 내 마이크로 버스트 방지)
+    # 레거시 경로 캐시 (단일 프로세스 내 마이크로 버스트 방지)
     if not force_reload and settings_cache is not None:
         return settings_cache.copy()
-
-    # 1순위: Firestore
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        fs_settings = _fs_load_all_settings()
-        if fs_settings is not None:
-            # guilds 키 보장
-            if 'guilds' not in fs_settings:
-                fs_settings['guilds'] = {}
-            settings_cache = fs_settings.copy()
-            return fs_settings
 
     # 2순위: GCS (레거시)
     gcs_settings = _gcs_load_settings()
@@ -487,8 +216,8 @@ def load_settings(force_reload=False):
         if 'guilds' not in gcs_settings:
             gcs_settings['guilds'] = {}
         settings_cache = gcs_settings.copy()
-        if SETTINGS_BACKEND == 'firestore':
-            print(f"[경고] Firestore 실패 → GCS fallback 으로 로드", flush=True)
+        if SETTINGS_BACKEND == 'local':
+            print(f"[경고] 로컬 저장소 실패 → GCS fallback 으로 로드", flush=True)
         return gcs_settings
 
     # 3순위: 로컬 백업
@@ -501,7 +230,7 @@ def load_settings(force_reload=False):
             if 'guilds' not in settings:
                 settings['guilds'] = {}
             settings_cache = settings.copy()
-            print(f"[로컬] 설정 로드 완료 (Firestore + GCS 실패 - 로컬 백업 사용)", flush=True)
+            print(f"[로컬] 설정 로드 완료 (저장소 + GCS 실패 - 로컬 백업 사용)", flush=True)
             return settings
     except Exception as e:
         print(f"[경고] 로컬 백업 로드 실패: {e}", flush=True)
@@ -532,27 +261,23 @@ def save_settings(settings, silent=False):
     """설정을 저장합니다.
 
     SETTINGS_BACKEND 에 따라 동작:
-    - 'firestore' (기본): Firestore 만 저장 + 로컬 백업
-    - 'dual': Firestore + GCS 둘 다 저장 (마이그레이션 안전 모드)
+    - 'local' (기본): 로컬 SQLite 만 저장 + 로컬 백업
+    - 'dual': SQLite + GCS 둘 다 저장
     - 'gcs': 레거시 GCS 만 (롤백용)
 
     레거시 시그니처 유지 — 기존 호출처 코드 변경 불필요.
-    내부적으로 3 컬렉션 batch write 로 분산.
     """
     global settings_cache
-    # listener 활성 시: write → snapshot callback 이 자동으로 cache 갱신 (read 1회)
-    # listener 비활성 시: 기존처럼 무효화 (다음 load_settings 가 재로딩)
-    if not _listeners_active:
-        settings_cache = None
+    settings_cache = None
 
     primary_success = False
 
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        primary_success = _fs_save_all_settings(settings)
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        primary_success = _local_save_settings(settings)
         if primary_success and not silent:
-            print(f"[Firestore] 설정 저장 완료", flush=True)
+            print(f"[저장소] 설정 저장 완료", flush=True)
         elif not primary_success and not silent:
-            print(f"[경고] Firestore 설정 저장 실패", flush=True)
+            print(f"[경고] 저장소 설정 저장 실패", flush=True)
 
     if SETTINGS_BACKEND in ('dual', 'gcs'):
         gcs_ok = _gcs_save_settings(settings)
@@ -569,8 +294,8 @@ def save_settings(settings, silent=False):
 
 def get_guild_settings(guild_id):
     """특정 서버(guild)의 설정을 가져옵니다 (atomic 단일 문서 읽기)."""
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        guild_data = _fs_get_guild(guild_id)
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        guild_data = _get_doc('guilds', guild_id)
         if guild_data is not None:
             return guild_data
     # fallback
@@ -589,8 +314,7 @@ def save_guild_settings(guild_id, announcement_id=None, chat_id=None, guild_name
         silent: True면 로그 출력 안 함 (대량 저장 시)
     """
     global settings_cache
-    if not _listeners_active:
-        settings_cache = None
+    settings_cache = None
 
     fields = {}
     if guild_name is not None:
@@ -607,14 +331,14 @@ def save_guild_settings(guild_id, announcement_id=None, chat_id=None, guild_name
     if not fields:
         return True
 
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        ok = _fs_update_guild(guild_id, fields)
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        ok = update_guild_fields(guild_id, fields)
         if not silent:
             if ok:
-                print(f"[Firestore] guild {guild_id} 업데이트", flush=True)
+                print(f"[저장소] guild {guild_id} 업데이트", flush=True)
             else:
-                print(f"[경고] Firestore guild {guild_id} 업데이트 실패", flush=True)
-        if SETTINGS_BACKEND == 'firestore':
+                print(f"[경고] 저장소 guild {guild_id} 업데이트 실패", flush=True)
+        if SETTINGS_BACKEND == 'local':
             return ok
 
     # dual / gcs 모드: GCS 도 업데이트 (전체 settings 통째로)
@@ -647,16 +371,12 @@ def set_solo_chat_channels(guild_id, identity: str, channel_ids: list[int]) -> b
         raise ValueError(f"identity는 'debi'/'marlene'만 허용: {identity}")
 
     global settings_cache
-    if not _listeners_active:
-        settings_cache = None
+    settings_cache = None
 
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        # 기존 solo_chat_channels 가져와서 머지 (다른 identity 보존)
-        existing = _fs_get_guild(guild_id) or {}
-        solo = dict(existing.get("solo_chat_channels", {}) or {})
-        solo[identity] = [int(c) for c in (channel_ids or [])]
-        ok = _fs_update_guild(guild_id, {"solo_chat_channels": solo})
-        if SETTINGS_BACKEND == 'firestore':
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        # merge 가 중첩 맵을 깊게 합치므로 다른 identity 목록은 그대로 남는다
+        ok = update_guild_fields(guild_id, {"solo_chat_channels": {identity: [int(c) for c in (channel_ids or [])]}})
+        if SETTINGS_BACKEND == 'local':
             return ok
 
     # dual / gcs 모드
@@ -673,8 +393,7 @@ def set_solo_chat_channels(guild_id, identity: str, channel_ids: list[int]) -> b
 def remove_guild_settings(guild_id):
     """특정 서버(guild)에 삭제됨 표시를 추가합니다 (atomic)."""
     global settings_cache
-    if not _listeners_active:
-        settings_cache = None
+    settings_cache = None
 
     from datetime import datetime
     fields = {
@@ -682,15 +401,15 @@ def remove_guild_settings(guild_id):
         "REMOVED_AT": datetime.now().isoformat(),
     }
 
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
+    if SETTINGS_BACKEND in ('local', 'dual'):
         # 길드 문서가 있을 때만 마킹 (없으면 skip)
-        existing = _fs_get_guild(guild_id)
+        existing = _get_doc('guilds', guild_id)
         if existing is not None:
-            ok = _fs_update_guild(guild_id, fields)
-            if SETTINGS_BACKEND == 'firestore':
+            ok = update_guild_fields(guild_id, fields)
+            if SETTINGS_BACKEND == 'local':
                 return ok
         else:
-            if SETTINGS_BACKEND == 'firestore':
+            if SETTINGS_BACKEND == 'local':
                 return True  # 이미 없는 경우 성공
 
     # dual / gcs
@@ -706,8 +425,8 @@ def remove_guild_settings(guild_id):
 
 def get_global_setting(key):
     """전역 설정을 가져옵니다 (atomic 단일 필드 읽기)."""
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        global_data = _fs_get_global()
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        global_data = _get_doc('global', 'settings')
         if global_data is not None:
             return global_data.get(key)
     settings = load_settings()
@@ -717,12 +436,11 @@ def get_global_setting(key):
 def save_global_setting(key, value):
     """전역 설정을 저장합니다 (atomic 단일 필드 업데이트)."""
     global settings_cache
-    if not _listeners_active:
-        settings_cache = None
+    settings_cache = None
 
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        ok = _fs_update_global({key: value})
-        if SETTINGS_BACKEND == 'firestore':
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        ok = _merge_doc('global', 'settings', {key: value})
+        if SETTINGS_BACKEND == 'local':
             return ok
 
     # dual / gcs
@@ -769,54 +487,50 @@ def claim_video_id(video_id, video_title=None):
     반환: claimed(bool)
     """
     global settings_cache
-    if not _listeners_active:
-        settings_cache = None
+    settings_cache = None
 
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        fs = get_firestore_client()
-        if fs:
-            try:
-                from google.cloud import firestore
-                ref = fs.collection('global').document('settings')
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        try:
+            ref = _doc('global', 'settings')
 
-                @firestore.transactional
-                def _claim(transaction):
-                    snapshot = ref.get(transaction=transaction)
-                    data = snapshot.to_dict() if snapshot.exists else {}
-                    sent = data.get(_SENT_IDS_KEY) or []
-                    if video_id in sent:
-                        return False
-                    sent.append(video_id)
-                    fields = {
-                        _SENT_IDS_KEY: sent[-_SENT_IDS_MAX:],
-                        "LAST_CHECKED_VIDEO_ID": video_id,
-                    }
-                    if video_title:
-                        fields["LAST_CHECKED_VIDEO_TITLE"] = video_title
-                    transaction.set(ref, fields, merge=True)
-                    return True
+            @store.transactional
+            def _claim(transaction):
+                snapshot = ref.get(transaction=transaction)
+                data = snapshot.to_dict() if snapshot.exists else {}
+                sent = data.get(_SENT_IDS_KEY) or []
+                if video_id in sent:
+                    return False
+                sent.append(video_id)
+                fields = {
+                    _SENT_IDS_KEY: sent[-_SENT_IDS_MAX:],
+                    "LAST_CHECKED_VIDEO_ID": video_id,
+                }
+                if video_title:
+                    fields["LAST_CHECKED_VIDEO_TITLE"] = video_title
+                transaction.set(ref, fields, merge=True)
+                return True
 
-                return _claim(fs.transaction())
-            except Exception as e:
-                print(f"[Firestore 경고] claim_video_id 트랜잭션 실패: {e}", flush=True)
-                _yt_alert(
-                    "tx_fail",
-                    "[유튜브 경고] claim 트랜잭션 실패",
-                    f"Firestore 원자 claim 트랜잭션이 실패해 비원자 폴백으로 전환됩니다. **중복 위험.**\n"
-                    f"video_id=`{video_id}`\n에러: {type(e).__name__}: {e}",
-                )
-                # 트랜잭션 실패 시 아래 비원자 경로로 폴백
+            return _claim(get_db().transaction())
+        except Exception as e:
+            print(f"[저장소 경고] claim_video_id 트랜잭션 실패: {e}", flush=True)
+            _yt_alert(
+                "tx_fail",
+                "[유튜브 경고] claim 트랜잭션 실패",
+                f"원자 claim 트랜잭션이 실패해 비원자 폴백으로 전환됩니다. **중복 위험.**\n"
+                f"video_id=`{video_id}`\n에러: {type(e).__name__}: {e}",
+            )
+            # 트랜잭션 실패 시 아래 비원자 경로로 폴백
 
     # gcs / 폴백: 단일 프로세스 가정의 read-then-write (원자성 보장 없음).
-    # firestore/dual 백엔드인데 여기까지 왔다는 건 Firestore 원자 claim 이 불가능한
-    # degraded 상태(클라이언트 생성 실패 or 트랜잭션 실패)라는 뜻이므로 경고를 남긴다.
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        print(f"[유튜브 경고] claim_video_id 비원자 폴백 사용 — Firestore 원자 claim 불가, "
+    # local/dual 백엔드인데 여기까지 왔다는 건 원자 claim 이 불가능한
+    # degraded 상태(트랜잭션 실패 — DB 잠김·디스크 오류)라는 뜻이므로 경고를 남긴다.
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        print(f"[유튜브 경고] claim_video_id 비원자 폴백 사용 — 원자 claim 불가, "
               f"중복 위험 상태. video_id={video_id}", flush=True)
         _yt_alert(
             "nonatomic_fallback",
             "[유튜브 경고] 비원자 폴백 claim",
-            f"Firestore 원자 claim 불가 → 비원자 read-then-write 폴백. **중복 위험 상태.**\n"
+            f"원자 claim 불가 → 비원자 read-then-write 폴백. **중복 위험 상태.**\n"
             f"video_id=`{video_id}`",
         )
     settings = load_settings(force_reload=True)
@@ -836,8 +550,8 @@ def claim_video_id(video_id, video_title=None):
     # 로 fail-closed 하고, 저장소가 복구되면 다음 사이클에 정상 claim + 전송된다.
     # 누락 1회가 중복 N회보다 안전하다.
     # global 은 전체 save_settings 가 저장하지 않으므로 단일 필드 merge 로 명시 저장한다.
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        saved = _fs_update_global(fields)
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        saved = _merge_doc('global', 'settings', fields)
     else:
         settings.setdefault("global", {}).update(fields)
         saved = save_settings(settings)
@@ -872,20 +586,18 @@ def seed_sent_video_ids(video_ids):
 
 def get_youtube_subscribers():
     """유튜브 DM 알림을 구독한 모든 사용자 ID 목록을 반환합니다."""
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        fs = get_firestore_client()
-        if fs:
-            try:
-                subscribers = []
-                query = fs.collection('users').where(filter=__import__('google.cloud.firestore_v1.base_query', fromlist=['FieldFilter']).FieldFilter('youtube_subscribed', '==', True))
-                for doc in query.stream():
-                    try:
-                        subscribers.append(int(doc.id))
-                    except (TypeError, ValueError):
-                        continue
-                return subscribers
-            except Exception as e:
-                print(f"[Firestore 경고] subscribers 쿼리 실패: {e}", flush=True)
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        try:
+            subscribers = []
+            query = get_db().collection('users').where('youtube_subscribed', '==', True)
+            for doc in query.stream():
+                try:
+                    subscribers.append(int(doc.id))
+                except (TypeError, ValueError):
+                    continue
+            return subscribers
+        except Exception as e:
+            print(f"[저장소 경고] subscribers 쿼리 실패: {e}", flush=True)
     # fallback
     settings = load_settings()
     subscribers = []
@@ -901,8 +613,7 @@ def get_youtube_subscribers():
 def log_user_interaction(user_id, user_name=None):
     """사용자가 봇과 상호작용했을 때 기록합니다 (atomic)."""
     global settings_cache
-    if not _listeners_active:
-        settings_cache = None
+    settings_cache = None
 
     from datetime import datetime
     fields = {
@@ -911,12 +622,10 @@ def log_user_interaction(user_id, user_name=None):
     if user_name:
         fields["user_name"] = user_name
 
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        # interaction_count 증가는 read-modify-write — 짧은 윈도우에 race 가능. 일단 단순 처리.
-        existing = _fs_get_user(user_id) or {}
-        fields["interaction_count"] = existing.get("interaction_count", 0) + 1
-        ok = _fs_update_user(user_id, fields)
-        if SETTINGS_BACKEND == 'firestore':
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        fields["interaction_count"] = store.Increment(1)
+        ok = _merge_doc('users', user_id, fields)
+        if SETTINGS_BACKEND == 'local':
             return ok
 
     settings = load_settings(force_reload=True)
@@ -934,22 +643,18 @@ def log_user_interaction(user_id, user_name=None):
 
 def get_interaction_users():
     """실제 DM을 보낸 사용자 ID 목록을 반환합니다."""
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        fs = get_firestore_client()
-        if fs:
-            try:
-                users = []
-                # interaction_count > 0 쿼리
-                from google.cloud.firestore_v1.base_query import FieldFilter
-                query = fs.collection('users').where(filter=FieldFilter('interaction_count', '>', 0))
-                for doc in query.stream():
-                    try:
-                        users.append(int(doc.id))
-                    except (TypeError, ValueError):
-                        continue
-                return users
-            except Exception as e:
-                print(f"[Firestore 경고] interaction_users 쿼리 실패: {e}", flush=True)
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        try:
+            users = []
+            query = get_db().collection('users').where('interaction_count', '>', 0)
+            for doc in query.stream():
+                try:
+                    users.append(int(doc.id))
+                except (TypeError, ValueError):
+                    continue
+            return users
+        except Exception as e:
+            print(f"[저장소 경고] interaction_users 쿼리 실패: {e}", flush=True)
     # fallback
     settings = load_settings()
     interaction_users = []
@@ -984,22 +689,26 @@ def get_all_users():
 def add_user_interaction(user_id, interaction_type="general"):
     """사용자 상호작용을 기록합니다 (atomic, DM 외 용도 - interaction_count 증가 안 함)."""
     global settings_cache
-    if not _listeners_active:
-        settings_cache = None
+    settings_cache = None
 
     from datetime import datetime
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        existing = _fs_get_user(user_id) or {}
-        fields = {
-            "last_seen": now,
-            "interaction_type": interaction_type,
-        }
-        if "first_interaction" not in existing:
-            fields["first_interaction"] = now
-        ok = _fs_update_user(user_id, fields)
-        if SETTINGS_BACKEND == 'firestore':
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        try:
+            with store.write_txn():  # first_interaction 을 「없을 때만」 넣는 읽고-쓰기를 한 번에
+                existing = _get_doc('users', user_id) or {}
+                fields = {
+                    "last_seen": now,
+                    "interaction_type": interaction_type,
+                }
+                if "first_interaction" not in existing:
+                    fields["first_interaction"] = now
+                ok = _merge_doc('users', user_id, fields)
+        except Exception as e:
+            print(f"[저장소 경고] users/{user_id} 상호작용 기록 실패: {e}", flush=True)
+            ok = False
+        if SETTINGS_BACKEND == 'local':
             return ok
 
     settings = load_settings(force_reload=True)
@@ -1018,16 +727,15 @@ def add_user_interaction(user_id, interaction_type="general"):
 def set_youtube_subscription(user_id, subscribe: bool, user_name=None):
     """사용자의 유튜브 DM 알림 구독 상태를 설정합니다 (atomic — drift kill)."""
     global settings_cache
-    if not _listeners_active:
-        settings_cache = None
+    settings_cache = None
 
     fields = {"youtube_subscribed": subscribe}
     if user_name:
         fields["user_name"] = user_name
 
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        ok = _fs_update_user(user_id, fields)
-        if SETTINGS_BACKEND == 'firestore':
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        ok = _merge_doc('users', user_id, fields)
+        if SETTINGS_BACKEND == 'local':
             return ok
 
     settings = load_settings(force_reload=True)
@@ -1044,8 +752,8 @@ def set_youtube_subscription(user_id, subscribe: bool, user_name=None):
 
 def is_youtube_subscribed(user_id) -> bool:
     """사용자의 유튜브 DM 알림 구독 상태를 확인합니다 (atomic 단일 필드 읽기)."""
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        user_data = _fs_get_user(user_id)
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        user_data = _get_doc('users', user_id)
         if user_data is not None:
             return bool(user_data.get("youtube_subscribed", False))
     settings = load_settings()
@@ -1083,17 +791,14 @@ def get_server_admins(guild_id=None):
 def set_server_admin(user_id, guild_id, is_admin=True):
     """사용자를 특정 서버의 관리자로 설정하거나 해제합니다 (atomic)."""
     global settings_cache
-    if not _listeners_active:
-        settings_cache = None
+    settings_cache = None
 
     guild_str = str(guild_id)
 
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        existing = _fs_get_user(user_id) or {}
-        admin_servers = dict(existing.get("admin_servers", {}) or {})
-        admin_servers[guild_str] = is_admin
-        ok = _fs_update_user(user_id, {"admin_servers": admin_servers})
-        if SETTINGS_BACKEND == 'firestore':
+    if SETTINGS_BACKEND in ('local', 'dual'):
+        # merge 가 중첩 맵을 깊게 합치므로 이 서버 키 하나만 바뀐다
+        ok = _merge_doc('users', user_id, {"admin_servers": {guild_str: is_admin}})
+        if SETTINGS_BACKEND == 'local':
             return ok
 
     user_id_str = str(user_id)
@@ -1125,24 +830,22 @@ def save_user_dm_interaction(user_id, channel_id, user_name=None):
         - 사용자 이름
     """
     global settings_cache
-    if not _listeners_active:
-        settings_cache = None
+    settings_cache = None
 
     from datetime import datetime
     now = datetime.now().isoformat()
 
-    if SETTINGS_BACKEND in ('firestore', 'dual'):
-        existing = _fs_get_user(user_id) or {}
+    if SETTINGS_BACKEND in ('local', 'dual'):
         fields = {
             "dm_channel_id": str(channel_id),
             "last_dm": now,
             "last_interaction": now,
-            "interaction_count": existing.get("interaction_count", 0) + 1,
+            "interaction_count": store.Increment(1),
         }
         if user_name:
             fields["user_name"] = user_name
-        ok = _fs_update_user(user_id, fields)
-        if SETTINGS_BACKEND == 'firestore':
+        ok = _merge_doc('users', user_id, fields)
+        if SETTINGS_BACKEND == 'local':
             return ok
 
     user_id_str = str(user_id)
@@ -1166,28 +869,24 @@ def save_dm_channel(user_id, channel_id, user_name=None):
     return save_user_dm_interaction(user_id, channel_id, user_name)
 
 
-# ─────── 명령어 로그 (Firestore command_logs 컬렉션) ───────
-# expireAt 필드 + Firestore TTL 정책으로 30일 후 자동 삭제
-# (TTL 정책 설정: gcloud firestore fields ttls update expireAt --collection-group=command_logs)
+# ─────── 명령어 로그 (command_logs 컬렉션) ───────
+# expireAt 이 지나면 봇의 일일 정리(store.purge_expired)가 지운다 — Firestore TTL 정책 자리.
 
 COMMAND_LOGS_COLLECTION = 'command_logs'
 COMMAND_LOGS_TTL_DAYS = 30
 
 
 def save_command_log(log_entry):
-    """명령어 사용 로그를 Firestore 에 저장합니다.
+    """명령어 사용 로그를 저장합니다.
 
     Args:
         log_entry: 로그 항목 (dict). timestamp 는 ISO 형식 str. 다른 키는 그대로 저장.
     """
     from datetime import datetime, timedelta, timezone
-    fs = get_firestore_client()
-    if not fs:
-        return False
     try:
         doc = dict(log_entry)
         doc["expireAt"] = datetime.now(timezone.utc) + timedelta(days=COMMAND_LOGS_TTL_DAYS)
-        fs.collection(COMMAND_LOGS_COLLECTION).add(doc)
+        get_db().collection(COMMAND_LOGS_COLLECTION).add(doc)
         return True
     except Exception as e:
         print(f"[경고] 명령어 로그 저장 실패: {e}", flush=True)
@@ -1195,7 +894,7 @@ def save_command_log(log_entry):
 
 
 def load_command_logs(filters=None):
-    """명령어 사용 로그를 Firestore 에서 로드합니다.
+    """명령어 사용 로그를 로드합니다.
 
     Args:
         filters: 필터 딕셔너리 (optional)
@@ -1206,11 +905,8 @@ def load_command_logs(filters=None):
     Returns:
         list: 필터링된 로그 항목 리스트 (timestamp desc)
     """
-    fs = get_firestore_client()
-    if not fs:
-        return []
     try:
-        query = fs.collection(COMMAND_LOGS_COLLECTION)
+        query = get_db().collection(COMMAND_LOGS_COLLECTION)
         filters = filters or {}
         if filters.get("guild_id"):
             query = query.where("guild_id", "==", str(filters["guild_id"]))
@@ -1223,8 +919,7 @@ def load_command_logs(filters=None):
         if filters.get("end_date"):
             query = query.where("timestamp", "<=", filters["end_date"])
 
-        from google.cloud.firestore_v1 import Query as FsQuery
-        query = query.order_by("timestamp", direction=FsQuery.DESCENDING)
+        query = query.order_by("timestamp", direction=store.Query.DESCENDING)
         query = query.limit(int(filters.get("limit") or 1000))
 
         return [d.to_dict() for d in query.stream()]

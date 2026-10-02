@@ -53,13 +53,7 @@ intents.presences = False
 
 class DebiMarleneBot(commands.Bot):
     async def setup_hook(self):
-        """봇 연결 전 Cog 등록 + Firestore listener 시작 (bot.run() 내부에서 호출됨)"""
-        # Firestore snapshot listener 등록 → settings cache 실시간 동기화 (read 0회 운영)
-        try:
-            await asyncio.to_thread(config.init_settings_listeners)
-        except Exception as e:
-            print(f"[경고] Firestore listener 초기화 실패 — lazy-load 모드 유지: {e}", flush=True)
-
+        """봇 연결 전 Cog 등록 (bot.run() 내부에서 호출됨)"""
         from run.cogs import setup_all_cogs
         await setup_all_cogs(self)
 
@@ -557,6 +551,9 @@ async def _background_init():
             if not periodic_guild_logging.is_running():
                 periodic_guild_logging.start()
 
+            if not store_maintenance.is_running():
+                store_maintenance.start()
+
         # 이모지 맵 로드
         from run.utils.emoji_utils import load_emoji_map, EmojiAutoUpdater
         await load_emoji_map(bot)
@@ -804,7 +801,7 @@ async def on_guild_remove(guild: discord.Guild):
 
 @bot.event
 async def on_raw_poll_vote_add(payload: discord.RawPollVoteActionEvent):
-    """이탈 설문 DM Poll 투표 수집 — answer_id 를 사유로 매핑해 Firestore 기록.
+    """이탈 설문 DM Poll 투표 수집 — answer_id 를 사유로 매핑해 저장소에 기록.
 
     메인 봇만. 봇 자신/무관 메시지는 record_poll_vote 의 poll_message_id 매칭에서 무시된다.
     """
@@ -892,7 +889,7 @@ async def _handle_sticky_message(message):
     if now - last_sent < STICKY_COOLDOWN_SECONDS:
         return
 
-    # 설정 로드 (listener cache 활용 → Firestore read 0)
+    # 설정 로드 (프로세스 캐시 — 바뀐 문서만 다시 읽는다)
     try:
         settings = await asyncio.to_thread(config.load_settings)
     except Exception as e:
@@ -1035,9 +1032,14 @@ async def periodic_guild_logging():
     sys.stdout.flush()
 
 
-# periodic_settings_cache_refresh 제거됨 (2026-05-04)
-# Firestore snapshot listener 가 변경을 push 받아 cache 자동 갱신 → polling 불필요
-# config.init_settings_listeners() 가 on_ready 에서 등록
+@tasks.loop(hours=1)
+async def store_maintenance():
+    """로컬 저장소 일일 백업 + 만료 로그 정리. 오늘 사본이 이미 있으면 아무것도 안 한다 —
+    재시작이 잦아도 하루 한 번만 돈다."""
+    from run.core import store
+    result = await asyncio.to_thread(store.daily_maintenance)
+    if result.get('backup'):
+        print(f"[저장소] 일일 백업 {result}", flush=True)
 
 
 # ========== 백그라운드 루프 감시 ==========
@@ -1048,3 +1050,4 @@ from run.utils.task_guard import attach as _guard_task  # noqa: E402
 _guard_task(update_presence, "동접수 상태 갱신")
 _guard_task(update_server_info_periodic, "서버 정보 GCS 업로드")
 _guard_task(periodic_guild_logging, "서버 수 로깅")
+_guard_task(store_maintenance, "저장소 백업·정리")

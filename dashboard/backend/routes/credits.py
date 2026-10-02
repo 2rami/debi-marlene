@@ -6,7 +6,7 @@
 - POST /api/credits/donate    — 개인 → 서버 공동 지갑 이체
 - GET  /api/credits/guilds    — 내가 속한 서버들의 공동 지갑 잔고
 
-services 계층(run/services/credits.py)에서 Firestore 트랜잭션 처리.
+services 계층(run/services/credits.py)에서 저장소 트랜잭션 처리.
 """
 
 from __future__ import annotations

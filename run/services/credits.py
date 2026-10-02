@@ -7,12 +7,13 @@
 - /뽑기: 70% 0배 / 20% 2배 / 8% 3배 / 2% 10배. 일일 베팅 합 50 상한.
 - 기부: 개인 → 서버 공동 지갑.
 
-Firestore 컬렉션:
+컬렉션 (run/core/store.py — 맥미니 로컬 SQLite):
 - credits/{user_id}: { balance, last_check_in, streak_days, daily_bet, daily_bet_date }
 - guild_credits/{guild_id}: { balance }
 - credit_ledger/{auto_id}: { user_id, guild_id?, type, amount, reason, ts }
 
-모든 mutating 연산은 firestore transaction 으로 race 방지.
+모든 mutating 연산은 store.transactional(BEGIN IMMEDIATE) 로 race 방지 — 봇·대시보드가
+같은 파일에 쓰므로 프로세스를 건너서도 한 줄로 선다.
 ledger 는 같은 트랜잭션에 추가해서 원장-잔고 정합성 유지.
 """
 
@@ -23,9 +24,8 @@ import random
 from datetime import date, datetime, timezone
 from typing import Optional
 
-from google.cloud import firestore  # type: ignore
-
-from run.core.config import get_firestore_client
+from run.core import store
+from run.core.config import get_db
 
 
 CREDITS_COLLECTION = 'credits'
@@ -75,10 +75,7 @@ def _empty_user_doc() -> dict:
 def _add_ledger(transaction, user_id: str, type_: str, amount: int, reason: str,
                 guild_id: Optional[str] = None) -> None:
     """transaction 에 ledger 항목 1개 추가. auto-id 문서."""
-    fs = get_firestore_client()
-    if not fs:
-        return
-    ref = fs.collection(LEDGER_COLLECTION).document()  # auto-id
+    ref = get_db().collection(LEDGER_COLLECTION).document()  # auto-id
     payload = {
         'user_id': str(user_id),
         'type': type_,
@@ -95,10 +92,7 @@ def _add_ledger(transaction, user_id: str, type_: str, amount: int, reason: str,
 
 def get_balance(user_id) -> dict:
     """잔고 조회 (논블로킹). { personal, last_check_in, streak_days, daily_bet }."""
-    fs = get_firestore_client()
-    if not fs:
-        return {'personal': 0, 'last_check_in': None, 'streak_days': 0, 'daily_bet': 0}
-    doc = fs.collection(CREDITS_COLLECTION).document(str(user_id)).get()
+    doc = get_db().collection(CREDITS_COLLECTION).document(str(user_id)).get()
     data = doc.to_dict() if doc.exists else _empty_user_doc()
     today = _today_kst_str()
     return {
@@ -111,10 +105,7 @@ def get_balance(user_id) -> dict:
 
 
 def get_guild_balance(guild_id) -> int:
-    fs = get_firestore_client()
-    if not fs:
-        return 0
-    doc = fs.collection(GUILD_CREDITS_COLLECTION).document(str(guild_id)).get()
+    doc = get_db().collection(GUILD_CREDITS_COLLECTION).document(str(guild_id)).get()
     return int((doc.to_dict() or {}).get('balance', 0)) if doc.exists else 0
 
 
@@ -122,15 +113,12 @@ def get_guild_balance(guild_id) -> int:
 
 def check_attendance(user_id) -> dict:
     """일일 출석. 이미 받았으면 gained=0. 연속 보너스 계산."""
-    fs = get_firestore_client()
-    if not fs:
-        return {'ok': False, 'gained': 0, 'balance': 0, 'streak': 0,
-                'reason': 'firestore_unavailable'}
+    fs = get_db()
 
     user_ref = fs.collection(CREDITS_COLLECTION).document(str(user_id))
     today = _today_kst_str()
 
-    @firestore.transactional
+    @store.transactional
     def _txn(transaction):
         snap = user_ref.get(transaction=transaction)
         data = snap.to_dict() if snap.exists else _empty_user_doc()
@@ -190,13 +178,11 @@ def debit(user_id, amount: int, reason: str) -> dict:
     if amount <= 0:
         return {'ok': True, 'balance': get_balance(user_id)['personal'], 'charged': 0}
 
-    fs = get_firestore_client()
-    if not fs:
-        return {'ok': False, 'reason': 'firestore_unavailable', 'balance': 0}
+    fs = get_db()
 
     user_ref = fs.collection(CREDITS_COLLECTION).document(str(user_id))
 
-    @firestore.transactional
+    @store.transactional
     def _txn(transaction):
         snap = user_ref.get(transaction=transaction)
         data = snap.to_dict() if snap.exists else _empty_user_doc()
@@ -221,13 +207,11 @@ def credit(user_id, amount: int, reason: str) -> dict:
     if amount <= 0:
         return {'ok': True, 'balance': get_balance(user_id)['personal'], 'gained': 0}
 
-    fs = get_firestore_client()
-    if not fs:
-        return {'ok': False, 'reason': 'firestore_unavailable', 'balance': 0}
+    fs = get_db()
 
     user_ref = fs.collection(CREDITS_COLLECTION).document(str(user_id))
 
-    @firestore.transactional
+    @store.transactional
     def _txn(transaction):
         snap = user_ref.get(transaction=transaction)
         data = snap.to_dict() if snap.exists else _empty_user_doc()
@@ -260,14 +244,12 @@ def donate(user_id, guild_id, amount: int) -> dict:
     if amount <= 0:
         return {'ok': False, 'reason': 'amount_must_be_positive'}
 
-    fs = get_firestore_client()
-    if not fs:
-        return {'ok': False, 'reason': 'firestore_unavailable'}
+    fs = get_db()
 
     user_ref = fs.collection(CREDITS_COLLECTION).document(str(user_id))
     guild_ref = fs.collection(GUILD_CREDITS_COLLECTION).document(str(guild_id))
 
-    @firestore.transactional
+    @store.transactional
     def _txn(transaction):
         u_snap = user_ref.get(transaction=transaction)
         g_snap = guild_ref.get(transaction=transaction)
@@ -314,14 +296,12 @@ def gacha(user_id, bet: int) -> dict:
     if bet <= 0:
         return {'ok': False, 'reason': 'bet_must_be_positive'}
 
-    fs = get_firestore_client()
-    if not fs:
-        return {'ok': False, 'reason': 'firestore_unavailable'}
+    fs = get_db()
 
     user_ref = fs.collection(CREDITS_COLLECTION).document(str(user_id))
     today = _today_kst_str()
 
-    @firestore.transactional
+    @store.transactional
     def _txn(transaction):
         snap = user_ref.get(transaction=transaction)
         data = snap.to_dict() if snap.exists else _empty_user_doc()
@@ -376,14 +356,10 @@ def gacha(user_id, bet: int) -> dict:
 
 def get_recent_ledger(user_id, limit: int = 20) -> list[dict]:
     """최근 거래 내역 (대시보드 표시용)."""
-    fs = get_firestore_client()
-    if not fs:
-        return []
     try:
-        from google.cloud.firestore_v1 import Query as FsQuery
-        q = (fs.collection(LEDGER_COLLECTION)
+        q = (get_db().collection(LEDGER_COLLECTION)
                .where('user_id', '==', str(user_id))
-               .order_by('ts', direction=FsQuery.DESCENDING)
+               .order_by('ts', direction=store.Query.DESCENDING)
                .limit(limit))
         return [d.to_dict() for d in q.stream()]
     except Exception as e:
@@ -405,11 +381,8 @@ def get_usage_summary(user_id, recent_limit: int = 20) -> dict:
         'tx_count': 0,
         'recent': [],
     }
-    fs = get_firestore_client()
-    if not fs:
-        return out
     try:
-        entries = [d.to_dict() for d in fs.collection(LEDGER_COLLECTION)
+        entries = [d.to_dict() for d in get_db().collection(LEDGER_COLLECTION)
                    .where('user_id', '==', str(user_id)).stream()]
     except Exception as e:
         print(f"[credits] usage summary 조회 실패: {e}", flush=True)
@@ -431,12 +404,9 @@ def get_usage_summary(user_id, recent_limit: int = 20) -> dict:
 
 def list_credit_holders(min_balance: int = 1, limit: int = 500) -> list[dict]:
     """크레딧 보유 유저 목록 (웹패널 크레딧 패널용). balance 내림차순."""
-    fs = get_firestore_client()
-    if not fs:
-        return []
     try:
         out = []
-        for d in fs.collection(CREDITS_COLLECTION).stream():
+        for d in get_db().collection(CREDITS_COLLECTION).stream():
             data = d.to_dict() or {}
             bal = int(data.get('balance', 0))
             if bal >= min_balance:
@@ -455,12 +425,9 @@ def list_credit_holders(min_balance: int = 1, limit: int = 500) -> list[dict]:
 
 def list_guild_credit_holders(min_balance: int = 1, limit: int = 500) -> list[dict]:
     """크레딧 보유 서버(공동 지갑) 목록. balance 내림차순."""
-    fs = get_firestore_client()
-    if not fs:
-        return []
     try:
         out = []
-        for d in fs.collection(GUILD_CREDITS_COLLECTION).stream():
+        for d in get_db().collection(GUILD_CREDITS_COLLECTION).stream():
             bal = int((d.to_dict() or {}).get('balance', 0))
             if bal >= min_balance:
                 out.append({'guild_id': d.id, 'balance': bal})
@@ -475,9 +442,9 @@ def get_balances_batch(user_ids) -> dict:
     """여러 유저 잔액 일괄 조회 (멤버 목록 배지용). {user_id: balance}."""
     ids = [str(u) for u in user_ids if u]
     out = {uid: 0 for uid in ids}
-    fs = get_firestore_client()
-    if not fs or not ids:
+    if not ids:
         return out
+    fs = get_db()
     try:
         col = fs.collection(CREDITS_COLLECTION)
         for snap in fs.get_all([col.document(uid) for uid in ids]):
@@ -503,9 +470,7 @@ def create_topup_order(user_id, order_id: str, pkg_id: str,
     금액·크레딧은 서버가 패키지 정의로 결정 — 클라이언트 입력은 신뢰하지 않는다.
     confirm/webhook 은 이 문서의 krw/credits 만 사용한다.
     """
-    fs = get_firestore_client()
-    if not fs:
-        return {'ok': False, 'reason': 'firestore_unavailable'}
+    fs = get_db()
     ref = fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id)
     ref.set({
         'user_id': str(user_id),
@@ -519,10 +484,7 @@ def create_topup_order(user_id, order_id: str, pkg_id: str,
 
 
 def get_topup_order(order_id: str) -> Optional[dict]:
-    fs = get_firestore_client()
-    if not fs:
-        return None
-    doc = fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id).get()
+    doc = get_db().collection(TOPUP_ORDERS_COLLECTION).document(order_id).get()
     return doc.to_dict() if doc.exists else None
 
 
@@ -532,15 +494,13 @@ def apply_topup(order_id: str, payment_key: Optional[str] = None) -> dict:
 
     confirm 라우트와 webhook 양쪽에서 호출돼도 한 번만 적립된다.
     """
-    fs = get_firestore_client()
-    if not fs:
-        return {'ok': False, 'reason': 'firestore_unavailable'}
+    fs = get_db()
 
     order_ref = fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id)
 
-    @firestore.transactional
+    @store.transactional
     def _txn(transaction):
-        # 모든 read 를 write 보다 먼저 (firestore 트랜잭션 제약).
+        # 모든 read 를 write 보다 먼저 (Firestore 시절 제약 — 지켜도 손해 없다).
         o_snap = order_ref.get(transaction=transaction)
         if not o_snap.exists:
             return {'ok': False, 'reason': 'order_not_found'}
@@ -585,12 +545,10 @@ def mark_topup_canceled(order_id: str, status: str = 'canceled') -> dict:
     이미 적립/환불이 끝난 주문(completed/refunded/refund_failed)은 덮어쓰지 않는다 —
     apply_topup 과의 race 로 completed 가 canceled 로 뒤집혀 잔고-주문 불일치가
     생기는 것을 방지."""
-    fs = get_firestore_client()
-    if not fs:
-        return {'ok': False, 'reason': 'firestore_unavailable'}
+    fs = get_db()
     ref = fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id)
 
-    @firestore.transactional
+    @store.transactional
     def _txn(transaction):
         snap = ref.get(transaction=transaction)
         if not snap.exists:
@@ -610,12 +568,9 @@ def _spend_since(user_id, since_iso: Optional[str]) -> int:
     충전 완료 이후 한 푼이라도 썼으면 0 보다 크다. 조회 실패 시 0(잔고 가드에 위임)."""
     if not since_iso:
         return 0
-    fs = get_firestore_client()
-    if not fs:
-        return 0
     try:
-        # user_id 단일 필드 쿼리만 사용 (composite index 불필요). ts/금액은 메모리 필터.
-        q = fs.collection(LEDGER_COLLECTION).where('user_id', '==', str(user_id)).limit(1000)
+        # user_id 단일 필드 쿼리만 사용. ts/금액은 메모리 필터.
+        q = get_db().collection(LEDGER_COLLECTION).where('user_id', '==', str(user_id)).limit(1000)
         total = 0
         for d in q.stream():
             e = d.to_dict()
@@ -637,9 +592,7 @@ def refund_topup(order_id: str) -> dict:
 
     Returns: { ok, reason?, refund_credits?, balance?, krw?, payment_key? }
     """
-    fs = get_firestore_client()
-    if not fs:
-        return {'ok': False, 'reason': 'firestore_unavailable'}
+    fs = get_db()
 
     order_ref = fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id)
 
@@ -652,7 +605,7 @@ def refund_topup(order_id: str) -> dict:
         if _spend_since(order_pre.get('user_id'), since) > 0:
             return {'ok': False, 'reason': 'credits_already_used'}
 
-    @firestore.transactional
+    @store.transactional
     def _txn(transaction):
         o_snap = order_ref.get(transaction=transaction)
         if not o_snap.exists:
@@ -700,13 +653,11 @@ def revert_refund(order_id: str, user_id, credits_amount: int) -> dict:
     주문은 'refund_failed' (terminal) 로 표시한다 — refund_topup 은 completed 만
     환불하므로 같은 주문의 재환불 무한루프가 차단된다. 재환불이 필요하면 관리자 수동 처리."""
     res = credit(user_id, credits_amount, f'refund_revert_{order_id}')
-    fs = get_firestore_client()
-    if fs:
-        try:
-            fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id).update(
-                {'status': 'refund_failed', 'refund_failed_at': _now_iso()})
-        except Exception:
-            pass
+    try:
+        get_db().collection(TOPUP_ORDERS_COLLECTION).document(order_id).update(
+            {'status': 'refund_failed', 'refund_failed_at': _now_iso()})
+    except Exception:
+        pass
     return res
 
 
@@ -714,14 +665,11 @@ def mark_topup_apply_failed(order_id: str, payment_key: Optional[str] = None) ->
     """confirm 에서 결제 성공(돈 수취) 후 apply_topup 이 실패했을 때 수동 복구 식별용 마킹.
     status 는 pending 유지(webhook/수동 재적립이 apply_topup 멱등으로 처리). paid_unapplied
     플래그로 '돈은 받았으나 미적립'된 주문을 골라낼 수 있다."""
-    fs = get_firestore_client()
-    if not fs:
-        return {'ok': False}
     try:
         upd = {'apply_failed_at': _now_iso(), 'paid_unapplied': True}
         if payment_key:
             upd['payment_key'] = payment_key
-        fs.collection(TOPUP_ORDERS_COLLECTION).document(order_id).update(upd)
+        get_db().collection(TOPUP_ORDERS_COLLECTION).document(order_id).update(upd)
         return {'ok': True}
     except Exception:
         return {'ok': False}

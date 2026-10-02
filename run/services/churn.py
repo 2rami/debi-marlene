@@ -1,4 +1,4 @@
-"""이탈(서버 추방) 사유 수집 — Firestore churn_feedback 컬렉션.
+"""이탈(서버 추방) 사유 수집 — churn_feedback 컬렉션 (run/core/store.py).
 
 봇이 서버에서 제거될 때 owner 에게 DM 투표(Discord Poll)를 보내 사유를 모은다.
 잠든 서버 / 이탈 원인을 데이터로 파악해 리텐션 개선에 쓴다.
@@ -12,15 +12,13 @@
 Poll 은 Discord 가 서버사이드로 관리 → 컴포넌트 인터랙션이 아니므로 봇 재시작과
 무관하고 "상호작용 실패"가 발생하지 않는다.
 
-계층 분리: 데이터(Firestore) 전담. Discord 포맷팅/Poll 구성은
+계층 분리: 데이터(저장소) 전담. Discord 포맷팅/Poll 구성은
 run/views/churn_survey_view.py.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Optional
-
-from google.cloud.firestore_v1.base_query import FieldFilter
 
 from run.core import config
 
@@ -51,9 +49,7 @@ def save_churn_pending(
 
     poll_message_id 로 나중에 투표 이벤트(on_raw_poll_vote_add)와 매칭한다.
     """
-    fs = config.get_firestore_client()
-    if not fs:
-        return False
+    fs = config.get_db()
     try:
         doc = {
             "guild_id": str(guild_id),
@@ -79,20 +75,17 @@ def record_poll_vote(*, message_id, answer_id) -> bool:
 
     answer_id 는 1-based(add_answer 순서). CHURN_REASONS[answer_id-1] 로 매핑.
     multiple=True 라 한 명이 여러 번 호출될 수 있어 reasons 를 합집합으로 누적한다.
-    poll_message_id 단일 필드 인덱스만 사용(복합 인덱스 회피).
     """
     idx = (answer_id or 0) - 1
     if idx < 0 or idx >= len(CHURN_REASONS):
         return False
     value = CHURN_REASONS[idx][0]
 
-    fs = config.get_firestore_client()
-    if not fs:
-        return False
+    fs = config.get_db()
     try:
         now = datetime.now(timezone.utc).isoformat()
         col = fs.collection(CHURN_COLLECTION)
-        docs = list(col.where(filter=FieldFilter("poll_message_id", "==", str(message_id))).stream())
+        docs = list(col.where("poll_message_id", "==", str(message_id)).stream())
         if not docs:
             return False
         for d in docs:

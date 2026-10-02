@@ -48,6 +48,8 @@ def main():
     _identity = config.BOT_IDENTITY
     _label = {"debi": "Debi 솔로봇", "marlene": "Marlene 솔로봇"}.get(_identity, "데비&마를렌 봇")
     print(f"[시작] {_label}을(를) 시작합니다... (identity={_identity})", flush=True)
+    from run.core import store
+    store.wait_ready()
     try:
         run_bot()
     except KeyboardInterrupt:

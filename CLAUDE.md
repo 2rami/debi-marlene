@@ -11,6 +11,7 @@ GCP Compute Engine VM 은 2026-08-25 에 삭제됐다. Docker·Artifact Registry
 | 경로 | `/Users/nachoneko/debimarlene` |
 | 상주 | launchd LaunchDaemon `com.geono.debimarlene-{bot,dashboard,webpanel,caddy,tunnel}` |
 | 배포 | rsync 로 파일을 밀고 프로세스를 kill — KeepAlive 가 30초 안에 되살린다 |
+| 데이터 | `data/store.db` SQLite 한 파일을 봇·대시보드·웹패널이 같이 쓴다(`run/core/store.py`, Firestore 자리). 봇이 하루 한 번 `backups/store/` 에 사본, 14일 보관 |
 
 ★**재시작 수단은 kill 뿐이다.** `launchctl` 직접 조작은 LaunchDaemon 이라 root 가 필요하고
 원격 sudo 는 비번을 묻는다. 진짜로 멈춰야 할 때만 `make stop-bot`(비번 프롬프트)을 쓴다.

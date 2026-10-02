@@ -754,7 +754,7 @@ async def handle_tts_message(message: discord.Message):
             charge = await asyncio.to_thread(
                 credits_service.debit_for_tts, message.author.id, est_seconds, 'tts',
             )
-            # 크레딧 부족(insufficient)만 차단. firestore 장애 등 시스템 문제는 무료 통과.
+            # 크레딧 부족(insufficient)만 차단. 저장소 장애 등 시스템 문제는 무료 통과.
             if not charge.get('ok') and charge.get('reason') == 'insufficient':
                 try:
                     await message.channel.send(

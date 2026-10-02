@@ -22,7 +22,7 @@ class YoutubeCog(commands.Cog, name="유튜브"):
     @app_commands.command(name="설정", description="서버 설정을 관리합니다 (공지 채널, TTS, 알림, 대시보드)")
     async def settings_command(self, interaction: discord.Interaction):
         try:
-            # 응답 3초 제한 방어: 무거운 Firestore IO 전에 먼저 defer
+            # 응답 3초 제한 방어: 저장소 IO 전에 먼저 defer
             await interaction.response.defer(ephemeral=True)
 
             await log_command_usage(

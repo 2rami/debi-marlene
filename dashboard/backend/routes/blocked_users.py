@@ -5,7 +5,7 @@
 - POST   /api/servers/<guild_id>/blocked-users        body: { user_id, features: [str] }
 - DELETE /api/servers/<guild_id>/blocked-users/<user_id>
 
-services/blocklist.py 가 Firestore 트랜잭션 처리.
+services/blocklist.py 가 저장소 읽기·쓰기 처리.
 """
 
 from __future__ import annotations

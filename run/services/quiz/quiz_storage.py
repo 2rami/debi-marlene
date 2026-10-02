@@ -1,7 +1,7 @@
 """
-퀴즈 데이터 Firestore 저장소
+퀴즈 데이터 저장소 (run/core/store.py — 맥미니 로컬 SQLite)
 
-Firestore 구조:
+구조:
   quiz/global                            - { songs: [...] }            # 글로벌 곡 목록
   quiz/{guild_id}                        - { songs, leaderboard }      # 서버별
   quiz/{guild_id}/sessions/{session_id}  - 개별 세션 기록 (최근 50개 유지)
@@ -23,17 +23,14 @@ MAX_SESSIONS_PER_GUILD = 50
 
 
 def _get_fs():
-    """봇의 config 모듈 Firestore 클라이언트 재사용."""
-    from run.core.config import get_firestore_client
-    return get_firestore_client()
+    from run.core.config import get_db
+    return get_db()
 
 
 # ─────── 저수준 helper ───────
 
 def _get_global_songs() -> list:
     fs = _get_fs()
-    if not fs:
-        return []
     snap = fs.collection(QUIZ_COLLECTION).document(GLOBAL_DOC).get()
     if not snap.exists:
         return []
@@ -42,8 +39,6 @@ def _get_global_songs() -> list:
 
 def _set_global_songs(songs: list) -> bool:
     fs = _get_fs()
-    if not fs:
-        return False
     fs.collection(QUIZ_COLLECTION).document(GLOBAL_DOC).set({'songs': songs}, merge=True)
     return True
 
@@ -51,8 +46,6 @@ def _set_global_songs(songs: list) -> bool:
 def _get_guild_doc(guild_id: str) -> dict:
     """길드 문서 (songs + leaderboard). 없으면 빈 dict."""
     fs = _get_fs()
-    if not fs:
-        return {}
     snap = fs.collection(QUIZ_COLLECTION).document(str(guild_id)).get()
     if not snap.exists:
         return {}
@@ -61,8 +54,6 @@ def _get_guild_doc(guild_id: str) -> dict:
 
 def _set_guild_fields(guild_id: str, fields: dict) -> bool:
     fs = _get_fs()
-    if not fs:
-        return False
     fs.collection(QUIZ_COLLECTION).document(str(guild_id)).set(fields, merge=True)
     return True
 
@@ -70,8 +61,6 @@ def _set_guild_fields(guild_id: str, fields: dict) -> bool:
 def _list_guild_sessions(guild_id: str) -> list:
     """길드의 sessions subcollection 전체 (timestamp asc)."""
     fs = _get_fs()
-    if not fs:
-        return []
     docs = fs.collection(QUIZ_COLLECTION).document(str(guild_id)) \
         .collection(SESSIONS_SUBCOLLECTION).stream()
     sessions = [d.to_dict() for d in docs]
@@ -82,8 +71,6 @@ def _list_guild_sessions(guild_id: str) -> list:
 def _add_guild_session(guild_id: str, session_record: dict) -> bool:
     """세션 추가 + 50개 초과 시 가장 오래된 것 삭제."""
     fs = _get_fs()
-    if not fs:
-        return False
     sub = fs.collection(QUIZ_COLLECTION).document(str(guild_id)).collection(SESSIONS_SUBCOLLECTION)
     sub.document(session_record['id']).set(session_record)
 

@@ -3,7 +3,7 @@
 봇은 키를 대신 들고 부를 뿐이고 요금은 키 주인에게 청구된다. 남의 결제 수단이므로
 평문으로 두지 않는다 — DB 를 읽을 수 있는 사람이 곧 남의 카드를 쓸 수 있게 되기 때문이다.
 
-Firestore `og_keys/{user_id}`:
+저장소(run/core/store.py) `og_keys/{user_id}`:
     key_enc     Fernet 로 잠근 키 (평문은 어디에도 안 남는다)
     key_tail    화면 표시용 끝 4자. 원본 복구용이 아니라 "어느 키인지" 구분용
     created_at  등록 시각
@@ -18,9 +18,8 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
-from google.cloud import firestore  # type: ignore
-
-from run.core.config import get_firestore_client
+from run.core import store
+from run.core.config import get_db
 
 COLLECTION = 'og_keys'
 
@@ -65,14 +64,7 @@ def _fernet():
 
 
 def _doc(user_id):
-    db = get_firestore_client()
-    if db is None:
-        # 인증이 안 되면 클라이언트가 None 으로 온다. 그대로 두면 한참 뒤에
-        # AttributeError 로 터져서 원인이 안 보인다.
-        raise KeyVaultError(
-            'Firestore 에 연결하지 못했습니다. GOOGLE_APPLICATION_CREDENTIALS 를 확인하세요.'
-        )
-    return db.collection(COLLECTION).document(str(user_id))
+    return get_db().collection(COLLECTION).document(str(user_id))
 
 
 def save_key(user_id, api_key: str) -> dict:
@@ -139,7 +131,7 @@ def record_use(user_id) -> None:
     """호출 1건 기록. 실패해도 그림 생성 자체를 막지는 않는다."""
     try:
         _doc(user_id).update({
-            'calls': firestore.Increment(1),
+            'calls': store.Increment(1),
             'last_used': datetime.now(timezone.utc),
         })
     except Exception:

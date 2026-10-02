@@ -2,7 +2,7 @@
 Quiz Dashboard Routes
 
 퀴즈 통계/랭킹 조회 및 곡 목록 CRUD API.
-저장소는 run.services.quiz.quiz_storage (Firestore) 를 통해 통일.
+저장소는 run.services.quiz.quiz_storage (로컬 SQLite) 를 통해 통일.
 """
 
 import logging

@@ -61,7 +61,7 @@ def get_gcs_client():
     return gcs_client if gcs_client != False else None
 
 def load_gcs_settings():
-    """[Firestore swap 2026-04-27] settings 를 로드. 함수명은 레거시 유지, 실제 백엔드는 config 모듈이 결정 (Firestore primary, GCS fallback)."""
+    """settings 를 로드. 함수명은 레거시 유지, 실제 백엔드는 config 모듈이 결정 (로컬 SQLite primary, GCS fallback)."""
     try:
         return bot_config.load_settings()
     except Exception as e:
@@ -69,9 +69,9 @@ def load_gcs_settings():
         return {"guilds": {}, "users": {}, "global": {}}
 
 def save_gcs_settings(settings):
-    """[Firestore swap 2026-04-27] settings 를 저장. 함수명은 레거시 유지, 실제 백엔드는 config 모듈이 결정.
+    """settings 를 저장. 함수명은 레거시 유지, 실제 백엔드는 config 모듈이 결정.
 
-    여기를 호출하면 봇이 쓰는 같은 백엔드(Firestore)로 들어가 dashboard split-brain 해소.
+    여기를 호출하면 봇이 쓰는 같은 백엔드(로컬 SQLite)로 들어가 dashboard split-brain 해소.
     """
     try:
         return bot_config.save_settings(settings)

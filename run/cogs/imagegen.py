@@ -39,9 +39,14 @@ class ImageGenCog(commands.Cog, name="그림"):
         return [app_commands.Choice(name=c['name'], value=c['name']) for c in hits]
 
     @app_commands.command(name="그림", description="이터널리턴 캐릭터를 원하는 장면으로 그려요")
-    @app_commands.describe(캐릭터="그릴 캐릭터", 요청="어떤 장면으로 그릴지 (예: 비 오는 밤 우산 쓴 모습)")
+    @app_commands.describe(캐릭터="그릴 캐릭터", 요청="어떤 장면으로 그릴지 (예: 비 오는 밤 우산 쓴 모습)",
+                           속도="빠름(기본)=flare, 정밀=sunburst — 세밀한 편집이 필요할 때, 대신 오래 걸려요")
+    @app_commands.choices(속도=[app_commands.Choice(name='빠름 (기본)', value='flare'),
+                             app_commands.Choice(name='정밀 (오래 걸림)', value='sunburst')])
     @app_commands.autocomplete(캐릭터=character_autocomplete)
-    async def draw(self, interaction: discord.Interaction, 캐릭터: str, 요청: str):
+    async def draw(self, interaction: discord.Interaction, 캐릭터: str, 요청: str,
+                   속도: app_commands.Choice[str] | None = None):
+        variant = 속도.value if 속도 else 'flare'
         user_id = interaction.user.id
 
         # 연결 안내는 남에게 보일 이유가 없다
@@ -70,7 +75,7 @@ class ImageGenCog(commands.Cog, name="그림"):
 
             skin = character['skins'][0]  # 기본 스킨. 스킨 선택은 다음 단계
             reference = await chars_svc.get_reference_image(skin['image_url'])
-            png = await generate_image(api_key, reference, 요청)
+            png = await generate_image(api_key, reference, 요청, variant=variant)
 
             await loop.run_in_executor(None, og_keys.record_use, user_id)
             status = await loop.run_in_executor(None, og_keys.get_status, user_id)

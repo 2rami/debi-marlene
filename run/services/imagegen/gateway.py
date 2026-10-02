@@ -15,10 +15,15 @@ import aiohttp
 
 OG_HOST = 'https://apis.opengateway.ai'
 
-# 앞엣것부터 쓴다. 2.5 는 편집 정밀도가 올라가고 단가는 gpt-image-2 와 같아서
-# 게이트웨이에 올라오는 대로 저절로 갈아타게 둔다(2026-09-10 현재 dev 에만 있다).
-# 정밀 편집이 더 필요하면 sunburst 로 바꾼다 — 값은 같고 대신 더 오래 걸린다.
-MODEL_PREFERENCE = ('openai/gpt-image-2.5-flare', 'openai/gpt-image-2')
+# 앞엣것부터 쓴다. 2.5 는 둘 — flare(기본·빠름: gpt-image-2 보다 좋고 지연 절반) /
+# sunburst(정밀: 편집 통제력, 대신 오래 걸림). 단가는 같다(OpenAI 2026-09-08).
+# /그림 의 「속도」 옵션이 고른다(거노 지시 2026-09-10). 게이트웨이에 없으면 뒤로 내려간다.
+VARIANTS = {
+    'flare': ('openai/gpt-image-2.5-flare', 'openai/gpt-image-2'),
+    'sunburst': ('openai/gpt-image-2.5-sunburst', 'openai/gpt-image-2.5-flare', 'openai/gpt-image-2'),
+}
+DEFAULT_VARIANT = 'flare'
+MODEL_PREFERENCE = VARIANTS[DEFAULT_VARIANT]
 
 # 고른 모델은 프로세스 안에 잠시 담아 둔다. TTL 을 두는 이유는 새 모델이 게이트웨이에
 # 올라왔을 때 봇을 재시작하지 않고도 넘어가기 위해서다.
@@ -48,15 +53,16 @@ class ImageGenError(Exception):
         self.retryable = retryable
 
 
-async def resolve_model() -> str:
+async def resolve_model(variant: str = DEFAULT_VARIANT) -> str:
     """게이트웨이가 실제로 서빙하는 모델 중 가장 앞선 것을 고른다.
 
     없는 모델을 보내면 게이트웨이가 상류에 가기도 전에 400 `model_not_found` 를 주는데,
     그 문구가 "권한이 없다" 로 읽혀 원인을 엉뚱한 데서 찾게 된다. 그래서 부르기 전에
     목록으로 확인한다 — `/v1/models` 는 인증을 안 봐서 키 없이도 200 이라 공짜다.
     """
+    prefs = VARIANTS.get(variant, MODEL_PREFERENCE)
     now = time.monotonic()
-    cached = _model_cache['id']
+    cached = _model_cache.get(variant)
     if cached and now - float(_model_cache['at']) < _MODEL_TTL_SEC:
         return str(cached)
 
@@ -73,8 +79,8 @@ async def resolve_model() -> str:
         # 목록을 못 봤다고 그림까지 막을 이유는 없다. 늘 있던 모델로 간다.
         served = set()
 
-    chosen = next((m for m in MODEL_PREFERENCE if m in served), MODEL_PREFERENCE[-1])
-    _model_cache['id'] = chosen
+    chosen = next((m for m in prefs if m in served), prefs[-1])
+    _model_cache[variant] = chosen
     _model_cache['at'] = now
     return chosen
 
@@ -118,9 +124,10 @@ async def generate_image(
     *,
     size: str = '1024x1024',
     quality: str = 'high',
+    variant: str = DEFAULT_VARIANT,
 ) -> bytes:
     """PNG 바이트를 돌려준다. 실패는 ImageGenError 로 올린다."""
-    model = await resolve_model()
+    model = await resolve_model(variant)
 
     form = aiohttp.FormData()
     # filename·MIME 이 없으면 게이트웨이가 400 을 준다(파트 형식 검증)

@@ -6,7 +6,7 @@ import LegalLayout, { Section } from '../components/legal/LegalLayout'
  */
 export default function Privacy() {
   return (
-    <LegalLayout active="privacy" title="개인정보처리방침" updated="2026년 9월 5일">
+    <LegalLayout active="privacy" title="개인정보처리방침" updated="2026년 10월 2일">
       <div className="space-y-8 text-discord-muted leading-relaxed">
         <Section title="1. 수집하는 개인정보의 항목">
           <p className="mb-3">봇과 대시보드는 원활한 기능 제공을 위해 다음과 같은 최소한의 정보를 취급합니다:</p>
@@ -70,7 +70,7 @@ export default function Privacy() {
                 <li><span className="text-white">방문 통계·광고</span>: Google (Analytics, AdSense)</li>
               </ul>
             </li>
-            <li>서버 설정·크레딧 기록 등은 Google Cloud Firestore와 Google Cloud Storage에 저장되며, 접근 권한은 운영자에게 한정됩니다.</li>
+            <li>서버 설정·크레딧 기록 등은 운영자가 직접 관리하는 자체 서버에 저장되며(환영 이미지 등 일부 파일은 Google Cloud Storage), 접근 권한은 운영자에게 한정됩니다.</li>
           </ul>
         </Section>
 

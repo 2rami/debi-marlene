@@ -1,5 +1,6 @@
 import os
 import json
+import hashlib
 import time
 import threading
 from dotenv import load_dotenv
@@ -54,6 +55,14 @@ _cache_lock = threading.Lock()
 _listeners_active = False
 _listener_watches = []  # unsubscribe 용 핸들 보관
 _first_snapshot_event = threading.Event()  # 첫 동기화 완료 대기
+# 리스너가 받은 서버 문서의 지문. load_settings() 가 얕은 복사라 캐시 dict 는 호출부가
+# 제자리에서 고치므로 캐시와 비교하면 늘 같다고 나온다 — 받은 순간의 지문을 따로 든다.
+_fs_doc_fingerprints = {}
+
+
+def _doc_fingerprint(data):
+    raw = json.dumps(data, sort_keys=True, default=str, ensure_ascii=False)
+    return hashlib.sha1(raw.encode('utf-8')).hexdigest()
 
 
 # ───────────────────── 클라이언트 초기화 ─────────────────────
@@ -157,6 +166,17 @@ def _fs_save_all_settings(settings):
         for uid, udata in users.items():
             if isinstance(udata, dict):
                 all_ops.append(('users', str(uid), udata))
+
+        # 통째로 다시 쓰면 5분 통계 저장마다 문서 ~460개가 나가 2026-09 에 쓰기 593만 건,
+        # 리스너 재전송 43GiB 가 청구됐다. 서버 상태를 리스너로 받고 있을 때만 바뀐 문서를
+        # 가려낼 수 있다 — 리스너가 없는 프로세스(대시보드·웹패널)는 예전처럼 전부 쓴다.
+        if _listeners_active:
+            with _cache_lock:
+                known = dict(_fs_doc_fingerprints)
+            all_ops = [
+                op for op in all_ops
+                if known.get((op[0], op[1])) != _doc_fingerprint(op[2])
+            ]
 
         # 500 op 단위 batch 분할 (set with merge)
         for i in range(0, len(all_ops), 450):
@@ -291,8 +311,11 @@ def _on_guilds_snapshot(col_snapshot, changes, read_time):
             doc_id = change.document.id
             if change.type.name == 'REMOVED':
                 guilds.pop(doc_id, None)
+                _fs_doc_fingerprints.pop(('guilds', doc_id), None)
             else:  # ADDED, MODIFIED
-                guilds[doc_id] = change.document.to_dict() or {}
+                data = change.document.to_dict() or {}
+                guilds[doc_id] = data
+                _fs_doc_fingerprints[('guilds', doc_id)] = _doc_fingerprint(data)
     _first_snapshot_event.set()
 
 
@@ -306,8 +329,11 @@ def _on_users_snapshot(col_snapshot, changes, read_time):
             doc_id = change.document.id
             if change.type.name == 'REMOVED':
                 users.pop(doc_id, None)
+                _fs_doc_fingerprints.pop(('users', doc_id), None)
             else:
-                users[doc_id] = change.document.to_dict() or {}
+                data = change.document.to_dict() or {}
+                users[doc_id] = data
+                _fs_doc_fingerprints[('users', doc_id)] = _doc_fingerprint(data)
 
 
 def _on_global_snapshot(doc_snapshot, changes, read_time):

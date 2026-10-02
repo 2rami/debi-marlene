@@ -290,7 +290,6 @@ async def update_server_info_to_gcs():
                         '멤버수': server['member_count'],
                         '가입일': server['joined_at'],
                         '상태': server['status'],
-                        '마지막_업데이트': datetime.now().isoformat()
                     })
 
             config.save_settings(current_settings, silent=True)
